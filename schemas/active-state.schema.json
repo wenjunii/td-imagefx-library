@@ -1,0 +1,216 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "active-state.schema.json",
+  "title": "TD ImageFX Active State",
+  "description": "Atomic runtime selection of active package versions and staged activation requests.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "updated_at",
+    "revision",
+    "last_good_revision",
+    "active_packages",
+    "pending_activations"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "last_good_revision": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "active_packages": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/active_package"
+      }
+    },
+    "pending_activations": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/pending_activation"
+      }
+    }
+  },
+  "$defs": {
+    "package_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+      "maxLength": 180
+    },
+    "semver": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$"
+    },
+    "version_or_null": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/semver"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "entrypoints": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "shader": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 2048
+        },
+        "touchdesigner_component": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 2048
+        },
+        "native_plugin": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 2048
+        }
+      }
+    },
+    "active_package": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "version",
+        "previous_version",
+        "install_path",
+        "manifest_path",
+        "entrypoints",
+        "status",
+        "activated_at",
+        "restart_required",
+        "last_error"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/package_id"
+        },
+        "version": {
+          "$ref": "#/$defs/semver"
+        },
+        "previous_version": {
+          "$ref": "#/$defs/version_or_null"
+        },
+        "install_path": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048
+        },
+        "manifest_path": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048
+        },
+        "entrypoints": {
+          "$ref": "#/$defs/entrypoints"
+        },
+        "status": {
+          "enum": [
+            "active",
+            "disabled",
+            "error",
+            "pending_restart"
+          ]
+        },
+        "activated_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "restart_required": {
+          "type": "boolean"
+        },
+        "last_error": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 4000
+        }
+      }
+    },
+    "pending_activation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "from_version",
+        "to_version",
+        "staged_path",
+        "requested_at",
+        "reason",
+        "requires_restart",
+        "status",
+        "last_error"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/package_id"
+        },
+        "from_version": {
+          "$ref": "#/$defs/version_or_null"
+        },
+        "to_version": {
+          "$ref": "#/$defs/semver"
+        },
+        "staged_path": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048
+        },
+        "requested_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "reason": {
+          "enum": [
+            "install",
+            "update",
+            "rollback",
+            "repair"
+          ]
+        },
+        "requires_restart": {
+          "type": "boolean"
+        },
+        "status": {
+          "enum": [
+            "staged",
+            "awaiting_approval",
+            "awaiting_restart",
+            "failed"
+          ]
+        },
+        "last_error": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 4000
+        }
+      }
+    }
+  }
+}

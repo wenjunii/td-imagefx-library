@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=65"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tdimagefx"
+version = "0.1.0"
+description = "Safe, zero-runtime-dependency package core for a TouchDesigner image FX library"
+requires-python = ">=3.11"
+dependencies = []
+license = {text = "MIT"}
+authors = [{name = "Wenjun II"}]
+
+[project.scripts]
+tdimagefx = "tdimagefx.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]

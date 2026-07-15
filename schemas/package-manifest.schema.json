@@ -1,0 +1,523 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "package-manifest.schema.json",
+  "title": "TD ImageFX Package Manifest",
+  "description": "Describes one immutable, versioned TouchDesigner ImageFX package.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "id",
+    "name",
+    "version",
+    "fx_api",
+    "kind",
+    "category",
+    "channel",
+    "description",
+    "publisher",
+    "license",
+    "entrypoints",
+    "inputs",
+    "outputs",
+    "parameters",
+    "compatibility",
+    "permissions",
+    "dependencies",
+    "alpha_policy",
+    "resolution_policy",
+    "stateful",
+    "tags"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "id": {
+      "$ref": "#/$defs/package_id"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120
+    },
+    "version": {
+      "$ref": "#/$defs/semver"
+    },
+    "fx_api": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+(?:\\.[0-9]+)?$"
+    },
+    "kind": {
+      "enum": [
+        "effect",
+        "shader",
+        "plugin",
+        "technique",
+        "adapter",
+        "preset",
+        "modulator",
+        "example",
+        "core"
+      ]
+    },
+    "category": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+      "maxLength": 80
+    },
+    "channel": {
+      "$ref": "#/$defs/channel"
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000
+    },
+    "publisher": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "license": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100
+    },
+    "entrypoints": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "shader",
+        "touchdesigner_component"
+      ],
+      "properties": {
+        "shader": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/relative_path"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "touchdesigner_component": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/relative_path"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "native_plugin": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/relative_path"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "anyOf": [
+        {
+          "properties": {
+            "shader": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "properties": {
+            "touchdesigner_component": {
+              "type": "string"
+            }
+          }
+        },
+        {
+          "required": [
+            "native_plugin"
+          ],
+          "properties": {
+            "native_plugin": {
+              "type": "string"
+            }
+          }
+        }
+      ]
+    },
+    "inputs": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/port"
+      }
+    },
+    "outputs": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/port"
+      }
+    },
+    "parameters": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/parameter"
+      }
+    },
+    "compatibility": {
+      "$ref": "#/$defs/compatibility"
+    },
+    "permissions": {
+      "$ref": "#/$defs/permissions"
+    },
+    "dependencies": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/dependency"
+      }
+    },
+    "alpha_policy": {
+      "enum": [
+        "preserve",
+        "process",
+        "blend",
+        "replace",
+        "force_opaque",
+        "premultiply",
+        "unpremultiply",
+        "configurable"
+      ]
+    },
+    "resolution_policy": {
+      "enum": [
+        "input",
+        "first_input",
+        "fixed",
+        "scale",
+        "custom",
+        "dynamic"
+      ]
+    },
+    "stateful": {
+      "type": "boolean"
+    },
+    "tags": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+        "maxLength": 60
+      }
+    }
+  },
+  "$defs": {
+    "package_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+      "maxLength": 180
+    },
+    "semver": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$"
+    },
+    "channel": {
+      "enum": [
+        "stable",
+        "beta",
+        "experimental"
+      ]
+    },
+    "relative_path": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "pattern": "^(?!/)(?![A-Za-z]:[\\\\/])(?!.*(?:^|/)\\.\\.(?:/|$)).+$"
+    },
+    "build": {
+      "anyOf": [
+        {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        {
+          "type": "string",
+          "pattern": "^[0-9]+(?:\\.[0-9]+)+$"
+        }
+      ]
+    },
+    "port": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "family"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "maxLength": 80
+        },
+        "family": {
+          "enum": [
+            "TOP",
+            "CHOP",
+            "SOP",
+            "DAT"
+          ]
+        },
+        "required": {
+          "type": "boolean",
+          "default": false
+        },
+        "semantic": {
+          "type": "string",
+          "maxLength": 80
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 500
+        }
+      }
+    },
+    "parameter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "type",
+        "default"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "maxLength": 80
+        },
+        "name": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Za-z0-9_]*$",
+          "maxLength": 80
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "type": {
+          "enum": [
+            "float",
+            "int",
+            "toggle",
+            "pulse",
+            "string",
+            "menu",
+            "rgb",
+            "rgba",
+            "xy",
+            "xyz",
+            "uv",
+            "file",
+            "folder",
+            "operator"
+          ]
+        },
+        "default": true,
+        "min": {
+          "type": "number"
+        },
+        "max": {
+          "type": "number"
+        },
+        "norm_min": {
+          "type": "number"
+        },
+        "norm_max": {
+          "type": "number"
+        },
+        "clamp_min": {
+          "type": "boolean"
+        },
+        "clamp_max": {
+          "type": "boolean"
+        },
+        "uniform": {
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]*$",
+          "maxLength": 120
+        },
+        "page": {
+          "type": "string",
+          "maxLength": 80
+        },
+        "unit": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 1000
+        },
+        "animatable": {
+          "type": "boolean",
+          "default": true
+        },
+        "choices": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "value",
+              "label"
+            ],
+            "properties": {
+              "value": {
+                "type": [
+                  "string",
+                  "number",
+                  "integer"
+                ]
+              },
+              "label": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 120
+              }
+            }
+          }
+        }
+      }
+    },
+    "compatibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "touchdesigner_min_build",
+        "touchdesigner_max_build",
+        "os",
+        "architectures"
+      ],
+      "properties": {
+        "touchdesigner_min_build": {
+          "$ref": "#/$defs/build"
+        },
+        "touchdesigner_max_build": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/build"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "os": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "windows",
+              "macos"
+            ]
+          }
+        },
+        "architectures": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "x86_64",
+              "arm64"
+            ]
+          }
+        }
+      }
+    },
+    "permissions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "python",
+        "filesystem",
+        "network",
+        "subprocess"
+      ],
+      "properties": {
+        "python": {
+          "type": "boolean"
+        },
+        "filesystem": {
+          "type": "boolean"
+        },
+        "network": {
+          "type": "boolean"
+        },
+        "subprocess": {
+          "type": "boolean"
+        },
+        "native_code": {
+          "type": "boolean",
+          "default": false
+        },
+        "device_access": {
+          "type": "boolean",
+          "default": false
+        },
+        "network_domains": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 253
+          }
+        },
+        "filesystem_paths": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024
+          }
+        }
+      }
+    },
+    "dependency": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "version"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/package_id"
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "optional": {
+          "type": "boolean",
+          "default": false
+        },
+        "reason": {
+          "type": "string",
+          "maxLength": 500
+        }
+      }
+    }
+  }
+}

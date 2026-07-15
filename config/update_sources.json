@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "sources": [
+    {
+      "id": "tdimagefx.local",
+      "name": "Bundled TD ImageFX Feed",
+      "url": "registry/update-feed.local.json",
+      "enabled": true,
+      "trust": "first_party",
+      "auto_stage": false,
+      "auto_activate": false
+    }
+  ]
+}

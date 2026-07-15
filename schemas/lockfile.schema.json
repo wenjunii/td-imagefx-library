@@ -1,0 +1,148 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "lockfile.schema.json",
+  "title": "TD ImageFX Project Lockfile",
+  "description": "Exact package release pins needed to reproduce a project's effect graph.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "generated_at",
+    "fx_api",
+    "touchdesigner_build",
+    "packages"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "project_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "fx_api": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+(?:\\.[0-9]+)?$"
+    },
+    "touchdesigner_build": {
+      "anyOf": [
+        {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        {
+          "type": "string",
+          "pattern": "^[0-9]+(?:\\.[0-9]+)+$"
+        }
+      ]
+    },
+    "packages": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/locked_package"
+      }
+    }
+  },
+  "$defs": {
+    "package_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+      "maxLength": 180
+    },
+    "semver": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$"
+    },
+    "sha256_or_null": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[A-Fa-f0-9]{64}$"
+    },
+    "locked_package": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "version",
+        "kind",
+        "channel",
+        "source_feed",
+        "manifest_sha256",
+        "artifact_sha256",
+        "requested",
+        "dependencies"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/package_id"
+        },
+        "version": {
+          "$ref": "#/$defs/semver"
+        },
+        "kind": {
+          "enum": [
+            "effect",
+            "shader",
+            "plugin",
+            "technique",
+            "adapter",
+            "preset",
+            "modulator",
+            "example",
+            "core"
+          ]
+        },
+        "channel": {
+          "enum": [
+            "stable",
+            "beta",
+            "experimental"
+          ]
+        },
+        "source_feed": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uri"
+        },
+        "manifest_sha256": {
+          "$ref": "#/$defs/sha256_or_null"
+        },
+        "artifact_sha256": {
+          "$ref": "#/$defs/sha256_or_null"
+        },
+        "requested": {
+          "type": "boolean",
+          "description": "True for a direct project dependency; false for a transitive dependency."
+        },
+        "dependencies": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "version"
+            ],
+            "properties": {
+              "id": {
+                "$ref": "#/$defs/package_id"
+              },
+              "version": {
+                "$ref": "#/$defs/semver"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

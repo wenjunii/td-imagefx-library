@@ -1,0 +1,199 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "local-registry.schema.json",
+  "title": "TD ImageFX Local Registry",
+  "description": "Inventory of package versions installed in one local TD ImageFX library.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "updated_at",
+    "library_root",
+    "packages"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "library_root": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048
+    },
+    "packages": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/package_record"
+      }
+    }
+  },
+  "$defs": {
+    "package_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+      "maxLength": 180
+    },
+    "semver": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[A-Fa-f0-9]{64}$"
+    },
+    "package_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "installed_versions"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/package_id"
+        },
+        "installed_versions": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/installed_version"
+          }
+        }
+      }
+    },
+    "installed_version": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "install_path",
+        "manifest_path",
+        "installed_at",
+        "source",
+        "integrity",
+        "status"
+      ],
+      "properties": {
+        "version": {
+          "$ref": "#/$defs/semver"
+        },
+        "install_path": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048
+        },
+        "manifest_path": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048
+        },
+        "installed_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "source": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "type"
+          ],
+          "properties": {
+            "type": {
+              "enum": [
+                "bundled",
+                "feed",
+                "local"
+              ]
+            },
+            "feed_url": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uri"
+            },
+            "artifact_url": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uri"
+            }
+          }
+        },
+        "integrity": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "manifest_sha256",
+            "artifact_sha256",
+            "verification"
+          ],
+          "properties": {
+            "manifest_sha256": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/sha256"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "artifact_sha256": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/sha256"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "verification": {
+              "enum": [
+                "verified",
+                "unverified",
+                "failed"
+              ]
+            },
+            "signature_key_id": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "maxLength": 200
+            }
+          }
+        },
+        "status": {
+          "enum": [
+            "staged",
+            "ready",
+            "broken",
+            "quarantined",
+            "pending_delete"
+          ]
+        },
+        "last_checked_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "error": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 4000
+        }
+      }
+    }
+  }
+}
