@@ -2,6 +2,19 @@
 
 All notable changes to TD ImageFX Library are recorded here. Package versions follow Semantic Versioning; package manifest schema and effect API compatibility are versioned independently.
 
+## [Unreleased]
+
+### Added
+
+- Dependency-free `tools/verify_repository.py` checks for tests, Python compilation, manifests, feeds, entrypoints, native artifacts, and version consistency.
+- GitHub Actions verification using the same local command.
+- First-party public HTTPS update feed configuration for notification-only discovery.
+
+### Changed
+
+- Expanded the README with clone, rack, updater, verification, and public-repository guidance.
+- TouchDesigner build completion output now includes the generated report path.
+
 ## [0.1.0] - 2026-07-15
 
 ### Added

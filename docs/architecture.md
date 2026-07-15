@@ -77,7 +77,7 @@ It does not decide that an update is trustworthy and does not rewrite a project 
 
 ### Presentation layer
 
-The eventual library browser and FX Rack are consumers of the registry and lock resolver. They should provide search, preview, categories, favorites, presets, reorderable slots, wet/dry mixing, modulation routing, performance estimates, and update status. Their UI state is not package truth; it can always be rebuilt from manifests, installed state, and the project lock.
+The shipped four-slot FX Rack and the eventual library browser are consumers of the registry and lock resolver. The rack already provides package selection, ordered slots, bypass, wet/dry mixing, and shared animation time. Future presentation work should add search, previews, categories, favorites, presets, modulation routing, performance estimates, and richer update status. UI state is not package truth; it can always be rebuilt from manifests, installed state, and the project lock.
 
 ## State boundaries
 

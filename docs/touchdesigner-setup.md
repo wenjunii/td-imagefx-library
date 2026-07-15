@@ -46,7 +46,7 @@ The project remains source-first: its builder runs inside TouchDesigner and recr
 1. Save the `.toe` into its own project folder.
 2. Record the TouchDesigner build and GPU/driver details.
 3. Copy or clone this repository to a stable path with no cloud-sync rewrite in progress.
-4. Validate package manifests and tests with the repository tooling before importing content.
+4. Run `python tools/verify_repository.py` to validate tests, manifests, feeds, entrypoints, native assets, and version metadata before importing content.
 5. Start a blank TouchDesigner project. The builder refuses to overwrite existing `/project1/td_imagefx` or `/project1/imagefx_demo` nodes.
 6. Open TouchDesigner's Textport, replace the example path below with the absolute path to this checkout, and execute it:
 
@@ -71,7 +71,7 @@ The builder creates:
 
 Generated nodes are intentionally owned under two paths only. Re-run the builder in a fresh blank project or remove/rename a previous generated tree deliberately; it fails instead of overwriting those nodes.
 
-The standalone CLI requires Python 3.11 or newer. From the repository root, run `python -m pip install -e .`, then `tdimagefx --help`. Do not copy undocumented commands into show automation—CLI help and tests are authoritative while the foundation API settles.
+The dependency-free verifier requires Python 3.11 or newer and runs directly with `python tools/verify_repository.py`. An editable CLI install is optional: run `python -m pip install -e .`, then `tdimagefx --help`. Do not copy undocumented commands into show automation—CLI help and tests are authoritative while the foundation API settles.
 
 ## Minimal image chain
 

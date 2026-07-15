@@ -6,6 +6,9 @@ Run from TouchDesigner's Textport:
     exec(compile(open(script, encoding="utf-8").read(), script, "exec"),
          {"__file__": script, "__name__": "__main__"})
 
+Before rebuilding, run ``python tools/verify_repository.py`` from the checkout
+to validate source files, manifests, feeds, entrypoints, and version metadata.
+
 The script only creates or updates operators inside ``/project1/td_imagefx`` and
 ``/project1/imagefx_demo``. Package source files remain text-first on disk.
 """
@@ -538,7 +541,14 @@ def build():
         report_path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
         raise
     report_path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
-    debug("TD ImageFX build complete", str(PROJECT_PATH), "effects", len(report["effects"]))
+    debug(
+        "TD ImageFX build complete",
+        str(PROJECT_PATH),
+        "effects",
+        len(report["effects"]),
+        "report",
+        str(report_path),
+    )
     return report
 
 

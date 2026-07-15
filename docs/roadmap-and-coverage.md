@@ -61,14 +61,14 @@ This set deliberately tests several contract shapes: direct color transforms, UV
 
 ## Release roadmap
 
-### 0.2 — usable TouchDesigner shelf
+### 0.2 — expand the usable TouchDesigner shelf
 
-- Build and verify reusable effect COMPs for the starter packages.
+- Expand testing and portability coverage for the reusable effect COMPs shipped in v0.1.0.
 - Add a searchable palette/browser with previews and compatibility badges.
-- Provide a small FX Rack with ordered slots, bypass, common mix, and preset save/load.
+- Extend the shipped four-slot FX Rack with reordering and preset save/load.
 - Add modulation inputs for LFO, noise, audio level/spectrum, MIDI, and OSC examples.
 - Add visual regression fixtures for alpha, aspect ratio, color ramps, and edge behavior.
-- Exercise updater checks against a local fixture feed before enabling any remote default.
+- Exercise the public notification feed in CI and retain the local fixture for offline checks.
 
 ### 0.3 — temporal and compositing breadth
 

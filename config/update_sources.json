@@ -2,10 +2,19 @@
   "schema_version": 1,
   "sources": [
     {
+      "id": "tdimagefx.github.stable",
+      "name": "TD ImageFX GitHub Stable Feed",
+      "url": "https://raw.githubusercontent.com/wenjunii/td-imagefx-library/main/registry/update-feed.json",
+      "enabled": true,
+      "trust": "first_party",
+      "auto_stage": false,
+      "auto_activate": false
+    },
+    {
       "id": "tdimagefx.local",
       "name": "Bundled TD ImageFX Feed",
       "url": "registry/update-feed.local.json",
-      "enabled": true,
+      "enabled": false,
       "trust": "first_party",
       "auto_stage": false,
       "auto_activate": false

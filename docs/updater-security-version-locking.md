@@ -47,7 +47,9 @@ Checking, downloading, installing, activating, and migrating a project lock are 
 - Update checks are never performed on the render/cook critical path.
 - No telemetry is required for update checking; avoid sending project names, media paths, package locks, or hardware identifiers beyond an ordinary client version string.
 
-The v0.1.0 TouchDesigner extension reads source configuration from `config/update_sources.json` at the configured library root. The checkout enables an empty bundled `registry/update-feed.local.json` so the offline check path can be exercised without contacting the internet. A minimal remote studio configuration has this shape:
+The v0.1.0 TouchDesigner extension reads source configuration from `config/update_sources.json` at the configured library root. The checkout enables the first-party public feed at `https://raw.githubusercontent.com/wenjunii/td-imagefx-library/main/registry/update-feed.json`. The feed is deliberately empty for the bundled v0.1.0 catalog and is intended for curated, versioned entries in later releases. Checks send an ordinary client user-agent only; they do not send project, media, lockfile, or hardware data.
+
+The bundled `registry/update-feed.local.json` remains available for offline testing. To prevent network checks, disable `tdimagefx.github.stable` and enable `tdimagefx.local` in `config/update_sources.json`. A separate remote studio configuration has this shape:
 
 ```json
 {
@@ -61,7 +63,7 @@ The v0.1.0 TouchDesigner extension reads source configuration from `config/updat
 }
 ```
 
-Replace the example with a feed you control and trust. With no enabled sources, automatic checks are harmless and report that there is nothing configured. The component's `Channel`, `Timeout`, `Autocheck`, and `Intervalhours` parameters control selection and scheduling; turning `Autocheck` off invalidates pending scheduled checks, and changing the interval reschedules the next check. Checks stay notification-only.
+Replace the example with a feed you control and trust. With no enabled sources, automatic checks are harmless and report that there is nothing configured. The component's `Channel`, `Timeout`, `Autocheck`, and `Intervalhours` parameters control selection and scheduling; turning `Autocheck` off invalidates pending scheduled checks, and changing the interval reschedules the next check. Checks stay notification-only. Updating the Git checkout itself is a separate, manual review step.
 
 ## Verification requirements
 

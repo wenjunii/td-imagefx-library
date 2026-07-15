@@ -6,10 +6,16 @@ build-backend = "setuptools.build_meta"
 name = "tdimagefx"
 version = "0.1.0"
 description = "Safe, zero-runtime-dependency package core for a TouchDesigner image FX library"
+readme = "README.md"
 requires-python = ">=3.11"
 dependencies = []
 license = {text = "MIT"}
 authors = [{name = "Wenjun II"}]
+
+[project.urls]
+Repository = "https://github.com/wenjunii/td-imagefx-library"
+Issues = "https://github.com/wenjunii/td-imagefx-library/issues"
+Documentation = "https://github.com/wenjunii/td-imagefx-library/tree/main/docs"
 
 [project.scripts]
 tdimagefx = "tdimagefx.cli:main"
