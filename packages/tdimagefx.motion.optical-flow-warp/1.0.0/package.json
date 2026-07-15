@@ -1,0 +1,122 @@
+{
+  "schema_version": 1,
+  "id": "tdimagefx.motion.optical-flow-warp",
+  "name": "Optical Flow Warp",
+  "version": "1.0.0",
+  "fx_api": "1.0",
+  "kind": "effect",
+  "category": "motion",
+  "channel": "stable",
+  "description": "Warps an image with a supplied optical-flow texture; flow estimation is intentionally external.",
+  "publisher": "TD ImageFX Library",
+  "license": "MIT",
+  "entrypoints": {
+    "shader": "shaders/optical_flow_warp.frag",
+    "touchdesigner_component": "tox/tdimagefx_motion_optical_flow_warp.tox"
+  },
+  "inputs": [
+    {
+      "id": "image",
+      "family": "TOP",
+      "required": true,
+      "semantic": "source"
+    },
+    {
+      "id": "flow",
+      "family": "TOP",
+      "required": true,
+      "semantic": "optical-flow"
+    }
+  ],
+  "outputs": [
+    {
+      "id": "image",
+      "family": "TOP"
+    }
+  ],
+  "parameters": [
+    {
+      "id": "enable",
+      "name": "Enable",
+      "type": "toggle",
+      "default": true
+    },
+    {
+      "id": "mix",
+      "name": "Mix",
+      "type": "float",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 1.0,
+      "uniform": "uMix"
+    },
+    {
+      "id": "scale",
+      "name": "Scale",
+      "type": "float",
+      "default": 0.04,
+      "min": -0.5,
+      "max": 0.5,
+      "uniform": "uScale"
+    },
+    {
+      "id": "confidence",
+      "name": "Confidence",
+      "type": "float",
+      "default": 1,
+      "min": 0,
+      "max": 1,
+      "uniform": "uConfidence"
+    },
+    {
+      "id": "flip_y",
+      "name": "Flipy",
+      "type": "float",
+      "default": 0,
+      "min": 0,
+      "max": 1,
+      "uniform": "uFlipY"
+    }
+  ],
+  "compatibility": {
+    "touchdesigner_min_build": 2022.2,
+    "touchdesigner_max_build": null,
+    "os": [
+      "windows",
+      "macos"
+    ],
+    "architectures": [
+      "x86_64",
+      "arm64"
+    ]
+  },
+  "permissions": {
+    "python": false,
+    "filesystem": false,
+    "network": false,
+    "subprocess": false
+  },
+  "dependencies": [],
+  "alpha_policy": "preserve",
+  "resolution_policy": "input",
+  "stateful": false,
+  "tags": [
+    "optical-flow",
+    "motion",
+    "warp",
+    "external-input"
+  ],
+  "processing": {
+    "model": "single_pass",
+    "gpu_cost": "medium",
+    "capabilities": [
+      "second_input",
+      "flow",
+      "displacement"
+    ],
+    "passes": [
+      "shaders/optical_flow_warp.frag"
+    ],
+    "history_frames": 0
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "id": "tdimagefx.distort.polar-coordinates",
+  "name": "Polar Coordinates",
+  "version": "1.0.0",
+  "fx_api": "1.0",
+  "kind": "effect",
+  "category": "distortion",
+  "channel": "stable",
+  "description": "Remaps Cartesian output coordinates to angular and radial image coordinates.",
+  "publisher": "TD ImageFX Library",
+  "license": "MIT",
+  "entrypoints": {"shader": "shaders/polar_coordinates.frag", "touchdesigner_component": "tox/tdimagefx_distort_polar_coordinates.tox"},
+  "inputs": [{"id": "image", "family": "TOP", "required": true}],
+  "outputs": [{"id": "image", "family": "TOP"}],
+  "parameters": [
+    {"id": "enable", "name": "Enable", "type": "toggle", "default": true},
+    {"id": "mix", "name": "Mix", "type": "float", "default": 1.0, "min": 0.0, "max": 1.0, "uniform": "uMix"},
+    {"id": "rotation", "name": "Rotation", "type": "float", "default": 0.0, "min": -1.0, "max": 1.0, "uniform": "uRotation", "unit": "turns"},
+    {"id": "radius_scale", "name": "Radiusscale", "label": "Radius Scale", "type": "float", "default": 1.5, "min": 0.1, "max": 4.0, "uniform": "uRadiusScale"},
+    {"id": "repeats", "name": "Repeats", "type": "float", "default": 1.0, "min": 1.0, "max": 16.0, "uniform": "uRepeats"},
+    {"id": "center_x", "name": "Centerx", "label": "Center X", "type": "float", "default": 0.5, "min": 0.0, "max": 1.0, "uniform": "uCenterX"},
+    {"id": "center_y", "name": "Centery", "label": "Center Y", "type": "float", "default": 0.5, "min": 0.0, "max": 1.0, "uniform": "uCenterY"}
+  ],
+  "processing": {"model": "single_pass", "gpu_cost": "medium", "capabilities": []},
+  "compatibility": {"touchdesigner_min_build": 2022.2, "touchdesigner_max_build": null, "os": ["windows", "macos"], "architectures": ["x86_64", "arm64"]},
+  "permissions": {"python": false, "filesystem": false, "network": false, "subprocess": false},
+  "dependencies": [],
+  "alpha_policy": "preserve",
+  "resolution_policy": "input",
+  "stateful": false,
+  "tags": ["polar", "radial", "remap", "uv"]
+}

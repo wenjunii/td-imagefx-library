@@ -1,0 +1,115 @@
+{
+  "schema_version": 1,
+  "id": "tdimagefx.temporal.feedback-rotate",
+  "name": "Feedback Rotate",
+  "version": "1.0.0",
+  "fx_api": "1.0",
+  "kind": "effect",
+  "category": "temporal",
+  "channel": "stable",
+  "description": "Rotates and scales the prior frame before recursively blending it into the source.",
+  "publisher": "TD ImageFX Library",
+  "license": "MIT",
+  "entrypoints": {
+    "shader": "shaders/feedback_rotate.frag",
+    "touchdesigner_component": "tox/tdimagefx_temporal_feedback_rotate.tox"
+  },
+  "inputs": [
+    {
+      "id": "image",
+      "family": "TOP",
+      "required": true,
+      "semantic": "source"
+    }
+  ],
+  "outputs": [
+    {
+      "id": "image",
+      "family": "TOP"
+    }
+  ],
+  "parameters": [
+    {
+      "id": "enable",
+      "name": "Enable",
+      "type": "toggle",
+      "default": true
+    },
+    {
+      "id": "mix",
+      "name": "Mix",
+      "type": "float",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 1.0,
+      "uniform": "uMix"
+    },
+    {
+      "id": "angle",
+      "name": "Angle",
+      "type": "float",
+      "default": 0.015,
+      "min": -0.25,
+      "max": 0.25,
+      "uniform": "uAngle",
+      "unit": "radians"
+    },
+    {
+      "id": "scale",
+      "name": "Scale",
+      "type": "float",
+      "default": 1.005,
+      "min": 0.8,
+      "max": 1.2,
+      "uniform": "uScale"
+    },
+    {
+      "id": "feedback",
+      "name": "Feedback",
+      "type": "float",
+      "default": 0.9,
+      "min": 0,
+      "max": 0.995,
+      "uniform": "uFeedback"
+    }
+  ],
+  "compatibility": {
+    "touchdesigner_min_build": 2022.2,
+    "touchdesigner_max_build": null,
+    "os": [
+      "windows",
+      "macos"
+    ],
+    "architectures": [
+      "x86_64",
+      "arm64"
+    ]
+  },
+  "permissions": {
+    "python": false,
+    "filesystem": false,
+    "network": false,
+    "subprocess": false
+  },
+  "dependencies": [],
+  "alpha_policy": "preserve",
+  "resolution_policy": "input",
+  "stateful": true,
+  "tags": [
+    "feedback",
+    "rotate",
+    "spiral",
+    "history"
+  ],
+  "processing": {
+    "model": "temporal",
+    "gpu_cost": "medium",
+    "capabilities": [
+      "history"
+    ],
+    "passes": [
+      "shaders/feedback_rotate.frag"
+    ],
+    "history_frames": 1
+  }
+}

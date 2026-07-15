@@ -7,6 +7,13 @@ import re
 from pathlib import Path
 
 
+VERSION_RE = re.compile(
+    r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)"
+    r"(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?"
+    r"(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$"
+)
+
+
 class ImageFXLibraryExt:
     """Public API exposed by the ``td_imagefx`` Base COMP."""
 
@@ -18,7 +25,20 @@ class ImageFXLibraryExt:
         value = str(root_par.eval()).strip() if root_par is not None else ""
         return Path(value or project.folder).resolve()
 
-    def _manifests(self):
+    @staticmethod
+    def _version_key(version):
+        core = version.split("+", 1)[0]
+        release, separator, prerelease = core.partition("-")
+        release_key = tuple(int(part) for part in release.split("."))
+        if not separator:
+            return release_key, 1, ()
+        prerelease_key = tuple(
+            (0, int(part)) if part.isdigit() else (1, part.lower())
+            for part in prerelease.split(".")
+        )
+        return release_key, 0, prerelease_key
+
+    def _all_manifests(self):
         root = self._root()
         for path in sorted((root / "packages").glob("*/**/package.json")):
             try:
@@ -26,8 +46,23 @@ class ImageFXLibraryExt:
             except (OSError, ValueError) as exc:
                 debug("TD ImageFX: unable to read", path, exc)
                 continue
+            package_id = data.get("id")
+            version = data.get("version")
+            if not isinstance(package_id, str) or not isinstance(version, str) or not VERSION_RE.fullmatch(version):
+                debug("TD ImageFX: invalid package identity", path)
+                continue
             data["_manifest_path"] = str(path)
             yield data
+
+    def _manifests(self):
+        latest = {}
+        for item in self._all_manifests():
+            package_id = item["id"]
+            current = latest.get(package_id)
+            if current is None or self._version_key(current["version"]) < self._version_key(item["version"]):
+                latest[package_id] = item
+        for package_id in sorted(latest):
+            yield latest[package_id]
 
     @property
     def PackageIds(self):
@@ -39,10 +74,15 @@ class ImageFXLibraryExt:
         if table is None:
             raise RuntimeError("catalog DAT is missing")
         table.setSize(0, 0)
-        table.appendRow(("id", "name", "version", "kind", "category", "channel", "stateful", "tags", "component"))
+        table.appendRow((
+            "id", "name", "version", "kind", "category", "channel", "description", "stateful", "tags",
+            "processing_model", "gpu_cost", "capabilities", "compatibility", "preview", "component",
+        ))
         count = 0
         for item in self._manifests():
             entrypoints = item.get("entrypoints", {})
+            processing = item.get("processing") or {"model": "single_pass", "gpu_cost": "low", "capabilities": []}
+            compatibility = item.get("compatibility") or {}
             table.appendRow((
                 item.get("id", ""),
                 item.get("name", ""),
@@ -50,8 +90,18 @@ class ImageFXLibraryExt:
                 item.get("kind", ""),
                 item.get("category", ""),
                 item.get("channel", ""),
+                item.get("description", ""),
                 str(bool(item.get("stateful", False))),
                 ", ".join(item.get("tags", [])),
+                processing.get("model", "single_pass"),
+                processing.get("gpu_cost", "low"),
+                ", ".join(processing.get("capabilities", [])),
+                "TD {}+ | {} | {}".format(
+                    compatibility.get("touchdesigner_min_build", "unknown"),
+                    ",".join(compatibility.get("os", [])),
+                    ",".join(compatibility.get("architectures", [])),
+                ),
+                "docs/gallery/{}.png".format(item.get("id", "")),
                 entrypoints.get("touchdesigner_component", ""),
             ))
             count += 1
@@ -72,6 +122,8 @@ class ImageFXLibraryExt:
                 item.get("name", ""),
                 item.get("description", ""),
                 " ".join(item_tags),
+                str((item.get("processing") or {}).get("model", "")),
+                " ".join((item.get("processing") or {}).get("capabilities", [])),
             )).lower()
             if needle and needle not in haystack:
                 continue
@@ -83,12 +135,13 @@ class ImageFXLibraryExt:
         return results
 
     def PackageInfo(self, package_id, version=None):
-        matches = [item for item in self._manifests() if item.get("id") == package_id]
+        source = self._all_manifests() if version is not None else self._manifests()
+        matches = [item for item in source if item.get("id") == package_id]
         if version is not None:
             matches = [item for item in matches if item.get("version") == version]
         if not matches:
             raise KeyError("Unknown package: {} {}".format(package_id, version or ""))
-        matches.sort(key=lambda item: tuple(int(part) for part in item["version"].split("-")[0].split(".")), reverse=True)
+        matches.sort(key=lambda item: self._version_key(item["version"]), reverse=True)
         return matches[0]
 
     def CreateEffect(self, package_id, target=None, version=None, name=None):
@@ -99,6 +152,10 @@ class ImageFXLibraryExt:
             raise RuntimeError("Package has no TouchDesigner component entrypoint")
         package_root = Path(manifest["_manifest_path"]).parent
         tox_path = (package_root / entrypoint).resolve()
+        try:
+            tox_path.relative_to(package_root.resolve())
+        except ValueError as exc:
+            raise RuntimeError("TouchDesigner component escapes its package") from exc
         if not tox_path.is_file():
             raise FileNotFoundError(str(tox_path))
         target = target or self.ownerComp.parent()
@@ -121,14 +178,19 @@ class ImageFXLibraryExt:
     def HealthCheck(self):
         """Return a small diagnostic object suitable for a DAT or Textport."""
         missing = []
-        for item in self._manifests():
+        all_manifests = list(self._all_manifests())
+        for item in all_manifests:
             package_root = Path(item["_manifest_path"]).parent
             for entry_name, relative in item.get("entrypoints", {}).items():
-                if not (package_root / relative).is_file():
+                if not relative or not (package_root / relative).is_file():
                     missing.append({"id": item.get("id"), "entrypoint": entry_name, "path": relative})
+            for pass_index, relative in enumerate((item.get("processing") or {}).get("passes", [])):
+                if not relative or not (package_root / relative).is_file():
+                    missing.append({"id": item.get("id"), "entrypoint": "pass{}".format(pass_index + 1), "path": relative})
         return {
             "ok": not missing,
             "package_count": len(self.PackageIds),
+            "package_version_count": len(all_manifests),
             "missing_entrypoints": missing,
             "touchdesigner_version": str(app.version),
             "touchdesigner_build": str(app.build),

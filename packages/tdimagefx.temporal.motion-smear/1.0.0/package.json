@@ -1,0 +1,115 @@
+{
+  "schema_version": 1,
+  "id": "tdimagefx.temporal.motion-smear",
+  "name": "Motion Smear",
+  "version": "1.0.0",
+  "fx_api": "1.0",
+  "kind": "effect",
+  "category": "temporal",
+  "channel": "stable",
+  "description": "Samples feedback along a controllable vector to create directional temporal smearing.",
+  "publisher": "TD ImageFX Library",
+  "license": "MIT",
+  "entrypoints": {
+    "shader": "shaders/motion_smear.frag",
+    "touchdesigner_component": "tox/tdimagefx_temporal_motion_smear.tox"
+  },
+  "inputs": [
+    {
+      "id": "image",
+      "family": "TOP",
+      "required": true,
+      "semantic": "source"
+    }
+  ],
+  "outputs": [
+    {
+      "id": "image",
+      "family": "TOP"
+    }
+  ],
+  "parameters": [
+    {
+      "id": "enable",
+      "name": "Enable",
+      "type": "toggle",
+      "default": true
+    },
+    {
+      "id": "mix",
+      "name": "Mix",
+      "type": "float",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 1.0,
+      "uniform": "uMix"
+    },
+    {
+      "id": "distance",
+      "name": "Distance",
+      "type": "float",
+      "default": 0.04,
+      "min": 0,
+      "max": 0.3,
+      "uniform": "uDistance"
+    },
+    {
+      "id": "angle",
+      "name": "Angle",
+      "type": "float",
+      "default": 0,
+      "min": -3.14159,
+      "max": 3.14159,
+      "uniform": "uAngle",
+      "unit": "radians"
+    },
+    {
+      "id": "feedback",
+      "name": "Feedback",
+      "type": "float",
+      "default": 0.8,
+      "min": 0,
+      "max": 1,
+      "uniform": "uFeedback"
+    }
+  ],
+  "compatibility": {
+    "touchdesigner_min_build": 2022.2,
+    "touchdesigner_max_build": null,
+    "os": [
+      "windows",
+      "macos"
+    ],
+    "architectures": [
+      "x86_64",
+      "arm64"
+    ]
+  },
+  "permissions": {
+    "python": false,
+    "filesystem": false,
+    "network": false,
+    "subprocess": false
+  },
+  "dependencies": [],
+  "alpha_policy": "preserve",
+  "resolution_policy": "input",
+  "stateful": true,
+  "tags": [
+    "motion",
+    "smear",
+    "directional",
+    "history"
+  ],
+  "processing": {
+    "model": "temporal",
+    "gpu_cost": "high",
+    "capabilities": [
+      "history"
+    ],
+    "passes": [
+      "shaders/motion_smear.frag"
+    ],
+    "history_frames": 1
+  }
+}

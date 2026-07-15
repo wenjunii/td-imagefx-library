@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "id": "tdimagefx.distort.lens-distortion",
+  "name": "Lens Distortion",
+  "version": "1.0.0",
+  "fx_api": "1.0",
+  "kind": "effect",
+  "category": "distortion",
+  "channel": "stable",
+  "description": "Applies aspect-correct barrel or pincushion lens distortion around a movable center.",
+  "publisher": "TD ImageFX Library",
+  "license": "MIT",
+  "entrypoints": {"shader": "shaders/lens_distortion.frag", "touchdesigner_component": "tox/tdimagefx_distort_lens_distortion.tox"},
+  "inputs": [{"id": "image", "family": "TOP", "required": true}],
+  "outputs": [{"id": "image", "family": "TOP"}],
+  "parameters": [
+    {"id": "enable", "name": "Enable", "type": "toggle", "default": true},
+    {"id": "mix", "name": "Mix", "type": "float", "default": 1.0, "min": 0.0, "max": 1.0, "uniform": "uMix"},
+    {"id": "amount", "name": "Amount", "type": "float", "default": 0.25, "min": -1.0, "max": 1.0, "uniform": "uAmount"},
+    {"id": "zoom", "name": "Zoom", "type": "float", "default": 1.0, "min": 0.5, "max": 2.0, "uniform": "uZoom"},
+    {"id": "center_x", "name": "Centerx", "label": "Center X", "type": "float", "default": 0.5, "min": 0.0, "max": 1.0, "uniform": "uCenterX"},
+    {"id": "center_y", "name": "Centery", "label": "Center Y", "type": "float", "default": 0.5, "min": 0.0, "max": 1.0, "uniform": "uCenterY"}
+  ],
+  "processing": {"model": "single_pass", "gpu_cost": "low", "capabilities": []},
+  "compatibility": {"touchdesigner_min_build": 2022.2, "touchdesigner_max_build": null, "os": ["windows", "macos"], "architectures": ["x86_64", "arm64"]},
+  "permissions": {"python": false, "filesystem": false, "network": false, "subprocess": false},
+  "dependencies": [],
+  "alpha_policy": "preserve",
+  "resolution_policy": "input",
+  "stateful": false,
+  "tags": ["lens", "barrel", "pincushion", "uv"]
+}

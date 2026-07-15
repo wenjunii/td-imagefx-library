@@ -1,0 +1,131 @@
+{
+  "schema_version": 1,
+  "id": "tdimagefx.spatial.depth-parallax",
+  "name": "Depth Parallax",
+  "version": "1.0.0",
+  "fx_api": "1.0",
+  "kind": "effect",
+  "category": "spatial",
+  "channel": "stable",
+  "description": "Offsets source pixels with a supplied depth map to simulate a movable viewpoint.",
+  "publisher": "TD ImageFX Library",
+  "license": "MIT",
+  "entrypoints": {
+    "shader": "shaders/depth_parallax.frag",
+    "touchdesigner_component": "tox/tdimagefx_spatial_depth_parallax.tox"
+  },
+  "inputs": [
+    {
+      "id": "image",
+      "family": "TOP",
+      "required": true,
+      "semantic": "source"
+    },
+    {
+      "id": "depth",
+      "family": "TOP",
+      "required": true,
+      "semantic": "depth"
+    }
+  ],
+  "outputs": [
+    {
+      "id": "image",
+      "family": "TOP"
+    }
+  ],
+  "parameters": [
+    {
+      "id": "enable",
+      "name": "Enable",
+      "type": "toggle",
+      "default": true
+    },
+    {
+      "id": "mix",
+      "name": "Mix",
+      "type": "float",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 1.0,
+      "uniform": "uMix"
+    },
+    {
+      "id": "amount",
+      "name": "Amount",
+      "type": "float",
+      "default": 0.08,
+      "min": -0.5,
+      "max": 0.5,
+      "uniform": "uAmount"
+    },
+    {
+      "id": "view_x",
+      "name": "Viewx",
+      "type": "float",
+      "default": 0.4,
+      "min": -1,
+      "max": 1,
+      "uniform": "uViewX"
+    },
+    {
+      "id": "view_y",
+      "name": "Viewy",
+      "type": "float",
+      "default": 0,
+      "min": -1,
+      "max": 1,
+      "uniform": "uViewY"
+    },
+    {
+      "id": "depth_center",
+      "name": "Depthcenter",
+      "type": "float",
+      "default": 0.5,
+      "min": 0,
+      "max": 1,
+      "uniform": "uDepthCenter"
+    }
+  ],
+  "compatibility": {
+    "touchdesigner_min_build": 2022.2,
+    "touchdesigner_max_build": null,
+    "os": [
+      "windows",
+      "macos"
+    ],
+    "architectures": [
+      "x86_64",
+      "arm64"
+    ]
+  },
+  "permissions": {
+    "python": false,
+    "filesystem": false,
+    "network": false,
+    "subprocess": false
+  },
+  "dependencies": [],
+  "alpha_policy": "preserve",
+  "resolution_policy": "input",
+  "stateful": false,
+  "tags": [
+    "depth",
+    "parallax",
+    "view",
+    "spatial"
+  ],
+  "processing": {
+    "model": "single_pass",
+    "gpu_cost": "medium",
+    "capabilities": [
+      "second_input",
+      "depth",
+      "displacement"
+    ],
+    "passes": [
+      "shaders/depth_parallax.frag"
+    ],
+    "history_frames": 0
+  }
+}

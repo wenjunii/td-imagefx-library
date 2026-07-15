@@ -21,6 +21,12 @@ TD_PARAMETER_RE = re.compile(r"^[A-Z][A-Za-z0-9_]*$")
 CATEGORY_RE = re.compile(r"^[a-z0-9]+(?:[._-][a-z0-9]+)*$")
 CHANNELS = frozenset({"stable", "beta", "experimental"})
 KINDS = frozenset({"effect", "shader", "plugin", "technique", "adapter", "preset", "modulator", "example", "core"})
+PROCESSING_MODELS = frozenset({"single_pass", "multi_pass", "temporal", "simulation", "adapter"})
+GPU_COSTS = frozenset({"low", "medium", "high", "extreme"})
+CAPABILITIES = frozenset({
+    "multi_pass", "history", "second_input", "transition", "displacement", "depth",
+    "normal", "flow", "simulation", "audio", "native_plugin", "network", "python",
+})
 SHA256_RE = re.compile(r"^[0-9a-fA-F]{64}$")
 
 
@@ -60,10 +66,11 @@ def validate_manifest_data(data: Any) -> list[str]:
         "schema_version", "id", "name", "version", "fx_api", "kind", "category", "channel",
         "description", "publisher", "license", "entrypoints", "inputs", "outputs", "parameters",
         "compatibility", "permissions", "dependencies", "alpha_policy", "resolution_policy", "stateful", "tags",
+        "processing",
     }
     for key in data.keys() - allowed_root:
         issues.append(f"$.{key} is not supported")
-    for key in allowed_root:
+    for key in allowed_root - {"processing"}:
         if key not in data:
             issues.append(f"$.{key} is required")
 
@@ -253,6 +260,64 @@ def validate_manifest_data(data: Any) -> list[str]:
             if "reason" in dependency and (not isinstance(dependency["reason"], str) or len(dependency["reason"]) > 500):
                 issues.append(f"{path}.reason must be a string of at most 500 characters")
 
+    processing = data.get("processing")
+    if processing is not None:
+        if not isinstance(processing, dict):
+            issues.append("$.processing must be an object")
+        else:
+            allowed_processing = {"model", "gpu_cost", "capabilities", "passes", "history_frames"}
+            for key in processing.keys() - allowed_processing:
+                issues.append(f"$.processing.{key} is not supported")
+            model = processing.get("model")
+            if not isinstance(model, str) or model not in PROCESSING_MODELS:
+                issues.append(f"$.processing.model must be one of {', '.join(sorted(PROCESSING_MODELS))}")
+            gpu_cost = processing.get("gpu_cost")
+            if not isinstance(gpu_cost, str) or gpu_cost not in GPU_COSTS:
+                issues.append(f"$.processing.gpu_cost must be one of {', '.join(sorted(GPU_COSTS))}")
+            capabilities = processing.get("capabilities")
+            if not isinstance(capabilities, list):
+                issues.append("$.processing.capabilities must be an array")
+            elif not all(isinstance(item, str) and item in CAPABILITIES for item in capabilities):
+                issues.append(f"$.processing.capabilities items must be one of {', '.join(sorted(CAPABILITIES))}")
+            elif len(set(capabilities)) != len(capabilities):
+                issues.append("$.processing.capabilities must not contain duplicates")
+
+            passes = processing.get("passes")
+            if passes is not None:
+                if not isinstance(passes, list) or not passes:
+                    issues.append("$.processing.passes must be a non-empty array")
+                else:
+                    for index, relative_path in enumerate(passes):
+                        try:
+                            validate_package_path(relative_path, label=f"$.processing.passes[{index}]")
+                        except SecurityError as exc:
+                            issues.append(str(exc))
+                    if all(isinstance(item, str) for item in passes) and len(set(passes)) != len(passes):
+                        issues.append("$.processing.passes must not contain duplicates")
+                    shader_entrypoint = entrypoints.get("shader") if isinstance(entrypoints, dict) else None
+                    if shader_entrypoint is not None and passes[0] != shader_entrypoint:
+                        issues.append("$.processing.passes[0] must match $.entrypoints.shader")
+            if model == "multi_pass" and (not isinstance(passes, list) or len(passes) < 2):
+                issues.append("$.processing.passes must contain at least two shaders for multi_pass")
+
+            history_frames = processing.get("history_frames", 0)
+            valid_history_frames = (
+                isinstance(history_frames, int)
+                and not isinstance(history_frames, bool)
+                and 0 <= history_frames <= 64
+            )
+            if not valid_history_frames:
+                issues.append("$.processing.history_frames must be an integer from 0 to 64")
+            elif isinstance(model, str) and model in {"temporal", "simulation"} and history_frames < 1:
+                issues.append("$.processing.history_frames must be at least 1 for temporal or simulation models")
+            if (
+                valid_history_frames
+                and isinstance(capabilities, list)
+                and "history" in capabilities
+                and history_frames < 1
+            ):
+                issues.append("$.processing.history_frames must be at least 1 when history is required")
+
     alpha_policy = data.get("alpha_policy")
     if alpha_policy not in {"preserve", "process", "blend", "replace", "force_opaque", "premultiply", "unpremultiply", "configurable"}:
         issues.append("$.alpha_policy has an unsupported value")
@@ -298,6 +363,7 @@ class PackageManifest:
     resolution_policy: str
     stateful: bool
     tags: tuple[str, ...]
+    processing: dict[str, Any]
     raw: dict[str, Any]
 
     @classmethod
@@ -328,6 +394,12 @@ class PackageManifest:
             resolution_policy=data["resolution_policy"],
             stateful=data["stateful"],
             tags=tuple(data["tags"]),
+            processing=dict(data.get("processing") or {
+                "model": "single_pass",
+                "gpu_cost": "low",
+                "capabilities": [],
+                "history_frames": 0,
+            }),
             raw=dict(data),
         )
 

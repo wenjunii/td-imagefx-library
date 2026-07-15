@@ -1,0 +1,390 @@
+"""Searchable TouchDesigner browser for the TD ImageFX package catalog.
+
+The functions above :class:`ImageFXBrowserExt` intentionally avoid TouchDesigner
+globals.  They can be reused by documentation tools and tested in normal Python.
+"""
+
+from __future__ import annotations
+
+import json
+from collections.abc import Iterable, Mapping
+
+
+RESULT_COLUMNS = (
+    "id",
+    "name",
+    "version",
+    "category",
+    "tags",
+    "favorite",
+    "compatibility",
+    "model",
+    "gpu_cost",
+    "component",
+)
+
+
+def _text(value) -> str:
+    """Return DAT cells and ordinary values as stripped text."""
+    if value is None:
+        return ""
+    return str(value).strip()
+
+
+def split_tags(value) -> tuple[str, ...]:
+    """Normalize a comma-separated string or iterable into unique tag names."""
+    if value is None:
+        return ()
+    values = value if isinstance(value, Iterable) and not isinstance(value, (str, bytes)) else str(value).split(",")
+    result = []
+    seen = set()
+    for item in values:
+        tag = _text(item)
+        key = tag.casefold()
+        if tag and key not in seen:
+            seen.add(key)
+            result.append(tag)
+    return tuple(result)
+
+
+def parse_favorites(value) -> set[str]:
+    """Read the JSON array stored in the browser's ``Favorites`` parameter.
+
+    Malformed or non-array values are treated as an empty favorite set so a bad
+    project parameter cannot prevent the browser from opening.
+    """
+    if value is None or _text(value) == "":
+        return set()
+    try:
+        decoded = json.loads(str(value))
+    except (TypeError, ValueError):
+        return set()
+    if not isinstance(decoded, list):
+        return set()
+    return {_text(item) for item in decoded if isinstance(item, str) and _text(item)}
+
+
+def serialize_favorites(favorites) -> str:
+    """Serialize favorite IDs deterministically for stable project files."""
+    normalized = sorted({_text(item) for item in (favorites or ()) if _text(item)}, key=str.casefold)
+    return json.dumps(normalized, separators=(",", ":"), ensure_ascii=True)
+
+
+def catalog_rows(table) -> list[dict[str, str]]:
+    """Convert a TouchDesigner Table DAT (or compatible fake) to dictionaries."""
+    if table is None:
+        raise RuntimeError("library catalog DAT is missing")
+    try:
+        rows = list(table.rows())
+    except (AttributeError, TypeError) as exc:
+        raise TypeError("catalog must provide rows()") from exc
+    if not rows:
+        return []
+    headers = [_text(cell) for cell in rows[0]]
+    if not any(headers):
+        return []
+    result = []
+    for values in rows[1:]:
+        row = {header: _text(values[index]) if index < len(values) else "" for index, header in enumerate(headers) if header}
+        if row.get("id"):
+            result.append(row)
+    return result
+
+
+def _row_value(row: Mapping[str, object], *names: str) -> str:
+    for name in names:
+        value = _text(row.get(name, ""))
+        if value:
+            return value
+    return ""
+
+
+def compatibility_label(row: Mapping[str, object]) -> str:
+    """Produce a compact compatibility label from old or expanded catalogs."""
+    direct = _row_value(row, "compatibility", "compatible")
+    if direct:
+        return direct
+    minimum = _row_value(row, "touchdesigner_min_build", "td_min_build", "min_build")
+    maximum = _row_value(row, "touchdesigner_max_build", "td_max_build", "max_build")
+    systems = _row_value(row, "os", "operating_systems")
+    architectures = _row_value(row, "architectures", "architecture")
+    parts = []
+    if minimum and maximum:
+        parts.append("TD {}-{}".format(minimum, maximum))
+    elif minimum:
+        parts.append("TD {}+".format(minimum))
+    elif maximum:
+        parts.append("TD <= {}".format(maximum))
+    if systems:
+        parts.append(systems)
+    if architectures:
+        parts.append(architectures)
+    return " | ".join(parts) if parts else "Unknown"
+
+
+def display_row(row: Mapping[str, object], favorites=()) -> dict[str, str]:
+    """Project arbitrary catalog columns into the browser's stable column set."""
+    package_id = _row_value(row, "id")
+    favorite_keys = {_text(item).casefold() for item in favorites}
+    return {
+        "id": package_id,
+        "name": _row_value(row, "name") or package_id,
+        "version": _row_value(row, "version"),
+        "category": _row_value(row, "category"),
+        "tags": _row_value(row, "tags"),
+        "favorite": "1" if package_id.casefold() in favorite_keys else "0",
+        "compatibility": compatibility_label(row),
+        "model": _row_value(row, "model", "processing_model") or "Unknown",
+        "gpu_cost": _row_value(row, "gpu_cost", "processing_gpu_cost") or "Unknown",
+        "component": _row_value(row, "component", "touchdesigner_component"),
+    }
+
+
+def filter_catalog(rows, search="", category="", tags=(), favorites=(), favorites_only=False):
+    """Filter catalog mappings without depending on TouchDesigner.
+
+    Search terms are ANDed and matched across all visible metadata. Category and
+    tag comparisons are case-insensitive; requested tags must all be present.
+    """
+    terms = tuple(part.casefold() for part in _text(search).split() if part)
+    category_key = _text(category).casefold()
+    if category_key in {"all", "*"}:
+        category_key = ""
+    wanted_tags = {tag.casefold() for tag in split_tags(tags)}
+    favorite_keys = {_text(item).casefold() for item in (favorites or ())}
+    matches = []
+    for source_row in rows:
+        row = dict(source_row)
+        package_id = _row_value(row, "id")
+        row_category = _row_value(row, "category").casefold()
+        row_tags = {tag.casefold() for tag in split_tags(_row_value(row, "tags"))}
+        haystack = " ".join(
+            _row_value(row, name)
+            for name in ("id", "name", "version", "kind", "category", "channel", "tags", "description", "model", "processing_model", "gpu_cost")
+        ).casefold()
+        if terms and not all(term in haystack for term in terms):
+            continue
+        if category_key and row_category != category_key:
+            continue
+        if wanted_tags and not wanted_tags.issubset(row_tags):
+            continue
+        if favorites_only and package_id.casefold() not in favorite_keys:
+            continue
+        matches.append(row)
+    return matches
+
+
+class ImageFXBrowserExt:
+    """Extension promoted by an ImageFX Browser COMP."""
+
+    def __init__(self, ownerComp):
+        self.ownerComp = ownerComp
+        self._catalog_rows = []
+        self._filtered_rows = []
+        self.LastError = ""
+
+    def _parameter(self, name):
+        collection = getattr(self.ownerComp, "par", None)
+        if collection is None:
+            return None
+        try:
+            return collection[name]
+        except (KeyError, TypeError, AttributeError):
+            return getattr(collection, name, None)
+
+    def _parameter_value(self, name, default=""):
+        parameter = self._parameter(name)
+        if parameter is None:
+            return default
+        try:
+            return parameter.eval()
+        except AttributeError:
+            return parameter
+
+    def _set_parameter(self, name, value) -> bool:
+        parameter = self._parameter(name)
+        if parameter is None:
+            return False
+        if hasattr(parameter, "val"):
+            parameter.val = value
+        elif hasattr(parameter, "value"):
+            parameter.value = value
+        elif hasattr(parameter, "set"):
+            parameter.set(value)
+        else:
+            try:
+                setattr(self.ownerComp.par, name, value)
+            except (AttributeError, TypeError):
+                return False
+        return True
+
+    def _set_status(self, message, error=False):
+        self.LastError = _text(message) if error else ""
+        prefix = "Error: " if error else ""
+        self._set_parameter("Status", prefix + _text(message))
+
+    def _library(self):
+        candidates = []
+        parent_method = getattr(self.ownerComp, "parent", None)
+        if callable(parent_method):
+            try:
+                candidates.append(parent_method())
+            except Exception:
+                pass
+        owner_op = getattr(self.ownerComp, "op", None)
+        if callable(owner_op):
+            for path in ("..", "../.."):
+                try:
+                    candidates.append(owner_op(path))
+                except Exception:
+                    pass
+        for candidate in candidates:
+            if candidate is not None and hasattr(candidate, "RefreshCatalog") and hasattr(candidate, "CreateEffect"):
+                return candidate
+        raise RuntimeError("parent ImageFX Library extension is unavailable")
+
+    def _catalog(self, library=None):
+        library = library or self._library()
+        library_op = getattr(library, "op", None)
+        if callable(library_op):
+            table = library_op("catalog")
+            if table is not None:
+                return table
+        owner_op = getattr(self.ownerComp, "op", None)
+        if callable(owner_op):
+            for path in ("../catalog", "catalog"):
+                table = owner_op(path)
+                if table is not None:
+                    return table
+        raise RuntimeError("library catalog DAT is missing")
+
+    def _results_table(self):
+        owner_op = getattr(self.ownerComp, "op", None)
+        if not callable(owner_op):
+            raise RuntimeError("browser results DAT is unavailable")
+        table = owner_op("results") or owner_op("browser_results")
+        if table is None:
+            raise RuntimeError("browser results DAT is missing")
+        return table
+
+    def _write_results(self, rows, favorites):
+        table = self._results_table()
+        table.setSize(0, 0)
+        table.appendRow(RESULT_COLUMNS)
+        for row in rows:
+            projected = display_row(row, favorites)
+            table.appendRow(tuple(projected[column] for column in RESULT_COLUMNS))
+
+    def _favorites(self):
+        return parse_favorites(self._parameter_value("Favorites", "[]"))
+
+    def _selected_id(self):
+        for name in ("Selectedid", "Selectedeffect", "Selected"):
+            value = _text(self._parameter_value(name, ""))
+            if value:
+                return value
+        return ""
+
+    def _resolve_target(self, target=None):
+        target = target if target is not None else self._parameter_value("Target", None)
+        if target is None or _text(target) == "":
+            return None
+        if not isinstance(target, str):
+            return target
+        owner_op = getattr(self.ownerComp, "op", None)
+        if callable(owner_op):
+            resolved = owner_op(target)
+            if resolved is not None:
+                return resolved
+        global_op = globals().get("op")
+        if callable(global_op):
+            return global_op(target)
+        return None
+
+    def LoadCatalog(self):
+        """Load rows from the parent library's catalog DAT."""
+        self._catalog_rows = catalog_rows(self._catalog())
+        return list(self._catalog_rows)
+
+    def ApplyFilters(self, rows=None):
+        """Apply current COMP parameters and rewrite the ``results`` DAT."""
+        try:
+            source_rows = list(rows) if rows is not None else (self._catalog_rows or self.LoadCatalog())
+            favorites = self._favorites()
+            self._filtered_rows = filter_catalog(
+                source_rows,
+                search=self._parameter_value("Search", ""),
+                category=self._parameter_value("Category", ""),
+                tags=self._parameter_value("Tags", ""),
+                favorites=favorites,
+                favorites_only=bool(self._parameter_value("Favoritesonly", False)),
+            )
+            self._write_results(self._filtered_rows, favorites)
+            self._set_status("{} of {} effects".format(len(self._filtered_rows), len(source_rows)))
+            return list(self._filtered_rows)
+        except Exception as exc:
+            self._set_status(str(exc), error=True)
+            return []
+
+    def Refresh(self):
+        """Refresh the parent catalog, reload it, and reapply browser filters."""
+        try:
+            library = self._library()
+            library.RefreshCatalog()
+            self._catalog_rows = catalog_rows(self._catalog(library))
+            return self.ApplyFilters(self._catalog_rows)
+        except Exception as exc:
+            self._set_status(str(exc), error=True)
+            return []
+
+    def SetSelected(self, package_id):
+        package_id = _text(package_id)
+        if not package_id:
+            self._set_status("No effect selected", error=True)
+            return False
+        for name in ("Selectedid", "Selectedeffect", "Selected"):
+            if self._set_parameter(name, package_id):
+                self._set_status("Selected {}".format(package_id))
+                return True
+        self._set_status("Selected effect parameter is missing", error=True)
+        return False
+
+    def ToggleFavorite(self, package_id=None):
+        """Toggle the selected package in the JSON-backed favorite set."""
+        package_id = _text(package_id or self._selected_id())
+        if not package_id:
+            self._set_status("No effect selected", error=True)
+            return False
+        favorites = self._favorites()
+        existing = next((item for item in favorites if item.casefold() == package_id.casefold()), None)
+        if existing is None:
+            favorites.add(package_id)
+            message = "Added {} to favorites".format(package_id)
+        else:
+            favorites.remove(existing)
+            message = "Removed {} from favorites".format(package_id)
+        if not self._set_parameter("Favorites", serialize_favorites(favorites)):
+            self._set_status("Favorites parameter is missing", error=True)
+            return False
+        self.ApplyFilters()
+        self._set_status(message)
+        return existing is None
+
+    def CreateSelected(self, target=None):
+        """Create the selected package in ``Target`` via the library extension."""
+        package_id = self._selected_id()
+        if not package_id:
+            self._set_status("No effect selected", error=True)
+            return None
+        resolved_target = self._resolve_target(target)
+        if resolved_target is None:
+            self._set_status("Target COMP is not set or cannot be resolved", error=True)
+            return None
+        try:
+            instance = self._library().CreateEffect(package_id, target=resolved_target)
+        except Exception as exc:
+            self._set_status(str(exc), error=True)
+            return None
+        label = _text(getattr(instance, "path", "")) or _text(getattr(instance, "name", "")) or package_id
+        self._set_status("Created {}".format(label))
+        return instance

@@ -2,7 +2,7 @@
 
 The updater is a package discovery and lifecycle system, not an unrestricted internet installer. Its safest useful default is **automatic periodic checks, notification-only activation**.
 
-In v0.1.0, the TouchDesigner updater implements the notify-only slice: it reads enabled `https` or local `file` feeds on a worker thread, compares available releases with the manifests under `packages/`, and writes results to `.imagefx/update-status.json` for display on TouchDesigner's main thread. It does not download or activate packages. The later lifecycle stages documented below are the required design for future releases, not permission to assume that v0.1.0 performs them.
+In v0.2.0, the TouchDesigner updater implements the notify-only slice: it reads enabled `https` or local `file` feeds on a worker thread, compares available releases with the highest installed version of each effect ID under `packages/`, and writes results to `.imagefx/update-status.json` for display on TouchDesigner's main thread. It does not download or activate packages. The later lifecycle stages documented below are the required design for future releases, not permission to assume that v0.2.0 performs them.
 
 ## Update modes
 
@@ -41,13 +41,16 @@ Checking, downloading, installing, activating, and migrating a project lock are 
 - The updater follows only `stable`, `beta`, or `experimental` according to user/project configuration.
 - Stable projects do not cross into beta/experimental through version comparison alone.
 - A feed response is untrusted input even when it uses HTTPS.
+- Release manifest URLs must identify immutable content, such as an exact Git tag, rather than a mutable branch.
 - Enforce connection/read timeouts, response-size limits, and a maximum redirect count.
 - Prefer conditional requests (`ETag` or `Last-Modified`) and a conservative interval such as once per day.
 - A failed or malformed check must leave the installed registry and active project untouched.
 - Update checks are never performed on the render/cook critical path.
 - No telemetry is required for update checking; avoid sending project names, media paths, package locks, or hardware identifiers beyond an ordinary client version string.
 
-The v0.1.0 TouchDesigner extension reads source configuration from `config/update_sources.json` at the configured library root. The checkout enables an empty bundled `registry/update-feed.local.json` so the offline check path can be exercised without contacting the internet. A minimal remote studio configuration has this shape:
+The v0.2.0 TouchDesigner extension reads source configuration from `config/update_sources.json` at the configured library root. The checkout enables the first-party public feed at `https://raw.githubusercontent.com/wenjunii/td-imagefx-library/main/registry/update-feed.json`. The feed is deliberately empty for the bundled v0.2.0 catalog and is intended for curated, versioned entries in later releases. Checks send an ordinary client user-agent only; they do not send project, media, lockfile, or hardware data.
+
+The bundled `registry/update-feed.local.json` remains available for offline testing. To prevent network checks, disable `tdimagefx.github.stable` and enable `tdimagefx.local` in `config/update_sources.json`. A separate remote studio configuration has this shape:
 
 ```json
 {
@@ -61,7 +64,13 @@ The v0.1.0 TouchDesigner extension reads source configuration from `config/updat
 }
 ```
 
-Replace the example with a feed you control and trust. With no enabled sources, automatic checks are harmless and report that there is nothing configured. The component's `Channel`, `Timeout`, `Autocheck`, and `Intervalhours` parameters control selection and scheduling; turning `Autocheck` off invalidates pending scheduled checks, and changing the interval reschedules the next check. Checks stay notification-only.
+Replace the example with a feed you control and trust. With no enabled sources, automatic checks are harmless and report that there is nothing configured. The component's `Channel`, `Timeout`, `Autocheck`, and `Intervalhours` parameters control selection and scheduling; turning `Autocheck` off invalidates pending scheduled checks, and changing the interval reschedules the next check. Checks stay notification-only. Updating the Git checkout itself is a separate, manual review step.
+
+## Release publication boundary
+
+`tools/package_release.py` validates the immutable version set but stages only the highest version of each of the 66 effect IDs. It therefore produces 66 release ZIPs rather than repackaging all 78 stored versions. Every ZIP contains `LICENSE`, `THIRD_PARTY_NOTICES.md`, `package.json`, and only the declared package entrypoints and processing assets. The generated feed points each `manifest_url` at the supplied immutable Git tag and each artifact URL at that tag's GitHub Release; it never points a release manifest at `main`.
+
+Previously published versions remain addressable through their original package/version paths and release references. Publishing a new current set does not overwrite those directories, mutate an old artifact, or move an existing project lock.
 
 ## Verification requirements
 
@@ -116,6 +125,8 @@ The updater tracks at least four concepts:
 4. **Pending activations:** verified versions waiting for approval, restart, smoke test, or rollback decision.
 
 Installing `tdimagefx.distort.twirl` 1.2.0 beside 1.1.0 does not update a project locked to 1.1.0. Activating 1.2.0 for exploration does not rewrite that lock. Lock migration is a separate explicit operation.
+
+The v0.2.0 checkout demonstrates this boundary directly: it stores 78 immutable manifests and `.tox` files across 66 effect IDs. Twelve original effects retain `1.0.0` beside their upgraded current `1.1.0` versions. Browser, rack, gallery, native-build, benchmark, and release-staging views select the latest 66 by default, while exact-version lookup and locking keep every retained historical version addressable.
 
 ## Lockfile policy
 

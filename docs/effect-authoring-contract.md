@@ -27,11 +27,28 @@ The JSON schema in `schemas/` is authoritative for exact field names, types, and
 - TouchDesigner build range and relevant OS, architecture, GPU/API, or dependency constraints;
 - alpha, color-space, resolution, time, and determinism behavior;
 - package archive/digest information when distributed remotely;
-- optional preview, example, preset, performance tier, and known-limit metadata.
+- processing model, relative GPU-cost hint, capabilities, ordered passes, and history requirements;
+- optional preview, example, preset, and known-limit metadata.
 
 Unknown required behavior must not be hidden in a tutorial. If an adapter needs the information to build or safely run an effect, it belongs in the manifest/schema.
 
-## 3. File and asset rules
+## 3. Processing models and capabilities
+
+Every new v0.2 effect declares a root `processing` object. Its fields describe how the adapter must construct the graph and what resources or inputs it needs:
+
+| Model | Contract |
+| --- | --- |
+| `single_pass` | One shader pass, no retained history |
+| `multi_pass` | Two or more shader paths in ordered `passes`; `passes[0]` matches `entrypoints.shader` |
+| `temporal` | Stateful frame processing with `history_frames >= 1` and the `history` capability |
+| `simulation` | Stateful iterative processing with `history_frames >= 1`, plus `history` and `simulation` capabilities |
+| `adapter` | Reserved for an external implementation whose Python/network/native permissions and compatibility are declared explicitly |
+
+`gpu_cost` is one of `low`, `medium`, `high`, or `extreme`. It is a relative discovery hint, not an FPS promise. `capabilities` is a unique list drawn from `multi_pass`, `history`, `second_input`, `transition`, `displacement`, `depth`, `normal`, `flow`, `simulation`, `audio`, `native_plugin`, `network`, and `python`.
+
+Declare what the implementation actually needs. A second image or control texture requires `second_input`; multi-pass packages require `multi_pass`; feedback requires `history`. A permission-bearing capability must agree with the package permission block. Pass paths follow the same containment rules as every other package asset, and changing pass order or history semantics can be a breaking behavior change.
+
+## 4. File and asset rules
 
 - Every referenced asset path is relative to the package version directory.
 - Paths must use forward slashes in JSON, must not be absolute, and must not contain `..` traversal.
@@ -41,9 +58,9 @@ Unknown required behavior must not be hidden in a tutorial. If an adapter needs 
 - Do not commit secrets, API keys, personal paths, hostnames, or machine-specific tokens.
 - Preview media must be replaceable and must not be required for the effect to cook.
 
-A source checkout may declare a generated `touchdesigner_component` entrypoint that does not exist until `touchdesigner/scripts/build_project.py` runs. That is the only v0.1.0 build-time exception: authored shaders and other source assets must already exist, the build report must record the generated `.tox`, and a distributable/installed package must contain every declared entrypoint. A package may embed assets into a `.tox` for portability, but the source package remains the reviewable record and the embedded asset list must match it.
+A source checkout may declare a generated `touchdesigner_component` entrypoint that does not exist until `touchdesigner/scripts/build_project.py` runs. That is the only v0.2.0 build-time exception: authored shaders and every declared pass must already exist, the build report must record the generated `.tox`, and a distributable/installed package must contain every declared entrypoint. A package may embed assets into a `.tox` for portability, but the source package remains the reviewable record and the embedded asset list must match it.
 
-## 4. Operator interface
+## 5. Operator interface
 
 ### Inputs
 
@@ -67,7 +84,7 @@ Do not change connector order in a patch release. Adding an optional trailing co
 - A diagnostic or analysis output requires a declared additional connector and a minor version at minimum.
 - When an effect cannot run, it should fail visibly in diagnostics while keeping a bypassed primary image available whenever safe.
 
-## 5. Common parameters
+## 6. Common parameters
 
 The adapter presents common controls consistently. TouchDesigner parameter machine names should be stable across all effects, while labels may be human-friendly. In effect API 1.0, authored image-effect manifests include `Enable` and `Mix`; the adapter/rack may add a separate bypass control around the package. The remaining controls are declared only when applicable.
 
@@ -92,7 +109,7 @@ Except for `Enable` and `Mix`, only expose common parameters that have meaning, 
 - removing/renaming a parameter, changing its type, or materially changing its value mapping is major-level;
 - widening a safe numeric range can be minor; changing the default look requires careful migration and is normally major.
 
-## 6. Image behavior
+## 7. Image behavior
 
 ### Resolution and coordinates
 
@@ -113,7 +130,7 @@ Except for `Enable` and `Mix`, only expose common parameters that have meaning, 
 
 The default policy is **preserve the primary input alpha**. An effect that creates, erodes, composites, or otherwise changes alpha must declare that policy. Wet/dry mixing must not accidentally make transparent pixels opaque. Test transparent images with nonzero hidden RGB.
 
-## 7. Time and determinism
+## 8. Time and determinism
 
 - Time-driven shaders receive time through the common adapter rather than reading an undocumented global clock.
 - At fixed inputs, parameters, time, and seed, the result should be deterministic unless nondeterminism is explicitly declared.
@@ -122,7 +139,7 @@ The default policy is **preserve the primary input alpha**. An effect that creat
 - Temporal effects declare whether they are frame-based or seconds-based and how dropped frames affect them.
 - Presets must not capture a machine's absolute clock unless that is the explicit technique.
 
-## 8. GLSL TOP rules
+## 9. GLSL TOP rules
 
 The starter packages use TouchDesigner's GLSL TOP conventions:
 
@@ -153,8 +170,10 @@ Requirements:
 - Preserve source alpha unless the manifest declares otherwise.
 - Use a fixed seed path for procedural noise when reproducibility is promised.
 - Shader warnings and compile errors must be visible through an Info DAT or the adapter's diagnostics.
+- For multi-pass effects, make the handoff between passes explicit and keep dry/wet composition at the declared final stage.
+- For temporal/simulation effects, define reset/initialization behavior and never sample uninitialized history.
 
-## 9. Performance contract
+## 10. Performance contract
 
 Every stable package needs a reproducible performance note, not a universal FPS promise. Record:
 
@@ -166,9 +185,9 @@ Every stable package needs a reproducible performance note, not a universal FPS 
 - GPU memory behavior;
 - quality mode and representative parameter values.
 
-Avoid unnecessary TOP downloads to CPU, uncontrolled feedback buffers, per-frame Python loops over pixels, and operators that cook while bypassed. Performance tiers are comparative hints, not compatibility guarantees.
+Avoid unnecessary TOP downloads to CPU, uncontrolled feedback buffers, per-frame Python loops over pixels, and operators that cook while bypassed. Performance tiers are comparative hints, not compatibility guarantees. The native builder records TouchDesigner timing and memory samples in `docs/benchmark-data.json`; `python tools/benchmark_report.py` renders the hardware-specific report.
 
-## 10. Testing and review
+## 11. Testing and review
 
 An effect is not stable until all applicable checks pass:
 
@@ -183,10 +202,29 @@ An effect is not stable until all applicable checks pass:
 - compatibility accept/reject cases;
 - license and attribution review;
 - manual TouchDesigner smoke test on at least one declared supported build.
+- generated preview review followed by an intentional gallery-baseline update;
+- benchmark sample coverage for every catalog package.
 
 The reviewer should be able to understand what executes, what files it accesses, and what changes between versions without opening a binary `.tox` as the only source.
 
-## 11. Versioning examples
+The supported source-first workflow is:
+
+```console
+python tools/new_effect.py chromatic-smear "Chromatic Smear" stylize --model single_pass --gpu-cost medium
+```
+
+Edit the scaffold, run `touchdesigner/scripts/build_project.py` inside TouchDesigner, inspect `build/touchdesigner-build-report.json`, then regenerate/check derived artifacts:
+
+```console
+python tools/build_gallery.py
+python tools/check_gallery.py --update
+python tools/benchmark_report.py
+python tools/verify_repository.py
+```
+
+Only update gallery baselines after visual approval. For release staging, `python tools/package_release.py --release-tag v0.2.0` creates deterministic ZIPs and feed metadata under `dist/`; it does not publish or activate them.
+
+## 12. Versioning examples
 
 - Fix a shader branch that produced NaN at `Radius = 0`: patch.
 - Add an optional `Edge Softness` parameter whose default preserves the old look: minor.

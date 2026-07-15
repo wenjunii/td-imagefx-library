@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "id": "tdimagefx.light.bloom",
+  "name": "Bloom",
+  "version": "1.0.0",
+  "fx_api": "1.0",
+  "kind": "effect",
+  "category": "light",
+  "channel": "stable",
+  "description": "Extracts highlights, blurs them horizontally and vertically, then adds the result back as HDR bloom.",
+  "publisher": "TD ImageFX Library",
+  "license": "MIT",
+  "entrypoints": {
+    "shader": "shaders/pass1.frag",
+    "touchdesigner_component": "tox/tdimagefx_light_bloom.tox"
+  },
+  "inputs": [{"id": "image", "family": "TOP", "required": true}],
+  "outputs": [{"id": "image", "family": "TOP"}],
+  "parameters": [
+    {"id": "enable", "name": "Enable", "type": "toggle", "default": true},
+    {"id": "mix", "name": "Mix", "type": "float", "default": 1.0, "min": 0.0, "max": 1.0, "uniform": "uMix"},
+    {"id": "threshold", "name": "Threshold", "type": "float", "default": 0.8, "min": 0.0, "max": 4.0, "uniform": "uThreshold"},
+    {"id": "soft_knee", "name": "Softknee", "label": "Soft Knee", "type": "float", "default": 0.25, "min": 0.001, "max": 2.0, "uniform": "uSoftKnee"},
+    {"id": "radius", "name": "Radius", "type": "float", "default": 12.0, "min": 0.0, "max": 64.0, "unit": "pixels", "uniform": "uRadius"},
+    {"id": "intensity", "name": "Intensity", "type": "float", "default": 1.0, "min": 0.0, "max": 8.0, "uniform": "uIntensity"}
+  ],
+  "compatibility": {"touchdesigner_min_build": 2022.2, "touchdesigner_max_build": null, "os": ["windows", "macos"], "architectures": ["x86_64", "arm64"]},
+  "permissions": {"python": false, "filesystem": false, "network": false, "subprocess": false},
+  "dependencies": [],
+  "alpha_policy": "preserve",
+  "resolution_policy": "input",
+  "stateful": false,
+  "tags": ["light", "bloom", "highlight", "hdr", "multi-pass"],
+  "processing": {
+    "model": "multi_pass",
+    "gpu_cost": "high",
+    "capabilities": ["multi_pass"],
+    "passes": ["shaders/pass1.frag", "shaders/pass2.frag", "shaders/pass3.frag"]
+  }
+}

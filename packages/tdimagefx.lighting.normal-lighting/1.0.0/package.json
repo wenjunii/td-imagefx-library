@@ -1,0 +1,139 @@
+{
+  "schema_version": 1,
+  "id": "tdimagefx.lighting.normal-lighting",
+  "name": "Normal Lighting",
+  "version": "1.0.0",
+  "fx_api": "1.0",
+  "kind": "effect",
+  "category": "lighting",
+  "channel": "stable",
+  "description": "Lights an image with a supplied tangent-space normal map and adjustable light vector.",
+  "publisher": "TD ImageFX Library",
+  "license": "MIT",
+  "entrypoints": {
+    "shader": "shaders/normal_lighting.frag",
+    "touchdesigner_component": "tox/tdimagefx_lighting_normal_lighting.tox"
+  },
+  "inputs": [
+    {
+      "id": "image",
+      "family": "TOP",
+      "required": true,
+      "semantic": "source"
+    },
+    {
+      "id": "normal",
+      "family": "TOP",
+      "required": true,
+      "semantic": "normal"
+    }
+  ],
+  "outputs": [
+    {
+      "id": "image",
+      "family": "TOP"
+    }
+  ],
+  "parameters": [
+    {
+      "id": "enable",
+      "name": "Enable",
+      "type": "toggle",
+      "default": true
+    },
+    {
+      "id": "mix",
+      "name": "Mix",
+      "type": "float",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 1.0,
+      "uniform": "uMix"
+    },
+    {
+      "id": "light_x",
+      "name": "Lightx",
+      "type": "float",
+      "default": 0.4,
+      "min": -1,
+      "max": 1,
+      "uniform": "uLightX"
+    },
+    {
+      "id": "light_y",
+      "name": "Lighty",
+      "type": "float",
+      "default": 0.3,
+      "min": -1,
+      "max": 1,
+      "uniform": "uLightY"
+    },
+    {
+      "id": "light_z",
+      "name": "Lightz",
+      "type": "float",
+      "default": 0.8,
+      "min": 0.01,
+      "max": 2,
+      "uniform": "uLightZ"
+    },
+    {
+      "id": "ambient",
+      "name": "Ambient",
+      "type": "float",
+      "default": 0.2,
+      "min": 0,
+      "max": 1,
+      "uniform": "uAmbient"
+    },
+    {
+      "id": "strength",
+      "name": "Strength",
+      "type": "float",
+      "default": 1.2,
+      "min": 0,
+      "max": 4,
+      "uniform": "uStrength"
+    }
+  ],
+  "compatibility": {
+    "touchdesigner_min_build": 2022.2,
+    "touchdesigner_max_build": null,
+    "os": [
+      "windows",
+      "macos"
+    ],
+    "architectures": [
+      "x86_64",
+      "arm64"
+    ]
+  },
+  "permissions": {
+    "python": false,
+    "filesystem": false,
+    "network": false,
+    "subprocess": false
+  },
+  "dependencies": [],
+  "alpha_policy": "preserve",
+  "resolution_policy": "input",
+  "stateful": false,
+  "tags": [
+    "normal",
+    "lighting",
+    "diffuse",
+    "relight"
+  ],
+  "processing": {
+    "model": "single_pass",
+    "gpu_cost": "low",
+    "capabilities": [
+      "second_input",
+      "normal"
+    ],
+    "passes": [
+      "shaders/normal_lighting.frag"
+    ],
+    "history_frames": 0
+  }
+}

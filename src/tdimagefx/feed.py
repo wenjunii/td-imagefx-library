@@ -31,7 +31,7 @@ class SourcePolicy:
     file_root: Path | None = None
     allowed_https_hosts: frozenset[str] | None = None
     timeout_seconds: float = 15.0
-    user_agent: str = "tdimagefx/0.1"
+    user_agent: str = "tdimagefx/0.2"
 
 
 @dataclass(frozen=True, slots=True)

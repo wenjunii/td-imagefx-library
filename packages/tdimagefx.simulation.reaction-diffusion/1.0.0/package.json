@@ -1,0 +1,124 @@
+{
+  "schema_version": 1,
+  "id": "tdimagefx.simulation.reaction-diffusion",
+  "name": "Reaction Diffusion",
+  "version": "1.0.0",
+  "fx_api": "1.0",
+  "kind": "effect",
+  "category": "simulation",
+  "channel": "experimental",
+  "description": "Advances a Gray-Scott reaction-diffusion state seeded by source luminance.",
+  "publisher": "TD ImageFX Library",
+  "license": "MIT",
+  "entrypoints": {
+    "shader": "shaders/reaction_diffusion.frag",
+    "touchdesigner_component": "tox/tdimagefx_simulation_reaction_diffusion.tox"
+  },
+  "inputs": [
+    {
+      "id": "image",
+      "family": "TOP",
+      "required": true,
+      "semantic": "source"
+    }
+  ],
+  "outputs": [
+    {
+      "id": "image",
+      "family": "TOP"
+    }
+  ],
+  "parameters": [
+    {
+      "id": "enable",
+      "name": "Enable",
+      "type": "toggle",
+      "default": true
+    },
+    {
+      "id": "mix",
+      "name": "Mix",
+      "type": "float",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 1.0,
+      "uniform": "uMix"
+    },
+    {
+      "id": "feed",
+      "name": "Feed",
+      "type": "float",
+      "default": 0.0367,
+      "min": 0,
+      "max": 0.1,
+      "uniform": "uFeed"
+    },
+    {
+      "id": "kill",
+      "name": "Kill",
+      "type": "float",
+      "default": 0.0649,
+      "min": 0,
+      "max": 0.1,
+      "uniform": "uKill"
+    },
+    {
+      "id": "diffusion",
+      "name": "Diffusion",
+      "type": "float",
+      "default": 0.9,
+      "min": 0,
+      "max": 1.5,
+      "uniform": "uDiffusion"
+    },
+    {
+      "id": "seed",
+      "name": "Seed",
+      "type": "float",
+      "default": 0.4,
+      "min": 0,
+      "max": 1,
+      "uniform": "uSeed"
+    }
+  ],
+  "compatibility": {
+    "touchdesigner_min_build": 2022.2,
+    "touchdesigner_max_build": null,
+    "os": [
+      "windows",
+      "macos"
+    ],
+    "architectures": [
+      "x86_64",
+      "arm64"
+    ]
+  },
+  "permissions": {
+    "python": false,
+    "filesystem": false,
+    "network": false,
+    "subprocess": false
+  },
+  "dependencies": [],
+  "alpha_policy": "preserve",
+  "resolution_policy": "input",
+  "stateful": true,
+  "tags": [
+    "reaction-diffusion",
+    "gray-scott",
+    "generative",
+    "simulation"
+  ],
+  "processing": {
+    "model": "simulation",
+    "gpu_cost": "high",
+    "capabilities": [
+      "history",
+      "simulation"
+    ],
+    "passes": [
+      "shaders/reaction_diffusion.frag"
+    ],
+    "history_frames": 1
+  }
+}

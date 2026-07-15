@@ -6,7 +6,7 @@ TD ImageFX Library separates reusable visual content from discovery, installatio
 
 1. **Packages are immutable.** A published `<package-id>/<version>` is never edited in place.
 2. **Identity is stable.** IDs use `tdimagefx.<category>.<effect>` and versions use Semantic Versioning.
-3. **Contracts are explicit.** Manifest schema version, effect API version, inputs, parameters, assets, dependencies, and compatibility are machine-readable.
+3. **Contracts are explicit.** Manifest schema version, effect API version, inputs, parameters, processing model, capabilities, assets, dependencies, and compatibility are machine-readable.
 4. **Discovery is not execution.** A new feed entry can be displayed without downloading, installing, activating, or evaluating it.
 5. **Projects decide.** The installed registry describes what is available; a project lock describes exactly what that project uses.
 6. **TouchDesigner remains the renderer.** The library organizes effects and builds/integrates components; image cooking and shader compilation remain visible in TouchDesigner.
@@ -21,7 +21,10 @@ flowchart LR
     C --> D["Installed registry"]
     D --> E["Project lock resolver"]
     E --> F["TouchDesigner package/component adapter"]
-    F --> G["FX instance or rack slot"]
+    F --> G["FX instance"]
+    F --> J["Searchable browser"]
+    F --> K["Eight-slot rack"]
+    K --> G
     H["Updater state"] --> C
     I["Project lockfile"] --> E
 ```
@@ -30,17 +33,31 @@ flowchart LR
 
 `packages/<package-id>/<version>/` holds one immutable package. `package.json` is its entry point. Assets may include GLSL, Python, component source, presets, previews, examples, license text, or platform-specific plugin payloads, but every shipped asset must be declared by the manifest and covered by the package digest policy.
 
-The initial package namespace contains twelve GLSL effects across color, distortion, glitch, stylize, and transition categories. Future content types use the same lifecycle but may require stronger activation rules.
+The v0.2.0 namespace contains 66 GLSL effect IDs and 78 immutable version directories/manifests. The twelve original v0.1 effects remain at `1.0.0` beside upgraded `1.1.0` versions; the other current effects have one version each. Catalog, browser, rack, native-build, gallery, and benchmark views select the highest version for each ID, but an exact old version remains addressable by a version-aware lookup or project lock.
+
+The current 66-version view contains forty single-pass, twelve multi-pass, ten temporal, and four simulation packages across 13 user-facing categories. Future adapter packages use the same lifecycle but may require stronger activation rules for Python, network access, native plugins, or external runtimes.
 
 ### Contract layer
 
 `schemas/` defines the machine-readable boundaries for package manifests, feeds, installed state, and project locks. There are three independent compatibility axes:
 
-- `schema_version` controls how metadata is parsed. The v0.1.0 value is integer `1`.
-- `fx_api` controls whether a TouchDesigner adapter can expose and drive the effect. The v0.1.0 value is `1.0`.
+- `schema_version` controls how metadata is parsed. The v0.2.0 value remains integer `1`.
+- `fx_api` controls whether a TouchDesigner adapter can expose and drive the effect. The v0.2.0 value remains `1.0`.
 - Package `version` controls changes to the package itself and follows SemVer.
 
 A parser must reject unsupported schema versions. An adapter must refuse incompatible effect API versions. A resolver may retain several SemVer versions of one package simultaneously.
+
+All 66 current v0.2 manifests declare a `processing` object. The twelve immutable `1.0.0` history manifests predate it. For schema-v1 backward compatibility with those and compatible external older packages, the loader treats an omitted object as `single_pass`, `low`, no capabilities, and zero history:
+
+| Field | Meaning |
+| --- | --- |
+| `model` | `single_pass`, `multi_pass`, `temporal`, `simulation`, or future `adapter` execution |
+| `gpu_cost` | Relative `low`, `medium`, `high`, or `extreme` authoring hint |
+| `capabilities` | Routing/security facts such as history, second input, transition, displacement, depth, normal, flow, simulation, audio, native code, network, or Python |
+| `passes` | Ordered package-relative shader paths; at least two for `multi_pass` |
+| `history_frames` | Retained frame count; at least one for temporal/simulation processing |
+
+Models describe graph structure; capabilities describe what the graph needs. Neither replaces runtime compatibility testing or measured performance data.
 
 ### Core Python layer
 
@@ -66,6 +83,7 @@ Core modules must not import TouchDesigner's `td` module. This keeps schema, fee
 
 - create or load a Base COMP for an effect;
 - connect image, mask, and auxiliary TOP inputs according to the manifest;
+- construct declared single-pass/multi-pass shader chains and temporal/simulation feedback paths;
 - create custom parameters from declared parameter metadata;
 - bind parameters to GLSL uniforms or native nodes;
 - expose one canonical TOP output;
@@ -77,7 +95,19 @@ It does not decide that an update is trustworthy and does not rewrite a project 
 
 ### Presentation layer
 
-The eventual library browser and FX Rack are consumers of the registry and lock resolver. They should provide search, preview, categories, favorites, presets, reorderable slots, wet/dry mixing, modulation routing, performance estimates, and update status. Their UI state is not package truth; it can always be rebuilt from manifests, installed state, and the project lock.
+The shipped browser and eight-slot FX Rack consume the catalog without becoming package truth. The browser provides case-insensitive search, category/tag filters, JSON-backed favorites, compatibility/model/GPU-cost columns, and creation into an explicitly selected target COMP. The rack provides ordered slots, effect selection, enable/mix, shared time, reordering, per-slot and global bypass, reset/reload, validated presets, and sine/triangle/saw mix modulation.
+
+Browser favorites and rack presets are project/UI state. Both interfaces default to the latest version of each of the 66 effect IDs. A preset records exact package versions and parameters for reconstruction, so a retained historical version can still be requested, but it does not install packages, approve an update, or rewrite the project lock. Both interfaces can be rebuilt from manifests, installed state, and a lock.
+
+### Authoring and generated-artifact layer
+
+The source-first toolchain keeps reviewable inputs separate from generated native and documentation artifacts:
+
+1. `tools/new_effect.py` creates a non-overwriting manifest/shader scaffold for a declared processing model.
+2. `touchdesigner/scripts/build_project.py` runs inside TouchDesigner, validates all 78 immutable manifests, selects and rebuilds only the latest version of each of 66 effect IDs, preserves historical `.tox` files, writes four core `.tox` files and `TD_ImageFX_Library.toe`, renders latest-version preview PNGs, and captures runtime benchmark data.
+3. `tools/build_gallery.py`, `tools/check_gallery.py`, and `tools/benchmark_report.py` render/check derived documentation for the latest 66 versions.
+4. `tools/verify_repository.py` checks all 78 manifests and native entrypoints, plus latest-version gallery baselines, benchmark coverage, and version consistency.
+5. `tools/package_release.py` validates the stored version set, then stages only the latest 66 versions as deterministic ZIPs and release-feed metadata under `dist/`. Each ZIP includes `LICENSE`, `THIRD_PARTY_NOTICES.md`, the manifest, and declared package assets; feed manifest URLs are pinned to the supplied release tag. Publication and activation remain separate actions.
 
 ## State boundaries
 

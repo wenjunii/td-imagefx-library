@@ -1,0 +1,115 @@
+{
+  "schema_version": 1,
+  "id": "tdimagefx.simulation.cellular-automata",
+  "name": "Cellular Automata",
+  "version": "1.0.0",
+  "fx_api": "1.0",
+  "kind": "effect",
+  "category": "simulation",
+  "channel": "experimental",
+  "description": "Evolves a smooth Life-like cellular field with source-driven seeding.",
+  "publisher": "TD ImageFX Library",
+  "license": "MIT",
+  "entrypoints": {
+    "shader": "shaders/cellular_automata.frag",
+    "touchdesigner_component": "tox/tdimagefx_simulation_cellular_automata.tox"
+  },
+  "inputs": [
+    {
+      "id": "image",
+      "family": "TOP",
+      "required": true,
+      "semantic": "source"
+    }
+  ],
+  "outputs": [
+    {
+      "id": "image",
+      "family": "TOP"
+    }
+  ],
+  "parameters": [
+    {
+      "id": "enable",
+      "name": "Enable",
+      "type": "toggle",
+      "default": true
+    },
+    {
+      "id": "mix",
+      "name": "Mix",
+      "type": "float",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 1.0,
+      "uniform": "uMix"
+    },
+    {
+      "id": "birth",
+      "name": "Birth",
+      "type": "float",
+      "default": 3,
+      "min": 1,
+      "max": 8,
+      "uniform": "uBirth"
+    },
+    {
+      "id": "survival",
+      "name": "Survival",
+      "type": "float",
+      "default": 3,
+      "min": 1,
+      "max": 8,
+      "uniform": "uSurvival"
+    },
+    {
+      "id": "seed",
+      "name": "Seed",
+      "type": "float",
+      "default": 0.15,
+      "min": 0,
+      "max": 1,
+      "uniform": "uSeed"
+    }
+  ],
+  "compatibility": {
+    "touchdesigner_min_build": 2022.2,
+    "touchdesigner_max_build": null,
+    "os": [
+      "windows",
+      "macos"
+    ],
+    "architectures": [
+      "x86_64",
+      "arm64"
+    ]
+  },
+  "permissions": {
+    "python": false,
+    "filesystem": false,
+    "network": false,
+    "subprocess": false
+  },
+  "dependencies": [],
+  "alpha_policy": "preserve",
+  "resolution_policy": "input",
+  "stateful": true,
+  "tags": [
+    "cellular",
+    "automata",
+    "life",
+    "simulation"
+  ],
+  "processing": {
+    "model": "simulation",
+    "gpu_cost": "high",
+    "capabilities": [
+      "history",
+      "simulation"
+    ],
+    "passes": [
+      "shaders/cellular_automata.frag"
+    ],
+    "history_frames": 1
+  }
+}

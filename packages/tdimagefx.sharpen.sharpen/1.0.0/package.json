@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "id": "tdimagefx.sharpen.sharpen",
+  "name": "Sharpen",
+  "version": "1.0.0",
+  "fx_api": "1.0",
+  "kind": "effect",
+  "category": "sharpen",
+  "channel": "stable",
+  "description": "Enhances horizontal and vertical high-frequency detail in two separable sharpening passes.",
+  "publisher": "TD ImageFX Library",
+  "license": "MIT",
+  "entrypoints": {
+    "shader": "shaders/pass1.frag",
+    "touchdesigner_component": "tox/tdimagefx_sharpen_sharpen.tox"
+  },
+  "inputs": [{"id": "image", "family": "TOP", "required": true}],
+  "outputs": [{"id": "image", "family": "TOP"}],
+  "parameters": [
+    {"id": "enable", "name": "Enable", "type": "toggle", "default": true},
+    {"id": "mix", "name": "Mix", "type": "float", "default": 1.0, "min": 0.0, "max": 1.0, "uniform": "uMix"},
+    {"id": "amount", "name": "Amount", "type": "float", "default": 0.35, "min": 0.0, "max": 2.0, "uniform": "uAmount"}
+  ],
+  "compatibility": {"touchdesigner_min_build": 2022.2, "touchdesigner_max_build": null, "os": ["windows", "macos"], "architectures": ["x86_64", "arm64"]},
+  "permissions": {"python": false, "filesystem": false, "network": false, "subprocess": false},
+  "dependencies": [],
+  "alpha_policy": "preserve",
+  "resolution_policy": "input",
+  "stateful": false,
+  "tags": ["sharpen", "detail", "high-pass", "multi-pass"],
+  "processing": {
+    "model": "multi_pass",
+    "gpu_cost": "medium",
+    "capabilities": ["multi_pass"],
+    "passes": ["shaders/pass1.frag", "shaders/pass2.frag"]
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "id": "tdimagefx.transition.directional-wipe",
+  "name": "Directional Wipe",
+  "version": "1.0.0",
+  "fx_api": "1.0",
+  "kind": "effect",
+  "category": "transition",
+  "channel": "stable",
+  "description": "Wipes between two images along an arbitrary angle with a controllable soft edge.",
+  "publisher": "TD ImageFX Library",
+  "license": "MIT",
+  "entrypoints": {"shader": "shaders/directional_wipe.frag", "touchdesigner_component": "tox/tdimagefx_transition_directional_wipe.tox"},
+  "inputs": [
+    {"id": "image_a", "family": "TOP", "required": true},
+    {"id": "image_b", "family": "TOP", "required": true}
+  ],
+  "outputs": [{"id": "image", "family": "TOP"}],
+  "parameters": [
+    {"id": "enable", "name": "Enable", "type": "toggle", "default": true},
+    {"id": "mix", "name": "Mix", "type": "float", "default": 1.0, "min": 0.0, "max": 1.0, "uniform": "uMix"},
+    {"id": "progress", "name": "Progress", "type": "float", "default": 0.5, "min": 0.0, "max": 1.0, "uniform": "uProgress"},
+    {"id": "softness", "name": "Softness", "type": "float", "default": 0.04, "min": 0.0, "max": 0.5, "uniform": "uSoftness"},
+    {"id": "angle", "name": "Angle", "type": "float", "default": 0.0, "min": -3.14159, "max": 3.14159, "uniform": "uAngle", "unit": "radians"},
+    {"id": "reverse", "name": "Reverse", "type": "toggle", "default": false, "uniform": "uReverse"}
+  ],
+  "processing": {"model": "single_pass", "gpu_cost": "low", "capabilities": ["second_input", "transition"]},
+  "compatibility": {"touchdesigner_min_build": 2022.2, "touchdesigner_max_build": null, "os": ["windows", "macos"], "architectures": ["x86_64", "arm64"]},
+  "permissions": {"python": false, "filesystem": false, "network": false, "subprocess": false},
+  "dependencies": [],
+  "alpha_policy": "blend",
+  "resolution_policy": "first_input",
+  "stateful": false,
+  "tags": ["transition", "directional", "wipe", "two-input"]
+}

@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "id": "tdimagefx.stylize.scanlines",
+  "name": "Scanlines",
+  "version": "1.1.0",
+  "fx_api": "1.0",
+  "kind": "effect",
+  "category": "stylize",
+  "channel": "stable",
+  "description": "Adds animated CRT-style scanlines, flicker, and subtle RGB grille separation.",
+  "publisher": "TD ImageFX Library",
+  "license": "MIT",
+  "entrypoints": {"shader": "shaders/scanlines.frag", "touchdesigner_component": "tox/tdimagefx_stylize_scanlines.tox"},
+  "inputs": [{"id": "image", "family": "TOP", "required": true}],
+  "outputs": [{"id": "image", "family": "TOP"}],
+  "parameters": [
+    {"id": "enable", "name": "Enable", "type": "toggle", "default": true},
+    {"id": "mix", "name": "Mix", "type": "float", "default": 1.0, "min": 0.0, "max": 1.0, "uniform": "uMix"},
+    {"id": "time", "name": "Time", "type": "float", "default": 0.0, "min": -100000.0, "max": 100000.0, "uniform": "uTime"},
+    {"id": "density", "name": "Density", "type": "float", "default": 480.0, "min": 20.0, "max": 2160.0, "uniform": "uDensity"},
+    {"id": "strength", "name": "Strength", "type": "float", "default": 0.25, "min": 0.0, "max": 1.0, "uniform": "uStrength"},
+    {"id": "speed", "name": "Speed", "type": "float", "default": 1.0, "min": -10.0, "max": 10.0, "uniform": "uSpeed"}
+  ],
+  "compatibility": {"touchdesigner_min_build": 2022.2, "touchdesigner_max_build": null, "os": ["windows", "macos"], "architectures": ["x86_64", "arm64"]},
+  "permissions": {"python": false, "filesystem": false, "network": false, "subprocess": false},
+  "dependencies": [],
+  "alpha_policy": "preserve",
+  "resolution_policy": "input",
+  "stateful": false,
+  "tags": ["crt", "retro", "display"],
+  "processing": {"model": "single_pass", "gpu_cost": "low", "capabilities": [], "passes": ["shaders/scanlines.frag"]}
+}
