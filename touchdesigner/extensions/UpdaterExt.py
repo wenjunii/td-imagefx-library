@@ -7,7 +7,9 @@ all operator access remains on TouchDesigner's main thread.
 from __future__ import annotations
 
 import json
+import os
 import re
+import tempfile
 import threading
 import urllib.parse
 import urllib.request
@@ -81,6 +83,44 @@ class UpdaterExt:
                 raise ValueError("Update feed exceeds the 2 MiB size limit")
             return json.loads(payload.decode("utf-8"))
 
+    @staticmethod
+    def _write_json_atomic(root, output_path, payload):
+        root = Path(root).resolve(strict=True)
+        output_path = Path(os.path.abspath(output_path))
+        try:
+            relative = output_path.relative_to(root)
+        except ValueError as exc:
+            raise ValueError("Update status path must stay inside the library root") from exc
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        cursor = root
+        for part in relative.parts:
+            cursor = cursor / part
+            if cursor.is_symlink():
+                raise ValueError("Update status path may not contain symbolic links")
+        try:
+            output_path.parent.resolve(strict=True).relative_to(root)
+        except (OSError, ValueError) as exc:
+            raise ValueError("Update status path must stay inside the library root") from exc
+
+        descriptor, temporary_name = tempfile.mkstemp(
+            prefix=".{}-".format(output_path.name),
+            suffix=".tmp",
+            dir=str(output_path.parent),
+        )
+        temporary = Path(temporary_name)
+        try:
+            with os.fdopen(descriptor, "w", encoding="utf-8", newline="\n") as handle:
+                descriptor = None
+                json.dump(payload, handle, indent=2)
+                handle.write("\n")
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(str(temporary), str(output_path))
+        finally:
+            if descriptor is not None:
+                os.close(descriptor)
+            temporary.unlink(missing_ok=True)
+
     @classmethod
     def _worker_check(cls, root, channel, timeout, output_path):
         result = {
@@ -139,10 +179,7 @@ class UpdaterExt:
             result["status"] = "failed"
             result["errors"].append({"source": "local", "error": str(exc)})
 
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        temporary = output_path.with_suffix(".tmp")
-        temporary.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
-        temporary.replace(output_path)
+        cls._write_json_atomic(root, output_path, result)
 
     def CheckUpdates(self):
         if self._thread is not None and self._thread.is_alive():

@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "id": "tdimagefx.stylize.pixelate",
+  "name": "Pixelate",
+  "version": "1.1.0",
+  "fx_api": "1.0",
+  "kind": "effect",
+  "category": "stylize",
+  "channel": "stable",
+  "description": "Reduces apparent image resolution into adjustable pixel blocks.",
+  "publisher": "TD ImageFX Library",
+  "license": "MIT",
+  "entrypoints": {"shader": "shaders/pixelate.frag", "touchdesigner_component": "tox/tdimagefx_stylize_pixelate.tox"},
+  "inputs": [{"id": "image", "family": "TOP", "required": true}],
+  "outputs": [{"id": "image", "family": "TOP"}],
+  "parameters": [
+    {"id": "enable", "name": "Enable", "type": "toggle", "default": true},
+    {"id": "mix", "name": "Mix", "type": "float", "default": 1.0, "min": 0.0, "max": 1.0, "uniform": "uMix"},
+    {"id": "pixel_size", "name": "Pixelsize", "label": "Pixel Size", "type": "float", "default": 12.0, "min": 1.0, "max": 256.0, "uniform": "uPixelSize"}
+  ],
+  "compatibility": {"touchdesigner_min_build": 2022.2, "touchdesigner_max_build": null, "os": ["windows", "macos"], "architectures": ["x86_64", "arm64"]},
+  "permissions": {"python": false, "filesystem": false, "network": false, "subprocess": false},
+  "dependencies": [],
+  "alpha_policy": "preserve",
+  "resolution_policy": "input",
+  "stateful": false,
+  "tags": ["pixel", "mosaic", "low-resolution"],
+  "processing": {"model": "single_pass", "gpu_cost": "low", "capabilities": [], "passes": ["shaders/pixelate.frag"]}
+}

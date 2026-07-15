@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "id": "tdimagefx.stylize.frosted-glass",
+  "name": "Frosted Glass",
+  "version": "1.0.0",
+  "fx_api": "1.0",
+  "kind": "effect",
+  "category": "stylize",
+  "channel": "stable",
+  "description": "Refracts the image with deterministic cell noise, then softens the displaced result like textured glass.",
+  "publisher": "TD ImageFX Library",
+  "license": "MIT",
+  "entrypoints": {
+    "shader": "shaders/pass1.frag",
+    "touchdesigner_component": "tox/tdimagefx_stylize_frosted_glass.tox"
+  },
+  "inputs": [{"id": "image", "family": "TOP", "required": true}],
+  "outputs": [{"id": "image", "family": "TOP"}],
+  "parameters": [
+    {"id": "enable", "name": "Enable", "type": "toggle", "default": true},
+    {"id": "mix", "name": "Mix", "type": "float", "default": 1.0, "min": 0.0, "max": 1.0, "uniform": "uMix"},
+    {"id": "scale", "name": "Scale", "type": "float", "default": 80.0, "min": 4.0, "max": 400.0, "uniform": "uScale"},
+    {"id": "distortion", "name": "Distortion", "type": "float", "default": 10.0, "min": 0.0, "max": 64.0, "unit": "pixels", "uniform": "uDistortion"},
+    {"id": "softness", "name": "Softness", "type": "float", "default": 3.0, "min": 0.0, "max": 24.0, "unit": "pixels", "uniform": "uSoftness"},
+    {"id": "seed", "name": "Seed", "type": "float", "default": 1.0, "min": 0.0, "max": 10000.0, "uniform": "uSeed"}
+  ],
+  "compatibility": {"touchdesigner_min_build": 2022.2, "touchdesigner_max_build": null, "os": ["windows", "macos"], "architectures": ["x86_64", "arm64"]},
+  "permissions": {"python": false, "filesystem": false, "network": false, "subprocess": false},
+  "dependencies": [],
+  "alpha_policy": "preserve",
+  "resolution_policy": "input",
+  "stateful": false,
+  "tags": ["stylize", "glass", "frosted", "refraction", "multi-pass"],
+  "processing": {
+    "model": "multi_pass",
+    "gpu_cost": "medium",
+    "capabilities": ["multi_pass"],
+    "passes": ["shaders/pass1.frag", "shaders/pass2.frag"]
+  }
+}

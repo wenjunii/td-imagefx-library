@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "id": "tdimagefx.color.levels",
+  "name": "Levels",
+  "version": "1.0.0",
+  "fx_api": "1.0",
+  "kind": "effect",
+  "category": "color",
+  "channel": "stable",
+  "description": "Remaps input black and white points through gamma into configurable output levels.",
+  "publisher": "TD ImageFX Library",
+  "license": "MIT",
+  "entrypoints": {"shader": "shaders/levels.frag", "touchdesigner_component": "tox/tdimagefx_color_levels.tox"},
+  "inputs": [{"id": "image", "family": "TOP", "required": true}],
+  "outputs": [{"id": "image", "family": "TOP"}],
+  "parameters": [
+    {"id": "enable", "name": "Enable", "type": "toggle", "default": true},
+    {"id": "mix", "name": "Mix", "type": "float", "default": 1.0, "min": 0.0, "max": 1.0, "uniform": "uMix"},
+    {"id": "input_black", "name": "Inputblack", "label": "Input Black", "type": "float", "default": 0.0, "min": 0.0, "max": 1.0, "uniform": "uInputBlack"},
+    {"id": "input_white", "name": "Inputwhite", "label": "Input White", "type": "float", "default": 1.0, "min": 0.0, "max": 1.0, "uniform": "uInputWhite"},
+    {"id": "gamma", "name": "Gamma", "type": "float", "default": 1.0, "min": 0.1, "max": 5.0, "uniform": "uGamma"},
+    {"id": "output_black", "name": "Outputblack", "label": "Output Black", "type": "float", "default": 0.0, "min": 0.0, "max": 1.0, "uniform": "uOutputBlack"},
+    {"id": "output_white", "name": "Outputwhite", "label": "Output White", "type": "float", "default": 1.0, "min": 0.0, "max": 1.0, "uniform": "uOutputWhite"}
+  ],
+  "compatibility": {"touchdesigner_min_build": 2022.2, "touchdesigner_max_build": null, "os": ["windows", "macos"], "architectures": ["x86_64", "arm64"]},
+  "permissions": {"python": false, "filesystem": false, "network": false, "subprocess": false},
+  "dependencies": [],
+  "alpha_policy": "preserve",
+  "resolution_policy": "input",
+  "stateful": false,
+  "processing": {"model": "single_pass", "gpu_cost": "low", "capabilities": []},
+  "tags": ["levels", "gamma", "black-point", "white-point"]
+}

@@ -13,6 +13,7 @@ These links are the primary references for TouchDesigner behavior used by TD Ima
 ## Image processing and GLSL
 
 - [TOP overview](https://docs.derivative.ca/TOP) — TouchDesigner's texture/image operator family.
+- [Feedback TOP](https://docs.derivative.ca/Feedback_TOP) — retained-frame target, reset, and feedback-loop behavior used by temporal and simulation effects.
 - [GLSL TOP](https://docs.derivative.ca/GLSL_TOP) — shader node modes, parameters, inputs, outputs, formats, and performance information.
 - [Write a GLSL TOP](https://docs.derivative.ca/Write_a_GLSL_TOP) — input sampling, `vUV`, built-in samplers and texture info, uniforms, output swizzling, compute shaders, and debugging guidance.
 - [GLSL category](https://docs.derivative.ca/Category:GLSL) — related shader documentation.
@@ -32,6 +33,7 @@ TouchDesigner's GLSL guide links to the [Khronos OpenGL Shading Language specifi
 - [Extensions](https://docs.derivative.ca/Extensions) — Python extension lifecycle, access, initialization, and cleanup.
 - [Introduction to Python Tutorial](https://docs.derivative.ca/Introduction_to_Python_Tutorial) — TouchDesigner Python environment and operator access.
 - [OP Class](https://docs.derivative.ca/OP_Class) and [COMP Class](https://docs.derivative.ca/COMP_Class) — scripting APIs used by integration/build tooling.
+- [TOP Class](https://docs.derivative.ca/TOP_Class) — texture-operator scripting, dimensions, format, memory, cook, and timing information used by diagnostics and benchmarks.
 - [Virtual File System](https://docs.derivative.ca/Virtual_File_System) — embedding package assets into a component when a release chooses that distribution model.
 
 ## Animation, control, and timing
@@ -40,6 +42,7 @@ TouchDesigner's GLSL guide links to the [Khronos OpenGL Shading Language specifi
 - [Export](https://docs.derivative.ca/Export) — driving parameters from CHOP channels.
 - [Binding](https://docs.derivative.ca/Binding) — parameter binding and dependencies.
 - [Animation COMP](https://docs.derivative.ca/Animation_COMP) — keyframe animation data.
+- [Absolute Time](https://docs.derivative.ca/Absolute_Time) — project-independent time values and frame/second relationships relevant to deterministic animation controls.
 - [LFO CHOP](https://docs.derivative.ca/LFO_CHOP) — cyclic modulation.
 - [Audio Spectrum CHOP](https://docs.derivative.ca/Audio_Spectrum_CHOP) — audio-reactive frequency analysis.
 - [MIDI In CHOP](https://docs.derivative.ca/MIDI_In_CHOP) — MIDI control input.
@@ -51,6 +54,7 @@ TouchDesigner's GLSL guide links to the [Khronos OpenGL Shading Language specifi
 - [Info CHOP](https://docs.derivative.ca/Info_CHOP) — operator cook/performance channels.
 - [Perform CHOP](https://docs.derivative.ca/Perform_CHOP) — FPS, frame time, dropped frames, memory, and process state.
 - [Perform DAT](https://docs.derivative.ca/Perform_DAT) — detailed performance logging.
+- [Performance Monitor](https://docs.derivative.ca/Performance_Monitor) — operator cook analysis and CPU/GPU performance investigation.
 - [Optimize](https://docs.derivative.ca/Optimize) — official optimization guidance.
 - [Engine COMP](https://docs.derivative.ca/Engine_COMP) — loading `.tox` files in TouchEngine when process separation is appropriate.
 

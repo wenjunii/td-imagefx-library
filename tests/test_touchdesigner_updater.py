@@ -53,6 +53,31 @@ class TouchDesignerUpdaterTransportTests(unittest.TestCase):
                 "http://example.invalid/feed.json",
             )
 
+    def test_status_write_does_not_follow_predictable_or_destination_symlinks(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            status_root = root / ".imagefx"
+            status_root.mkdir()
+            outside = root / "outside.txt"
+            outside.write_text("unchanged", encoding="utf-8")
+            legacy_temporary = status_root / "update-status.tmp"
+            destination = status_root / "update-status.json"
+            try:
+                legacy_temporary.symlink_to(outside)
+            except OSError as exc:
+                self.skipTest("symbolic links are unavailable: {}".format(exc))
+
+            payload = {"schema_version": 1, "status": "complete"}
+            UPDATER_MODULE.UpdaterExt._write_json_atomic(root, destination, payload)
+            self.assertEqual(json.loads(destination.read_text(encoding="utf-8")), payload)
+            self.assertEqual(outside.read_text(encoding="utf-8"), "unchanged")
+
+            destination.unlink()
+            destination.symlink_to(outside)
+            with self.assertRaisesRegex(ValueError, "symbolic links"):
+                UPDATER_MODULE.UpdaterExt._write_json_atomic(root, destination, payload)
+            self.assertEqual(outside.read_text(encoding="utf-8"), "unchanged")
+
     def test_auto_check_schedules_a_promoted_public_method(self):
         class Toggle:
             def __bool__(self):

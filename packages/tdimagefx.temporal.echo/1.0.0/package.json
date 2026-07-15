@@ -1,0 +1,126 @@
+{
+  "schema_version": 1,
+  "id": "tdimagefx.temporal.echo",
+  "name": "Echo",
+  "version": "1.0.0",
+  "fx_api": "1.0",
+  "kind": "effect",
+  "category": "temporal",
+  "channel": "stable",
+  "description": "Layers a displaced, color-tinted echo from the previous frame behind the source.",
+  "publisher": "TD ImageFX Library",
+  "license": "MIT",
+  "entrypoints": {
+    "shader": "shaders/echo.frag",
+    "touchdesigner_component": "tox/tdimagefx_temporal_echo.tox"
+  },
+  "inputs": [
+    {
+      "id": "image",
+      "family": "TOP",
+      "required": true,
+      "semantic": "source"
+    }
+  ],
+  "outputs": [
+    {
+      "id": "image",
+      "family": "TOP"
+    }
+  ],
+  "parameters": [
+    {
+      "id": "enable",
+      "name": "Enable",
+      "type": "toggle",
+      "default": true
+    },
+    {
+      "id": "mix",
+      "name": "Mix",
+      "type": "float",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 1.0,
+      "uniform": "uMix"
+    },
+    {
+      "id": "feedback",
+      "name": "Feedback",
+      "type": "float",
+      "default": 0.7,
+      "min": 0,
+      "max": 0.98,
+      "uniform": "uFeedback"
+    },
+    {
+      "id": "offset_x",
+      "name": "Offsetx",
+      "type": "float",
+      "default": 0.012,
+      "min": -0.2,
+      "max": 0.2,
+      "uniform": "uOffsetX"
+    },
+    {
+      "id": "offset_y",
+      "name": "Offsety",
+      "type": "float",
+      "default": 0.008,
+      "min": -0.2,
+      "max": 0.2,
+      "uniform": "uOffsetY"
+    },
+    {
+      "id": "tint",
+      "name": "Tint",
+      "type": "rgba",
+      "default": [
+        0.9,
+        0.75,
+        1,
+        1
+      ],
+      "uniform": "uTint"
+    }
+  ],
+  "compatibility": {
+    "touchdesigner_min_build": 2022.2,
+    "touchdesigner_max_build": null,
+    "os": [
+      "windows",
+      "macos"
+    ],
+    "architectures": [
+      "x86_64",
+      "arm64"
+    ]
+  },
+  "permissions": {
+    "python": false,
+    "filesystem": false,
+    "network": false,
+    "subprocess": false
+  },
+  "dependencies": [],
+  "alpha_policy": "preserve",
+  "resolution_policy": "input",
+  "stateful": true,
+  "tags": [
+    "echo",
+    "delay",
+    "color",
+    "history"
+  ],
+  "processing": {
+    "model": "temporal",
+    "gpu_cost": "medium",
+    "capabilities": [
+      "history"
+    ],
+    "passes": [
+      "shaders/echo.frag"
+    ],
+    "history_frames": 1
+  }
+}

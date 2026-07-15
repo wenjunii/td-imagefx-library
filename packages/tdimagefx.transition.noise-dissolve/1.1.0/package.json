@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "id": "tdimagefx.transition.noise-dissolve",
+  "name": "Noise Dissolve",
+  "version": "1.1.0",
+  "fx_api": "1.0",
+  "kind": "effect",
+  "category": "transition",
+  "channel": "stable",
+  "description": "Transitions between two images through a seeded procedural noise field.",
+  "publisher": "TD ImageFX Library",
+  "license": "MIT",
+  "entrypoints": {"shader": "shaders/noise_dissolve.frag", "touchdesigner_component": "tox/tdimagefx_transition_noise_dissolve.tox"},
+  "inputs": [
+    {"id": "image_a", "family": "TOP", "required": true},
+    {"id": "image_b", "family": "TOP", "required": true}
+  ],
+  "outputs": [{"id": "image", "family": "TOP"}],
+  "parameters": [
+    {"id": "enable", "name": "Enable", "type": "toggle", "default": true},
+    {"id": "mix", "name": "Mix", "type": "float", "default": 1.0, "min": 0.0, "max": 1.0, "uniform": "uMix"},
+    {"id": "progress", "name": "Progress", "type": "float", "default": 0.5, "min": 0.0, "max": 1.0, "uniform": "uProgress"},
+    {"id": "softness", "name": "Softness", "type": "float", "default": 0.08, "min": 0.001, "max": 0.5, "uniform": "uSoftness"},
+    {"id": "scale", "name": "Scale", "type": "float", "default": 10.0, "min": 1.0, "max": 100.0, "uniform": "uScale"},
+    {"id": "seed", "name": "Seed", "type": "float", "default": 1.0, "min": 0.0, "max": 10000.0, "uniform": "uSeed"}
+  ],
+  "compatibility": {"touchdesigner_min_build": 2022.2, "touchdesigner_max_build": null, "os": ["windows", "macos"], "architectures": ["x86_64", "arm64"]},
+  "permissions": {"python": false, "filesystem": false, "network": false, "subprocess": false},
+  "dependencies": [],
+  "alpha_policy": "blend",
+  "resolution_policy": "first_input",
+  "stateful": false,
+  "tags": ["transition", "noise", "dissolve"],
+  "processing": {"model": "single_pass", "gpu_cost": "medium", "capabilities": ["second_input", "transition"], "passes": ["shaders/noise_dissolve.frag"]}
+}

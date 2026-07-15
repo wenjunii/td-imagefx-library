@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "id": "tdimagefx.stylize.ordered-dither",
+  "name": "Ordered Dither",
+  "version": "1.0.0",
+  "fx_api": "1.0",
+  "kind": "effect",
+  "category": "stylize",
+  "channel": "stable",
+  "description": "Quantizes color with a scalable four-by-four ordered threshold pattern.",
+  "publisher": "TD ImageFX Library",
+  "license": "MIT",
+  "entrypoints": {"shader": "shaders/ordered_dither.frag", "touchdesigner_component": "tox/tdimagefx_stylize_ordered_dither.tox"},
+  "inputs": [{"id": "image", "family": "TOP", "required": true}],
+  "outputs": [{"id": "image", "family": "TOP"}],
+  "parameters": [
+    {"id": "enable", "name": "Enable", "type": "toggle", "default": true},
+    {"id": "mix", "name": "Mix", "type": "float", "default": 1.0, "min": 0.0, "max": 1.0, "uniform": "uMix"},
+    {"id": "levels", "name": "Levels", "type": "float", "default": 4.0, "min": 2.0, "max": 16.0, "uniform": "uLevels"},
+    {"id": "pattern_scale", "name": "Patternscale", "label": "Pattern Scale", "type": "float", "default": 1.0, "min": 1.0, "max": 16.0, "uniform": "uPatternScale", "unit": "pixels"},
+    {"id": "strength", "name": "Strength", "type": "float", "default": 1.0, "min": 0.0, "max": 1.0, "uniform": "uStrength"}
+  ],
+  "compatibility": {"touchdesigner_min_build": 2022.2, "touchdesigner_max_build": null, "os": ["windows", "macos"], "architectures": ["x86_64", "arm64"]},
+  "permissions": {"python": false, "filesystem": false, "network": false, "subprocess": false},
+  "dependencies": [],
+  "alpha_policy": "preserve",
+  "resolution_policy": "input",
+  "stateful": false,
+  "processing": {"model": "single_pass", "gpu_cost": "low", "capabilities": []},
+  "tags": ["dither", "quantize", "pixel-art", "bayer"]
+}

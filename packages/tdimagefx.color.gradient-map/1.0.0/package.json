@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "id": "tdimagefx.color.gradient-map",
+  "name": "Gradient Map",
+  "version": "1.0.0",
+  "fx_api": "1.0",
+  "kind": "effect",
+  "category": "color",
+  "channel": "stable",
+  "description": "Maps image luminance across configurable shadow, midpoint, and highlight colors.",
+  "publisher": "TD ImageFX Library",
+  "license": "MIT",
+  "entrypoints": {"shader": "shaders/gradient_map.frag", "touchdesigner_component": "tox/tdimagefx_color_gradient_map.tox"},
+  "inputs": [{"id": "image", "family": "TOP", "required": true}],
+  "outputs": [{"id": "image", "family": "TOP"}],
+  "parameters": [
+    {"id": "enable", "name": "Enable", "type": "toggle", "default": true},
+    {"id": "mix", "name": "Mix", "type": "float", "default": 1.0, "min": 0.0, "max": 1.0, "uniform": "uMix"},
+    {"id": "shadow_color", "name": "Shadowcolor", "label": "Shadow Color", "type": "rgba", "default": [0.02, 0.01, 0.08, 1.0], "uniform": "uShadowColor"},
+    {"id": "mid_color", "name": "Midcolor", "label": "Mid Color", "type": "rgba", "default": [0.65, 0.12, 0.28, 1.0], "uniform": "uMidColor"},
+    {"id": "highlight_color", "name": "Highlightcolor", "label": "Highlight Color", "type": "rgba", "default": [1.0, 0.82, 0.32, 1.0], "uniform": "uHighlightColor"},
+    {"id": "midpoint", "name": "Midpoint", "type": "float", "default": 0.5, "min": 0.05, "max": 0.95, "uniform": "uMidpoint"},
+    {"id": "smoothness", "name": "Smoothness", "type": "float", "default": 0.15, "min": 0.0, "max": 0.5, "uniform": "uSmoothness"}
+  ],
+  "compatibility": {"touchdesigner_min_build": 2022.2, "touchdesigner_max_build": null, "os": ["windows", "macos"], "architectures": ["x86_64", "arm64"]},
+  "permissions": {"python": false, "filesystem": false, "network": false, "subprocess": false},
+  "dependencies": [],
+  "alpha_policy": "preserve",
+  "resolution_policy": "input",
+  "stateful": false,
+  "processing": {"model": "single_pass", "gpu_cost": "low", "capabilities": []},
+  "tags": ["gradient", "palette", "luminance", "colorize"]
+}

@@ -1,0 +1,672 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-07-15T18:31:29.452969+00:00",
+  "touchdesigner_build": "2025.32820",
+  "gpu": "NVIDIA GeForce RTX 3080 Ti Laptop GPU",
+  "resolution": "512x288",
+  "frames_per_sample": 12,
+  "method": "Median per-operator timing over forced cooks within one TouchDesigner frame, plus resident GLSL TOP texture memory",
+  "gpu_timing_note": "A null gpu_ms means this TouchDesigner build/driver did not expose per-operator GPU execution timing. cpu_submission_ms measures CPU command submission and must not be interpreted as GPU execution time. Temporal and simulation samples are first-frame measurements, not warmed steady-state profiles.",
+  "samples": [
+    {
+      "id": "tdimagefx.blur.box-blur",
+      "version": "1.0.0",
+      "model": "multi_pass",
+      "gpu_cost": "medium",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.01895,
+      "gpu_memory_bytes": 1572864,
+      "passes": 2
+    },
+    {
+      "id": "tdimagefx.blur.chromatic-blur",
+      "version": "1.0.0",
+      "model": "multi_pass",
+      "gpu_cost": "medium",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.0196,
+      "gpu_memory_bytes": 1572864,
+      "passes": 2
+    },
+    {
+      "id": "tdimagefx.blur.directional-blur",
+      "version": "1.0.0",
+      "model": "multi_pass",
+      "gpu_cost": "medium",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.01815,
+      "gpu_memory_bytes": 1572864,
+      "passes": 2
+    },
+    {
+      "id": "tdimagefx.blur.gaussian-blur",
+      "version": "1.0.0",
+      "model": "multi_pass",
+      "gpu_cost": "medium",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.01865,
+      "gpu_memory_bytes": 1572864,
+      "passes": 2
+    },
+    {
+      "id": "tdimagefx.blur.radial-blur",
+      "version": "1.0.0",
+      "model": "multi_pass",
+      "gpu_cost": "high",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.0206,
+      "gpu_memory_bytes": 1572864,
+      "passes": 2
+    },
+    {
+      "id": "tdimagefx.blur.tilt-shift",
+      "version": "1.0.0",
+      "model": "multi_pass",
+      "gpu_cost": "medium",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.02405,
+      "gpu_memory_bytes": 1572864,
+      "passes": 2
+    },
+    {
+      "id": "tdimagefx.color.channel-mixer",
+      "version": "1.0.0",
+      "model": "single_pass",
+      "gpu_cost": "low",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.0151,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.color.duotone",
+      "version": "1.1.0",
+      "model": "single_pass",
+      "gpu_cost": "low",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.01445,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.color.exposure",
+      "version": "1.0.0",
+      "model": "single_pass",
+      "gpu_cost": "low",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.01015,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.color.gradient-map",
+      "version": "1.0.0",
+      "model": "single_pass",
+      "gpu_cost": "low",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.017,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.color.hsv-shift",
+      "version": "1.1.0",
+      "model": "single_pass",
+      "gpu_cost": "low",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.00995,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.color.levels",
+      "version": "1.0.0",
+      "model": "single_pass",
+      "gpu_cost": "low",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.01265,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.color.lift-gamma-gain",
+      "version": "1.0.0",
+      "model": "single_pass",
+      "gpu_cost": "low",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.0154,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.color.posterize",
+      "version": "1.1.0",
+      "model": "single_pass",
+      "gpu_cost": "low",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.01015,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.color.temperature-tint",
+      "version": "1.0.0",
+      "model": "single_pass",
+      "gpu_cost": "low",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.0104,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.distort.bulge-pinch",
+      "version": "1.0.0",
+      "model": "single_pass",
+      "gpu_cost": "low",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.01135,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.distort.displacement-map",
+      "version": "1.0.0",
+      "model": "single_pass",
+      "gpu_cost": "medium",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.01115,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.distort.flow-field-warp",
+      "version": "1.0.0",
+      "model": "single_pass",
+      "gpu_cost": "medium",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.0101,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.distort.kaleidoscope",
+      "version": "1.1.0",
+      "model": "single_pass",
+      "gpu_cost": "medium",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.01105,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.distort.lens-distortion",
+      "version": "1.0.0",
+      "model": "single_pass",
+      "gpu_cost": "low",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.0114,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.distort.mirror",
+      "version": "1.0.0",
+      "model": "single_pass",
+      "gpu_cost": "low",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.01235,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.distort.polar-coordinates",
+      "version": "1.0.0",
+      "model": "single_pass",
+      "gpu_cost": "medium",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.01195,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.distort.ripple",
+      "version": "1.0.0",
+      "model": "single_pass",
+      "gpu_cost": "medium",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.0134,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.distort.twirl",
+      "version": "1.1.0",
+      "model": "single_pass",
+      "gpu_cost": "medium",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.01205,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.distort.wave-warp",
+      "version": "1.1.0",
+      "model": "single_pass",
+      "gpu_cost": "medium",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.01235,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.glitch.block-shift",
+      "version": "1.1.0",
+      "model": "single_pass",
+      "gpu_cost": "low",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.01305,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.glitch.digital-noise",
+      "version": "1.0.0",
+      "model": "single_pass",
+      "gpu_cost": "medium",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.0128,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.glitch.rgb-split",
+      "version": "1.1.0",
+      "model": "single_pass",
+      "gpu_cost": "low",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.01095,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.glitch.scan-tear",
+      "version": "1.0.0",
+      "model": "single_pass",
+      "gpu_cost": "low",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.013,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.glitch.slice-shift",
+      "version": "1.0.0",
+      "model": "single_pass",
+      "gpu_cost": "low",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.0126,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.light.bloom",
+      "version": "1.0.0",
+      "model": "multi_pass",
+      "gpu_cost": "high",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.0326,
+      "gpu_memory_bytes": 2359296,
+      "passes": 3
+    },
+    {
+      "id": "tdimagefx.light.edge-glow",
+      "version": "1.0.0",
+      "model": "multi_pass",
+      "gpu_cost": "high",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.0352,
+      "gpu_memory_bytes": 2359296,
+      "passes": 3
+    },
+    {
+      "id": "tdimagefx.light.glow",
+      "version": "1.0.0",
+      "model": "multi_pass",
+      "gpu_cost": "high",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.0358,
+      "gpu_memory_bytes": 2359296,
+      "passes": 3
+    },
+    {
+      "id": "tdimagefx.lighting.normal-lighting",
+      "version": "1.0.0",
+      "model": "single_pass",
+      "gpu_cost": "low",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.0131,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.motion.optical-flow-warp",
+      "version": "1.0.0",
+      "model": "single_pass",
+      "gpu_cost": "medium",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.01195,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.sharpen.sharpen",
+      "version": "1.0.0",
+      "model": "multi_pass",
+      "gpu_cost": "medium",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.0211,
+      "gpu_memory_bytes": 1572864,
+      "passes": 2
+    },
+    {
+      "id": "tdimagefx.sharpen.unsharp-mask",
+      "version": "1.0.0",
+      "model": "multi_pass",
+      "gpu_cost": "high",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.0318,
+      "gpu_memory_bytes": 2359296,
+      "passes": 3
+    },
+    {
+      "id": "tdimagefx.simulation.cellular-automata",
+      "version": "1.0.0",
+      "model": "simulation",
+      "gpu_cost": "high",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.0118,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.simulation.fluid-ink",
+      "version": "1.0.0",
+      "model": "simulation",
+      "gpu_cost": "high",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.0135,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.simulation.particle-advection",
+      "version": "1.0.0",
+      "model": "simulation",
+      "gpu_cost": "high",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.0131,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.simulation.reaction-diffusion",
+      "version": "1.0.0",
+      "model": "simulation",
+      "gpu_cost": "high",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.01285,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.spatial.depth-parallax",
+      "version": "1.0.0",
+      "model": "single_pass",
+      "gpu_cost": "medium",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.0118,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.stylize.edge-detect",
+      "version": "1.0.0",
+      "model": "single_pass",
+      "gpu_cost": "medium",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.0137,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.stylize.emboss",
+      "version": "1.0.0",
+      "model": "single_pass",
+      "gpu_cost": "low",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.01215,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.stylize.frosted-glass",
+      "version": "1.0.0",
+      "model": "multi_pass",
+      "gpu_cost": "medium",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.0228,
+      "gpu_memory_bytes": 1572864,
+      "passes": 2
+    },
+    {
+      "id": "tdimagefx.stylize.halftone",
+      "version": "1.0.0",
+      "model": "single_pass",
+      "gpu_cost": "low",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.0134,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.stylize.ordered-dither",
+      "version": "1.0.0",
+      "model": "single_pass",
+      "gpu_cost": "low",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.01215,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.stylize.pixelate",
+      "version": "1.1.0",
+      "model": "single_pass",
+      "gpu_cost": "low",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.01095,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.stylize.scanlines",
+      "version": "1.1.0",
+      "model": "single_pass",
+      "gpu_cost": "low",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.0131,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.stylize.sepia",
+      "version": "1.0.0",
+      "model": "single_pass",
+      "gpu_cost": "low",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.0135,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.stylize.vhs",
+      "version": "1.0.0",
+      "model": "single_pass",
+      "gpu_cost": "medium",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.0164,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.stylize.vignette",
+      "version": "1.1.0",
+      "model": "single_pass",
+      "gpu_cost": "low",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.0148,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.temporal.echo",
+      "version": "1.0.0",
+      "model": "temporal",
+      "gpu_cost": "medium",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.0149,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.temporal.feedback-kaleidoscope",
+      "version": "1.0.0",
+      "model": "temporal",
+      "gpu_cost": "medium",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.01195,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.temporal.feedback-rotate",
+      "version": "1.0.0",
+      "model": "temporal",
+      "gpu_cost": "medium",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.0127,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.temporal.feedback-trails",
+      "version": "1.0.0",
+      "model": "temporal",
+      "gpu_cost": "medium",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.01235,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.temporal.frame-blend",
+      "version": "1.0.0",
+      "model": "temporal",
+      "gpu_cost": "low",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.01165,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.temporal.motion-smear",
+      "version": "1.0.0",
+      "model": "temporal",
+      "gpu_cost": "high",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.0127,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.temporal.recursive-zoom",
+      "version": "1.0.0",
+      "model": "temporal",
+      "gpu_cost": "medium",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.0124,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.temporal.stutter",
+      "version": "1.0.0",
+      "model": "temporal",
+      "gpu_cost": "low",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.0123,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.temporal.temporal-glitch",
+      "version": "1.0.0",
+      "model": "temporal",
+      "gpu_cost": "medium",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.01385,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.temporal.time-displacement",
+      "version": "1.0.0",
+      "model": "temporal",
+      "gpu_cost": "medium",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.0142,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.transition.directional-wipe",
+      "version": "1.0.0",
+      "model": "single_pass",
+      "gpu_cost": "low",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.01435,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.transition.luma-wipe",
+      "version": "1.0.0",
+      "model": "single_pass",
+      "gpu_cost": "low",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.014,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.transition.noise-dissolve",
+      "version": "1.1.0",
+      "model": "single_pass",
+      "gpu_cost": "medium",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.01415,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.transition.radial-wipe",
+      "version": "1.0.0",
+      "model": "single_pass",
+      "gpu_cost": "low",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.0143,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    }
+  ]
+}

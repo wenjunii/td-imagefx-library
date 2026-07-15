@@ -18,6 +18,51 @@ class ManifestTests(unittest.TestCase):
         manifest = PackageManifest.from_data(manifest_data())
         self.assertEqual(manifest.id, "tdimagefx.test.effect")
         self.assertEqual(str(manifest.version), "1.0.0")
+        self.assertEqual(manifest.processing["model"], "single_pass")
+
+    def test_validates_processing_capabilities_and_passes(self) -> None:
+        data = manifest_data()
+        data["processing"] = {
+            "model": "multi_pass",
+            "gpu_cost": "high",
+            "capabilities": ["multi_pass"],
+            "passes": ["shaders/effect.frag", "shaders/vertical.frag"],
+            "history_frames": 0,
+        }
+        manifest = PackageManifest.from_data(data)
+        self.assertEqual(manifest.processing["passes"][-1], "shaders/vertical.frag")
+
+        data["processing"]["passes"] = ["shaders/effect.frag"]
+        with self.assertRaisesRegex(ValidationError, "at least two"):
+            PackageManifest.from_data(data)
+
+    def test_temporal_processing_requires_history(self) -> None:
+        data = manifest_data()
+        data["processing"] = {
+            "model": "temporal",
+            "gpu_cost": "medium",
+            "capabilities": ["history"],
+            "history_frames": 0,
+        }
+        data["stateful"] = True
+        with self.assertRaisesRegex(ValidationError, "history_frames"):
+            PackageManifest.from_data(data)
+
+    def test_processing_type_errors_are_reported_without_crashing(self) -> None:
+        data = manifest_data()
+        data["processing"] = {
+            "model": {},
+            "gpu_cost": [],
+            "capabilities": ["history"],
+            "passes": ["shaders/effect.frag", {"not": "a path"}],
+            "history_frames": "one",
+        }
+        with self.assertRaises(ValidationError) as caught:
+            PackageManifest.from_data(data)
+        self.assertIn("passes[1]", str(caught.exception))
+        self.assertIn("history_frames", str(caught.exception))
+        self.assertIn("processing.model", str(caught.exception))
+        self.assertIn("processing.gpu_cost", str(caught.exception))
 
     def test_load_manifest_rejects_duplicate_json_keys(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

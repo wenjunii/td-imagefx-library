@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "id": "tdimagefx.distort.bulge-pinch",
+  "name": "Bulge Pinch",
+  "version": "1.0.0",
+  "fx_api": "1.0",
+  "kind": "effect",
+  "category": "distortion",
+  "channel": "stable",
+  "description": "Creates a localized aspect-correct bulge or pinch around a configurable center and radius.",
+  "publisher": "TD ImageFX Library",
+  "license": "MIT",
+  "entrypoints": {"shader": "shaders/bulge_pinch.frag", "touchdesigner_component": "tox/tdimagefx_distort_bulge_pinch.tox"},
+  "inputs": [{"id": "image", "family": "TOP", "required": true}],
+  "outputs": [{"id": "image", "family": "TOP"}],
+  "parameters": [
+    {"id": "enable", "name": "Enable", "type": "toggle", "default": true},
+    {"id": "mix", "name": "Mix", "type": "float", "default": 1.0, "min": 0.0, "max": 1.0, "uniform": "uMix"},
+    {"id": "strength", "name": "Strength", "type": "float", "default": 0.5, "min": -1.0, "max": 1.0, "uniform": "uStrength"},
+    {"id": "radius", "name": "Radius", "type": "float", "default": 0.35, "min": 0.01, "max": 1.5, "uniform": "uRadius"},
+    {"id": "center_x", "name": "Centerx", "label": "Center X", "type": "float", "default": 0.5, "min": 0.0, "max": 1.0, "uniform": "uCenterX"},
+    {"id": "center_y", "name": "Centery", "label": "Center Y", "type": "float", "default": 0.5, "min": 0.0, "max": 1.0, "uniform": "uCenterY"}
+  ],
+  "processing": {"model": "single_pass", "gpu_cost": "low", "capabilities": []},
+  "compatibility": {"touchdesigner_min_build": 2022.2, "touchdesigner_max_build": null, "os": ["windows", "macos"], "architectures": ["x86_64", "arm64"]},
+  "permissions": {"python": false, "filesystem": false, "network": false, "subprocess": false},
+  "dependencies": [],
+  "alpha_policy": "preserve",
+  "resolution_policy": "input",
+  "stateful": false,
+  "tags": ["bulge", "pinch", "lens", "localized"]
+}
