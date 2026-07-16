@@ -290,9 +290,11 @@ def package_zip(
 def _artifact_path(output_root: Path, artifact_name: str) -> Path:
     if Path(artifact_name).name != artifact_name or any(separator in artifact_name for separator in ("/", "\\")):
         raise ReleaseError(f"Unsafe artifact filename: {artifact_name!r}")
-    candidate = (output_root / artifact_name).resolve()
+    candidate = _absolute(output_root / artifact_name)
+    canonical_root = output_root.resolve()
+    canonical_candidate = candidate.resolve()
     try:
-        candidate.relative_to(output_root)
+        canonical_candidate.relative_to(canonical_root)
     except ValueError as exc:
         raise ReleaseError(f"Artifact path escapes output directory: {artifact_name!r}") from exc
     return candidate

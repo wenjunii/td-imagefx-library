@@ -298,7 +298,7 @@ class ArchiveTests(unittest.TestCase):
                 expected_sha256=digest,
                 policy=SourcePolicy(allow_file=True, file_root=root),
             )
-            self.assertEqual(result.install_path, install)
+            self.assertEqual(result.install_path, install.resolve())
 
 
 class StateTests(unittest.TestCase):

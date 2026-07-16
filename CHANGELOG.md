@@ -42,7 +42,7 @@ No unreleased changes are recorded yet.
 
 - The Python manifest and runtime contracts include dedicated tests for the new package metadata, stateful upgrades, rack routing/reset/time behavior, browser diagnostics, updater validation, release hardening, and immutable history.
 - The synchronized native build used TouchDesigner `2025.32820` on Windows and produced 122 versioned effect `.tox` files, four core `.tox` files, one library `.toe`, 96 previews, 96 visual baselines, and 96 benchmark samples. Its report records zero shader, preview, or builder errors.
-- The final repository verifier completed 145 tests successfully; four Windows-only symbolic-link cases were skipped because the local account lacked link-creation privilege. Two independently staged 99-file release candidates were byte-identical.
+- The final repository verifier completed 146 tests successfully; four Windows-only symbolic-link cases were skipped because the local account lacked link-creation privilege. Two independently staged 99-file release candidates were byte-identical.
 
 ## [0.2.0] - 2026-07-15
 

@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-07-16T16:37:52.025928+00:00",
+  "generated_at": "2026-07-16T19:15:02.627338+00:00",
   "library_version": "0.3.0",
   "touchdesigner": {
     "version": "099",
@@ -29,28 +29,28 @@
   "artifacts": [
     {
       "path": "TD_ImageFX_Library.toe",
-      "bytes": 104930,
-      "sha256": "736beaedcc83623850e8605a30d57f4d788e610245c5809f0742d80665dc2c4d"
+      "bytes": 105554,
+      "sha256": "ca9dbd7d4f8a0c148a2ac4fb110c4ceb8eb12d289d88a014a91381c843906f34"
     },
     {
       "path": "touchdesigner/core/TDImageFXLibrary.tox",
-      "bytes": 77046,
-      "sha256": "44d801252ac77ab7a125ab45205a08c62fcb10ebe469a4caa83a5d6a9d7ee672"
+      "bytes": 77462,
+      "sha256": "165e14faa999dddc7b3b4ce23ed6b5351fd5c1f366e15634db40a9cbb8486698"
     },
     {
       "path": "touchdesigner/core/FxBrowser.tox",
       "bytes": 24286,
-      "sha256": "fa077bf1d1bac854553ded1419a8d892ff6e8e0e68872a3fd1c57eff2fac1708"
+      "sha256": "e251a0f9fac3b3ad16e09117b9acda72e628d1c7212ca76eda3938c476254049"
     },
     {
       "path": "touchdesigner/core/FxRack.tox",
-      "bytes": 24486,
-      "sha256": "7c3bee2a664e6a6b790f316475edd33c76718d3babb87d6ba6552c55b7ccc259"
+      "bytes": 24702,
+      "sha256": "6668a9591d0d819d0abeaa4a86980e5c94c36381b29d4c02f317d4e3f35b65c7"
     },
     {
       "path": "touchdesigner/core/FxUpdater.tox",
-      "bytes": 13094,
-      "sha256": "eacfedaed5dfce19eea2ef5cbb393c2f3554ddca47017278ef2a78931b097b95"
+      "bytes": 13310,
+      "sha256": "2c85818091374d6c9eb3ccc3e51e39930d3f815cddb143e43878f404f1acfb77"
     },
     {
       "path": "packages/tdimagefx.blur.bilateral-blur/1.0.0/tox/tdimagefx_blur_bilateral_blur.tox",

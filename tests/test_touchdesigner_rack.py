@@ -428,7 +428,8 @@ class FxRackExtensionTests(unittest.TestCase):
     def test_save_and_load_stay_inside_the_preset_folder(self):
         self.owner.par["Slot3mix"].val = 0.36
         destination = Path(self.rack.SavePreset("looks/demo", "Demo"))
-        self.assertEqual(destination, Path(self.temporary.name) / "presets" / "looks" / "demo.json")
+        expected = Path(self.temporary.name) / "presets" / "looks" / "demo.json"
+        self.assertEqual(destination, expected.resolve())
         self.assertTrue(destination.is_file())
 
         self.owner.par["Slot3mix"].val = 0.99

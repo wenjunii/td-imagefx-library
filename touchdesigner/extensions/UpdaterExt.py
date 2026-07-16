@@ -710,8 +710,26 @@ class UpdaterExt:
 
     @staticmethod
     def _write_json_atomic(root, output_path, payload):
-        root = Path(root).resolve(strict=True)
+        root_input = Path(os.path.abspath(root))
+        root = root_input.resolve(strict=True)
         output_path = Path(os.path.abspath(output_path))
+        # Reject symlinks using the caller's path spelling before resolving it.
+        # This preserves the no-symlink policy while allowing equivalent path
+        # aliases such as /var and /private/var or Windows 8.3 names.
+        cursor = output_path
+        while cursor != root_input:
+            if cursor.is_symlink():
+                raise ValueError("Update status path may not contain symbolic links")
+            try:
+                if cursor.exists() and cursor.samefile(root):
+                    break
+            except OSError:
+                pass
+            parent = cursor.parent
+            if parent == cursor:
+                break
+            cursor = parent
+        output_path = output_path.resolve(strict=False)
         try:
             relative = output_path.relative_to(root)
         except ValueError as exc:

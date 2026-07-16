@@ -206,6 +206,36 @@ class ReleaseOutputTests(unittest.TestCase):
                 names = set(archive.namelist())
             self.assertTrue({"CHANGELOG.md", "examples/basic.toe", "presets/default.json"} <= names)
 
+    def test_artifact_path_compares_canonical_root_alias(self) -> None:
+        alias_root = Path.cwd() / "output-alias"
+        canonical_root = Path.cwd() / "canonical-output"
+        artifact_name = "tdimagefx.test.effect-1.0.0.zip"
+        canonical_artifact = canonical_root / artifact_name
+
+        def resolve_alias(path: Path, *_args: object, **_kwargs: object) -> Path:
+            if path == alias_root:
+                return canonical_root
+            if path == alias_root / artifact_name:
+                return canonical_artifact
+            raise AssertionError(f"Unexpected path resolution: {path}")
+
+        with mock.patch.object(Path, "resolve", autospec=True, side_effect=resolve_alias):
+            self.assertEqual(
+                package_release._artifact_path(alias_root, artifact_name),
+                alias_root / artifact_name,
+            )
+
+        def resolve_escape(path: Path, *_args: object, **_kwargs: object) -> Path:
+            if path == alias_root:
+                return canonical_root
+            if path == alias_root / artifact_name:
+                return canonical_root.parent / artifact_name
+            raise AssertionError(f"Unexpected path resolution: {path}")
+
+        with mock.patch.object(Path, "resolve", autospec=True, side_effect=resolve_escape):
+            with self.assertRaisesRegex(package_release.ReleaseError, "escapes output directory"):
+                package_release._artifact_path(alias_root, artifact_name)
+
     def test_failed_release_does_not_expose_a_partial_output_root(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

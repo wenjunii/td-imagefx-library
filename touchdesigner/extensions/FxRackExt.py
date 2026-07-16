@@ -935,6 +935,23 @@ class FxRackExt:
         if candidate.suffix.lower() != ".json":
             raise ValueError("Rack presets must use the .json extension")
         candidate = Path(os.path.abspath(candidate))
+        # Inspect the unresolved spelling first so a symlink cannot disappear
+        # during canonicalization. Canonicalizing afterward makes equivalent
+        # filesystem aliases compare consistently on macOS and Windows.
+        cursor = candidate
+        while True:
+            if cursor.is_symlink():
+                raise ValueError("Rack preset paths may not contain symbolic links")
+            try:
+                if cursor.exists() and cursor.samefile(preset_root):
+                    break
+            except OSError:
+                pass
+            parent = cursor.parent
+            if parent == cursor:
+                break
+            cursor = parent
+        candidate = candidate.resolve(strict=False)
         try:
             relative = candidate.relative_to(preset_root)
         except ValueError as exc:
