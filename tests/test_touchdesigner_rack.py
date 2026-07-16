@@ -64,9 +64,34 @@ class FakePars:
         parameter.val = value
 
 
-class FakeSlot:
-    def __init__(self, name, gain=0.5):
+class FakeConnector:
+    def __init__(self, owner):
+        self.owner = owner
+        self.source = None
+
+    def connect(self, target):
+        target.source = self
+
+    def disconnect(self):
+        self.source = None
+
+
+class FakeTOP:
+    def __init__(self, name, input_count=1):
         self.name = name
+        self.inputConnectors = [FakeConnector(self) for _index in range(input_count)]
+        self.outputConnectors = [FakeConnector(self)]
+
+
+class FakeSlot:
+    _next_id = 100
+
+    def __init__(self, name, gain=0.5, input_count=1):
+        self.id = FakeSlot._next_id
+        FakeSlot._next_id += 1
+        self.name = name
+        self.owner = None
+        self.destroyed = False
         self.par = FakePars()
         self.par.add("Enable", True)
         self.par.add("Mix", 1.0)
@@ -74,6 +99,33 @@ class FakeSlot:
         self.par.add("Reset", False)
         self.par.add("Gain", gain)
         self.customPars = [self.par["Gain"]]
+        self.inputConnectors = [FakeConnector(self) for _index in range(input_count)]
+        self.outputConnectors = [FakeConnector(self)]
+
+    def destroy(self):
+        self.destroyed = True
+        owner = self.owner
+        if owner is not None and hasattr(owner, "remove_child"):
+            owner.remove_child(self)
+        elif owner is not None and getattr(owner, "operators", {}).get(self.name) is self:
+            owner.operators.pop(self.name, None)
+
+
+class FakeHistorySlot:
+    def __init__(self):
+        self.name = "slot1"
+        self.par = FakePars()
+        self.history = FakeSlot("history_feedback")
+        self.history.par.values.pop("Reset")
+        self.history.par.add("resetpulse", False)
+
+    def fetch(self, key, default=None):
+        if key == "tdimagefx_history_nodes":
+            return ["history_feedback"]
+        return default
+
+    def op(self, name):
+        return self.history if name == "history_feedback" else None
 
 
 class FakeOwner:
@@ -82,12 +134,22 @@ class FakeOwner:
         self.par.add("Rootfolder", str(root))
         self.par.add("Autotime", True)
         self.par.add("Timescale", 1.0)
+        self.par.add("Manualtime", 0.0)
         self.par.add("Time", 0.0)
         self.par.add("Presetname", "")
         self.par.add("Presetpath", "")
         self.par.add("Presetjson", "")
         self.storage = {}
-        self.operators = {}
+        self.operators = {
+            "in1_image": FakeTOP("in1_image", input_count=0),
+            "in2_image_b": FakeTOP("in2_image_b", input_count=0),
+            "in3_displacement": FakeTOP("in3_displacement", input_count=0),
+            "in4_depth": FakeTOP("in4_depth", input_count=0),
+            "in5_normal": FakeTOP("in5_normal", input_count=0),
+            "in6_flow": FakeTOP("in6_flow", input_count=0),
+            "in7_mask": FakeTOP("in7_mask", input_count=0),
+            "out1_image": FakeTOP("out1_image"),
+        }
         for index in range(1, RACK_MODULE.SLOT_COUNT + 1):
             package_id = "tdimagefx.test.effect{}".format(index)
             self.par.add("Slot{}effect".format(index), package_id)
@@ -97,7 +159,9 @@ class FakeOwner:
             self.par.add("Slot{}modrate".format(index), 1.0)
             self.par.add("Slot{}modstate".format(index), "off")
             self.storage["slot{}_package".format(index)] = {"id": package_id, "version": "1.0.0"}
-            self.operators["slot{}".format(index)] = FakeSlot("slot{}".format(index), index / 10.0)
+            slot = FakeSlot("slot{}".format(index), index / 10.0)
+            slot.owner = self
+            self.operators[slot.name] = slot
 
     def op(self, name):
         return self.operators.get(name)
@@ -115,6 +179,7 @@ class InMemoryRack(RACK_MODULE.FxRackExt):
         package_id = package_id or self._parameter_value("Slot{}effect".format(index))
         version = version or "1.0.0"
         slot = FakeSlot("slot{}".format(index))
+        slot.owner = self.ownerComp
         self.ownerComp.operators[slot.name] = slot
         self.ownerComp.store(
             "slot{}_package".format(index),
@@ -122,6 +187,84 @@ class InMemoryRack(RACK_MODULE.FxRackExt):
         )
         self._bind_slot(index, slot)
         return slot
+
+
+class TransactionalOwner:
+    def __init__(self, root):
+        self.par = FakePars()
+        self.par.add("Rootfolder", str(root))
+        self.par.add("Slot1effect", "tdimagefx.test.old")
+        self.par.add("Slot1enable", True)
+        self.par.add("Slot1mix", 1.0)
+        self.par.add("Slot1moddepth", 0.0)
+        self.par.add("Slot1modrate", 1.0)
+        self.par.add("Slot1modstate", "off")
+        self.storage = {
+            "slot1_package": {"id": "tdimagefx.test.old", "version": "1.0.0"},
+            "slot1_input_routes": {"0": "image"},
+        }
+        self.fixed = {
+            "in1_image": FakeTOP("in1_image", input_count=0),
+            "out1_image": FakeTOP("out1_image"),
+        }
+        self.old_slot = FakeSlot("slot1")
+        self.old_slot.owner = self
+        self._children = [self.old_slot]
+        self.loaded_candidate = None
+        self.fixed["in1_image"].outputConnectors[0].connect(self.old_slot.inputConnectors[0])
+        self.old_slot.outputConnectors[0].connect(self.fixed["out1_image"].inputConnectors[0])
+
+    @property
+    def children(self):
+        return list(self._children)
+
+    def op(self, name):
+        if name in self.fixed:
+            return self.fixed[name]
+        return next(
+            (child for child in self._children if not child.destroyed and child.name == name),
+            None,
+        )
+
+    def loadTox(self, _path):
+        candidate = FakeSlot("loaded_effect")
+        candidate.owner = self
+        self._children.append(candidate)
+        self.loaded_candidate = candidate
+
+    def remove_child(self, child):
+        if child in self._children:
+            self._children.remove(child)
+
+    def store(self, key, value):
+        self.storage[key] = value
+
+    def fetch(self, key, default=None):
+        return self.storage.get(key, default)
+
+
+class TransactionalRack(RACK_MODULE.FxRackExt):
+    def _find_manifest(self, package_id, version=None):
+        return (
+            {
+                "id": package_id,
+                "version": version or "2.0.0",
+                "inputs": [{"id": "image", "family": "TOP"}],
+                "entrypoints": {"touchdesigner_component": "tox/effect.tox"},
+            },
+            Path("package.json"),
+        )
+
+    @staticmethod
+    def _component_path(_manifest, _manifest_path):
+        return Path("effect.tox")
+
+
+class RenameFailingRack(TransactionalRack):
+    def _rename_exact(self, operator, name):
+        if operator is self.ownerComp.loaded_candidate and name == "slot1":
+            raise RuntimeError("simulated commit failure")
+        return super()._rename_exact(operator, name)
 
 
 class FxRackExtensionTests(unittest.TestCase):
@@ -136,6 +279,46 @@ class FxRackExtensionTests(unittest.TestCase):
         for value in (0, 9, True, 1.5, "bad"):
             with self.subTest(value=value), self.assertRaises(ValueError):
                 self.rack._slot_index(value)
+
+    def test_auxiliary_inputs_route_by_each_manifest_semantic(self):
+        manifest = {
+            "inputs": [
+                {"id": "image", "semantic": "source"},
+                {"id": "vectors", "role": "flow", "semantic": "optical-flow"},
+                {"id": "matte", "role": "mask", "semantic": "matte"},
+            ]
+        }
+        self.assertEqual(
+            self.rack._input_routes(manifest),
+            {0: "image", 1: "flow", 2: "mask"},
+        )
+        self.assertEqual(self.rack._rack_input_name("flow"), "in6_flow")
+        with self.assertRaisesRegex(RuntimeError, "Unsupported auxiliary"):
+            self.rack._input_routes(
+                {"inputs": [{"id": "image"}, {"id": "unknown"}]}
+            )
+
+        slot = FakeSlot("replacement", input_count=3)
+        self.rack._connect_slot(1, slot, {0: "image", 1: "flow", 2: "mask"})
+        self.assertEqual(slot.inputConnectors[0].source.owner.name, "in1_image")
+        self.assertEqual(slot.inputConnectors[1].source.owner.name, "in6_flow")
+        self.assertEqual(slot.inputConnectors[2].source.owner.name, "in7_mask")
+        self.assertEqual(self.rack.SlotInputRoutes(1), {"0": "image", "1": "flow", "2": "mask"})
+
+    def test_default_slot_binding_uses_modulation_and_manual_time_is_preset(self):
+        slot = self.owner.op("slot1")
+        self.rack._bind_slot(1, slot)
+        self.assertEqual(slot.par["Mix"].expr, "parent().ModulatedMix(1)")
+        self.assertEqual(slot.par["Time"].expr, "parent().par.Time")
+
+        self.owner.par["Manualtime"].val = 4.25
+        self.owner.par["Time"].val = 99.0
+        preset = self.rack.PresetData()
+        self.assertEqual(preset["time"], 4.25)
+        preset["time"] = -3.5
+        self.rack.ImportPreset(preset)
+        self.assertEqual(self.owner.par["Manualtime"].eval(), -3.5)
+        self.assertEqual(self.rack.State()["manual_time"], -3.5)
 
     def test_modulation_evaluates_bounded_waveforms_and_validates_fields(self):
         self.owner.par["Slot1mix"].val = 0.5
@@ -185,6 +368,28 @@ class FxRackExtensionTests(unittest.TestCase):
             {"depth": -0.4, "rate": 2.5, "state": "saw"},
         )
 
+    def test_compact_preset_clears_every_unspecified_slot(self):
+        preset = self.rack.PresetData("Compact")
+        preset["slots"] = [preset["slots"][0], preset["slots"][2]]
+
+        state = self.rack.ImportPreset(preset)
+
+        self.assertIsNotNone(self.owner.op("slot1"))
+        self.assertIsNone(self.owner.op("slot2"))
+        self.assertIsNotNone(self.owner.op("slot3"))
+        for index in range(4, RACK_MODULE.SLOT_COUNT + 1):
+            self.assertIsNone(self.owner.op("slot{}".format(index)))
+        for index in (2, 4, 5, 6, 7, 8):
+            self.assertIsNone(self.owner.fetch("slot{}_package".format(index)))
+            self.assertFalse(self.owner.par["Slot{}enable".format(index)].eval())
+            self.assertEqual(state["slot_states"][index - 1]["package"], None)
+
+        # Reloading uses installed slot state, so empty slots remain empty even
+        # though their menu parameters still have a default package selection.
+        self.rack.ReloadAll()
+        self.assertIsNone(self.owner.op("slot2"))
+        self.assertIsNone(self.owner.op("slot8"))
+
     def test_move_slot_down_preserves_each_effects_controls(self):
         self.owner.par["Slot1mix"].val = 0.11
         self.owner.par["Slot2mix"].val = 0.82
@@ -213,6 +418,12 @@ class FxRackExtensionTests(unittest.TestCase):
         self.assertTrue(all(not self.owner.par["Slot{}enable".format(i)].eval() for i in range(1, 9)))
         self.rack.Reset()
         self.assertTrue(all(self.owner.op("slot{}".format(i)).par["Reset"].pulse_count for i in range(1, 9)))
+
+    def test_reset_falls_back_to_private_history_nodes_for_legacy_components(self):
+        legacy = FakeHistorySlot()
+        self.owner.operators["slot1"] = legacy
+        self.assertTrue(self.rack.ResetSlot(1))
+        self.assertEqual(legacy.history.par["resetpulse"].pulse_count, 1)
 
     def test_save_and_load_stay_inside_the_preset_folder(self):
         self.owner.par["Slot3mix"].val = 0.36
@@ -255,6 +466,44 @@ class FxRackExtensionTests(unittest.TestCase):
         preset["slots"][0]["modulation"]["depth"] = math.inf
         with self.assertRaisesRegex(ValueError, "finite"):
             self.rack.ValidatePreset(preset)
+
+
+class FxRackTransactionalLoadTests(unittest.TestCase):
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temporary.cleanup)
+
+    def test_successful_load_commits_new_slot_only_after_wiring(self):
+        owner = TransactionalOwner(self.temporary.name)
+        old_slot = owner.old_slot
+        rack = TransactionalRack(owner)
+
+        replacement = rack.LoadSlot(1, "tdimagefx.test.new", "2.0.0")
+
+        self.assertTrue(old_slot.destroyed)
+        self.assertIs(owner.op("slot1"), replacement)
+        self.assertEqual(owner.fetch("slot1_package"), {
+            "id": "tdimagefx.test.new",
+            "version": "2.0.0",
+        })
+        self.assertIs(owner.fixed["out1_image"].inputConnectors[0].source.owner, replacement)
+
+    def test_failed_commit_restores_prior_slot_and_connections(self):
+        owner = TransactionalOwner(self.temporary.name)
+        old_slot = owner.old_slot
+        rack = RenameFailingRack(owner)
+
+        with self.assertRaisesRegex(RuntimeError, "simulated commit failure"):
+            rack.LoadSlot(1, "tdimagefx.test.new", "2.0.0")
+
+        self.assertFalse(old_slot.destroyed)
+        self.assertIs(owner.op("slot1"), old_slot)
+        self.assertEqual(owner.fetch("slot1_package"), {
+            "id": "tdimagefx.test.old",
+            "version": "1.0.0",
+        })
+        self.assertIs(owner.fixed["out1_image"].inputConnectors[0].source.owner, old_slot)
+        self.assertNotIn(owner.loaded_candidate, owner.children)
 
 
 class CallbackRack:

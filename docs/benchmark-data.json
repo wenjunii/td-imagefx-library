@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-07-15T18:31:29.452969+00:00",
+  "generated_at": "2026-07-16T16:37:52.025928+00:00",
   "touchdesigner_build": "2025.32820",
   "gpu": "NVIDIA GeForce RTX 3080 Ti Laptop GPU",
   "resolution": "512x288",
@@ -9,12 +9,32 @@
   "gpu_timing_note": "A null gpu_ms means this TouchDesigner build/driver did not expose per-operator GPU execution timing. cpu_submission_ms measures CPU command submission and must not be interpreted as GPU execution time. Temporal and simulation samples are first-frame measurements, not warmed steady-state profiles.",
   "samples": [
     {
+      "id": "tdimagefx.blur.bilateral-blur",
+      "version": "1.0.0",
+      "model": "multi_pass",
+      "gpu_cost": "high",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.0253,
+      "gpu_memory_bytes": 1572864,
+      "passes": 2
+    },
+    {
+      "id": "tdimagefx.blur.bokeh-blur",
+      "version": "1.0.0",
+      "model": "single_pass",
+      "gpu_cost": "high",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.01255,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
       "id": "tdimagefx.blur.box-blur",
       "version": "1.0.0",
       "model": "multi_pass",
       "gpu_cost": "medium",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.01895,
+      "cpu_submission_ms": 0.02265,
       "gpu_memory_bytes": 1572864,
       "passes": 2
     },
@@ -24,9 +44,19 @@
       "model": "multi_pass",
       "gpu_cost": "medium",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0196,
+      "cpu_submission_ms": 0.0234,
       "gpu_memory_bytes": 1572864,
       "passes": 2
+    },
+    {
+      "id": "tdimagefx.blur.depth-aware-blur",
+      "version": "1.0.0",
+      "model": "single_pass",
+      "gpu_cost": "high",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.01305,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
     },
     {
       "id": "tdimagefx.blur.directional-blur",
@@ -34,7 +64,7 @@
       "model": "multi_pass",
       "gpu_cost": "medium",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.01815,
+      "cpu_submission_ms": 0.026,
       "gpu_memory_bytes": 1572864,
       "passes": 2
     },
@@ -44,7 +74,7 @@
       "model": "multi_pass",
       "gpu_cost": "medium",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.01865,
+      "cpu_submission_ms": 0.02465,
       "gpu_memory_bytes": 1572864,
       "passes": 2
     },
@@ -54,7 +84,7 @@
       "model": "multi_pass",
       "gpu_cost": "high",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0206,
+      "cpu_submission_ms": 0.0246,
       "gpu_memory_bytes": 1572864,
       "passes": 2
     },
@@ -64,7 +94,7 @@
       "model": "multi_pass",
       "gpu_cost": "medium",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.02405,
+      "cpu_submission_ms": 0.02625,
       "gpu_memory_bytes": 1572864,
       "passes": 2
     },
@@ -74,7 +104,27 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0151,
+      "cpu_submission_ms": 0.01925,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.color.color-decision-list",
+      "version": "1.0.0",
+      "model": "single_pass",
+      "gpu_cost": "low",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.01775,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.color.curves",
+      "version": "1.0.0",
+      "model": "single_pass",
+      "gpu_cost": "low",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.01525,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -84,7 +134,7 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.01445,
+      "cpu_submission_ms": 0.01685,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -94,7 +144,7 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.01015,
+      "cpu_submission_ms": 0.01475,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -104,7 +154,7 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.017,
+      "cpu_submission_ms": 0.0207,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -114,7 +164,7 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.00995,
+      "cpu_submission_ms": 0.01255,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -124,7 +174,7 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.01265,
+      "cpu_submission_ms": 0.01485,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -134,7 +184,17 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0154,
+      "cpu_submission_ms": 0.01745,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.color.lut-3d",
+      "version": "1.0.0",
+      "model": "single_pass",
+      "gpu_cost": "medium",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.01285,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -144,7 +204,7 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.01015,
+      "cpu_submission_ms": 0.0125,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -154,7 +214,67 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0104,
+      "cpu_submission_ms": 0.0149,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.color.tone-map",
+      "version": "1.0.0",
+      "model": "single_pass",
+      "gpu_cost": "low",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.0141,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.composite.alpha-composite",
+      "version": "1.0.0",
+      "model": "single_pass",
+      "gpu_cost": "low",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.01315,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.composite.blend-modes",
+      "version": "1.0.0",
+      "model": "single_pass",
+      "gpu_cost": "low",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.01315,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.composite.channel-shuffle",
+      "version": "1.0.0",
+      "model": "single_pass",
+      "gpu_cost": "low",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.0133,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.composite.edge-extend",
+      "version": "1.0.0",
+      "model": "single_pass",
+      "gpu_cost": "medium",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.0142,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.composite.matte-composite",
+      "version": "1.0.0",
+      "model": "single_pass",
+      "gpu_cost": "low",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.01335,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -164,7 +284,7 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.01135,
+      "cpu_submission_ms": 0.01405,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -174,7 +294,7 @@
       "model": "single_pass",
       "gpu_cost": "medium",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.01115,
+      "cpu_submission_ms": 0.0143,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -184,7 +304,7 @@
       "model": "single_pass",
       "gpu_cost": "medium",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0101,
+      "cpu_submission_ms": 0.01415,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -194,7 +314,7 @@
       "model": "single_pass",
       "gpu_cost": "medium",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.01105,
+      "cpu_submission_ms": 0.01325,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -204,7 +324,7 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0114,
+      "cpu_submission_ms": 0.0146,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -214,7 +334,7 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.01235,
+      "cpu_submission_ms": 0.01405,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -224,7 +344,7 @@
       "model": "single_pass",
       "gpu_cost": "medium",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.01195,
+      "cpu_submission_ms": 0.01585,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -234,7 +354,7 @@
       "model": "single_pass",
       "gpu_cost": "medium",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0134,
+      "cpu_submission_ms": 0.01625,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -244,7 +364,7 @@
       "model": "single_pass",
       "gpu_cost": "medium",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.01205,
+      "cpu_submission_ms": 0.01455,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -254,7 +374,7 @@
       "model": "single_pass",
       "gpu_cost": "medium",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.01235,
+      "cpu_submission_ms": 0.0162,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -264,7 +384,7 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.01305,
+      "cpu_submission_ms": 0.01785,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -274,7 +394,7 @@
       "model": "single_pass",
       "gpu_cost": "medium",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0128,
+      "cpu_submission_ms": 0.0163,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -284,7 +404,7 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.01095,
+      "cpu_submission_ms": 0.01455,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -294,7 +414,7 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.013,
+      "cpu_submission_ms": 0.01635,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -304,7 +424,47 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0126,
+      "cpu_submission_ms": 0.05085,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.key.chroma-key",
+      "version": "1.0.0",
+      "model": "single_pass",
+      "gpu_cost": "low",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.01975,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.key.despill",
+      "version": "1.0.0",
+      "model": "single_pass",
+      "gpu_cost": "low",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.01825,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.key.difference-key",
+      "version": "1.0.0",
+      "model": "single_pass",
+      "gpu_cost": "low",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.0144,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.key.luma-key",
+      "version": "1.0.0",
+      "model": "single_pass",
+      "gpu_cost": "low",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.01475,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -314,7 +474,7 @@
       "model": "multi_pass",
       "gpu_cost": "high",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0326,
+      "cpu_submission_ms": 0.04375,
       "gpu_memory_bytes": 2359296,
       "passes": 3
     },
@@ -324,7 +484,7 @@
       "model": "multi_pass",
       "gpu_cost": "high",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0352,
+      "cpu_submission_ms": 0.04185,
       "gpu_memory_bytes": 2359296,
       "passes": 3
     },
@@ -334,7 +494,7 @@
       "model": "multi_pass",
       "gpu_cost": "high",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0358,
+      "cpu_submission_ms": 0.03975,
       "gpu_memory_bytes": 2359296,
       "passes": 3
     },
@@ -344,9 +504,89 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0131,
+      "cpu_submission_ms": 0.0421,
       "gpu_memory_bytes": 786432,
       "passes": 1
+    },
+    {
+      "id": "tdimagefx.mask.gradient-mask",
+      "version": "1.0.0",
+      "model": "single_pass",
+      "gpu_cost": "low",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.01525,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.mask.noise-mask",
+      "version": "1.0.0",
+      "model": "single_pass",
+      "gpu_cost": "medium",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.01935,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.mask.radial-mask",
+      "version": "1.0.0",
+      "model": "single_pass",
+      "gpu_cost": "low",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.0176,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.mask.shape-mask",
+      "version": "1.0.0",
+      "model": "single_pass",
+      "gpu_cost": "low",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.02335,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.matte.alpha-repair",
+      "version": "1.0.0",
+      "model": "single_pass",
+      "gpu_cost": "low",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.0128,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.matte.dilate",
+      "version": "1.0.0",
+      "model": "single_pass",
+      "gpu_cost": "medium",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.0126,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.matte.erode",
+      "version": "1.0.0",
+      "model": "single_pass",
+      "gpu_cost": "medium",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.01355,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.matte.feather",
+      "version": "1.0.0",
+      "model": "multi_pass",
+      "gpu_cost": "medium",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.02735,
+      "gpu_memory_bytes": 1572864,
+      "passes": 2
     },
     {
       "id": "tdimagefx.motion.optical-flow-warp",
@@ -354,7 +594,7 @@
       "model": "single_pass",
       "gpu_cost": "medium",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.01195,
+      "cpu_submission_ms": 0.01475,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -364,7 +604,7 @@
       "model": "multi_pass",
       "gpu_cost": "medium",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0211,
+      "cpu_submission_ms": 0.027,
       "gpu_memory_bytes": 1572864,
       "passes": 2
     },
@@ -374,49 +614,49 @@
       "model": "multi_pass",
       "gpu_cost": "high",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0318,
+      "cpu_submission_ms": 0.04095,
       "gpu_memory_bytes": 2359296,
       "passes": 3
     },
     {
       "id": "tdimagefx.simulation.cellular-automata",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "model": "simulation",
       "gpu_cost": "high",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0118,
-      "gpu_memory_bytes": 786432,
-      "passes": 1
+      "cpu_submission_ms": 0.04805,
+      "gpu_memory_bytes": 1572864,
+      "passes": 2
     },
     {
       "id": "tdimagefx.simulation.fluid-ink",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "model": "simulation",
       "gpu_cost": "high",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0135,
-      "gpu_memory_bytes": 786432,
-      "passes": 1
+      "cpu_submission_ms": 0.0316,
+      "gpu_memory_bytes": 1572864,
+      "passes": 2
     },
     {
       "id": "tdimagefx.simulation.particle-advection",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "model": "simulation",
       "gpu_cost": "high",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0131,
-      "gpu_memory_bytes": 786432,
-      "passes": 1
+      "cpu_submission_ms": 0.03045,
+      "gpu_memory_bytes": 1572864,
+      "passes": 2
     },
     {
       "id": "tdimagefx.simulation.reaction-diffusion",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "model": "simulation",
       "gpu_cost": "high",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.01285,
-      "gpu_memory_bytes": 786432,
-      "passes": 1
+      "cpu_submission_ms": 0.03175,
+      "gpu_memory_bytes": 1572864,
+      "passes": 2
     },
     {
       "id": "tdimagefx.spatial.depth-parallax",
@@ -424,7 +664,7 @@
       "model": "single_pass",
       "gpu_cost": "medium",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0118,
+      "cpu_submission_ms": 0.01765,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -434,7 +674,7 @@
       "model": "single_pass",
       "gpu_cost": "medium",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0137,
+      "cpu_submission_ms": 0.01855,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -444,7 +684,7 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.01215,
+      "cpu_submission_ms": 0.0162,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -454,7 +694,7 @@
       "model": "multi_pass",
       "gpu_cost": "medium",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0228,
+      "cpu_submission_ms": 0.0284,
       "gpu_memory_bytes": 1572864,
       "passes": 2
     },
@@ -464,7 +704,7 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0134,
+      "cpu_submission_ms": 0.01515,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -474,7 +714,7 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.01215,
+      "cpu_submission_ms": 0.0151,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -484,7 +724,7 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.01095,
+      "cpu_submission_ms": 0.0135,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -494,7 +734,7 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0131,
+      "cpu_submission_ms": 0.0162,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -504,7 +744,7 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0135,
+      "cpu_submission_ms": 0.0157,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -514,7 +754,7 @@
       "model": "single_pass",
       "gpu_cost": "medium",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0164,
+      "cpu_submission_ms": 0.01785,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -524,107 +764,167 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0148,
+      "cpu_submission_ms": 0.01635,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
     {
       "id": "tdimagefx.temporal.echo",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "model": "temporal",
       "gpu_cost": "medium",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0149,
-      "gpu_memory_bytes": 786432,
-      "passes": 1
+      "cpu_submission_ms": 0.0309,
+      "gpu_memory_bytes": 1572864,
+      "passes": 2
     },
     {
       "id": "tdimagefx.temporal.feedback-kaleidoscope",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "model": "temporal",
       "gpu_cost": "medium",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.01195,
-      "gpu_memory_bytes": 786432,
-      "passes": 1
+      "cpu_submission_ms": 0.03355,
+      "gpu_memory_bytes": 1572864,
+      "passes": 2
     },
     {
       "id": "tdimagefx.temporal.feedback-rotate",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "model": "temporal",
       "gpu_cost": "medium",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0127,
-      "gpu_memory_bytes": 786432,
-      "passes": 1
+      "cpu_submission_ms": 0.03005,
+      "gpu_memory_bytes": 1572864,
+      "passes": 2
     },
     {
       "id": "tdimagefx.temporal.feedback-trails",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "model": "temporal",
       "gpu_cost": "medium",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.01235,
-      "gpu_memory_bytes": 786432,
-      "passes": 1
+      "cpu_submission_ms": 0.03385,
+      "gpu_memory_bytes": 1572864,
+      "passes": 2
     },
     {
       "id": "tdimagefx.temporal.frame-blend",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "model": "temporal",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.01165,
-      "gpu_memory_bytes": 786432,
-      "passes": 1
+      "cpu_submission_ms": 0.03165,
+      "gpu_memory_bytes": 1572864,
+      "passes": 2
     },
     {
       "id": "tdimagefx.temporal.motion-smear",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "model": "temporal",
       "gpu_cost": "high",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0127,
-      "gpu_memory_bytes": 786432,
-      "passes": 1
+      "cpu_submission_ms": 0.03215,
+      "gpu_memory_bytes": 1572864,
+      "passes": 2
     },
     {
       "id": "tdimagefx.temporal.recursive-zoom",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "model": "temporal",
       "gpu_cost": "medium",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0124,
-      "gpu_memory_bytes": 786432,
-      "passes": 1
+      "cpu_submission_ms": 0.035,
+      "gpu_memory_bytes": 1572864,
+      "passes": 2
     },
     {
       "id": "tdimagefx.temporal.stutter",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "model": "temporal",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0123,
-      "gpu_memory_bytes": 786432,
-      "passes": 1
+      "cpu_submission_ms": 0.03055,
+      "gpu_memory_bytes": 1572864,
+      "passes": 2
     },
     {
       "id": "tdimagefx.temporal.temporal-glitch",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "model": "temporal",
       "gpu_cost": "medium",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.01385,
+      "cpu_submission_ms": 0.0338,
+      "gpu_memory_bytes": 1572864,
+      "passes": 2
+    },
+    {
+      "id": "tdimagefx.temporal.time-displacement",
+      "version": "1.1.0",
+      "model": "temporal",
+      "gpu_cost": "medium",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.0325,
+      "gpu_memory_bytes": 1572864,
+      "passes": 2
+    },
+    {
+      "id": "tdimagefx.transform.corner-pin",
+      "version": "1.0.0",
+      "model": "single_pass",
+      "gpu_cost": "low",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.02125,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
     {
-      "id": "tdimagefx.temporal.time-displacement",
+      "id": "tdimagefx.transform.crop-feather",
       "version": "1.0.0",
-      "model": "temporal",
-      "gpu_cost": "medium",
+      "model": "single_pass",
+      "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0142,
+      "cpu_submission_ms": 0.0176,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.transform.fit-fill",
+      "version": "1.0.0",
+      "model": "single_pass",
+      "gpu_cost": "low",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.05235,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.transform.perspective-warp",
+      "version": "1.0.0",
+      "model": "single_pass",
+      "gpu_cost": "low",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.0171,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.transform.tile-repeat",
+      "version": "1.0.0",
+      "model": "single_pass",
+      "gpu_cost": "low",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.01645,
+      "gpu_memory_bytes": 786432,
+      "passes": 1
+    },
+    {
+      "id": "tdimagefx.transform.transform-2d",
+      "version": "1.0.0",
+      "model": "single_pass",
+      "gpu_cost": "low",
+      "gpu_ms": null,
+      "cpu_submission_ms": 0.01925,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -634,7 +934,7 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.01435,
+      "cpu_submission_ms": 0.01655,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -644,7 +944,7 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.014,
+      "cpu_submission_ms": 0.01735,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -654,7 +954,7 @@
       "model": "single_pass",
       "gpu_cost": "medium",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.01415,
+      "cpu_submission_ms": 0.0166,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -664,7 +964,7 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0143,
+      "cpu_submission_ms": 0.0167,
       "gpu_memory_bytes": 786432,
       "passes": 1
     }

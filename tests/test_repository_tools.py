@@ -5,6 +5,7 @@ import contextlib
 import io
 import json
 import os
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -13,7 +14,7 @@ from pathlib import Path
 from unittest import mock
 
 from tdimagefx.registry import UpdateFeed
-from tools import build_gallery, new_effect, package_release
+from tools import build_gallery, new_effect, package_release, verify_repository
 
 
 def _effect_args(**overrides: object) -> argparse.Namespace:
@@ -40,6 +41,7 @@ def _write_tool_manifest(
     name: str,
     category: str,
     version: str = "1.0.0",
+    channel: str = "stable",
     processing: dict[str, object] | None = None,
 ) -> Path:
     package_root = root / "packages" / package_id / version
@@ -56,7 +58,7 @@ def _write_tool_manifest(
         "fx_api": "1.0",
         "kind": "effect",
         "category": category,
-        "channel": "stable",
+        "channel": channel,
         "description": f"{name} description.",
         "publisher": "Tests",
         "license": "MIT",
@@ -253,7 +255,13 @@ class PackageReleaseToolTests(unittest.TestCase):
     def test_build_release_feed_and_artifacts_are_deterministic(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            _write_tool_manifest(root, "tdimagefx.test.zeta", name="Zeta", category="test")
+            _write_tool_manifest(
+                root,
+                "tdimagefx.test.zeta",
+                name="Zeta",
+                category="test",
+                channel="experimental",
+            )
             _write_tool_manifest(root, "tdimagefx.test.alpha", name="Alpha", category="test")
             _write_tool_manifest(
                 root,
@@ -277,6 +285,8 @@ class PackageReleaseToolTests(unittest.TestCase):
                 feed_b = package_release.build_release(second_output, second_feed, **options)
 
             self.assertEqual(feed_a, feed_b)
+            self.assertEqual(feed_a["feed_id"], package_release.PUBLIC_CATALOG_FEED_ID)
+            self.assertEqual(feed_a["channel"], "experimental")
             self.assertEqual(first_feed.read_bytes(), second_feed.read_bytes())
             self.assertEqual(
                 [package["id"] for package in feed_a["packages"]],
@@ -302,6 +312,95 @@ class PackageReleaseToolTests(unittest.TestCase):
 
             with mock.patch.dict(os.environ, {"SOURCE_DATE_EPOCH": "0"}):
                 self.assertEqual(package_release._timestamp(None), "1970-01-01T00:00:00Z")
+
+    def test_release_source_binding_requires_tag_and_revision_to_share_a_commit(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+            subprocess.run(
+                ["git", "config", "user.email", "tests@example.test"], cwd=root, check=True
+            )
+            subprocess.run(
+                ["git", "config", "user.name", "Tests"], cwd=root, check=True
+            )
+            marker = root / "marker.txt"
+            marker.write_text("one\n", encoding="utf-8")
+            subprocess.run(["git", "add", "."], cwd=root, check=True)
+            subprocess.run(["git", "commit", "-qm", "one"], cwd=root, check=True)
+            tagged = subprocess.check_output(
+                ["git", "rev-parse", "HEAD"], cwd=root, text=True
+            ).strip()
+            subprocess.run(["git", "tag", "v1.2.3"], cwd=root, check=True)
+
+            self.assertEqual(
+                package_release.verify_release_source_binding(root, "v1.2.3", tagged),
+                tagged,
+            )
+
+            marker.write_text("two\n", encoding="utf-8")
+            subprocess.run(["git", "add", "."], cwd=root, check=True)
+            subprocess.run(["git", "commit", "-qm", "two"], cwd=root, check=True)
+            newer = subprocess.check_output(
+                ["git", "rev-parse", "HEAD"], cwd=root, text=True
+            ).strip()
+            with self.assertRaisesRegex(package_release.ReleaseError, "not source revision"):
+                package_release.verify_release_source_binding(root, "v1.2.3", newer)
+
+    def test_release_source_binding_rejects_dirty_release_inputs(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            subprocess.run(["git", "init", "-q"], cwd=root, check=True)
+            subprocess.run(
+                ["git", "config", "user.email", "tests@example.test"], cwd=root, check=True
+            )
+            subprocess.run(["git", "config", "user.name", "Tests"], cwd=root, check=True)
+            package = root / "packages" / "tdimagefx.test.clean" / "1.0.0"
+            package.mkdir(parents=True)
+            manifest = package / "package.json"
+            manifest.write_text("tracked\n", encoding="utf-8")
+            subprocess.run(["git", "add", "."], cwd=root, check=True)
+            subprocess.run(["git", "commit", "-qm", "release"], cwd=root, check=True)
+            revision = subprocess.check_output(
+                ["git", "rev-parse", "HEAD"], cwd=root, text=True
+            ).strip()
+            subprocess.run(["git", "tag", "v1.2.3"], cwd=root, check=True)
+
+            manifest.write_text("modified\n", encoding="utf-8")
+            with self.assertRaisesRegex(package_release.ReleaseError, "working tree is dirty"):
+                package_release.verify_release_source_binding(root, "v1.2.3", revision)
+
+            manifest.write_text("tracked\n", encoding="utf-8")
+            untracked = package / "untracked.frag"
+            untracked.write_text("untracked\n", encoding="utf-8")
+            with self.assertRaisesRegex(package_release.ReleaseError, "working tree is dirty"):
+                package_release.verify_release_source_binding(root, "v1.2.3", revision)
+
+            untracked.unlink()
+            output = root / "dist" / "generated.zip"
+            output.parent.mkdir()
+            output.write_bytes(b"output")
+            self.assertEqual(
+                package_release.verify_release_source_binding(root, "v1.2.3", revision),
+                revision,
+            )
+
+
+class VerifyRepositoryToolTests(unittest.TestCase):
+    def test_native_artifact_rejects_symlink_before_resolution(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            artifact = root / "native" / "effect.tox"
+
+            def is_symlink(path: Path) -> bool:
+                return path == artifact
+
+            with mock.patch.object(verify_repository, "ROOT", root), mock.patch.object(
+                Path, "is_symlink", autospec=True, side_effect=is_symlink
+            ):
+                with self.assertRaisesRegex(
+                    verify_repository.VerificationError, "missing or unsafe"
+                ):
+                    verify_repository._resolve_native_artifact("native/effect.tox")
 
 
 class BuildGalleryToolTests(unittest.TestCase):

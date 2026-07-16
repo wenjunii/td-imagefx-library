@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "id": "tdimagefx.transform.crop-feather",
+  "name": "Crop Feather",
+  "version": "1.0.0",
+  "fx_api": "1.0",
+  "kind": "effect",
+  "category": "transform",
+  "channel": "experimental",
+  "description": "Crops each image edge independently and optionally feathers the resulting alpha boundary.",
+  "publisher": "TD ImageFX Library",
+  "license": "MIT",
+  "entrypoints": {"shader": "shaders/crop_feather.frag", "touchdesigner_component": "tox/tdimagefx_transform_crop_feather.tox"},
+  "inputs": [{"id": "image", "family": "TOP", "required": true, "semantic": "source", "description": "Image to crop."}],
+  "outputs": [{"id": "image", "family": "TOP"}],
+  "parameters": [
+    {"id": "enable", "name": "Enable", "label": "Enable", "type": "toggle", "default": true, "description": "Bypass the crop when disabled."},
+    {"id": "mix", "name": "Mix", "label": "Mix", "type": "float", "default": 1.0, "min": 0.0, "max": 1.0, "uniform": "uMix", "description": "Blends between source and cropped output."},
+    {"id": "left", "name": "Left", "label": "Left", "type": "float", "default": 0.0, "min": 0.0, "max": 1.0, "unit": "normalized", "uniform": "uLeft", "description": "Crop position measured from the left edge."},
+    {"id": "right", "name": "Right", "label": "Right", "type": "float", "default": 1.0, "min": 0.0, "max": 1.0, "unit": "normalized", "uniform": "uRight", "description": "Crop position measured from the left edge."},
+    {"id": "bottom", "name": "Bottom", "label": "Bottom", "type": "float", "default": 0.0, "min": 0.0, "max": 1.0, "unit": "normalized", "uniform": "uBottom", "description": "Crop position measured from the bottom edge."},
+    {"id": "top", "name": "Top", "label": "Top", "type": "float", "default": 1.0, "min": 0.0, "max": 1.0, "unit": "normalized", "uniform": "uTop", "description": "Crop position measured from the bottom edge."},
+    {"id": "feather", "name": "Feather", "label": "Feather", "type": "float", "default": 0.0, "min": 0.0, "max": 0.25, "unit": "normalized", "uniform": "uFeather", "description": "Width of the softened crop boundary."}
+  ],
+  "compatibility": {"touchdesigner_min_build": 2025.3, "touchdesigner_max_build": null, "os": ["windows", "macos"], "architectures": ["x86_64", "arm64"]},
+  "permissions": {"python": false, "filesystem": false, "network": false, "subprocess": false},
+  "dependencies": [],
+  "alpha_policy": "process",
+  "resolution_policy": "input",
+  "stateful": false,
+  "image_contract": {
+    "color": {"input_space": "source", "working_space": "project", "output_space": "source", "reference": "display_referred"},
+    "alpha": {"input": "any", "working": "any", "output": "any"},
+    "pixel_format": {"policy": "inherit"},
+    "sampling": {"filter": "linear", "edge": "clamp", "mipmaps": false}
+  },
+  "determinism": {"mode": "deterministic"},
+  "provenance": {"origin": "original", "source": {"type": "original"}},
+  "tags": ["transform", "crop", "feather", "alpha", "framing"],
+  "processing": {"model": "single_pass", "gpu_cost": "low", "capabilities": [], "passes": ["shaders/crop_feather.frag"], "history_frames": 0}
+}

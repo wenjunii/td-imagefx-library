@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "id": "tdimagefx.transform.corner-pin",
+  "name": "Corner Pin",
+  "version": "1.0.0",
+  "fx_api": "1.0",
+  "kind": "effect",
+  "category": "transform",
+  "channel": "experimental",
+  "description": "Samples a user-defined source quadrilateral for corner-pin and projection-alignment workflows.",
+  "publisher": "TD ImageFX Library",
+  "license": "MIT",
+  "entrypoints": {"shader": "shaders/corner_pin.frag", "touchdesigner_component": "tox/tdimagefx_transform_corner_pin.tox"},
+  "inputs": [{"id": "image", "family": "TOP", "required": true, "semantic": "source", "description": "Image containing the quadrilateral to remap."}],
+  "outputs": [{"id": "image", "family": "TOP"}],
+  "parameters": [
+    {"id": "enable", "name": "Enable", "label": "Enable", "type": "toggle", "default": true, "description": "Bypass the corner pin when disabled."},
+    {"id": "mix", "name": "Mix", "label": "Mix", "type": "float", "default": 1.0, "min": 0.0, "max": 1.0, "uniform": "uMix", "description": "Blends source and remapped output."},
+    {"id": "bottom_left", "name": "Bottomleft", "label": "Bottom Left", "type": "xy", "default": [0.0, 0.0], "min": -1.0, "max": 2.0, "unit": "normalized", "uniform": "uBottomLeft", "description": "Source coordinate sampled at the output bottom-left corner."},
+    {"id": "bottom_right", "name": "Bottomright", "label": "Bottom Right", "type": "xy", "default": [1.0, 0.0], "min": -1.0, "max": 2.0, "unit": "normalized", "uniform": "uBottomRight", "description": "Source coordinate sampled at the output bottom-right corner."},
+    {"id": "top_left", "name": "Topleft", "label": "Top Left", "type": "xy", "default": [0.0, 1.0], "min": -1.0, "max": 2.0, "unit": "normalized", "uniform": "uTopLeft", "description": "Source coordinate sampled at the output top-left corner."},
+    {"id": "top_right", "name": "Topright", "label": "Top Right", "type": "xy", "default": [1.0, 1.0], "min": -1.0, "max": 2.0, "unit": "normalized", "uniform": "uTopRight", "description": "Source coordinate sampled at the output top-right corner."}
+  ],
+  "compatibility": {"touchdesigner_min_build": 2025.3, "touchdesigner_max_build": null, "os": ["windows", "macos"], "architectures": ["x86_64", "arm64"]},
+  "permissions": {"python": false, "filesystem": false, "network": false, "subprocess": false},
+  "dependencies": [],
+  "alpha_policy": "process",
+  "resolution_policy": "input",
+  "stateful": false,
+  "image_contract": {
+    "color": {"input_space": "source", "working_space": "project", "output_space": "source", "reference": "display_referred"},
+    "alpha": {"input": "any", "working": "any", "output": "any"},
+    "pixel_format": {"policy": "inherit"},
+    "sampling": {"filter": "linear", "edge": "clamp", "mipmaps": false}
+  },
+  "determinism": {"mode": "deterministic"},
+  "provenance": {"origin": "original", "source": {"type": "original"}},
+  "tags": ["transform", "corner-pin", "quad", "projection", "uv"],
+  "processing": {"model": "single_pass", "gpu_cost": "low", "capabilities": [], "passes": ["shaders/corner_pin.frag"], "history_frames": 0}
+}

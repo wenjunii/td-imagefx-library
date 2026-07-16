@@ -8,13 +8,18 @@ This script has no third-party dependencies. Run it from any working directory:
 from __future__ import annotations
 
 import json
+import hashlib
 import math
 import os
 import re
 import subprocess
 import sys
-import tomllib
 from pathlib import Path
+
+try:
+    import tomllib
+except ModuleNotFoundError:  # Friendly error from main() on Python 3.10 and older.
+    tomllib = None
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -22,8 +27,8 @@ SRC_ROOT = ROOT / "src"
 PACKAGE_ROOT = ROOT / "packages"
 PUBLIC_FEED = ROOT / "registry" / "update-feed.json"
 LOCAL_FEED = ROOT / "registry" / "update-feed.local.json"
-EXPECTED_EFFECT_ID_COUNT = 66
-EXPECTED_PACKAGE_VERSION_COUNT = 78
+EXPECTED_EFFECT_ID_COUNT = 96
+EXPECTED_PACKAGE_VERSION_COUNT = 122
 PUBLIC_FEED_URL = (
     "https://raw.githubusercontent.com/wenjunii/td-imagefx-library/"
     "main/registry/update-feed.json"
@@ -168,7 +173,7 @@ def _check_manifests() -> tuple[int, set[str], dict[str, str]]:
         or len(package_ids) != EXPECTED_EFFECT_ID_COUNT
     ):
         raise VerificationError(
-            "Completed v0.2 catalog must contain exactly "
+            "Completed v0.3 catalog must contain exactly "
             f"{EXPECTED_EFFECT_ID_COUNT} effect IDs and {EXPECTED_PACKAGE_VERSION_COUNT} immutable versions; "
             f"found {len(manifest_paths)} manifests for {len(package_ids)} effect IDs"
         )
@@ -289,6 +294,120 @@ def _check_generated_artifacts(package_ids: set[str], latest_versions: dict[str,
         raise VerificationError("benchmark data contains no runtime measurement")
 
 
+def _sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for block in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def _resolve_native_artifact(relative: str) -> Path:
+    """Resolve a recorded native artifact without ever accepting a symlink."""
+
+    unresolved = ROOT.joinpath(*Path(relative).parts)
+    cursor = ROOT
+    for part in Path(relative).parts:
+        cursor = cursor / part
+        if cursor.is_symlink():
+            raise VerificationError(
+                f"Native validation artifact is missing or unsafe: {relative}"
+            )
+    try:
+        path = unresolved.resolve(strict=True)
+        path.relative_to(ROOT.resolve())
+    except (OSError, ValueError) as exc:
+        raise VerificationError(
+            f"Native validation artifact is missing or unsafe: {relative}"
+        ) from exc
+    if not path.is_file():
+        raise VerificationError(f"Native validation artifact is missing or unsafe: {relative}")
+    return path
+
+
+def _check_native_validation(library_version: str) -> None:
+    record = _read_json(ROOT / "docs" / "native-validation.json")
+    if record.get("schema_version") != 1 or record.get("library_version") != library_version:
+        raise VerificationError("docs/native-validation.json has an incompatible schema or library version")
+    if record.get("catalog") != {
+        "current_effects": EXPECTED_EFFECT_ID_COUNT,
+        "package_versions": EXPECTED_PACKAGE_VERSION_COUNT,
+    }:
+        raise VerificationError("Native validation catalog counts do not match the repository")
+    if record.get("results") != {
+        "builder_errors": 0,
+        "shader_errors": 0,
+        "preview_errors": 0,
+    }:
+        raise VerificationError("Native validation does not record a clean TouchDesigner build")
+    builder = record.get("builder")
+    builder_relative = "touchdesigner/scripts/build_project.py"
+    builder_path = ROOT / builder_relative
+    if (
+        not isinstance(builder, dict)
+        or builder.get("path") != builder_relative
+        or builder.get("sha256") != _sha256(builder_path)
+    ):
+        raise VerificationError("Native validation is not bound to the current builder source")
+    environment = record.get("touchdesigner")
+    if not isinstance(environment, dict) or any(
+        not isinstance(environment.get(field), str) or not environment[field].strip()
+        for field in ("version", "build", "os", "architecture")
+    ):
+        raise VerificationError("Native validation must name its TouchDesigner environment")
+
+    expected_paths = {
+        "TD_ImageFX_Library.toe",
+        "touchdesigner/core/TDImageFXLibrary.tox",
+        "touchdesigner/core/FxBrowser.tox",
+        "touchdesigner/core/FxRack.tox",
+        "touchdesigner/core/FxUpdater.tox",
+        *(
+            path.relative_to(ROOT).as_posix()
+            for path in sorted(PACKAGE_ROOT.glob("*/*/tox/*.tox"))
+        ),
+    }
+    artifacts = record.get("artifacts")
+    if not isinstance(artifacts, list):
+        raise VerificationError("Native validation artifacts must be a list")
+    recorded_paths: set[str] = set()
+    for index, artifact in enumerate(artifacts):
+        if not isinstance(artifact, dict):
+            raise VerificationError(f"Native validation artifact {index} must be an object")
+        relative = artifact.get("path")
+        size = artifact.get("bytes")
+        digest = artifact.get("sha256")
+        if (
+            not isinstance(relative, str)
+            or not relative
+            or "\\" in relative
+            or Path(relative).is_absolute()
+            or ".." in Path(relative).parts
+        ):
+            raise VerificationError(f"Native validation artifact {index} has an unsafe path")
+        if relative in recorded_paths:
+            raise VerificationError(f"Native validation contains duplicate artifact {relative}")
+        recorded_paths.add(relative)
+        path = _resolve_native_artifact(relative)
+        if isinstance(size, bool) or not isinstance(size, int) or size != path.stat().st_size:
+            raise VerificationError(f"Native validation size mismatch: {relative}")
+        if not isinstance(digest, str) or re.fullmatch(r"[0-9a-f]{64}", digest) is None:
+            raise VerificationError(f"Native validation digest is invalid: {relative}")
+        if _sha256(path) != digest:
+            raise VerificationError(f"Native validation digest mismatch: {relative}")
+    if recorded_paths != expected_paths:
+        raise VerificationError("Native validation artifact inventory does not match native entrypoints")
+
+    benchmark = _read_json(ROOT / "docs" / "benchmark-data.json")
+    benchmark_summary = record.get("benchmark")
+    if not isinstance(benchmark_summary, dict) or benchmark_summary != {
+        "resolution": benchmark.get("resolution"),
+        "frames_per_sample": benchmark.get("frames_per_sample"),
+        "gpu": benchmark.get("gpu"),
+    }:
+        raise VerificationError("Native validation benchmark environment does not match benchmark data")
+
+
 def _check_update_sources() -> None:
     config = _read_json(ROOT / "config" / "update_sources.json")
     sources = config.get("sources")
@@ -340,6 +459,7 @@ def main() -> int:
                 raise VerificationError(f"Missing update feed: {feed_path.relative_to(ROOT)}")
         _check_update_sources()
         _check_generated_artifacts(package_ids, latest_versions)
+        _check_native_validation(version)
 
         env = os.environ.copy()
         existing_pythonpath = env.get("PYTHONPATH")
@@ -386,7 +506,7 @@ def main() -> int:
     print(
         f"\n[verify] PASS: TD ImageFX {version}, {len(package_ids)} effect IDs / "
         f"{package_version_count} immutable versions, "
-        "2 feeds, gallery and benchmarks",
+        "2 feeds, native artifacts, gallery and benchmarks",
         flush=True,
     )
     return 0

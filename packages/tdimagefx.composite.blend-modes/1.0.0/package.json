@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "id": "tdimagefx.composite.blend-modes",
+  "name": "Blend Modes",
+  "version": "1.0.0",
+  "fx_api": "1.0",
+  "kind": "effect",
+  "category": "composite",
+  "channel": "experimental",
+  "description": "Combines two images with production-oriented normal, add, multiply, screen, overlay, soft-light, difference, and exclusion modes.",
+  "publisher": "TD ImageFX Library",
+  "license": "MIT",
+  "entrypoints": {"shader": "shaders/blend_modes.frag", "touchdesigner_component": "tox/tdimagefx_composite_blend_modes.tox"},
+  "inputs": [
+    {"id": "image", "family": "TOP", "required": true, "semantic": "source", "description": "Base image."},
+    {"id": "image_b", "family": "TOP", "required": true, "semantic": "layer", "description": "Layer blended over the base image."}
+  ],
+  "outputs": [{"id": "image", "family": "TOP"}],
+  "parameters": [
+    {"id": "enable", "name": "Enable", "label": "Enable", "type": "toggle", "default": true, "description": "Bypass compositing when disabled."},
+    {"id": "mix", "name": "Mix", "label": "Mix", "type": "float", "default": 1.0, "min": 0.0, "max": 1.0, "uniform": "uMix", "description": "Blends the original base with the composite result."},
+    {"id": "mode", "name": "Mode", "label": "Blend Mode", "type": "float", "default": 3.0, "min": 0.0, "max": 7.0, "uniform": "uMode", "description": "0 Normal, 1 Add, 2 Multiply, 3 Screen, 4 Overlay, 5 Soft Light, 6 Difference, 7 Exclusion."},
+    {"id": "opacity", "name": "Opacity", "label": "Layer Opacity", "type": "float", "default": 1.0, "min": 0.0, "max": 1.0, "uniform": "uOpacity", "description": "Scales the layer alpha before compositing."}
+  ],
+  "compatibility": {"touchdesigner_min_build": 2025.3, "touchdesigner_max_build": null, "os": ["windows", "macos"], "architectures": ["x86_64", "arm64"]},
+  "permissions": {"python": false, "filesystem": false, "network": false, "subprocess": false},
+  "dependencies": [],
+  "alpha_policy": "blend",
+  "resolution_policy": "first_input",
+  "stateful": false,
+  "image_contract": {
+    "color": {"input_space": "source", "working_space": "project", "output_space": "source", "reference": "display_referred"},
+    "alpha": {"input": "any", "working": "any", "output": "any"},
+    "pixel_format": {"policy": "inherit"},
+    "sampling": {"filter": "linear", "edge": "clamp", "mipmaps": false}
+  },
+  "determinism": {"mode": "deterministic"},
+  "provenance": {"origin": "original", "source": {"type": "original"}},
+  "tags": ["composite", "blend", "layer", "two-input", "alpha"],
+  "processing": {"model": "single_pass", "gpu_cost": "low", "capabilities": ["second_input"], "passes": ["shaders/blend_modes.frag"], "history_frames": 0}
+}

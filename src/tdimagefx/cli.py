@@ -14,7 +14,7 @@ from . import __version__
 from .archive import StageLimits, stage_package
 from .compatibility import RuntimeContext, normalize_architecture, normalize_os
 from .errors import ImageFxError, ValidationError
-from .feed import SourcePolicy, load_update_feed
+from .feed import SourcePolicy, load_update_feed, redact_source_url
 from .jsonutil import load_json
 from .lockfile import load_lockfile
 from .manifest import load_manifest
@@ -55,6 +55,7 @@ def _add_source_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--file-root", type=Path, help="limit local sources to this resolved directory")
     parser.add_argument("--allow-host", action="append", default=[], help="allow-list an HTTPS host; repeat as needed")
     parser.add_argument("--timeout", type=float, default=15.0, help="network timeout in seconds (default: 15)")
+    parser.add_argument("--expected-feed-id", help="bind the source to this exact feed_id")
 
 
 def _document_kind(data: dict[str, Any]) -> str:
@@ -127,10 +128,21 @@ def _cmd_catalog(args: argparse.Namespace) -> int:
             args.source,
             policy=_policy(args),
             expected_sha256=args.feed_sha256,
+            expected_feed_id=args.expected_feed_id,
         )
         rows = list(feed.catalog())
         if args.json:
-            _emit({"feed": {"id": feed.feed_id, "sha256": fetch.sha256, "source": fetch.final_source}, "packages": rows}, as_json=True)
+            _emit(
+                {
+                    "feed": {
+                        "id": feed.feed_id,
+                        "sha256": fetch.sha256,
+                        "source": redact_source_url(fetch.final_source),
+                    },
+                    "packages": rows,
+                },
+                as_json=True,
+            )
             return 0
     _emit(rows, as_json=args.json)
     return 0
@@ -164,6 +176,7 @@ def _cmd_check(args: argparse.Namespace) -> int:
         args.source,
         policy=_policy(args),
         expected_sha256=args.feed_sha256,
+        expected_feed_id=args.expected_feed_id,
     )
     candidates = feed.updates(
         _installed_versions(args),
@@ -205,10 +218,13 @@ def _cmd_stage(args: argparse.Namespace) -> int:
         expected_size=args.size,
         expected_id=args.package_id,
         expected_version=args.package_version,
+        expected_manifest_sha256=args.manifest_sha256,
         policy=_policy(args),
         limits=limits,
         registry_path=args.registry,
         feed_url=args.feed_url,
+        feed_id=args.source_feed_id,
+        feed_sha256=args.source_feed_sha256,
     )
     _emit(result.to_dict(), as_json=args.json)
     return 0
@@ -301,8 +317,11 @@ def build_parser() -> argparse.ArgumentParser:
     stage.add_argument("--size", type=int)
     stage.add_argument("--id", dest="package_id")
     stage.add_argument("--package-version")
+    stage.add_argument("--manifest-sha256", help="expected package.json digest from the trusted feed")
     stage.add_argument("--registry", type=Path)
     stage.add_argument("--feed-url")
+    stage.add_argument("--source-feed-id", help="feed_id that selected this artifact")
+    stage.add_argument("--source-feed-sha256", help="digest of the feed that selected this artifact")
     stage.add_argument("--max-archive-bytes", type=int, default=256 * 1024 * 1024)
     stage.add_argument("--max-files", type=int, default=4096)
     stage.add_argument("--max-uncompressed-bytes", type=int, default=1024 * 1024 * 1024)

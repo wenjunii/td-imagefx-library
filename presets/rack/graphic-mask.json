@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "kind": "tdimagefx.rack-preset",
+  "name": "Graphic Mask",
+  "autotime": false,
+  "timescale": 1.0,
+  "time": 0.0,
+  "slots": [
+    {
+      "index": 1,
+      "package": {
+        "id": "tdimagefx.mask.shape-mask",
+        "version": "1.0.0"
+      },
+      "enabled": true,
+      "mix": 1.0,
+      "modulation": {
+        "depth": 0.0,
+        "rate": 1.0,
+        "state": "off"
+      },
+      "parameters": {
+        "Center": [0.5, 0.5],
+        "Size": [0.75, 0.55],
+        "Roundness": 0.3,
+        "Rotation": 0.12,
+        "Feather": 0.03,
+        "Invert": false
+      }
+    },
+    {
+      "index": 2,
+      "package": {
+        "id": "tdimagefx.matte.dilate",
+        "version": "1.0.0"
+      },
+      "enabled": true,
+      "mix": 0.8,
+      "modulation": {
+        "depth": 0.0,
+        "rate": 1.0,
+        "state": "off"
+      },
+      "parameters": {
+        "Radius": 1.0
+      }
+    },
+    {
+      "index": 3,
+      "package": {
+        "id": "tdimagefx.matte.feather",
+        "version": "1.0.0"
+      },
+      "enabled": true,
+      "mix": 1.0,
+      "modulation": {
+        "depth": 0.0,
+        "rate": 1.0,
+        "state": "off"
+      },
+      "parameters": {
+        "Radius": 2.5
+      }
+    },
+    {
+      "index": 4,
+      "package": {
+        "id": "tdimagefx.color.gradient-map",
+        "version": "1.0.0"
+      },
+      "enabled": true,
+      "mix": 0.75,
+      "modulation": {
+        "depth": 0.0,
+        "rate": 1.0,
+        "state": "off"
+      },
+      "parameters": {
+        "Shadowcolor": [0.02, 0.035, 0.08, 1.0],
+        "Midcolor": [0.1, 0.48, 0.58, 1.0],
+        "Highlightcolor": [0.95, 0.72, 0.3, 1.0],
+        "Midpoint": 0.48,
+        "Smoothness": 0.18
+      }
+    }
+  ]
+}

@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "kind": "tdimagefx.rack-preset",
+  "name": "Analog Motion",
+  "autotime": true,
+  "timescale": 1.0,
+  "time": 0.0,
+  "slots": [
+    {
+      "index": 1,
+      "package": {
+        "id": "tdimagefx.distort.wave-warp",
+        "version": "1.1.0"
+      },
+      "enabled": true,
+      "mix": 0.6,
+      "modulation": {
+        "depth": 0.08,
+        "rate": 0.18,
+        "state": "sine"
+      },
+      "parameters": {
+        "Amount": 0.035,
+        "Frequency": 8.0,
+        "Speed": 0.4,
+        "Angle": 0.0
+      }
+    },
+    {
+      "index": 2,
+      "package": {
+        "id": "tdimagefx.glitch.rgb-split",
+        "version": "1.1.0"
+      },
+      "enabled": true,
+      "mix": 0.35,
+      "modulation": {
+        "depth": 0.12,
+        "rate": 0.35,
+        "state": "triangle"
+      },
+      "parameters": {
+        "Amount": 0.008,
+        "Angle": 0.0,
+        "Greenoffset": 0.35
+      }
+    },
+    {
+      "index": 3,
+      "package": {
+        "id": "tdimagefx.stylize.scanlines",
+        "version": "1.1.0"
+      },
+      "enabled": true,
+      "mix": 0.42,
+      "modulation": {
+        "depth": 0.0,
+        "rate": 1.0,
+        "state": "off"
+      },
+      "parameters": {
+        "Density": 640.0,
+        "Strength": 0.18,
+        "Speed": 0.22
+      }
+    }
+  ]
+}

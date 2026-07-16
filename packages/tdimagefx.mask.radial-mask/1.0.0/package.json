@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "id": "tdimagefx.mask.radial-mask",
+  "name": "Radial Mask",
+  "version": "1.0.0",
+  "fx_api": "1.0",
+  "kind": "effect",
+  "category": "mask",
+  "channel": "experimental",
+  "description": "Applies an elliptical radial mask with independent center, size, feather, rotation, and inversion.",
+  "publisher": "TD ImageFX Library",
+  "license": "MIT",
+  "entrypoints": {"shader": "shaders/radial_mask.frag", "touchdesigner_component": "tox/tdimagefx_mask_radial_mask.tox"},
+  "inputs": [{"id": "image", "family": "TOP", "required": true, "semantic": "source", "description": "Image whose alpha receives the generated mask."}],
+  "outputs": [{"id": "image", "family": "TOP", "role": "image"}],
+  "parameters": [
+    {"id": "enable", "name": "Enable", "label": "Enable", "type": "toggle", "default": true, "description": "Bypass the mask when disabled."},
+    {"id": "mix", "name": "Mix", "label": "Mix", "type": "float", "default": 1.0, "min": 0.0, "max": 1.0, "uniform": "uMix", "description": "Blends source and masked alpha."},
+    {"id": "center", "name": "Center", "label": "Center", "type": "xy", "default": [0.5, 0.5], "min": -1.0, "max": 2.0, "unit": "normalized", "uniform": "uCenter", "description": "Center of the ellipse."},
+    {"id": "size", "name": "Size", "label": "Size", "type": "xy", "default": [0.75, 0.75], "min": 0.001, "max": 4.0, "unit": "normalized", "uniform": "uSize", "description": "Ellipse diameter on each axis."},
+    {"id": "rotation", "name": "Rotation", "label": "Rotation", "type": "float", "default": 0.0, "min": -6.283185, "max": 6.283185, "unit": "radians", "uniform": "uRotation", "description": "Ellipse rotation."},
+    {"id": "feather", "name": "Feather", "label": "Feather", "type": "float", "default": 0.1, "min": 0.0001, "max": 1.0, "uniform": "uFeather", "description": "Soft edge width around the ellipse."},
+    {"id": "invert", "name": "Invert", "label": "Invert", "type": "toggle", "default": false, "uniform": "uInvert", "description": "Inverts the generated mask."}
+  ],
+  "compatibility": {"touchdesigner_min_build": 2025.3, "touchdesigner_max_build": null, "os": ["windows", "macos"], "architectures": ["x86_64", "arm64"]},
+  "permissions": {"python": false, "filesystem": false, "network": false, "subprocess": false},
+  "dependencies": [],
+  "alpha_policy": "process",
+  "resolution_policy": "input",
+  "stateful": false,
+  "image_contract": {
+    "color": {"input_space": "source", "working_space": "project", "output_space": "source", "reference": "display_referred"},
+    "alpha": {"input": "any", "working": "any", "output": "any"},
+    "pixel_format": {"policy": "inherit"},
+    "sampling": {"filter": "linear", "edge": "clamp", "mipmaps": false}
+  },
+  "determinism": {"mode": "deterministic"},
+  "provenance": {"origin": "original", "source": {"type": "original"}},
+  "tags": ["mask", "radial", "ellipse", "alpha", "generator"],
+  "processing": {"model": "single_pass", "gpu_cost": "low", "capabilities": [], "passes": ["shaders/radial_mask.frag"], "history_frames": 0}
+}

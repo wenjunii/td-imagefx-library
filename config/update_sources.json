@@ -2,8 +2,8 @@
   "schema_version": 1,
   "sources": [
     {
-      "id": "tdimagefx.github.stable",
-      "name": "TD ImageFX GitHub Stable Feed",
+      "id": "tdimagefx.github.catalog",
+      "name": "TD ImageFX GitHub Catalog Feed",
       "url": "https://raw.githubusercontent.com/wenjunii/td-imagefx-library/main/registry/update-feed.json",
       "enabled": true,
       "trust": "first_party",

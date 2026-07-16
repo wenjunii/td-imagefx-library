@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "kind": "tdimagefx.rack-preset",
+  "name": "Depth Parallax",
+  "autotime": false,
+  "timescale": 1.0,
+  "time": 0.0,
+  "slots": [
+    {
+      "index": 1,
+      "package": {
+        "id": "tdimagefx.spatial.depth-parallax",
+        "version": "1.0.0"
+      },
+      "enabled": true,
+      "mix": 0.75,
+      "modulation": {
+        "depth": 0.0,
+        "rate": 1.0,
+        "state": "off"
+      },
+      "parameters": {
+        "Amount": 0.055,
+        "Viewx": 0.25,
+        "Viewy": -0.12,
+        "Depthcenter": 0.5
+      }
+    },
+    {
+      "index": 2,
+      "package": {
+        "id": "tdimagefx.transform.perspective-warp",
+        "version": "1.0.0"
+      },
+      "enabled": true,
+      "mix": 0.35,
+      "modulation": {
+        "depth": 0.0,
+        "rate": 1.0,
+        "state": "off"
+      },
+      "parameters": {
+        "Tiltx": -0.08,
+        "Tilty": 0.04,
+        "Perspective": 1.15,
+        "Zoom": 1.03,
+        "Center": [0.5, 0.5]
+      }
+    },
+    {
+      "index": 3,
+      "package": {
+        "id": "tdimagefx.blur.directional-blur",
+        "version": "1.0.0"
+      },
+      "enabled": true,
+      "mix": 0.12,
+      "modulation": {
+        "depth": 0.0,
+        "rate": 1.0,
+        "state": "off"
+      },
+      "parameters": {
+        "Distance": 4.0,
+        "Angle": -0.45
+      }
+    },
+    {
+      "index": 4,
+      "package": {
+        "id": "tdimagefx.color.tone-map",
+        "version": "1.0.0"
+      },
+      "enabled": true,
+      "mix": 0.3,
+      "modulation": {
+        "depth": 0.0,
+        "rate": 1.0,
+        "state": "off"
+      },
+      "parameters": {
+        "Mode": 1.0,
+        "Exposure": 0.1,
+        "Whitepoint": 6.0
+      }
+    }
+  ]
+}

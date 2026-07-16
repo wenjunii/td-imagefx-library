@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "kind": "tdimagefx.rack-preset",
+  "name": "Clean Key + Matte",
+  "autotime": false,
+  "timescale": 1.0,
+  "time": 0.0,
+  "slots": [
+    {
+      "index": 1,
+      "package": {
+        "id": "tdimagefx.key.chroma-key",
+        "version": "1.0.0"
+      },
+      "enabled": true,
+      "mix": 1.0,
+      "modulation": {
+        "depth": 0.0,
+        "rate": 1.0,
+        "state": "off"
+      },
+      "parameters": {
+        "Keycolor": [0.04, 0.72, 0.08, 1.0],
+        "Similarity": 0.13,
+        "Softness": 0.07,
+        "Clipblack": 0.03,
+        "Clipwhite": 0.94
+      }
+    },
+    {
+      "index": 2,
+      "package": {
+        "id": "tdimagefx.key.despill",
+        "version": "1.0.0"
+      },
+      "enabled": true,
+      "mix": 0.9,
+      "modulation": {
+        "depth": 0.0,
+        "rate": 1.0,
+        "state": "off"
+      },
+      "parameters": {
+        "Keycolor": [0.04, 0.72, 0.08, 1.0],
+        "Amount": 0.85,
+        "Balance": 1.0,
+        "Restoreluma": 0.8
+      }
+    },
+    {
+      "index": 3,
+      "package": {
+        "id": "tdimagefx.matte.feather",
+        "version": "1.0.0"
+      },
+      "enabled": true,
+      "mix": 0.65,
+      "modulation": {
+        "depth": 0.0,
+        "rate": 1.0,
+        "state": "off"
+      },
+      "parameters": {
+        "Radius": 2.5
+      }
+    },
+    {
+      "index": 4,
+      "package": {
+        "id": "tdimagefx.matte.alpha-repair",
+        "version": "1.0.0"
+      },
+      "enabled": true,
+      "mix": 1.0,
+      "modulation": {
+        "depth": 0.0,
+        "rate": 1.0,
+        "state": "off"
+      },
+      "parameters": {
+        "Mode": 0.0,
+        "Threshold": 0.002
+      }
+    }
+  ]
+}

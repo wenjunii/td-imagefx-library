@@ -1,0 +1,177 @@
+{
+  "schema_version": 1,
+  "id": "tdimagefx.simulation.cellular-automata",
+  "name": "Cellular Automata",
+  "version": "1.1.0",
+  "fx_api": "1.0",
+  "kind": "effect",
+  "category": "simulation",
+  "channel": "experimental",
+  "description": "Evolves a smooth Life-like cellular field with source-driven seeding.",
+  "publisher": "TD ImageFX Library",
+  "license": "MIT",
+  "entrypoints": {
+    "shader": "shaders/cellular_automata.frag",
+    "touchdesigner_component": "tox/tdimagefx_simulation_cellular_automata.tox"
+  },
+  "inputs": [
+    {
+      "id": "image",
+      "family": "TOP",
+      "required": true,
+      "semantic": "source",
+      "role": "source_image",
+      "description": "Current source image. Its alpha is preserved by the display pass."
+    }
+  ],
+  "outputs": [
+    {
+      "id": "image",
+      "family": "TOP",
+      "role": "image",
+      "description": "Rendered effect image; private temporal state is never exposed here."
+    }
+  ],
+  "parameters": [
+    {
+      "id": "enable",
+      "name": "Enable",
+      "type": "toggle",
+      "default": true
+    },
+    {
+      "id": "mix",
+      "name": "Mix",
+      "type": "float",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 1.0,
+      "uniform": "uMix"
+    },
+    {
+      "id": "reset",
+      "name": "Reset",
+      "label": "Reset State",
+      "type": "pulse",
+      "default": false,
+      "description": "Clears private state and reseeds it from the current source image.",
+      "animatable": false
+    },
+    {
+      "id": "birth",
+      "name": "Birth",
+      "type": "float",
+      "default": 3,
+      "min": 1,
+      "max": 8,
+      "uniform": "uBirth"
+    },
+    {
+      "id": "survival",
+      "name": "Survival",
+      "type": "float",
+      "default": 3,
+      "min": 1,
+      "max": 8,
+      "uniform": "uSurvival"
+    },
+    {
+      "id": "seed",
+      "name": "Seed",
+      "type": "float",
+      "default": 0.15,
+      "min": 0,
+      "max": 1,
+      "uniform": "uSeed"
+    }
+  ],
+  "compatibility": {
+    "touchdesigner_min_build": 2022.2,
+    "touchdesigner_max_build": null,
+    "os": [
+      "windows",
+      "macos"
+    ],
+    "architectures": [
+      "x86_64",
+      "arm64"
+    ]
+  },
+  "permissions": {
+    "python": false,
+    "filesystem": false,
+    "network": false,
+    "subprocess": false
+  },
+  "dependencies": [],
+  "alpha_policy": "preserve",
+  "resolution_policy": "input",
+  "stateful": true,
+  "tags": [
+    "cellular",
+    "automata",
+    "life",
+    "simulation"
+  ],
+  "processing": {
+    "model": "simulation",
+    "gpu_cost": "high",
+    "capabilities": [
+      "history",
+      "simulation"
+    ],
+    "passes": [
+      "shaders/cellular_automata.frag",
+      "shaders/render.frag"
+    ],
+    "history_frames": 1,
+    "state_pass": "shaders/cellular_automata.frag",
+    "render_pass": "shaders/render.frag"
+  },
+  "image_contract": {
+    "color": {
+      "input_space": "project",
+      "working_space": "project",
+      "output_space": "project",
+      "reference": "scene_referred"
+    },
+    "alpha": {
+      "input": "any",
+      "working": "any",
+      "output": "any"
+    },
+    "pixel_format": {
+      "policy": "inherit"
+    },
+    "sampling": {
+      "filter": "nearest",
+      "edge": "clamp",
+      "mipmaps": false
+    }
+  },
+  "determinism": {
+    "mode": "deterministic",
+    "fixed_timestep": 1.0
+  },
+  "temporal": {
+    "reset": {
+      "strategy": "pulse_parameter",
+      "parameter": "reset",
+      "clears": "simulation_state",
+      "on_resolution_change": true,
+      "on_input_change": false
+    },
+    "warmup_frames": 1
+  },
+  "provenance": {
+    "origin": "original",
+    "source": {
+      "type": "original",
+      "author": "TD ImageFX Library",
+      "license": "MIT"
+    },
+    "known_limitations": [
+      "The birth and survival controls each select one exact neighbour count."
+    ]
+  }
+}

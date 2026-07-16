@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "kind": "tdimagefx.rack-preset",
+  "name": "Feedback Tunnel",
+  "autotime": true,
+  "timescale": 0.75,
+  "time": 0.0,
+  "slots": [
+    {
+      "index": 1,
+      "package": {
+        "id": "tdimagefx.temporal.recursive-zoom",
+        "version": "1.1.0"
+      },
+      "enabled": true,
+      "mix": 0.7,
+      "modulation": {
+        "depth": 0.08,
+        "rate": 0.08,
+        "state": "sine"
+      },
+      "parameters": {
+        "Zoom": 1.012,
+        "Feedback": 0.72,
+        "Centerx": 0.5,
+        "Centery": 0.5
+      }
+    },
+    {
+      "index": 2,
+      "package": {
+        "id": "tdimagefx.temporal.feedback-rotate",
+        "version": "1.1.0"
+      },
+      "enabled": true,
+      "mix": 0.55,
+      "modulation": {
+        "depth": 0.05,
+        "rate": 0.05,
+        "state": "triangle"
+      },
+      "parameters": {
+        "Angle": 0.006,
+        "Scale": 1.002,
+        "Feedback": 0.68
+      }
+    },
+    {
+      "index": 3,
+      "package": {
+        "id": "tdimagefx.glitch.rgb-split",
+        "version": "1.1.0"
+      },
+      "enabled": true,
+      "mix": 0.2,
+      "modulation": {
+        "depth": 0.03,
+        "rate": 0.12,
+        "state": "saw"
+      },
+      "parameters": {
+        "Amount": 0.004,
+        "Angle": 0.0,
+        "Greenoffset": 0.25
+      }
+    },
+    {
+      "index": 4,
+      "package": {
+        "id": "tdimagefx.stylize.vignette",
+        "version": "1.1.0"
+      },
+      "enabled": true,
+      "mix": 0.4,
+      "modulation": {
+        "depth": 0.0,
+        "rate": 1.0,
+        "state": "off"
+      },
+      "parameters": {
+        "Amount": 0.2,
+        "Softness": 0.7,
+        "Roundness": 1.0,
+        "Color": [0.0, 0.0, 0.0, 1.0]
+      }
+    }
+  ]
+}

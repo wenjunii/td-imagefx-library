@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "id": "tdimagefx.key.chroma-key",
+  "name": "Chroma Key",
+  "version": "1.0.0",
+  "fx_api": "1.0",
+  "kind": "effect",
+  "category": "key",
+  "channel": "experimental",
+  "description": "Builds an alpha matte from chroma distance in a luminance-separated color representation.",
+  "publisher": "TD ImageFX Library",
+  "license": "MIT",
+  "entrypoints": {"shader": "shaders/chroma_key.frag", "touchdesigner_component": "tox/tdimagefx_key_chroma_key.tox"},
+  "inputs": [{"id": "image", "family": "TOP", "required": true, "semantic": "source", "description": "Foreground image containing the screen color."}],
+  "outputs": [{"id": "image", "family": "TOP"}],
+  "parameters": [
+    {"id": "enable", "name": "Enable", "label": "Enable", "type": "toggle", "default": true, "description": "Bypass the key when disabled."},
+    {"id": "mix", "name": "Mix", "label": "Mix", "type": "float", "default": 1.0, "min": 0.0, "max": 1.0, "uniform": "uMix", "description": "Blends source and keyed alpha."},
+    {"id": "key_color", "name": "Keycolor", "label": "Key Color", "type": "rgba", "default": [0.0, 1.0, 0.0, 1.0], "uniform": "uKeyColor", "description": "Screen color removed by the key."},
+    {"id": "similarity", "name": "Similarity", "label": "Similarity", "type": "float", "default": 0.12, "min": 0.0, "max": 1.0, "uniform": "uSimilarity", "description": "Chroma distance treated as fully transparent."},
+    {"id": "softness", "name": "Softness", "label": "Softness", "type": "float", "default": 0.08, "min": 0.0001, "max": 1.0, "uniform": "uSoftness", "description": "Transition width from transparent to opaque."},
+    {"id": "clip_black", "name": "Clipblack", "label": "Clip Black", "type": "float", "default": 0.0, "min": 0.0, "max": 1.0, "uniform": "uClipBlack", "description": "Raises the matte black point after keying."},
+    {"id": "clip_white", "name": "Clipwhite", "label": "Clip White", "type": "float", "default": 1.0, "min": 0.0, "max": 1.0, "uniform": "uClipWhite", "description": "Lowers the matte white point after keying."}
+  ],
+  "compatibility": {"touchdesigner_min_build": 2025.3, "touchdesigner_max_build": null, "os": ["windows", "macos"], "architectures": ["x86_64", "arm64"]},
+  "permissions": {"python": false, "filesystem": false, "network": false, "subprocess": false},
+  "dependencies": [],
+  "alpha_policy": "process",
+  "resolution_policy": "input",
+  "stateful": false,
+  "image_contract": {
+    "color": {"input_space": "source", "working_space": "project", "output_space": "source", "reference": "display_referred"},
+    "alpha": {"input": "any", "working": "any", "output": "any"},
+    "pixel_format": {"policy": "inherit"},
+    "sampling": {"filter": "linear", "edge": "clamp", "mipmaps": false}
+  },
+  "determinism": {"mode": "deterministic"},
+  "provenance": {"origin": "original", "source": {"type": "original"}},
+  "tags": ["key", "chroma", "green-screen", "matte", "alpha"],
+  "processing": {"model": "single_pass", "gpu_cost": "low", "capabilities": [], "passes": ["shaders/chroma_key.frag"], "history_frames": 0}
+}

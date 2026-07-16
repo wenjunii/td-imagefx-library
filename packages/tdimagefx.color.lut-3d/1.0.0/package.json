@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "id": "tdimagefx.color.lut-3d",
+  "name": "3D LUT",
+  "version": "1.0.0",
+  "fx_api": "1.0",
+  "kind": "effect",
+  "category": "color",
+  "channel": "experimental",
+  "description": "Applies a trilinearly interpolated 3D color lookup table stored as a horizontal 2D strip.",
+  "publisher": "TD ImageFX Library",
+  "license": "MIT",
+  "entrypoints": {"shader": "shaders/lut_3d.frag", "touchdesigner_component": "tox/tdimagefx_color_lut_3d.tox"},
+  "inputs": [
+    {"id": "image", "family": "TOP", "required": true, "semantic": "source", "role": "source_image", "description": "Image to grade."},
+    {"id": "lut", "family": "TOP", "required": true, "semantic": "lut", "role": "auxiliary_image", "description": "Horizontal LUT strip with dimensions size-squared by size."}
+  ],
+  "outputs": [{"id": "image", "family": "TOP", "role": "image"}],
+  "parameters": [
+    {"id": "enable", "name": "Enable", "label": "Enable", "type": "toggle", "default": true, "description": "Bypass the LUT when disabled."},
+    {"id": "mix", "name": "Mix", "label": "Mix", "type": "float", "default": 1.0, "min": 0.0, "max": 1.0, "uniform": "uMix", "description": "Blends source and LUT output."},
+    {"id": "size", "name": "Size", "label": "LUT Size", "type": "float", "default": 32.0, "min": 2.0, "max": 64.0, "uniform": "uSize", "description": "Number of samples on each LUT axis."},
+    {"id": "domain_min", "name": "Domainmin", "label": "Domain Minimum", "type": "float", "default": 0.0, "min": -16.0, "max": 16.0, "uniform": "uDomainMin", "description": "Input value mapped to LUT coordinate zero."},
+    {"id": "domain_max", "name": "Domainmax", "label": "Domain Maximum", "type": "float", "default": 1.0, "min": -16.0, "max": 32.0, "uniform": "uDomainMax", "description": "Input value mapped to LUT coordinate one."}
+  ],
+  "compatibility": {"touchdesigner_min_build": 2025.3, "touchdesigner_max_build": null, "os": ["windows", "macos"], "architectures": ["x86_64", "arm64"]},
+  "permissions": {"python": false, "filesystem": false, "network": false, "subprocess": false},
+  "dependencies": [],
+  "alpha_policy": "preserve",
+  "resolution_policy": "first_input",
+  "stateful": false,
+  "image_contract": {
+    "color": {"input_space": "source", "working_space": "project", "output_space": "source", "reference": "display_referred"},
+    "alpha": {"input": "any", "working": "any", "output": "any"},
+    "pixel_format": {"policy": "inherit"},
+    "sampling": {"filter": "linear", "edge": "clamp", "mipmaps": false}
+  },
+  "determinism": {"mode": "deterministic"},
+  "provenance": {"origin": "original", "source": {"type": "original"}},
+  "tags": ["color", "lut", "3d-lut", "grading", "two-input"],
+  "processing": {"model": "single_pass", "gpu_cost": "medium", "capabilities": ["second_input"], "passes": ["shaders/lut_3d.frag"], "history_frames": 0}
+}

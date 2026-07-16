@@ -25,8 +25,13 @@ def _safe_action(browser, method_name, *args):
 def onValueChange(par, prev):
     browser = parent()
     name = str(par.name).casefold()
-    if name in {"search", "category", "tags", "favorites", "favoritesonly"}:
+    if name in {
+        "search", "category", "tags", "favorites", "favoritesonly", "channel", "model",
+        "capability", "inputreadiness", "availableinputs", "sortby",
+    }:
         _safe_action(browser, "ApplyFilters")
+    elif name in {"selectedid", "selectedeffect", "selected"}:
+        _safe_action(browser, "UpdateSelection")
     return
 
 

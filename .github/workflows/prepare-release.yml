@@ -1,0 +1,90 @@
+name: Prepare deterministic release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Exact v-prefixed SemVer to embed (for example v0.3.0)
+        required: true
+        type: string
+      generated_at:
+        description: Fixed RFC 3339 UTC timestamp (for example 2026-07-16T12:00:00Z)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+  attestations: write
+
+concurrency:
+  group: prepare-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out the selected revision
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.11"
+      - name: Bind the release tag and verify immutable package history
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          SOURCE_REVISION: ${{ github.sha }}
+        run: |
+          TAG_COMMIT="$(git rev-parse --verify "refs/tags/${RELEASE_TAG}^{commit}")"
+          if [ "$TAG_COMMIT" != "$SOURCE_REVISION" ]; then
+            echo "Release tag $RELEASE_TAG resolves to $TAG_COMMIT, not $SOURCE_REVISION" >&2
+            exit 1
+          fi
+          PREVIOUS_TAG=""
+          while IFS= read -r tag; do
+            if [ "$tag" != "$RELEASE_TAG" ]; then
+              PREVIOUS_TAG="$tag"
+              break
+            fi
+          done < <(git tag --merged "$SOURCE_REVISION" --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-version:refname)
+          if [ -z "$PREVIOUS_TAG" ]; then
+            echo "No previous release tag is available as the immutable-history baseline" >&2
+            exit 1
+          fi
+          python tools/check_immutable_history.py --base "$PREVIOUS_TAG" --head "$SOURCE_REVISION" --committed-only
+      - name: Verify source and tests
+        run: |
+          python -m unittest discover -v
+          python tools/verify_repository.py
+      - name: Build the release payload twice
+        env:
+          PYTHONPATH: src
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          GENERATED_AT: ${{ inputs.generated_at }}
+          SOURCE_REVISION: ${{ github.sha }}
+        run: |
+          python tools/package_release.py --output dist-a/packages --feed dist-a/update-feed.json --release-tag "$RELEASE_TAG" --repository "${{ github.repository }}" --generated-at "$GENERATED_AT" --source-revision "$SOURCE_REVISION" --verify-source-binding
+          python tools/package_release.py --output dist-b/packages --feed dist-b/update-feed.json --release-tag "$RELEASE_TAG" --repository "${{ github.repository }}" --generated-at "$GENERATED_AT" --source-revision "$SOURCE_REVISION" --verify-source-binding
+          diff -qr dist-a dist-b
+          python -m tdimagefx validate dist-a/update-feed.json --type feed
+          (cd dist-a && sha256sum --check SHA256SUMS)
+      - name: Upload reviewable release payload
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: td-imagefx-${{ inputs.release_tag }}-${{ github.sha }}
+          path: dist-a/
+          if-no-files-found: error
+          include-hidden-files: false
+          compression-level: 0
+          retention-days: 14
+      - name: Attest prepared payload
+        uses: actions/attest@a1948c3f048ba23858d222213b7c278aabede763 # v4.1.1
+        with:
+          subject-path: dist-a/**
+
+      # Intentionally no GitHub Release, tag push, registry push, or deployment step.

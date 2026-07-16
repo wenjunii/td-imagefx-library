@@ -1,10 +1,10 @@
 # TouchDesigner setup
 
-This guide covers the v0.2.0 native project, reusable components, and source-first build workflow. Record the exact TouchDesigner build in each release and project lock; do not assume that every Official or Experimental build is interchangeable.
+This guide covers the v0.3.0 native project, reusable components, and source-first build workflow. Record the exact TouchDesigner build in each release and project lock; do not assume that every Official or Experimental build is interchangeable.
 
 ## Baseline
 
-- Use a current **TouchDesigner 2025 Official** build for the v0.2.0 native assets.
+- Use a current **TouchDesigner 2025 Official** build for the v0.3.0 native assets.
 - Current TouchDesigner documentation identifies GLSL 4.60 as the main supported GLSL version.
 - Keep a copy of a production `.toe` before changing its TouchDesigner build, GPU driver, working color space, or locked packages.
 - Test on the OS and GPU that will run the show. A shader compiling on one machine is not sufficient production validation.
@@ -41,15 +41,15 @@ Do not point a production component at a mutable download or staging path.
 The repository includes:
 
 - `TD_ImageFX_Library.toe` with `/project1/td_imagefx` and `/project1/imagefx_demo`;
-- 78 versioned effect `.tox` files under `packages/<package-id>/<version>/tox/`: one current version for each of 66 effect IDs plus twelve retained `1.0.0` components beside their upgraded `1.1.0` versions;
+- 122 versioned effect `.tox` files under `packages/<package-id>/<version>/tox/`: one current version for each of 96 effect IDs plus 26 retained predecessors;
 - `touchdesigner/core/TDImageFXLibrary.tox`;
 - `touchdesigner/core/FxRack.tox`;
 - `touchdesigner/core/FxBrowser.tox`;
 - `touchdesigner/core/FxUpdater.tox`.
 
-Open the `.toe` directly for the fastest start. Its browser, rack, demo, gallery, and benchmark data use the latest 66 versions. Exact retained versions remain available through version-aware library calls and project locks. Keep the project in the repository root when using the default configuration: blank **Library Root** fields resolve to `project.folder`. When importing a core `.tox` into a show elsewhere, set its **Library Root** to this checkout or a verified installed-package root.
+Open the `.toe` directly for the fastest start. Its browser, rack, demo, gallery, and benchmark data use the latest 96 versions. Exact retained versions remain available through version-aware library calls and project locks. Keep the project in the repository root when using the default configuration: blank **Library Root** fields resolve to `project.folder`. When importing a core `.tox` into a show elsewhere, set its **Library Root** to this checkout or a verified installed-package root.
 
-For a quick inventory check in the Textport, `op('/project1/td_imagefx').HealthCheck()` should return `ok=True`, `package_count=66`, and `package_version_count=78`, with an empty `missing_entrypoints` list.
+For a quick inventory check in the Textport, `op('/project1/td_imagefx').HealthCheck()` should return `ok=True`, `package_count=96`, and `package_version_count=122`, with an empty `missing_entrypoints` list.
 
 Python is not required to use the prebuilt native files. Python 3.11 or newer is required for repository tools and the standalone package CLI.
 
@@ -77,7 +77,7 @@ The project remains source-first. `touchdesigner/scripts/build_project.py` runs 
    )
    ```
 
-6. Confirm the Textport reports 66 current effects selected from 78 validated package versions and the path to `build/touchdesigner-build-report.json`.
+6. Confirm the Textport reports 96 current effects selected from 122 validated package versions and the path to `build/touchdesigner-build-report.json`.
 7. Inspect that report for `errors`, `shader_errors`, and `preview_errors` before accepting the native output.
 8. Run the generated-document and repository checks described below.
 9. Create or update an exact project lock before treating a show as production-ready.
@@ -85,23 +85,28 @@ The project remains source-first. `touchdesigner/scripts/build_project.py` runs 
 The builder creates or updates:
 
 - `TD_ImageFX_Library.toe`;
-- one rebuilt `.tox` for the latest version of each of 66 effect IDs, while leaving the twelve historical `1.0.0` `.tox` files untouched;
+- a versioned `.tox` for the latest version of each of 96 effect IDs while preserving all tracked exact-version artifacts;
 - four reusable core `.tox` files for the library, rack, browser, and updater;
 - declared single-pass and multi-pass GLSL graphs plus temporal/simulation feedback graphs;
-- 66 preview PNGs under `docs/gallery/`;
+- 96 preview PNGs under `docs/gallery/`;
 - `docs/benchmark-data.json` with per-effect runtime samples;
 - `build/touchdesigner-build-report.json` with environment, graph, asset, timing, and shader diagnostics.
 
-The build validates package identity, manifest contracts, declared paths, containment, and required assets across all 78 immutable versions before constructing networks. It then selects only the latest version of each of the 66 effect IDs for rebuilding, previews, the native catalog, and benchmarks. Historical version directories and `.tox` files are preserved. The build also fails if a current shader does not compile or a preview cannot be saved. The report is still written with runtime failure details.
+The build validates package identity, manifest contracts, declared paths, containment, and required assets across all 122 immutable versions before constructing networks. It then selects only the latest version of each of the 96 effect IDs for the native catalog, previews, and benchmarks. Tracked exact-version `.tox` files are never rewritten; a changed effect must receive a new version. Untracked prepublication components may be regenerated before they enter history. Outside a Git checkout, overwriting an existing versioned component requires the explicit `TDIMAGEFX_ALLOW_UNTRACKED_TOX_OVERWRITE=1` escape hatch. The build also fails if a current shader does not compile or a preview cannot be saved, and writes runtime failure details to its report.
+
+Stateful gallery PNGs are deterministic illustrations, not recordings of real-time Feedback TOP scheduling. The builder normally starts from a black reset seed, supplies a deterministic prior-frame fixture when a freeze-only effect would otherwise hold an empty reset frame, and creates a temporary static shader graph that iterates the declared state pass (including declared retained-history delay) before saving the render pass. It deletes that preview-only graph afterward; the versioned `.tox` keeps its black reset seed and live Feedback TOP network. Benchmarks are captured from the actual runtime graph before this preview harness is created and remain first-frame samples rather than warmed steady-state measurements.
 
 ## Generated gallery and benchmark reports
 
 After a successful native build, regenerate the manifest-derived gallery index and hardware-specific benchmark report:
 
 ```console
+python tools/record_native_validation.py
 python tools/build_gallery.py
 python tools/benchmark_report.py
 ```
+
+The native-validation command accepts only a clean build report and writes `docs/native-validation.json`, binding the named TouchDesigner environment to the size and SHA-256 digest of the library `.toe`, all versioned effect `.tox` files, and the four core `.tox` files.
 
 Compare every changed preview on representative media. Only after intentional visual approval should you replace the SHA-256 baselines:
 
@@ -122,9 +127,9 @@ The generated [effect gallery](gallery.md) is searchable programmatically throug
 The browser is `/project1/td_imagefx/core/fx_browser` in the checked-in `.toe` and is also available as `FxBrowser.tox`.
 
 1. Enter case-insensitive text in **Search**.
-2. Choose a **Category** or enter comma-separated **Tags**; requested tags are ANDed.
+2. Filter by category, channel, processing model, capability, tags, favorites, or available auxiliary inputs, then sort by name, category, or relative GPU cost.
 3. Use **Toggle Favorite** and **Favorites Only** to maintain a project-local JSON favorite list.
-4. Inspect the `results` DAT for package ID, version, category, tags, compatibility, processing model, GPU-cost hint, and component path.
+4. Inspect the selected preview, parameter metadata, image contract, compatibility confidence, input readiness, and diagnostics before creating anything.
 5. Set **Creation Target** to the destination COMP, select an effect, and pulse **Create Selected**.
 
 Creation delegates to the parent library extension and loads the exact package `.tox` recorded in the current catalog. The browser defaults to the latest version per effect ID; a locked show can still request a retained historical version through the version-aware library API. Missing targets, catalog data, or component entrypoints are reported through browser status instead of being silently ignored.
@@ -138,7 +143,7 @@ Wave Warp -> Exposure -> Gaussian Blur -> RGB Split
     -> Feedback Trails -> Halftone -> Bloom -> Scanlines
 ```
 
-Each of eight slots provides effect selection, enable, dry/wet mix, modulation depth/rate/state, Up, Down, Reset, and Bypass. Global controls reload/reset the rack and bypass or enable every slot. **Auto Time** and **Time Scale** drive time-aware package parameters.
+Each of eight slots provides effect selection, enable, dry/wet mix, modulation depth/rate/state, Up, Down, Reset, and Bypass. Six auxiliary buses route second image, displacement, depth, normal, flow, and mask inputs by declared semantic role. Global controls reload/reset the rack and bypass or enable every slot. **Auto Time** and **Time Scale** drive time-aware parameters; disable Auto Time and set **Manual Time** for deterministic inspection.
 
 Modulation currently applies `off`, `sine`, `triangle`, or `saw` waveforms to slot mix. It is bounded and does not edit immutable package defaults.
 
@@ -167,7 +172,7 @@ When a release provides a `.tox`:
 4. Keep package ID, version, and effect API visible on the component's Package page.
 5. Never replace a `.tox` in place while a locked project points to it; install the new version beside it and migrate explicitly.
 
-## Testing all 66 current effects
+## Testing all 96 current effects
 
 Use a small verification matrix before approving a package or rack:
 

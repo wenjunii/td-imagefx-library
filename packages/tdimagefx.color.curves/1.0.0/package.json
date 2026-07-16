@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "id": "tdimagefx.color.curves",
+  "name": "Curves",
+  "version": "1.0.0",
+  "fx_api": "1.0",
+  "kind": "effect",
+  "category": "color",
+  "channel": "experimental",
+  "description": "Applies independent cubic RGB tone curves with shadow and highlight control points.",
+  "publisher": "TD ImageFX Library",
+  "license": "MIT",
+  "entrypoints": {"shader": "shaders/curves.frag", "touchdesigner_component": "tox/tdimagefx_color_curves.tox"},
+  "inputs": [{"id": "image", "family": "TOP", "required": true, "semantic": "source", "description": "Scene-linear or display-referred image to grade consistently with the project workflow."}],
+  "outputs": [{"id": "image", "family": "TOP", "role": "image"}],
+  "parameters": [
+    {"id": "enable", "name": "Enable", "label": "Enable", "type": "toggle", "default": true, "description": "Bypass the curve when disabled."},
+    {"id": "mix", "name": "Mix", "label": "Mix", "type": "float", "default": 1.0, "min": 0.0, "max": 1.0, "uniform": "uMix", "description": "Blends source and curved output."},
+    {"id": "shadows", "name": "Shadows", "label": "Shadow Control", "type": "xyz", "default": [0.333333, 0.333333, 0.333333], "min": -1.0, "max": 2.0, "uniform": "uShadows", "description": "RGB output control around the lower third of the curve."},
+    {"id": "highlights", "name": "Highlights", "label": "Highlight Control", "type": "xyz", "default": [0.666667, 0.666667, 0.666667], "min": -1.0, "max": 2.0, "uniform": "uHighlights", "description": "RGB output control around the upper third of the curve."},
+    {"id": "preserve_luma", "name": "Preserveluma", "label": "Preserve Luma", "type": "float", "default": 0.0, "min": 0.0, "max": 1.0, "uniform": "uPreserveLuma", "description": "Restores part of the source luminance after the RGB curve."}
+  ],
+  "compatibility": {"touchdesigner_min_build": 2025.3, "touchdesigner_max_build": null, "os": ["windows", "macos"], "architectures": ["x86_64", "arm64"]},
+  "permissions": {"python": false, "filesystem": false, "network": false, "subprocess": false},
+  "dependencies": [],
+  "alpha_policy": "preserve",
+  "resolution_policy": "input",
+  "stateful": false,
+  "image_contract": {
+    "color": {"input_space": "source", "working_space": "project", "output_space": "source", "reference": "display_referred"},
+    "alpha": {"input": "any", "working": "any", "output": "any"},
+    "pixel_format": {"policy": "inherit"},
+    "sampling": {"filter": "linear", "edge": "clamp", "mipmaps": false}
+  },
+  "determinism": {"mode": "deterministic"},
+  "provenance": {"origin": "original", "source": {"type": "original"}},
+  "tags": ["color", "curves", "grading", "rgb", "tone"],
+  "processing": {"model": "single_pass", "gpu_cost": "low", "capabilities": [], "passes": ["shaders/curves.frag"], "history_frames": 0}
+}

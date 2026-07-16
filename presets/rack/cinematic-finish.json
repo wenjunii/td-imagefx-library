@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "kind": "tdimagefx.rack-preset",
+  "name": "Cinematic Finish",
+  "autotime": true,
+  "timescale": 1.0,
+  "time": 0.0,
+  "slots": [
+    {
+      "index": 1,
+      "package": {
+        "id": "tdimagefx.color.exposure",
+        "version": "1.0.0"
+      },
+      "enabled": true,
+      "mix": 1.0,
+      "modulation": {
+        "depth": 0.0,
+        "rate": 1.0,
+        "state": "off"
+      },
+      "parameters": {
+        "Exposure": 0.35,
+        "Contrast": 1.1,
+        "Pivot": 0.18
+      }
+    },
+    {
+      "index": 2,
+      "package": {
+        "id": "tdimagefx.light.bloom",
+        "version": "1.0.0"
+      },
+      "enabled": true,
+      "mix": 0.55,
+      "modulation": {
+        "depth": 0.0,
+        "rate": 1.0,
+        "state": "off"
+      },
+      "parameters": {
+        "Threshold": 0.72,
+        "Softknee": 0.45,
+        "Radius": 12.0,
+        "Intensity": 0.75
+      }
+    },
+    {
+      "index": 3,
+      "package": {
+        "id": "tdimagefx.stylize.vignette",
+        "version": "1.1.0"
+      },
+      "enabled": true,
+      "mix": 0.7,
+      "modulation": {
+        "depth": 0.0,
+        "rate": 1.0,
+        "state": "off"
+      },
+      "parameters": {
+        "Amount": 0.28,
+        "Softness": 0.55,
+        "Roundness": 1.15
+      }
+    }
+  ]
+}

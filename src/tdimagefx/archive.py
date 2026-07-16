@@ -3,18 +3,23 @@
 from __future__ import annotations
 
 import hashlib
+import math
 import os
 import shutil
 import stat
 import tempfile
+import time
 import zipfile
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
+from urllib.parse import urlsplit
 
 from .errors import SecurityError, StateError, ValidationError
 from .feed import DEFAULT_ARTIFACT_LIMIT, SourcePolicy, download_source, redact_source_url
 from .jsonutil import atomic_write_json
-from .manifest import PackageManifest, load_manifest
+from .manifest import PACKAGE_ID_RE, PackageManifest, is_sha256, load_manifest
 from .paths import is_relative_to, validate_package_path
 from .registry import InstalledVersion, LocalRegistry, load_local_registry, save_local_registry, utc_now
 from .semver import Version
@@ -23,6 +28,86 @@ from .semver import Version
 _INSTALL_METADATA = ".tdimagefx_install.json"
 _RETAINED_ARTIFACT = ".tdimagefx_artifact.zip"
 _RESERVED_PACKAGE_FILES = {_INSTALL_METADATA.casefold(), _RETAINED_ARTIFACT.casefold()}
+_REGISTRY_LOCK_TIMEOUT_SECONDS = 30.0
+
+
+def _acquire_registry_lock(descriptor: int, lock_path: Path) -> None:
+    """Acquire one byte of an advisory lock file on Windows or POSIX."""
+
+    deadline = time.monotonic() + _REGISTRY_LOCK_TIMEOUT_SECONDS
+    if os.name == "nt":
+        import msvcrt
+
+        while True:
+            try:
+                os.lseek(descriptor, 0, os.SEEK_SET)
+                msvcrt.locking(descriptor, msvcrt.LK_NBLCK, 1)
+                return
+            except OSError as exc:
+                if time.monotonic() >= deadline:
+                    raise StateError(f"timed out waiting for package registry lock {lock_path}") from exc
+                time.sleep(0.05)
+    else:
+        import fcntl
+
+        while True:
+            try:
+                fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                return
+            except BlockingIOError as exc:
+                if time.monotonic() >= deadline:
+                    raise StateError(f"timed out waiting for package registry lock {lock_path}") from exc
+                time.sleep(0.05)
+
+
+def _release_registry_lock(descriptor: int) -> None:
+    if os.name == "nt":
+        import msvcrt
+
+        os.lseek(descriptor, 0, os.SEEK_SET)
+        msvcrt.locking(descriptor, msvcrt.LK_UNLCK, 1)
+    else:
+        import fcntl
+
+        fcntl.flock(descriptor, fcntl.LOCK_UN)
+
+
+@contextmanager
+def _registry_transaction(registry_path: Path) -> Iterator[None]:
+    """Serialize registry read/install/write transactions across processes.
+
+    The lock file is intentionally retained. Removing an advisory-lock file can
+    create two independently locked inodes when another process is waiting on it.
+    """
+
+    registry_path.parent.mkdir(parents=True, exist_ok=True)
+    lock_path = registry_path.with_name(f".{registry_path.name}.lock")
+    if lock_path.is_symlink():
+        raise SecurityError(f"package registry lock may not be a symbolic link: {lock_path}")
+    flags = os.O_RDWR | os.O_CREAT | getattr(os, "O_BINARY", 0) | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        descriptor = os.open(lock_path, flags, 0o600)
+    except OSError as exc:
+        raise StateError(f"could not open package registry lock {lock_path}: {exc}") from exc
+    acquired = False
+    try:
+        if lock_path.is_symlink() or not stat.S_ISREG(os.fstat(descriptor).st_mode):
+            raise SecurityError(f"package registry lock must be a regular file: {lock_path}")
+        _acquire_registry_lock(descriptor, lock_path)
+        acquired = True
+        if os.fstat(descriptor).st_size == 0:
+            os.write(descriptor, b"\0")
+            os.fsync(descriptor)
+        yield
+    finally:
+        if acquired:
+            try:
+                _release_registry_lock(descriptor)
+            finally:
+                os.close(descriptor)
+        else:
+            os.close(descriptor)
+
 
 @dataclass(frozen=True, slots=True)
 class StageLimits:
@@ -31,6 +116,19 @@ class StageLimits:
     max_uncompressed_bytes: int = 1024 * 1024 * 1024
     max_file_bytes: int = 256 * 1024 * 1024
     max_compression_ratio: float = 200.0
+
+    def validate(self) -> None:
+        for name in ("max_archive_bytes", "max_files", "max_uncompressed_bytes", "max_file_bytes"):
+            value = getattr(self, name)
+            if not isinstance(value, int) or isinstance(value, bool) or value <= 0:
+                raise ValidationError("Invalid staging limits", [f"{name} must be a positive integer"])
+        if not isinstance(self.max_compression_ratio, (int, float)) or isinstance(
+            self.max_compression_ratio, bool
+        ) or not math.isfinite(self.max_compression_ratio) or self.max_compression_ratio <= 0:
+            raise ValidationError(
+                "Invalid staging limits",
+                ["max_compression_ratio must be a positive number"],
+            )
 
 
 @dataclass(frozen=True, slots=True)
@@ -246,13 +344,40 @@ def _validate_extracted_package(
         required = Version.parse(expected_version) if isinstance(expected_version, str) else expected_version
         if not manifest.version.exactly_equals(required):
             raise SecurityError(f"package version mismatch: expected {required}, archive contains {manifest.version}")
+
+    # Keep this asset set aligned with tools/package_release.py. The artifact
+    # digest authenticates the archive bytes, but every path the manifest says
+    # belongs to the package must also resolve to an extracted regular file.
+    declared_assets: list[tuple[str, str]] = []
     for name, relative_path in manifest.entrypoints.items():
         if relative_path is None:
             continue
-        path = validate_package_path(relative_path, label=f"entrypoint {name}")
+        declared_assets.append((f"entrypoint {name!r}", relative_path))
+    declared_assets.extend(
+        (f"processing pass {index}", relative_path)
+        for index, relative_path in enumerate(manifest.processing.get("passes") or ())
+    )
+    provenance = manifest.provenance or {}
+    changelog = provenance.get("changelog")
+    if changelog is not None:
+        declared_assets.append(("provenance changelog", changelog))
+    declared_assets.extend(
+        (f"provenance example {index}", relative_path)
+        for index, relative_path in enumerate(provenance.get("examples") or ())
+    )
+    declared_assets.extend(
+        (f"provenance preset {index}", relative_path)
+        for index, relative_path in enumerate(provenance.get("presets") or ())
+    )
+
+    for label, relative_path in declared_assets:
+        path = validate_package_path(relative_path, label=label)
         candidate = root.joinpath(*path.parts)
         if not candidate.is_file():
-            raise ValidationError("Staged package is invalid", [f"declared entrypoint {name!r} does not exist: {relative_path}"])
+            raise ValidationError(
+                "Staged package is invalid",
+                [f"declared {label} does not exist: {relative_path}"],
+            )
     return manifest, manifest_path
 
 
@@ -264,10 +389,13 @@ def stage_package(
     expected_size: int | None = None,
     expected_id: str | None = None,
     expected_version: str | Version | None = None,
+    expected_manifest_sha256: str | None = None,
     policy: SourcePolicy = SourcePolicy(),
     limits: StageLimits = StageLimits(),
     registry_path: str | os.PathLike[str] | None = None,
     feed_url: str | None = None,
+    feed_id: str | None = None,
+    feed_sha256: str | None = None,
 ) -> StageResult:
     """Verify and stage a ZIP into ``<store>/<id>/<exact-version>``.
 
@@ -275,10 +403,73 @@ def stage_package(
     are never overwritten, even when their bytes appear identical.
     """
 
+    limits.validate()
+    if not is_sha256(expected_sha256):
+        raise ValidationError(
+            "Invalid staging trust metadata",
+            ["expected_sha256 must be a non-empty SHA-256 digest"],
+        )
+    for label, digest in (
+        ("expected_manifest_sha256", expected_manifest_sha256),
+        ("feed_sha256", feed_sha256),
+    ):
+        if digest is not None and not is_sha256(digest):
+            raise ValidationError("Invalid staging trust metadata", [f"{label} must be a SHA-256 digest"])
+    if expected_id is not None and (
+        not isinstance(expected_id, str) or PACKAGE_ID_RE.fullmatch(expected_id) is None
+    ):
+        raise ValidationError("Invalid staging trust metadata", ["expected_id is invalid"])
+    if expected_version is not None and not isinstance(expected_version, (str, Version)):
+        raise ValidationError(
+            "Invalid staging trust metadata",
+            ["expected_version must be an exact semantic version"],
+        )
+    if isinstance(expected_version, str):
+        expected_version = Version.parse(expected_version)
+    if feed_url is not None:
+        missing = [
+            name
+            for name, value in (
+                ("expected_id", expected_id),
+                ("expected_version", expected_version),
+                ("expected_manifest_sha256", expected_manifest_sha256),
+                ("feed_id", feed_id),
+                ("feed_sha256", feed_sha256),
+            )
+            if value is None
+        ]
+        if missing:
+            raise SecurityError(
+                "feed-sourced staging requires bound " + ", ".join(missing)
+            )
+        if not isinstance(feed_url, str) or len(feed_url) > 4096:
+            raise SecurityError("feed_url must be a bounded HTTPS or local file URL")
+        parsed_feed_url = urlsplit(feed_url)
+        if parsed_feed_url.scheme.lower() == "https":
+            if not parsed_feed_url.hostname or parsed_feed_url.username or parsed_feed_url.password:
+                raise SecurityError("feed_url must not contain credentials")
+        elif parsed_feed_url.scheme.lower() == "file":
+            if (
+                parsed_feed_url.netloc not in {"", "localhost"}
+                or parsed_feed_url.query
+                or parsed_feed_url.fragment
+            ):
+                raise SecurityError("feed_url must refer to a local file")
+        else:
+            raise SecurityError("feed_url must use HTTPS or file")
+    if feed_id is not None and (
+        not isinstance(feed_id, str) or PACKAGE_ID_RE.fullmatch(feed_id) is None
+    ):
+        raise ValidationError("Invalid staging trust metadata", ["feed_id is invalid"])
+
     store = Path(package_store).resolve()
     store.mkdir(parents=True, exist_ok=True)
     downloads = store / ".downloads"
+    if downloads.is_symlink():
+        raise SecurityError("package download directory may not be a symbolic link")
     downloads.mkdir(exist_ok=True)
+    if not is_relative_to(downloads.resolve(strict=True), store):
+        raise SecurityError("package download directory escapes the package store")
     descriptor, archive_name = tempfile.mkstemp(prefix="artifact-", suffix=".zip", dir=downloads)
     os.close(descriptor)
     archive_path = Path(archive_name)
@@ -306,13 +497,37 @@ def stage_package(
             expected_version=expected_version,
         )
         manifest_sha256 = sha256_file(temporary_manifest_path)
+        if (
+            expected_manifest_sha256 is not None
+            and manifest_sha256 != expected_manifest_sha256.lower()
+        ):
+            raise SecurityError(
+                "manifest SHA-256 mismatch: expected "
+                f"{expected_manifest_sha256.lower()}, got {manifest_sha256}"
+            )
         package_content_sha256 = content_sha256(extraction_root)
         if archive_content_sha256(archive_path, limits) != package_content_sha256:
             raise SecurityError("extracted package content does not match the verified archive")
         final_path = store / manifest.id / str(manifest.version)
-        if final_path.exists():
-            raise StateError(f"immutable package directory already exists: {final_path}")
-        final_path.parent.mkdir(parents=True, exist_ok=True)
+        final_manifest = final_path / "package.json"
+        registry_file = (
+            Path(registry_path).resolve()
+            if registry_path is not None
+            else store / "registry.json"
+        )
+        source_type = "feed" if feed_url is not None else "local"
+        source_record: dict[str, object] = {
+            "type": source_type,
+            "artifact_url": redact_source_url(fetch.final_source),
+        }
+        if feed_url is not None:
+            source_record.update(
+                {
+                    "feed_url": redact_source_url(feed_url),
+                    "feed_id": feed_id,
+                    "feed_sha256": feed_sha256.lower() if feed_sha256 else None,
+                }
+            )
         shutil.copyfile(archive_path, extraction_root / _RETAINED_ARTIFACT)
         metadata = {
             "schema_version": 1,
@@ -324,35 +539,54 @@ def stage_package(
             "staged_at": utc_now(),
         }
         atomic_write_json(extraction_root / _INSTALL_METADATA, metadata)
-        try:
-            extraction_root.rename(final_path)
-        except FileExistsError as exc:
-            raise StateError(f"immutable package directory already exists: {final_path}") from exc
-        extraction_root = None
-        final_manifest = final_path / "package.json"
+        with _registry_transaction(registry_file):
+            if final_path.exists():
+                raise StateError(f"immutable package directory already exists: {final_path}")
+            if final_path.parent.is_symlink():
+                raise SecurityError(
+                    f"package identity directory may not be a symbolic link: {final_path.parent}"
+                )
+            final_path.parent.mkdir(parents=True, exist_ok=True)
+            if not is_relative_to(final_path.parent.resolve(strict=True), store):
+                raise SecurityError("package identity directory escapes the package store")
 
-        registry_file = Path(registry_path) if registry_path is not None else store / "registry.json"
-        registry = load_local_registry(registry_file) if registry_file.exists() else LocalRegistry.empty(store)
-        if Path(registry.library_root).resolve() != store:
-            raise StateError(f"registry library_root {registry.library_root} does not match package store {store}")
-        source_type = "feed" if feed_url is not None else "local"
-        source_record: dict[str, object] = {"type": source_type, "artifact_url": redact_source_url(fetch.final_source)}
-        if feed_url is not None:
-            source_record["feed_url"] = feed_url
-        installed = InstalledVersion(
-            version=manifest.version,
-            install_path=str(final_path),
-            manifest_path=str(final_manifest),
-            installed_at=utc_now(),
-            source=source_record,
-            integrity={
-                "manifest_sha256": manifest_sha256,
-                "artifact_sha256": fetch.sha256,
-                "verification": "verified",
-            },
-            status="staged",
-        )
-        save_local_registry(registry_file, registry.add(manifest.id, installed))
+            registry = (
+                load_local_registry(registry_file)
+                if registry_file.exists()
+                else LocalRegistry.empty(store)
+            )
+            if Path(registry.library_root).resolve() != store:
+                raise StateError(
+                    f"registry library_root {registry.library_root} does not match package store {store}"
+                )
+            installed = InstalledVersion(
+                version=manifest.version,
+                install_path=str(final_path),
+                manifest_path=str(final_manifest),
+                installed_at=utc_now(),
+                source=source_record,
+                integrity={
+                    "manifest_sha256": manifest_sha256,
+                    "artifact_sha256": fetch.sha256,
+                    "verification": "verified",
+                },
+                status="staged",
+            )
+            updated_registry = registry.add(manifest.id, installed)
+            # Validate the complete registry before making the package directory visible.
+            updated_registry = LocalRegistry.from_data(updated_registry.to_dict())
+
+            try:
+                extraction_root.rename(final_path)
+            except FileExistsError as exc:
+                raise StateError(f"immutable package directory already exists: {final_path}") from exc
+            extraction_root = None
+            try:
+                save_local_registry(registry_file, updated_registry)
+            except BaseException:
+                # The directory was created by this call and was already confined to store.
+                shutil.rmtree(final_path, ignore_errors=True)
+                raise
         return StageResult(
             package_id=manifest.id,
             version=manifest.version,

@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "id": "tdimagefx.matte.feather",
+  "name": "Matte Feather",
+  "version": "1.0.0",
+  "fx_api": "1.0",
+  "kind": "effect",
+  "category": "matte",
+  "channel": "experimental",
+  "description": "Softens alpha with a separable two-pass Gaussian filter while preserving source RGB.",
+  "publisher": "TD ImageFX Library",
+  "license": "MIT",
+  "entrypoints": {"shader": "shaders/pass1.frag", "touchdesigner_component": "tox/tdimagefx_matte_feather.tox"},
+  "inputs": [{"id": "image", "family": "TOP", "required": true, "semantic": "source", "description": "RGBA image containing the matte to feather."}],
+  "outputs": [{"id": "image", "family": "TOP"}],
+  "parameters": [
+    {"id": "enable", "name": "Enable", "label": "Enable", "type": "toggle", "default": true, "description": "Bypass feathering when disabled."},
+    {"id": "mix", "name": "Mix", "label": "Mix", "type": "float", "default": 1.0, "min": 0.0, "max": 1.0, "uniform": "uMix", "description": "Blends source and feathered matte."},
+    {"id": "radius", "name": "Radius", "label": "Radius", "type": "float", "default": 4.0, "min": 0.0, "max": 32.0, "unit": "pixels", "uniform": "uRadius", "description": "Feather radius in pixels."}
+  ],
+  "compatibility": {"touchdesigner_min_build": 2025.3, "touchdesigner_max_build": null, "os": ["windows", "macos"], "architectures": ["x86_64", "arm64"]},
+  "permissions": {"python": false, "filesystem": false, "network": false, "subprocess": false},
+  "dependencies": [],
+  "alpha_policy": "process",
+  "resolution_policy": "input",
+  "stateful": false,
+  "image_contract": {
+    "color": {"input_space": "source", "working_space": "project", "output_space": "source", "reference": "display_referred"},
+    "alpha": {"input": "any", "working": "any", "output": "any"},
+    "pixel_format": {"policy": "inherit"},
+    "sampling": {"filter": "linear", "edge": "clamp", "mipmaps": false}
+  },
+  "determinism": {"mode": "deterministic"},
+  "provenance": {"origin": "original", "source": {"type": "original"}},
+  "tags": ["matte", "feather", "blur", "alpha", "multi-pass"],
+  "processing": {"model": "multi_pass", "gpu_cost": "medium", "capabilities": ["multi_pass"], "passes": ["shaders/pass1.frag", "shaders/pass2.frag"], "history_frames": 0}
+}

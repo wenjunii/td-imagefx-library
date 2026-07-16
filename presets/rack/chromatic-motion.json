@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "kind": "tdimagefx.rack-preset",
+  "name": "Chromatic Motion",
+  "autotime": true,
+  "timescale": 0.8,
+  "time": 0.0,
+  "slots": [
+    {
+      "index": 1,
+      "package": {
+        "id": "tdimagefx.distort.wave-warp",
+        "version": "1.1.0"
+      },
+      "enabled": true,
+      "mix": 0.55,
+      "modulation": {
+        "depth": 0.08,
+        "rate": 0.12,
+        "state": "sine"
+      },
+      "parameters": {
+        "Amount": 0.018,
+        "Frequency": 6.0,
+        "Speed": 0.35,
+        "Angle": 0.3
+      }
+    },
+    {
+      "index": 2,
+      "package": {
+        "id": "tdimagefx.blur.chromatic-blur",
+        "version": "1.0.0"
+      },
+      "enabled": true,
+      "mix": 0.25,
+      "modulation": {
+        "depth": 0.03,
+        "rate": 0.1,
+        "state": "triangle"
+      },
+      "parameters": {
+        "Radius": 4.0,
+        "Separation": 0.45
+      }
+    },
+    {
+      "index": 3,
+      "package": {
+        "id": "tdimagefx.glitch.rgb-split",
+        "version": "1.1.0"
+      },
+      "enabled": true,
+      "mix": 0.25,
+      "modulation": {
+        "depth": 0.05,
+        "rate": 0.2,
+        "state": "saw"
+      },
+      "parameters": {
+        "Amount": 0.008,
+        "Angle": 0.35,
+        "Greenoffset": 0.25
+      }
+    },
+    {
+      "index": 4,
+      "package": {
+        "id": "tdimagefx.stylize.scanlines",
+        "version": "1.1.0"
+      },
+      "enabled": true,
+      "mix": 0.22,
+      "modulation": {
+        "depth": 0.0,
+        "rate": 1.0,
+        "state": "off"
+      },
+      "parameters": {
+        "Density": 720.0,
+        "Strength": 0.12,
+        "Speed": 0.1
+      }
+    }
+  ]
+}
