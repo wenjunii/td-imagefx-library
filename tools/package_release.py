@@ -319,7 +319,12 @@ def _build_release_in_place(
         raise ReleaseError("source revision must be a full 40-64 character hexadecimal digest")
     selected: dict[str, tuple[Version, PackageManifest, Path]] = {}
     identity_metadata: dict[str, tuple[str, str]] = {}
-    packages_root = (ROOT / "packages").resolve()
+    repository_root = ROOT.resolve()
+    packages_root = (repository_root / "packages").resolve()
+    try:
+        packages_root.relative_to(repository_root)
+    except ValueError as exc:
+        raise ReleaseError("Packages directory escapes repository root") from exc
     output_root = _absolute(output_dir)
     release_root = output_root.parent
     release_root.mkdir(parents=True, exist_ok=True)
@@ -376,7 +381,7 @@ def _build_release_in_place(
             label="release artifact",
         )
         package_zip(package_root, artifact_path, manifest=manifest)
-        manifest_relative = resolved_manifest.relative_to(ROOT).as_posix()
+        manifest_relative = resolved_manifest.relative_to(repository_root).as_posix()
         packages.append({
             "id": manifest.id,
             "name": manifest.name,
