@@ -34,6 +34,15 @@ class FakeParameter:
         return self.val
 
 
+class FakePulseParameter(FakeParameter):
+    def __init__(self):
+        super().__init__(False)
+        self.pulse_count = 0
+
+    def pulse(self):
+        self.pulse_count += 1
+
+
 class FakeParameters:
     def __init__(self, **values):
         self._parameters = {name: FakeParameter(value) for name, value in values.items()}
@@ -64,6 +73,17 @@ class FakeTable:
 
 class FakeInstance:
     path = "/project1/target/new_effect"
+
+
+class FakePreview:
+    def __init__(self):
+        self.par = FakeParameters()
+        self.par._parameters["reload"] = FakePulseParameter()
+        self.cook_count = 0
+
+    def cook(self, force=False):
+        if force:
+            self.cook_count += 1
 
 
 class FakeLibrary:
@@ -250,11 +270,15 @@ class BrowserExtensionTests(unittest.TestCase):
 
     def test_selection_updates_preview_and_structured_diagnostics(self):
         browser, owner, _ = self.make_browser(Selectedid="tdimagefx.stylize.vhs")
+        preview = FakePreview()
+        owner.named_ops["selected_preview"] = preview
         browser.LoadCatalog()
         details = browser.UpdateSelection()
         self.assertEqual(owner.par.Selectedpreview.eval(), "docs/gallery/vhs.png")
         self.assertIn("Needs flow", owner.par.Selecteddiagnostics.eval())
         self.assertEqual(details["Input readiness"], "Needs flow")
+        self.assertEqual(preview.par.reload.pulse_count, 1)
+        self.assertEqual(preview.cook_count, 1)
         diagnostics = browser.SelectedDiagnostics()
         self.assertFalse(diagnostics["input_diagnostics"]["ready"])
 

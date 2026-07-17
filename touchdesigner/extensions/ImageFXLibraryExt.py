@@ -47,6 +47,35 @@ def _normalized_role(value):
     return re.sub(r"[^a-z0-9]+", "_", str(value or "").strip().lower()).strip("_")
 
 
+def _repair_effect_shader_paths(root_comp):
+    """Repair legacy absolute GLSL Pixel Shader paths in a loaded package."""
+
+    repaired = 0
+    pending = list(getattr(root_comp, "children", ()) or ())
+    while pending:
+        operator = pending.pop()
+        pending.extend(list(getattr(operator, "children", ()) or ()))
+        name = str(getattr(operator, "name", ""))
+        if str(getattr(operator, "type", "")) != "glsl" or not name.startswith(
+            "effect_glsl_"
+        ):
+            continue
+        shader_name = "pixel_shader_" + name[len("effect_glsl_"):]
+        shader_dat = operator.parent().op(shader_name)
+        parameter = operator.par["pixeldat"]
+        if shader_dat is None or parameter is None:
+            raise RuntimeError(
+                "{} is missing its portable Pixel Shader DAT".format(operator.path)
+            )
+        parameter.val = operator.relativePath(shader_dat)
+        if parameter.eval() != shader_dat:
+            raise RuntimeError(
+                "{} Pixel Shader reference did not resolve".format(operator.path)
+            )
+        repaired += 1
+    return repaired
+
+
 def _manifest_input_roles(manifest):
     roles = []
     for input_index, definition in enumerate(manifest.get("inputs") or []):
@@ -334,7 +363,15 @@ class ImageFXLibraryExt:
         if len(created) != 1:
             raise RuntimeError("Expected one top-level component in {}".format(tox_path))
         instance = created[0]
-        instance.name = safe_name
+        try:
+            instance.name = safe_name
+            _repair_effect_shader_paths(instance)
+        except Exception:
+            try:
+                instance.destroy()
+            except Exception:
+                pass
+            raise
         return instance
 
     def CheckUpdates(self):

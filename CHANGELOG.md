@@ -4,7 +4,34 @@ All notable changes to TD ImageFX Library are recorded here. Package versions fo
 
 ## [Unreleased]
 
-No unreleased changes are recorded yet.
+### Added
+
+- Project-scoped integration for Embody `6.0.131`, Envoy, the local
+  TouchDesigner knowledge library, and `td-knowledge-mcp`.
+- A public-safe `get_td_project_context` profile, placeholder-only combined MCP
+  configuration, and ordered read-only live validation plan.
+- A disposable QA harness installer that refuses the canonical library project,
+  never saves automatically, loads the compiled ImageFX core, synchronizes the
+  tracked extensions, and repairs legacy package-local shader references.
+- A live structural validator covering library health, recursive operator
+  errors, warnings, script errors, and approved TOP existence/resolution before
+  Envoy performs pixel-quality capture.
+
+### Changed
+
+- Repository verification now protects the live-QA integration identity,
+  catalog counts, managed paths, required audit tools, and no-save harness
+  boundary.
+- The native builder and runtime loaders now keep GLSL Pixel Shader DAT
+  references package-relative when effects move into a rack or user network.
+- The browser now reloads and cooks its selected preview after a catalog
+  selection changes; the native builder also initializes and validates the
+  first 512x288 preview before exporting the component.
+- The native `.toe`, four core `.tox` components, benchmark report, and
+  SHA-256-bound native validation record were rebuilt with TouchDesigner
+  `2025.32820`.
+- The offline suite now contains 153 tests, including four integration contract
+  checks and three portable-shader-path checks.
 
 ## [0.3.0] - 2026-07-16
 

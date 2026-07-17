@@ -53,6 +53,21 @@ For a quick inventory check in the Textport, `op('/project1/td_imagefx').HealthC
 
 Python is not required to use the prebuilt native files. Python 3.11 or newer is required for repository tools and the standalone package CLI.
 
+## Embody and Envoy QA harness
+
+Do not add Embody to `TD_ImageFX_Library.toe`. The native builder owns exactly
+`/project1/td_imagefx` and `/project1/imagefx_demo`, rejects unrelated top-level
+operators, and replaces its generated project atomically.
+
+For AI-assisted live inspection, create an ignored project at
+`integrations/embody/local/TD_ImageFX_DevHarness.toe`, install Embody there, and
+run `touchdesigner/scripts/install_dev_harness.py`. The script loads the compiled
+library and rack, synchronizes their tracked extension sources, repairs portable
+shader references, points them at this checkout, refuses the canonical project,
+refuses existing managed roots, and never saves. The combined TD knowledge and
+Envoy setup, project profile, capture requirements, and validation order are
+documented in [Embody, Envoy, and TD knowledge integration](embody-envoy-integration.md).
+
 ## Native rebuild
 
 The project remains source-first. `touchdesigner/scripts/build_project.py` runs inside TouchDesigner and recreates the native assets from manifests and shaders. It owns and replaces `/project1/td_imagefx` and `/project1/imagefx_demo`; use a disposable build project or save any work before running it.

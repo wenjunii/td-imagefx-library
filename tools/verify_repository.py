@@ -27,6 +27,7 @@ SRC_ROOT = ROOT / "src"
 PACKAGE_ROOT = ROOT / "packages"
 PUBLIC_FEED = ROOT / "registry" / "update-feed.json"
 LOCAL_FEED = ROOT / "registry" / "update-feed.local.json"
+EMBODY_INTEGRATION = ROOT / "integrations" / "embody"
 EXPECTED_EFFECT_ID_COUNT = 96
 EXPECTED_PACKAGE_VERSION_COUNT = 122
 PUBLIC_FEED_URL = (
@@ -441,6 +442,91 @@ def _check_update_sources() -> None:
         raise VerificationError("Bundled local feed is not declared correctly")
 
 
+def _check_embody_integration() -> None:
+    """Validate the public, non-destructive live-QA integration contract."""
+
+    required = (
+        EMBODY_INTEGRATION / "README.md",
+        EMBODY_INTEGRATION / "project-context.json",
+        EMBODY_INTEGRATION / "mcp-config.example.json",
+        EMBODY_INTEGRATION / "envoy-validation-plan.json",
+        ROOT / "touchdesigner" / "scripts" / "install_dev_harness.py",
+        ROOT / "touchdesigner" / "scripts" / "validate_live_project.py",
+    )
+    missing = [path.relative_to(ROOT) for path in required if not path.is_file()]
+    if missing:
+        raise VerificationError(
+            "Missing Embody integration files: " + ", ".join(map(str, missing))
+        )
+
+    context = _read_json(EMBODY_INTEGRATION / "project-context.json")
+    catalog = (context.get("overview") or {}).get("catalog") or {}
+    if (
+        context.get("schema_version") != 1
+        or context.get("project_id") != "td-imagefx-library"
+        or catalog.get("current_effect_ids") != EXPECTED_EFFECT_ID_COUNT
+        or catalog.get("immutable_package_versions") != EXPECTED_PACKAGE_VERSION_COUNT
+    ):
+        raise VerificationError(
+            "Embody project context does not match the current ImageFX catalog"
+        )
+    network = context.get("network") or {}
+    outputs = context.get("outputs") or {}
+    if network.get("library") != "/project1/td_imagefx" or outputs.get(
+        "primary_demo"
+    ) != "/project1/imagefx_demo/out1_image":
+        raise VerificationError("Embody project context has unexpected managed paths")
+
+    example_path = EMBODY_INTEGRATION / "mcp-config.example.json"
+    example_text = example_path.read_text(encoding="utf-8")
+    example = _read_json(example_path)
+    server = (example.get("mcpServers") or {}).get("td-knowledge") or {}
+    arguments = server.get("args")
+    if (
+        server.get("type") != "stdio"
+        or not isinstance(arguments, list)
+        or "--project-context" not in arguments
+        or "--faiss-db" not in arguments
+        or "ABSOLUTE" not in example_text
+        or "wenju" in example_text.lower()
+    ):
+        raise VerificationError(
+            "Embody MCP example must remain portable and project-scoped"
+        )
+
+    plan = _read_json(EMBODY_INTEGRATION / "envoy-validation-plan.json")
+    if (
+        plan.get("schema_version") != 1
+        or plan.get("project_id") != context["project_id"]
+        or plan.get("mode") != "read-only"
+    ):
+        raise VerificationError("Envoy validation plan has an incompatible identity")
+    tools = {
+        call.get("tool")
+        for stage in plan.get("stages", [])
+        if isinstance(stage, dict)
+        for call in stage.get("calls", [])
+        if isinstance(call, dict)
+    }
+    required_tools = {
+        "get_td_project_context",
+        "query_td_knowledge",
+        "get_td_info",
+        "get_project_performance",
+        "query_network",
+        "exec_op_method",
+        "get_op_errors",
+        "execute_python",
+        "capture_top",
+    }
+    if not required_tools.issubset(tools):
+        raise VerificationError("Envoy validation plan is missing required audit tools")
+
+    installer = required[-2].read_text(encoding="utf-8")
+    if "project.save(" in installer or "_save_project_atomically" in installer:
+        raise VerificationError("Development harness installer may not save a project")
+
+
 def _run(label: str, arguments: list[str], env: dict[str, str]) -> None:
     print(f"\n[verify] {label}", flush=True)
     subprocess.run(arguments, cwd=ROOT, env=env, check=True)
@@ -458,6 +544,7 @@ def main() -> int:
             if not feed_path.is_file():
                 raise VerificationError(f"Missing update feed: {feed_path.relative_to(ROOT)}")
         _check_update_sources()
+        _check_embody_integration()
         _check_generated_artifacts(package_ids, latest_versions)
         _check_native_validation(version)
 

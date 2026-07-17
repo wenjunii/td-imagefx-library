@@ -494,6 +494,18 @@ class ImageFXBrowserExt:
                 return value
         return ""
 
+    def _reload_selected_preview(self):
+        preview = self._optional_op("selected_preview")
+        if preview is None:
+            return False
+        parameter = preview.par["reload"]
+        if parameter is not None:
+            parameter.pulse()
+        cook = getattr(preview, "cook", None)
+        if callable(cook):
+            cook(force=True)
+        return True
+
     def _resolve_target(self, target=None):
         target = target if target is not None else self._parameter_value("Target", None)
         if target is None or _text(target) == "":
@@ -585,6 +597,7 @@ class ImageFXBrowserExt:
             details = selected_details(selected, self._available_inputs())
             projected = display_row(selected, self._favorites())
             self._set_parameter("Selectedpreview", projected["preview"])
+            self._reload_selected_preview()
             detail_text = "\n\n".join("{}\n{}".format(label, value) for label, value in details)
             self._set_parameter("Selecteddiagnostics", detail_text)
 

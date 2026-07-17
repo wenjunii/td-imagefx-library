@@ -80,7 +80,7 @@ The eight-slot rack has one primary image path plus six semantic auxiliary buses
 
 ### Browser diagnostics
 
-The browser source adds channel, processing-model, capability, input-readiness, available-input, and sorting controls to the existing search/category/tag/favorite filters. Selected-effect details expose descriptions, parameters, image contracts, compatibility confidence, required buses, quality metadata, and a preview path. Effect components are loaded lazily instead of keeping the entire catalog resident.
+The browser source adds channel, processing-model, capability, input-readiness, available-input, and sorting controls to the existing search/category/tag/favorite filters. Selected-effect details expose descriptions, parameters, image contracts, compatibility confidence, required buses, quality metadata, and a preview path. The native build initializes and validates the first 512×288 preview, and later selections reload it automatically. Effect components are loaded lazily instead of keeping the entire catalog resident.
 
 ## Repository map
 
@@ -90,6 +90,7 @@ The browser source adds channel, processing-model, capability, input-readiness, 
 | `schemas/` | Machine-readable package, feed, state, and lock contracts |
 | `src/tdimagefx/` | Validation, registry, compatibility, updater, archive, state, lockfile, and CLI logic |
 | `touchdesigner/` | TouchDesigner extensions, callbacks, native builder, and reusable core component sources |
+| `integrations/embody/` | Project-scoped TD knowledge, Envoy live-QA contract, and safe harness setup |
 | `tools/` | Effect scaffolding, release packaging, gallery/benchmark generation, and repository verification |
 | `.github/workflows/` | Cross-platform verification, immutable-history checks, and prepare-only release automation |
 | `tests/` | Unit and integration checks that do not require a live TouchDesigner process |
@@ -104,9 +105,11 @@ git clone https://github.com/wenjunii/td-imagefx-library.git
 cd td-imagefx-library
 ```
 
-The v0.3 source and generated artifacts are synchronized. The recorded Windows build used TouchDesigner `2025.32820` and validated all 96 current effects with 122 versioned effect `.tox` files, four core `.tox` files, one library `.toe`, 96 previews, 96 visual baselines, and 96 benchmark samples. The build report contains zero shader, preview, or builder errors. A fresh repository run completed 146 tests successfully, with four expected Windows symlink-permission skips, and two independent 99-file release builds matched byte-for-byte. Read [TouchDesigner setup](docs/touchdesigner-setup.md) to reproduce the native build.
+The v0.3 source and generated artifacts are synchronized. The recorded Windows build used TouchDesigner `2025.32820` and validated all 96 current effects with 122 versioned effect `.tox` files, four core `.tox` files, one library `.toe`, 96 previews, 96 visual baselines, and 96 benchmark samples. The build report contains zero shader, preview, or builder errors. A fresh repository run completed 153 tests successfully, with four expected Windows symlink-permission skips, and two independent 99-file release builds matched byte-for-byte. Read [TouchDesigner setup](docs/touchdesigner-setup.md) to reproduce the native build.
 
 The generated project targets TouchDesigner 2025. Validate the exact TouchDesigner build, operating system, GPU, driver, resolution, pixel format, and color pipeline used by your production system. Python 3.11 or newer is required for repository tooling; it is not required merely to use already-built native components.
+
+For knowledge-grounded live inspection, use the separate [Embody, Envoy, and TD knowledge integration](docs/embody-envoy-integration.md). It combines the local TouchDesigner knowledge index with Envoy's live tools and a checked ImageFX project profile. Embody runs in an ignored QA harness, never inside the canonical builder-owned `.toe`.
 
 ## Use in TouchDesigner
 
@@ -203,6 +206,7 @@ GitHub Actions runs verification on Windows, macOS, and Linux with Python 3.11 a
 
 - [Architecture](docs/architecture.md)
 - [TouchDesigner setup](docs/touchdesigner-setup.md)
+- [Embody, Envoy, and TD knowledge integration](docs/embody-envoy-integration.md)
 - [Effect authoring contract](docs/effect-authoring-contract.md)
 - [Generated effect gallery](docs/gallery.md)
 - [Runtime benchmark report](docs/benchmarks.md)

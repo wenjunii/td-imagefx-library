@@ -655,6 +655,35 @@ def configure_extension(comp, class_name, source_path):
     return code_dat
 
 
+def _repair_effect_shader_paths(root_comp):
+    """Make packaged effect GLSL-to-DAT references portable across networks."""
+
+    repaired = 0
+    pending = list(getattr(root_comp, "children", ()) or ())
+    while pending:
+        operator = pending.pop()
+        pending.extend(list(getattr(operator, "children", ()) or ()))
+        name = str(getattr(operator, "name", ""))
+        if str(getattr(operator, "type", "")) != "glsl" or not name.startswith(
+            "effect_glsl_"
+        ):
+            continue
+        shader_name = "pixel_shader_" + name[len("effect_glsl_"):]
+        shader_dat = operator.parent().op(shader_name)
+        parameter = operator.par["pixeldat"]
+        if shader_dat is None or parameter is None:
+            raise RuntimeError(
+                "{} is missing its portable Pixel Shader DAT".format(operator.path)
+            )
+        parameter.val = operator.relativePath(shader_dat)
+        if parameter.eval() != shader_dat:
+            raise RuntimeError(
+                "{} Pixel Shader reference did not resolve".format(operator.path)
+            )
+        repaired += 1
+    return repaired
+
+
 def load_tox_component(parent_comp, tox_path, name):
     """Load a .tox as a direct child and return its top-level component."""
     before_ids = {child.id for child in parent_comp.children}
@@ -666,6 +695,7 @@ def load_tox_component(parent_comp, tox_path, name):
         )
     instance = created[0]
     instance.name = name
+    _repair_effect_shader_paths(instance)
     return instance
 
 
@@ -747,7 +777,7 @@ def _shader_pass(
     glsl.nodeY = 0
     for input_index, input_node in enumerate(inputs):
         input_node.outputConnectors[0].connect(glsl.inputConnectors[input_index])
-    glsl.par.pixeldat = shader_dat.path
+    glsl.par.pixeldat = glsl.relativePath(shader_dat)
     if glsl.par["glslversion"] is not None:
         glsl.par.glslversion = "glsl460"
     if glsl.par["compilebehavior"] is not None:
@@ -1207,7 +1237,7 @@ def build_browser(parent_comp, manifests, compatibility_confidence="declared"):
         {"name": "Selectedpreview", "label": "Selected Preview", "type": "string", "default": "docs/gallery/{}.png".format(package_ids[0]), "animatable": False},
         {"name": "Selecteddiagnostics", "label": "Selected Diagnostics", "type": "string", "default": "", "animatable": False},
         {"name": "Rootfolder", "label": "Library Root (Blank = Project Folder)", "type": "folder", "default": "", "description": "Root used to resolve preview paths when the library is installed outside the current project folder."},
-        {"name": "Target", "label": "Creation Target", "type": "operator", "default": "../../effects", "description": "COMP where Create Selected instantiates the immutable package .tox."},
+        {"name": "Target", "label": "Creation Target", "type": "operator", "default": "", "description": "COMP where Create Selected instantiates the immutable package .tox."},
         {"name": "Refresh", "type": "pulse"},
         {"name": "Create", "label": "Create Selected", "type": "pulse"},
         {"name": "Togglefavorite", "label": "Toggle Favorite", "type": "pulse"},
@@ -1339,8 +1369,31 @@ def build_browser(parent_comp, manifests, compatibility_confidence="declared"):
     parexec.nodeX = 120
     parexec.nodeY = -180
 
+    # Keep the dormant constant empty: TouchDesigner can preserve a warning for
+    # a relative operator path stored there even while the active expression
+    # resolves correctly. Set and cook the expression both before and after
+    # exporting because palette serialization may rewrite operator parameters.
+    browser.par.Target.val = ""
+    browser.par.Target.expr = "me.op('../../effects')"
+    if browser.UpdateSelection() is None:
+        raise RuntimeError("Browser could not initialize its selected effect preview")
+    browser.cook(force=True)
+    selected_preview.cook(force=True)
+    if (selected_preview.width, selected_preview.height) != (512, 288):
+        raise RuntimeError(
+            "Browser selected preview did not load at 512x288: {}x{}".format(
+                selected_preview.width,
+                selected_preview.height,
+            )
+        )
     browser_path = CORE_ROOT / "FxBrowser.tox"
     browser.save(str(browser_path), createFolders=True)
+    browser.par.Target.val = ""
+    browser.par.Target.expr = "me.op('../../effects')"
+    if browser.UpdateSelection() is None:
+        raise RuntimeError("Browser could not restore its selected effect preview after export")
+    browser.cook(force=True)
+    selected_preview.cook(force=True)
     return browser, browser_path
 
 
@@ -1757,6 +1810,13 @@ def build_library(project_comp, manifests, report):
         catalog.appendRow(tuple(row[column] for column in LIBRARY_CATALOG_COLUMNS))
     catalog.nodeX = -400
     catalog.nodeY = -250
+    # The browser resolves the public library API while it initializes its
+    # selected preview, so promote the library extension before building core.
+    configure_extension(
+        library,
+        "ImageFXLibraryExt",
+        PROJECT_ROOT / "touchdesigner" / "extensions" / "ImageFXLibraryExt.py",
+    )
 
     readme = library.create(textDAT, "README")
     readme.text = (
@@ -1852,7 +1912,6 @@ def build_library(project_comp, manifests, report):
     browser.nodeX = 260
     browser.nodeY = 0
 
-    configure_extension(library, "ImageFXLibraryExt", PROJECT_ROOT / "touchdesigner" / "extensions" / "ImageFXLibraryExt.py")
     library.par.Status = "Ready: {} packages".format(len(manifests))
     library_path = CORE_ROOT / "TDImageFXLibrary.tox"
     library.save(str(library_path), createFolders=True)

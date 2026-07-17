@@ -79,6 +79,35 @@ def _reject_duplicate_keys(pairs):
     return result
 
 
+def _repair_effect_shader_paths(root_comp):
+    """Repair legacy absolute GLSL Pixel Shader paths in a loaded package."""
+
+    repaired = 0
+    pending = list(getattr(root_comp, "children", ()) or ())
+    while pending:
+        operator = pending.pop()
+        pending.extend(list(getattr(operator, "children", ()) or ()))
+        name = str(getattr(operator, "name", ""))
+        if str(getattr(operator, "type", "")) != "glsl" or not name.startswith(
+            "effect_glsl_"
+        ):
+            continue
+        shader_name = "pixel_shader_" + name[len("effect_glsl_"):]
+        shader_dat = operator.parent().op(shader_name)
+        parameter = operator.par["pixeldat"]
+        if shader_dat is None or parameter is None:
+            raise RuntimeError(
+                "{} is missing its portable Pixel Shader DAT".format(operator.path)
+            )
+        parameter.val = operator.relativePath(shader_dat)
+        if parameter.eval() != shader_dat:
+            raise RuntimeError(
+                "{} Pixel Shader reference did not resolve".format(operator.path)
+            )
+        repaired += 1
+    return repaired
+
+
 class FxRackExt:
     SLOT_COUNT = SLOT_COUNT
 
@@ -481,6 +510,7 @@ class FxRackExt:
             # Bind and wire the candidate while the prior slot is still alive.
             # Nothing persistent changes until the candidate has passed every
             # connector and parameter-binding operation.
+            _repair_effect_shader_paths(slot)
             self._bind_slot(index, slot)
             self._connect_slot(index, slot, routes, store_routes=False)
             if old_slot is not None:
