@@ -16,6 +16,40 @@ LIBRARY_TOX = PROJECT_ROOT / "touchdesigner" / "core" / "TDImageFXLibrary.tox"
 RACK_TOX = PROJECT_ROOT / "touchdesigner" / "core" / "FxRack.tox"
 EXTENSION_ROOT = PROJECT_ROOT / "touchdesigner" / "extensions"
 MANAGED_NAMES = ("td_imagefx", "imagefx_demo")
+DEMO_SOURCE_SHADER = r"""
+layout(location = 0) out vec4 fragColor;
+uniform float uTime;
+void main() {
+    vec2 uv = vUV.st;
+    uv = fract(uv + vec2(
+        0.030 * sin(uTime * 0.70),
+        0.025 * sin(uTime * 0.53)
+    ));
+    vec3 phase = vec3(0.0, 2.1, 4.2);
+    vec3 color = 0.5 + 0.5 * cos(
+        6.28318530718 * (uv.x + 0.35 * uv.y) + phase + uTime * 0.45
+    );
+    float checker = mod(floor(uv.x * 12.0) + floor(uv.y * 8.0), 2.0);
+    color = mix(color, color.bgr, checker * 0.32);
+    float ring = 1.0 - smoothstep(0.012, 0.025, abs(length(uv - 0.5) - 0.27));
+    color = mix(color, vec3(1.0, 0.92, 0.35), ring * 0.85);
+    float disk = 1.0 - smoothstep(0.34, 0.37, length(uv - 0.5));
+    float alphaGrid = mix(0.18, 0.72, checker);
+    float alpha = max(disk, alphaGrid * (1.0 - ring));
+    fragColor = TDOutputSwizzle(vec4(color, alpha));
+}
+""".strip()
+DEMO_SECONDARY_IMAGE_SHADER = r"""
+layout(location = 0) out vec4 fragColor;
+void main() {
+    vec2 uv = clamp(vUV.st + vec2(0.018, -0.012), 0.0, 1.0);
+    vec4 source = texture(sTD2DInputs[0], uv);
+    float changedRegion = smoothstep(0.42, 0.58, vUV.x);
+    vec3 changed = mix(source.rgb, source.gbr, 0.48);
+    vec3 color = mix(source.rgb, changed, changedRegion);
+    fragColor = TDOutputSwizzle(vec4(color, source.a));
+}
+""".strip()
 
 
 def _current_project_identity():
@@ -70,6 +104,31 @@ def _repair_effect_shader_paths(root_comp):
         if parameter.eval() != shader_dat:
             raise RuntimeError(
                 "{} Pixel Shader reference did not resolve".format(operator.path)
+            )
+        repaired += 1
+    return repaired
+
+
+def _repair_effect_state_paths(root_comp):
+    """Repair legacy absolute Feedback TOP targets after loading components."""
+
+    repaired = 0
+    pending = list(getattr(root_comp, "children", ()) or ())
+    while pending:
+        operator = pending.pop()
+        pending.extend(list(getattr(operator, "children", ()) or ()))
+        if str(getattr(operator, "name", "")) != "history_feedback":
+            continue
+        target = operator.parent().op("state_target")
+        parameter = operator.par["top"]
+        if parameter is None or target is None:
+            raise RuntimeError(
+                "{} is missing its portable state target".format(operator.path)
+            )
+        parameter.val = operator.relativePath(target)
+        if parameter.eval() != target:
+            raise RuntimeError(
+                "{} Feedback TOP target did not resolve".format(operator.path)
             )
         repaired += 1
     return repaired
@@ -155,6 +214,7 @@ def install():
         if browser.UpdateSelection() is None:
             raise RuntimeError("Library browser preview did not initialize")
         _repair_effect_shader_paths(library)
+        _repair_effect_state_paths(library)
 
         demo = project_comp.create(baseCOMP, "imagefx_demo")
         created.append(demo)
@@ -163,13 +223,34 @@ def install():
         demo.color = (0.32, 0.18, 0.36)
         demo.comment = "Disposable Embody/Envoy QA harness"
 
-        source = demo.create(rampTOP, "source_image")
+        source_shader = demo.create(textDAT, "source_image_shader")
+        source_shader.text = DEMO_SOURCE_SHADER
+        source_shader.nodeX = -520
+        source_shader.nodeY = 100
+
+        source = demo.create(glslTOP, "source_image")
         source.nodeX = -300
         source.nodeY = 0
+        source.par.pixeldat = source.relativePath(source_shader)
+        if source.par["glslversion"] is not None:
+            source.par.glslversion = "glsl460"
+        if source.par["compilebehavior"] is not None:
+            source.par.compilebehavior = "stalluntildone"
+        if source.par["errorbehavior"] is not None:
+            source.par.errorbehavior = "showerror"
+        source.seq.vec.numBlocks = 1
+        source.par.vec0name = "uTime"
+        source.par.vec0valuex.expr = "absTime.seconds"
         if source.par["outputresolution"] is not None:
             source.par.outputresolution = "custom"
             source.par.resolutionw = 1280
             source.par.resolutionh = 720
+        source.cook(force=True)
+        source_errors = list(source.errors())
+        if source_errors:
+            raise RuntimeError(
+                "QA demo source shader failed: {}".format("; ".join(source_errors))
+            )
 
         rack = _load_single_tox(demo, RACK_TOX)
         rack.name = "fx_rack"
@@ -178,7 +259,47 @@ def install():
         _set_library_root(rack, "demo rack")
         _sync_extension(rack, "FxRackExt")
         _repair_effect_shader_paths(rack)
+        _repair_effect_state_paths(rack)
         source.outputConnectors[0].connect(rack.inputConnectors[0])
+        fixture_values = {
+            "displacement": (0.72, 0.28, 0.50, 1.0),
+            "depth": (0.68, 0.68, 0.68, 1.0),
+            "normal": (0.64, 0.36, 1.00, 1.0),
+            "flow": (0.58, 0.42, 0.85, 1.0),
+            "mask": (0.72, 0.72, 0.72, 1.0),
+        }
+        secondary_shader = demo.create(textDAT, "fixture_image_b_shader")
+        secondary_shader.text = DEMO_SECONDARY_IMAGE_SHADER
+        secondary_shader.nodeX = -520
+        secondary_shader.nodeY = -110
+        secondary = demo.create(glslTOP, "fixture_image_b")
+        secondary.nodeX = -300
+        secondary.nodeY = -110
+        source.outputConnectors[0].connect(secondary.inputConnectors[0])
+        secondary.par.pixeldat = secondary.relativePath(secondary_shader)
+        if secondary.par["glslversion"] is not None:
+            secondary.par.glslversion = "glsl460"
+        if secondary.par["compilebehavior"] is not None:
+            secondary.par.compilebehavior = "stalluntildone"
+        if secondary.par["errorbehavior"] is not None:
+            secondary.par.errorbehavior = "showerror"
+        if secondary.par["outputresolution"] is not None:
+            secondary.par.outputresolution = "useinput"
+        secondary.outputConnectors[0].connect(rack.inputConnectors[1])
+
+        for input_index, (role, color) in enumerate(fixture_values.items(), start=2):
+            fixture = demo.create(constantTOP, "fixture_{}".format(role))
+            fixture.nodeX = -300
+            fixture.nodeY = -input_index * 110
+            for suffix, value in zip("rgba", color):
+                parameter = fixture.par["color{}".format(suffix)]
+                if parameter is not None:
+                    parameter.val = value
+            if fixture.par["outputresolution"] is not None:
+                fixture.par.outputresolution = "custom"
+                fixture.par.resolutionw = 1
+                fixture.par.resolutionh = 1
+            fixture.outputConnectors[0].connect(rack.inputConnectors[input_index])
 
         output = demo.create(outTOP, "out1_image")
         output.nodeX = 280

@@ -98,6 +98,53 @@ class TouchDesignerBuilderPathTests(unittest.TestCase):
         owner.path = "/project1/imagefx_demo/fx_rack"
         self.assertEqual(callback.par.op, "..")
 
+    def test_feedback_targets_are_repaired_relative_to_loaded_state(self) -> None:
+        class Target:
+            pass
+
+        class Parameter:
+            def __init__(self, owner) -> None:
+                self.owner = owner
+                self.val = "/project1/build_network/effect/state_target"
+
+            def eval(self):
+                return self.owner.target if self.val == "state_target" else None
+
+        class Parent:
+            def __init__(self) -> None:
+                self.children = []
+                self.target = Target()
+
+            def op(self, name):
+                return self.target if name == "state_target" else None
+
+        class Feedback:
+            name = "history_feedback"
+            path = "/project1/rack/slot1/history_feedback"
+            children = []
+
+            def __init__(self, parent) -> None:
+                self._parent = parent
+                self.target = parent.target
+                self.parameter = Parameter(self)
+                self.par = {"top": self.parameter}
+
+            def parent(self):
+                return self._parent
+
+            def relativePath(self, target):
+                if target is not self.target:
+                    raise AssertionError("unexpected Feedback TOP target")
+                return "state_target"
+
+        root = Parent()
+        feedback = Feedback(root)
+        root.children.append(feedback)
+
+        self.assertEqual(BUILDER._repair_effect_state_paths(root), 1)
+        self.assertEqual(feedback.parameter.val, "state_target")
+        self.assertIs(feedback.parameter.eval(), root.target)
+
     def test_native_project_rejects_foreign_top_level_nodes(self) -> None:
         project_comp = SimpleNamespace(
             children=[
@@ -274,6 +321,7 @@ class TouchDesignerBuilderPathTests(unittest.TestCase):
         cases = (
             ({"id": "image_b"}, "image_b"),
             ({"id": "alternate", "role": "transition_image"}, "image_b"),
+            ({"id": "clean_plate", "semantic": "reference"}, "image_b"),
             ({"id": "map", "semantic": "displacement_map"}, "displacement"),
             ({"id": "map", "semantic": "depth"}, "depth"),
             ({"id": "map", "semantic": "normal-map"}, "normal"),

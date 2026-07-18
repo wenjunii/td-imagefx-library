@@ -286,11 +286,12 @@ class FxRackExtensionTests(unittest.TestCase):
                 {"id": "image", "semantic": "source"},
                 {"id": "vectors", "role": "flow", "semantic": "optical-flow"},
                 {"id": "matte", "role": "mask", "semantic": "matte"},
+                {"id": "clean_plate", "semantic": "reference"},
             ]
         }
         self.assertEqual(
             self.rack._input_routes(manifest),
-            {0: "image", 1: "flow", 2: "mask"},
+            {0: "image", 1: "flow", 2: "mask", 3: "image_b"},
         )
         self.assertEqual(self.rack._rack_input_name("flow"), "in6_flow")
         with self.assertRaisesRegex(RuntimeError, "Unsupported auxiliary"):
@@ -298,12 +299,30 @@ class FxRackExtensionTests(unittest.TestCase):
                 {"inputs": [{"id": "image"}, {"id": "unknown"}]}
             )
 
-        slot = FakeSlot("replacement", input_count=3)
-        self.rack._connect_slot(1, slot, {0: "image", 1: "flow", 2: "mask"})
+        slot = FakeSlot("replacement", input_count=4)
+        self.rack._connect_slot(
+            1,
+            slot,
+            {0: "image", 1: "flow", 2: "mask", 3: "image_b"},
+        )
         self.assertEqual(slot.inputConnectors[0].source.owner.name, "in1_image")
         self.assertEqual(slot.inputConnectors[1].source.owner.name, "in6_flow")
         self.assertEqual(slot.inputConnectors[2].source.owner.name, "in7_mask")
-        self.assertEqual(self.rack.SlotInputRoutes(1), {"0": "image", "1": "flow", "2": "mask"})
+        self.assertEqual(slot.inputConnectors[3].source.owner.name, "in2_image_b")
+        self.assertEqual(
+            self.rack.SlotInputRoutes(1),
+            {"0": "image", "1": "flow", "2": "mask", "3": "image_b"},
+        )
+
+    def test_every_published_auxiliary_input_maps_to_a_rack_bus(self):
+        checked = 0
+        for manifest_path in sorted((ROOT / "packages").glob("*/*/package.json")):
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            with self.subTest(package=manifest["id"], version=manifest["version"]):
+                routes = self.rack._input_routes(manifest)
+                self.assertEqual(len(routes), len(manifest["inputs"]))
+            checked += 1
+        self.assertEqual(checked, 122)
 
     def test_default_slot_binding_uses_modulation_and_manual_time_is_preset(self):
         slot = self.owner.op("slot1")

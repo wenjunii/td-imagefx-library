@@ -39,6 +39,10 @@ _AUXILIARY_ROLE_ALIASES = {
     "auxiliary_image": "image_b",
     "transition_image": "image_b",
     "transition": "image_b",
+    "reference": "image_b",
+    "reference_image": "image_b",
+    "clean_plate": "image_b",
+    "background": "image_b",
     "displacement": "displacement",
     "displacement_map": "displacement",
     "depth": "depth",
@@ -128,6 +132,31 @@ def _repair_effect_callback_paths(root_comp):
         if parameter.eval() != target:
             raise RuntimeError(
                 "{} reset callback target did not resolve".format(operator.path)
+            )
+        repaired += 1
+    return repaired
+
+
+def _repair_effect_state_paths(root_comp):
+    """Repair legacy absolute Feedback TOP targets in a loaded package."""
+
+    repaired = 0
+    pending = list(getattr(root_comp, "children", ()) or ())
+    while pending:
+        operator = pending.pop()
+        pending.extend(list(getattr(operator, "children", ()) or ()))
+        if str(getattr(operator, "name", "")) != "history_feedback":
+            continue
+        target = operator.parent().op("state_target")
+        parameter = operator.par["top"]
+        if parameter is None or target is None:
+            raise RuntimeError(
+                "{} is missing its portable state target".format(operator.path)
+            )
+        parameter.val = operator.relativePath(target)
+        if parameter.eval() != target:
+            raise RuntimeError(
+                "{} Feedback TOP target did not resolve".format(operator.path)
             )
         repaired += 1
     return repaired
@@ -537,6 +566,7 @@ class FxRackExt:
             # connector and parameter-binding operation.
             _repair_effect_shader_paths(slot)
             _repair_effect_callback_paths(slot)
+            _repair_effect_state_paths(slot)
             self._bind_slot(index, slot)
             self._connect_slot(index, slot, routes, store_routes=False)
             if old_slot is not None:

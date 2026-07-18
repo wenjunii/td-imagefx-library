@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-07-18T14:11:32.104763+00:00",
+  "generated_at": "2026-07-18T15:21:09.803346+00:00",
   "library_version": "0.3.0",
   "touchdesigner": {
     "version": "099",
@@ -10,7 +10,7 @@
   },
   "builder": {
     "path": "touchdesigner/scripts/build_project.py",
-    "sha256": "7010272771d9d0f8bebb75c4c0798434704de142b2d2dc298ee75b489b976c84"
+    "sha256": "2dab85358b631e0fc02c267b6f1774eba8432d52e90d85a0f8d557d764dae51c"
   },
   "catalog": {
     "current_effects": 96,
@@ -29,28 +29,28 @@
   "artifacts": [
     {
       "path": "TD_ImageFX_Library.toe",
-      "bytes": 107098,
-      "sha256": "f5c3b36310b901f9d48d8a6f8796fb9c496deb82fa646e678affdc433e9e9c47"
+      "bytes": 108642,
+      "sha256": "b052e66b7f3d3fcf13d65ec536a99bc75ee33dcc6646cc24639abd3301d8153e"
     },
     {
       "path": "touchdesigner/core/TDImageFXLibrary.tox",
-      "bytes": 78622,
-      "sha256": "7419867a39d2dd7fff49be88eecc8d84c9681d9129117a4368b5dfce5837f9ae"
+      "bytes": 78798,
+      "sha256": "b2e676b5b542b73c474b684cfd234ed7356b921a2270b81e1f98c51075b6c0fb"
     },
     {
       "path": "touchdesigner/core/FxBrowser.tox",
-      "bytes": 24630,
-      "sha256": "e1742947775326ac7de4ee0bc5b0dafa4599ac7d52615dfd15f5b4b957548c84"
+      "bytes": 24614,
+      "sha256": "f8539d106b846e2cd0116de122c01242d0182c9d0a1d9552cd22294ebad0dafe"
     },
     {
       "path": "touchdesigner/core/FxRack.tox",
-      "bytes": 25062,
-      "sha256": "ce6c5157d2ee5a837fde2e3c80d0988d7d0ea89746a22c1a37b95d49d3305926"
+      "bytes": 25158,
+      "sha256": "03c9f06fc0e17988bb9717a1d3c3a64220e03df69e5c89e77ff1718023a016ed"
     },
     {
       "path": "touchdesigner/core/FxUpdater.tox",
       "bytes": 13294,
-      "sha256": "bdd123117b3c0cd206c8fe16f029820283ef3eda167ac269249debf9a6c19d3d"
+      "sha256": "df4cc09d88e934ddc29040a775482ed24161d1f217840e8dc96fae3782bb7424"
     },
     {
       "path": "packages/tdimagefx.blur.bilateral-blur/1.0.0/tox/tdimagefx_blur_bilateral_blur.tox",

@@ -105,11 +105,11 @@ git clone https://github.com/wenjunii/td-imagefx-library.git
 cd td-imagefx-library
 ```
 
-The v0.3 source and generated artifacts are synchronized. The recorded Windows build used TouchDesigner `2025.32820` and validated all 96 current effects with 122 versioned effect `.tox` files, four core `.tox` files, one library `.toe`, 96 previews, 96 visual baselines, and 96 benchmark samples. The build report contains zero shader, preview, or builder errors. A fresh repository run completed 155 tests successfully, with four expected Windows symlink-permission skips, and two independent 99-file release builds matched byte-for-byte. Read [TouchDesigner setup](docs/touchdesigner-setup.md) to reproduce the native build.
+The v0.3 source and generated artifacts are synchronized. The recorded Windows build used TouchDesigner `2025.32820` and validated all 96 current effects with 122 versioned effect `.tox` files, four core `.tox` files, one library `.toe`, 96 previews, 96 visual baselines, and 96 benchmark samples. The build report contains zero shader, preview, or builder errors. A fresh repository run completed 157 tests successfully, with four expected Windows symlink-permission skips, and two independent 99-file release builds matched byte-for-byte. Read [TouchDesigner setup](docs/touchdesigner-setup.md) to reproduce the native build.
 
 The generated project targets TouchDesigner 2025. Validate the exact TouchDesigner build, operating system, GPU, driver, resolution, pixel format, and color pipeline used by your production system. Python 3.11 or newer is required for repository tooling; it is not required merely to use already-built native components.
 
-Reusable core components use component-relative callback targets, so slot selection and other Parameter Execute actions continue to work after a `.tox` is imported, moved, or renamed.
+Reusable core components use component-relative callback and feedback-state targets, so slot selection, Parameter Execute actions, and temporal history continue to work after a `.tox` is imported, moved, or renamed.
 
 For knowledge-grounded live inspection, use the separate [Embody, Envoy, and TD knowledge integration](docs/embody-envoy-integration.md). It combines the local TouchDesigner knowledge index with Envoy's live tools and a checked ImageFX project profile. Embody runs in an ignored QA harness, never inside the canonical builder-owned `.toe`.
 
@@ -118,11 +118,14 @@ For knowledge-grounded live inspection, use the separate [Embody, Envoy, and TD 
 ### Eight-slot rack
 
 1. Open `/project1/imagefx_demo` after a successful native build.
-2. Connect the primary image and any required second-image, displacement, depth, normal, flow, or mask TOPs.
-3. Select `fx_rack` and open its **Rack** custom parameter page.
-4. Choose up to eight effects and adjust slot enable, mix, order, bypass, reset, and modulation.
-5. Leave **Auto Time** enabled for timeline-driven work, or disable it and set **Manual Time** for deterministic inspection.
-6. Export/import validated JSON presets or save/load preset files inside the configured preset root.
+2. Drag a still or movie into the demo to create a **Movie File In TOP**. Disconnect the generated `source_image` from input 0 of `fx_rack`, then connect your Movie File In TOP there.
+3. Keep your source connected to `fixture_image_b` if you want its derived clean/alternate image, or replace rack input 1 with a different TOP for transitions, composites, and Difference Key.
+4. Select `fx_rack` and open its **Rack** custom parameter page.
+5. Choose up to eight effects and adjust slot enable, mix, order, bypass, reset, and modulation.
+6. View `out1_image`. Leave **Auto Time** enabled for timeline-driven and feedback effects, or disable it and set **Manual Time** for deterministic inspection.
+7. Export/import validated JSON presets or save/load preset files inside the configured preset root.
+
+The canonical demo supplies deterministic fixtures to all six auxiliary rack inputs so every package can be auditioned immediately. In a production network, replace those fixtures with the required media: a second image/clean plate, displacement, depth, normal, flow, or mask TOP. Color-correction and transform packages use neutral defaults by design; open the loaded `slot1` through `slot8` component and adjust its custom effect parameters to see and tune the operation.
 
 Presets capture exact package versions, slot order, enable/mix state, modulation, manual time, and eligible effect parameters. They do not install packages, approve updates, or replace a production project lock.
 

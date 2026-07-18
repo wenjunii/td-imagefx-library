@@ -70,6 +70,10 @@ _AUXILIARY_ROLE_ALIASES = {
     "auxiliary_image": "image_b",
     "transition_image": "image_b",
     "transition": "image_b",
+    "reference": "image_b",
+    "reference_image": "image_b",
+    "clean_plate": "image_b",
+    "background": "image_b",
     "displacement": "displacement",
     "displacement_map": "displacement",
     "depth": "depth",
@@ -204,10 +208,17 @@ PREVIEW_PARAMETER_OVERRIDES = {
 
 PREVIEW_SOURCE_SHADER = r"""
 layout(location = 0) out vec4 fragColor;
+uniform float uTime;
 void main() {
     vec2 uv = vUV.st;
+    uv = fract(uv + vec2(
+        0.030 * sin(uTime * 0.70),
+        0.025 * sin(uTime * 0.53)
+    ));
     vec3 phase = vec3(0.0, 2.1, 4.2);
-    vec3 color = 0.5 + 0.5 * cos(6.28318530718 * (uv.x + 0.35 * uv.y) + phase);
+    vec3 color = 0.5 + 0.5 * cos(
+        6.28318530718 * (uv.x + 0.35 * uv.y) + phase + uTime * 0.45
+    );
     float checker = mod(floor(uv.x * 12.0) + floor(uv.y * 8.0), 2.0);
     color = mix(color, color.bgr, checker * 0.32);
     float ring = 1.0 - smoothstep(0.012, 0.025, abs(length(uv - 0.5) - 0.27));
@@ -216,6 +227,18 @@ void main() {
     float alphaGrid = mix(0.18, 0.72, checker);
     float alpha = max(disk, alphaGrid * (1.0 - ring));
     fragColor = TDOutputSwizzle(vec4(color, alpha));
+}
+""".strip()
+
+DEMO_SECONDARY_IMAGE_SHADER = r"""
+layout(location = 0) out vec4 fragColor;
+void main() {
+    vec2 uv = clamp(vUV.st + vec2(0.018, -0.012), 0.0, 1.0);
+    vec4 source = texture(sTD2DInputs[0], uv);
+    float changedRegion = smoothstep(0.42, 0.58, vUV.x);
+    vec3 changed = mix(source.rgb, source.gbr, 0.48);
+    vec3 color = mix(source.rgb, changed, changedRegion);
+    fragColor = TDOutputSwizzle(vec4(color, source.a));
 }
 """.strip()
 
@@ -723,6 +746,31 @@ def _repair_effect_callback_paths(root_comp):
     return repaired
 
 
+def _repair_effect_state_paths(root_comp):
+    """Repair legacy absolute Feedback TOP targets in stateful packages."""
+
+    repaired = 0
+    pending = list(getattr(root_comp, "children", ()) or ())
+    while pending:
+        operator = pending.pop()
+        pending.extend(list(getattr(operator, "children", ()) or ()))
+        if str(getattr(operator, "name", "")) != "history_feedback":
+            continue
+        target = operator.parent().op("state_target")
+        parameter = operator.par["top"]
+        if parameter is None or target is None:
+            raise RuntimeError(
+                "{} is missing its portable state target".format(operator.path)
+            )
+        parameter.val = operator.relativePath(target)
+        if parameter.eval() != target:
+            raise RuntimeError(
+                "{} Feedback TOP target did not resolve".format(operator.path)
+            )
+        repaired += 1
+    return repaired
+
+
 def load_tox_component(parent_comp, tox_path, name):
     """Load a .tox as a direct child and return its top-level component."""
     before_ids = {child.id for child in parent_comp.children}
@@ -736,6 +784,7 @@ def load_tox_component(parent_comp, tox_path, name):
     instance.name = name
     _repair_effect_shader_paths(instance)
     _repair_effect_callback_paths(instance)
+    _repair_effect_state_paths(instance)
     return instance
 
 
@@ -963,7 +1012,7 @@ def build_effect(parent_comp, manifest, report):
 
         effect.store("tdimagefx_history_nodes", history_nodes)
         effect.store("tdimagefx_history_frames", history_frames)
-        effect.store("tdimagefx_history_seed", history_seed.path)
+        effect.store("tdimagefx_history_seed", effect.relativePath(history_seed))
 
     glsl_nodes = []
     previous = None
@@ -1003,7 +1052,7 @@ def build_effect(parent_comp, manifest, report):
         state_target.nodeY = -100
         state_target.display = False
         state_target.render = False
-        history.par.top = state_target.path
+        history.par.top = history.relativePath(state_target)
 
         render_output = effect.create(nullTOP, "render_output")
         display_source.outputConnectors[0].connect(render_output.inputConnectors[0])
@@ -1012,8 +1061,8 @@ def build_effect(parent_comp, manifest, report):
         render_output.display = False
         render_output.render = False
         processed_output = render_output
-        effect.store("tdimagefx_state_target", state_target.path)
-        effect.store("tdimagefx_render_output", render_output.path)
+        effect.store("tdimagefx_state_target", effect.relativePath(state_target))
+        effect.store("tdimagefx_render_output", effect.relativePath(render_output))
 
         reset_callbacks = effect.create(parameterexecuteDAT, "reset_callbacks")
         reset_callbacks.text = RESET_CALLBACK_SOURCE
@@ -1962,18 +2011,83 @@ def build_demo(project_comp, rack_path):
     demo.color = (0.32, 0.18, 0.36)
     demo.comment = "Animated starter chain. Replace source_image with any TOP."
 
-    source = demo.create(rampTOP, "source_image")
+    source_shader = demo.create(textDAT, "source_image_shader")
+    source_shader.text = PREVIEW_SOURCE_SHADER
+    source_shader.nodeX = -520
+    source_shader.nodeY = 100
+
+    source = demo.create(glslTOP, "source_image")
     source.nodeX = -300
     source.nodeY = 0
+    source.par.pixeldat = source.relativePath(source_shader)
+    if source.par["glslversion"] is not None:
+        source.par.glslversion = "glsl460"
+    if source.par["compilebehavior"] is not None:
+        source.par.compilebehavior = "stalluntildone"
+    if source.par["errorbehavior"] is not None:
+        source.par.errorbehavior = "showerror"
+    source.seq.vec.numBlocks = 1
+    source.par.vec0name = "uTime"
+    source.par.vec0valuex.expr = "absTime.seconds"
     if source.par["outputresolution"] is not None:
         source.par.outputresolution = "custom"
         source.par.resolutionw = 1280
         source.par.resolutionh = 720
+    source.cook(force=True)
+    source_errors = list(source.errors())
+    if source_errors:
+        raise RuntimeError(
+            "Demo source shader failed: {}".format("; ".join(source_errors))
+        )
 
     rack = load_tox_component(demo, rack_path, "fx_rack")
     rack.nodeX = 0
     rack.nodeY = 0
     source.outputConnectors[0].connect(rack.inputConnectors[0])
+
+    # Supply visible, deterministic fixtures for every semantic auxiliary bus.
+    # The reusable rack still exposes these as normal inputs; this only makes
+    # the canonical demo useful when a user auditions an auxiliary-input effect
+    # before connecting production depth, flow, mask, or secondary-image TOPs.
+    fixture_values = {
+        "displacement": (0.72, 0.28, 0.50, 1.0),
+        "depth": (0.68, 0.68, 0.68, 1.0),
+        "normal": (0.64, 0.36, 1.00, 1.0),
+        "flow": (0.58, 0.42, 0.85, 1.0),
+        "mask": (0.72, 0.72, 0.72, 1.0),
+    }
+    secondary_shader = demo.create(textDAT, "fixture_image_b_shader")
+    secondary_shader.text = DEMO_SECONDARY_IMAGE_SHADER
+    secondary_shader.nodeX = -520
+    secondary_shader.nodeY = -110
+    secondary = demo.create(glslTOP, "fixture_image_b")
+    secondary.nodeX = -300
+    secondary.nodeY = -110
+    source.outputConnectors[0].connect(secondary.inputConnectors[0])
+    secondary.par.pixeldat = secondary.relativePath(secondary_shader)
+    if secondary.par["glslversion"] is not None:
+        secondary.par.glslversion = "glsl460"
+    if secondary.par["compilebehavior"] is not None:
+        secondary.par.compilebehavior = "stalluntildone"
+    if secondary.par["errorbehavior"] is not None:
+        secondary.par.errorbehavior = "showerror"
+    if secondary.par["outputresolution"] is not None:
+        secondary.par.outputresolution = "useinput"
+    secondary.outputConnectors[0].connect(rack.inputConnectors[1])
+
+    for input_index, (role, _label) in enumerate(RACK_AUXILIARY_INPUTS[1:], start=2):
+        fixture = demo.create(constantTOP, "fixture_{}".format(role))
+        fixture.nodeX = -300
+        fixture.nodeY = -input_index * 110
+        for suffix, value in zip("rgba", fixture_values[role]):
+            parameter = fixture.par["color{}".format(suffix)]
+            if parameter is not None:
+                parameter.val = value
+        if fixture.par["outputresolution"] is not None:
+            fixture.par.outputresolution = "custom"
+            fixture.par.resolutionw = 1
+            fixture.par.resolutionh = 1
+        fixture.outputConnectors[0].connect(rack.inputConnectors[input_index])
 
     output = demo.create(outTOP, "out1_image")
     rack.outputConnectors[0].connect(output.inputConnectors[0])
