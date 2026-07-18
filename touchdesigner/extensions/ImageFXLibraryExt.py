@@ -76,6 +76,31 @@ def _repair_effect_shader_paths(root_comp):
     return repaired
 
 
+def _repair_effect_callback_paths(root_comp):
+    """Repair legacy absolute reset callback targets in a loaded package."""
+
+    repaired = 0
+    pending = list(getattr(root_comp, "children", ()) or ())
+    while pending:
+        operator = pending.pop()
+        pending.extend(list(getattr(operator, "children", ()) or ()))
+        if str(getattr(operator, "name", "")) != "reset_callbacks":
+            continue
+        parameter = operator.par["op"]
+        target = operator.parent()
+        if parameter is None or target is None:
+            raise RuntimeError(
+                "{} is missing its portable reset callback target".format(operator.path)
+            )
+        parameter.val = operator.relativePath(target)
+        if parameter.eval() != target:
+            raise RuntimeError(
+                "{} reset callback target did not resolve".format(operator.path)
+            )
+        repaired += 1
+    return repaired
+
+
 def _manifest_input_roles(manifest):
     roles = []
     for input_index, definition in enumerate(manifest.get("inputs") or []):
@@ -366,6 +391,7 @@ class ImageFXLibraryExt:
         try:
             instance.name = safe_name
             _repair_effect_shader_paths(instance)
+            _repair_effect_callback_paths(instance)
         except Exception:
             try:
                 instance.destroy()

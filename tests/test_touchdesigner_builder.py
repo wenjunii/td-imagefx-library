@@ -39,6 +39,65 @@ def _write_package(
 
 
 class TouchDesignerBuilderPathTests(unittest.TestCase):
+    def test_parameter_callbacks_use_component_relative_target_after_relocation(self) -> None:
+        class CallbackParameters:
+            op = None
+            pars = None
+            valuechange = False
+            onpulse = False
+            custom = False
+            builtin = True
+
+        class Callback:
+            def __init__(self, owner) -> None:
+                self.owner = owner
+                self.par = CallbackParameters()
+                self.text = ""
+
+            def relativePath(self, target) -> str:
+                if target is not self.owner:
+                    raise AssertionError("callback target must be its owner component")
+                return ".."
+
+        class Owner:
+            def __init__(self) -> None:
+                self.path = "/project1/td_imagefx/core/fx_rack"
+                self.callback = Callback(self)
+
+            def create(self, operator_type, name):
+                if operator_type is not BUILDER.parameterexecuteDAT:
+                    raise AssertionError("unexpected operator type")
+                if name != "parameter_callbacks":
+                    raise AssertionError("unexpected callback name")
+                return self.callback
+
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "callbacks.py"
+            source.write_text(
+                "def onValueChange(par, prev):\n    return\n",
+                encoding="utf-8",
+            )
+            owner = Owner()
+            original_type = getattr(BUILDER, "parameterexecuteDAT", None)
+            BUILDER.parameterexecuteDAT = object()
+            try:
+                callback = BUILDER.configure_parameter_callbacks(owner, source, "Slot*")
+            finally:
+                if original_type is None:
+                    del BUILDER.parameterexecuteDAT
+                else:
+                    BUILDER.parameterexecuteDAT = original_type
+
+        self.assertEqual(callback.par.op, "..")
+        self.assertEqual(callback.par.pars, "Slot*")
+        self.assertTrue(callback.par.valuechange)
+        self.assertTrue(callback.par.onpulse)
+        self.assertTrue(callback.par.custom)
+        self.assertFalse(callback.par.builtin)
+
+        owner.path = "/project1/imagefx_demo/fx_rack"
+        self.assertEqual(callback.par.op, "..")
+
     def test_native_project_rejects_foreign_top_level_nodes(self) -> None:
         project_comp = SimpleNamespace(
             children=[

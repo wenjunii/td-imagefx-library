@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-07-17T21:42:41.157854+00:00",
+  "generated_at": "2026-07-18T14:11:32.104763+00:00",
   "touchdesigner_build": "2025.32820",
   "gpu": "NVIDIA GeForce RTX 3080 Ti Laptop GPU",
   "resolution": "512x288",
@@ -14,7 +14,7 @@
       "model": "multi_pass",
       "gpu_cost": "high",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.02395,
+      "cpu_submission_ms": 0.0205,
       "gpu_memory_bytes": 1572864,
       "passes": 2
     },
@@ -24,7 +24,7 @@
       "model": "single_pass",
       "gpu_cost": "high",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0119,
+      "cpu_submission_ms": 0.0109,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -34,7 +34,7 @@
       "model": "multi_pass",
       "gpu_cost": "medium",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0197,
+      "cpu_submission_ms": 0.01925,
       "gpu_memory_bytes": 1572864,
       "passes": 2
     },
@@ -44,7 +44,7 @@
       "model": "multi_pass",
       "gpu_cost": "medium",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0703,
+      "cpu_submission_ms": 0.0229,
       "gpu_memory_bytes": 1572864,
       "passes": 2
     },
@@ -54,7 +54,7 @@
       "model": "single_pass",
       "gpu_cost": "high",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0363,
+      "cpu_submission_ms": 0.01365,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -64,7 +64,7 @@
       "model": "multi_pass",
       "gpu_cost": "medium",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0377,
+      "cpu_submission_ms": 0.0213,
       "gpu_memory_bytes": 1572864,
       "passes": 2
     },
@@ -74,7 +74,7 @@
       "model": "multi_pass",
       "gpu_cost": "medium",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0223,
+      "cpu_submission_ms": 0.02045,
       "gpu_memory_bytes": 1572864,
       "passes": 2
     },
@@ -84,7 +84,7 @@
       "model": "multi_pass",
       "gpu_cost": "high",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0623,
+      "cpu_submission_ms": 0.0232,
       "gpu_memory_bytes": 1572864,
       "passes": 2
     },
@@ -94,7 +94,7 @@
       "model": "multi_pass",
       "gpu_cost": "medium",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0249,
+      "cpu_submission_ms": 0.02405,
       "gpu_memory_bytes": 1572864,
       "passes": 2
     },
@@ -104,7 +104,7 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.016,
+      "cpu_submission_ms": 0.01615,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -114,7 +114,7 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0297,
+      "cpu_submission_ms": 0.01545,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -124,7 +124,7 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.01795,
+      "cpu_submission_ms": 0.01425,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -134,7 +134,7 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.03985,
+      "cpu_submission_ms": 0.04065,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -144,7 +144,7 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0127,
+      "cpu_submission_ms": 0.0166,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -154,7 +154,7 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0186,
+      "cpu_submission_ms": 0.04435,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -164,7 +164,7 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0132,
+      "cpu_submission_ms": 0.0118,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -174,7 +174,7 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0135,
+      "cpu_submission_ms": 0.01265,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -184,7 +184,7 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.01705,
+      "cpu_submission_ms": 0.0184,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -194,7 +194,7 @@
       "model": "single_pass",
       "gpu_cost": "medium",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.01165,
+      "cpu_submission_ms": 0.0131,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -204,7 +204,7 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.04075,
+      "cpu_submission_ms": 0.01205,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -214,7 +214,7 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.03275,
+      "cpu_submission_ms": 0.0115,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -224,7 +224,7 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.01105,
+      "cpu_submission_ms": 0.0113,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -234,7 +234,7 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.01165,
+      "cpu_submission_ms": 0.0114,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -244,7 +244,7 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0116,
+      "cpu_submission_ms": 0.01145,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -254,7 +254,7 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.01155,
+      "cpu_submission_ms": 0.0245,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -264,7 +264,7 @@
       "model": "single_pass",
       "gpu_cost": "medium",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0109,
+      "cpu_submission_ms": 0.01245,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -274,7 +274,7 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.01245,
+      "cpu_submission_ms": 0.0432,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -284,7 +284,7 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0321,
+      "cpu_submission_ms": 0.02265,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -294,7 +294,7 @@
       "model": "single_pass",
       "gpu_cost": "medium",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0341,
+      "cpu_submission_ms": 0.0127,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -304,7 +304,7 @@
       "model": "single_pass",
       "gpu_cost": "medium",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0123,
+      "cpu_submission_ms": 0.01185,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -314,7 +314,7 @@
       "model": "single_pass",
       "gpu_cost": "medium",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0119,
+      "cpu_submission_ms": 0.01525,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -324,7 +324,7 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0327,
+      "cpu_submission_ms": 0.01405,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -334,7 +334,7 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.03135,
+      "cpu_submission_ms": 0.0126,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -344,7 +344,7 @@
       "model": "single_pass",
       "gpu_cost": "medium",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0125,
+      "cpu_submission_ms": 0.04285,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -354,7 +354,7 @@
       "model": "single_pass",
       "gpu_cost": "medium",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.02135,
+      "cpu_submission_ms": 0.0151,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -364,7 +364,7 @@
       "model": "single_pass",
       "gpu_cost": "medium",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.01245,
+      "cpu_submission_ms": 0.01275,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -374,7 +374,7 @@
       "model": "single_pass",
       "gpu_cost": "medium",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.01295,
+      "cpu_submission_ms": 0.0287,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -384,7 +384,7 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.01375,
+      "cpu_submission_ms": 0.01495,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -394,7 +394,7 @@
       "model": "single_pass",
       "gpu_cost": "medium",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0371,
+      "cpu_submission_ms": 0.0148,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -404,7 +404,7 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0107,
+      "cpu_submission_ms": 0.0122,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -414,7 +414,7 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.02765,
+      "cpu_submission_ms": 0.0144,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -424,7 +424,7 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0174,
+      "cpu_submission_ms": 0.02245,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -434,7 +434,7 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.01465,
+      "cpu_submission_ms": 0.0237,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -444,7 +444,7 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.01405,
+      "cpu_submission_ms": 0.02005,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -454,7 +454,7 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.01295,
+      "cpu_submission_ms": 0.0245,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -464,7 +464,7 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.01215,
+      "cpu_submission_ms": 0.0132,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -474,7 +474,7 @@
       "model": "multi_pass",
       "gpu_cost": "high",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.036,
+      "cpu_submission_ms": 0.06825,
       "gpu_memory_bytes": 2359296,
       "passes": 3
     },
@@ -484,7 +484,7 @@
       "model": "multi_pass",
       "gpu_cost": "high",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0394,
+      "cpu_submission_ms": 0.08785,
       "gpu_memory_bytes": 2359296,
       "passes": 3
     },
@@ -494,7 +494,7 @@
       "model": "multi_pass",
       "gpu_cost": "high",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.06105,
+      "cpu_submission_ms": 0.05395,
       "gpu_memory_bytes": 2359296,
       "passes": 3
     },
@@ -504,7 +504,7 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0148,
+      "cpu_submission_ms": 0.02415,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -514,7 +514,7 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0317,
+      "cpu_submission_ms": 0.01425,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -524,7 +524,7 @@
       "model": "single_pass",
       "gpu_cost": "medium",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.01575,
+      "cpu_submission_ms": 0.02905,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -534,7 +534,7 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0153,
+      "cpu_submission_ms": 0.01585,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -544,7 +544,7 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.01575,
+      "cpu_submission_ms": 0.0321,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -554,7 +554,7 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0427,
+      "cpu_submission_ms": 0.01175,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -564,7 +564,7 @@
       "model": "single_pass",
       "gpu_cost": "medium",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.01165,
+      "cpu_submission_ms": 0.01135,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -574,7 +574,7 @@
       "model": "single_pass",
       "gpu_cost": "medium",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.01135,
+      "cpu_submission_ms": 0.0232,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -584,7 +584,7 @@
       "model": "multi_pass",
       "gpu_cost": "medium",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.07885,
+      "cpu_submission_ms": 0.0335,
       "gpu_memory_bytes": 1572864,
       "passes": 2
     },
@@ -594,7 +594,7 @@
       "model": "single_pass",
       "gpu_cost": "medium",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.02085,
+      "cpu_submission_ms": 0.0135,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -604,7 +604,7 @@
       "model": "multi_pass",
       "gpu_cost": "medium",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0612,
+      "cpu_submission_ms": 0.02475,
       "gpu_memory_bytes": 1572864,
       "passes": 2
     },
@@ -614,7 +614,7 @@
       "model": "multi_pass",
       "gpu_cost": "high",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0329,
+      "cpu_submission_ms": 0.05365,
       "gpu_memory_bytes": 2359296,
       "passes": 3
     },
@@ -624,7 +624,7 @@
       "model": "simulation",
       "gpu_cost": "high",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.02545,
+      "cpu_submission_ms": 0.02555,
       "gpu_memory_bytes": 1572864,
       "passes": 2
     },
@@ -634,7 +634,7 @@
       "model": "simulation",
       "gpu_cost": "high",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.08005,
+      "cpu_submission_ms": 0.0245,
       "gpu_memory_bytes": 1572864,
       "passes": 2
     },
@@ -644,7 +644,7 @@
       "model": "simulation",
       "gpu_cost": "high",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0273,
+      "cpu_submission_ms": 0.02565,
       "gpu_memory_bytes": 1572864,
       "passes": 2
     },
@@ -654,7 +654,7 @@
       "model": "simulation",
       "gpu_cost": "high",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.04955,
+      "cpu_submission_ms": 0.0242,
       "gpu_memory_bytes": 1572864,
       "passes": 2
     },
@@ -664,7 +664,7 @@
       "model": "single_pass",
       "gpu_cost": "medium",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.01385,
+      "cpu_submission_ms": 0.0163,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -674,7 +674,7 @@
       "model": "single_pass",
       "gpu_cost": "medium",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0325,
+      "cpu_submission_ms": 0.0145,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -684,7 +684,7 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0155,
+      "cpu_submission_ms": 0.0264,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -694,7 +694,7 @@
       "model": "multi_pass",
       "gpu_cost": "medium",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0238,
+      "cpu_submission_ms": 0.02635,
       "gpu_memory_bytes": 1572864,
       "passes": 2
     },
@@ -704,7 +704,7 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0143,
+      "cpu_submission_ms": 0.0138,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -714,7 +714,7 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0162,
+      "cpu_submission_ms": 0.0401,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -724,7 +724,7 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0122,
+      "cpu_submission_ms": 0.01165,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -734,7 +734,7 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.01445,
+      "cpu_submission_ms": 0.01425,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -744,7 +744,7 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.01295,
+      "cpu_submission_ms": 0.0158,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -754,7 +754,7 @@
       "model": "single_pass",
       "gpu_cost": "medium",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.01985,
+      "cpu_submission_ms": 0.04605,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -764,7 +764,7 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.01525,
+      "cpu_submission_ms": 0.01465,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -774,7 +774,7 @@
       "model": "temporal",
       "gpu_cost": "medium",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0272,
+      "cpu_submission_ms": 0.0289,
       "gpu_memory_bytes": 1572864,
       "passes": 2
     },
@@ -784,7 +784,7 @@
       "model": "temporal",
       "gpu_cost": "medium",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0243,
+      "cpu_submission_ms": 0.02575,
       "gpu_memory_bytes": 1572864,
       "passes": 2
     },
@@ -794,7 +794,7 @@
       "model": "temporal",
       "gpu_cost": "medium",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0236,
+      "cpu_submission_ms": 0.07475,
       "gpu_memory_bytes": 1572864,
       "passes": 2
     },
@@ -804,7 +804,7 @@
       "model": "temporal",
       "gpu_cost": "medium",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.02725,
+      "cpu_submission_ms": 0.0504,
       "gpu_memory_bytes": 1572864,
       "passes": 2
     },
@@ -814,7 +814,7 @@
       "model": "temporal",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.02155,
+      "cpu_submission_ms": 0.0289,
       "gpu_memory_bytes": 1572864,
       "passes": 2
     },
@@ -824,7 +824,7 @@
       "model": "temporal",
       "gpu_cost": "high",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0274,
+      "cpu_submission_ms": 0.0266,
       "gpu_memory_bytes": 1572864,
       "passes": 2
     },
@@ -834,7 +834,7 @@
       "model": "temporal",
       "gpu_cost": "medium",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0256,
+      "cpu_submission_ms": 0.0531,
       "gpu_memory_bytes": 1572864,
       "passes": 2
     },
@@ -844,7 +844,7 @@
       "model": "temporal",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.02485,
+      "cpu_submission_ms": 0.0253,
       "gpu_memory_bytes": 1572864,
       "passes": 2
     },
@@ -854,7 +854,7 @@
       "model": "temporal",
       "gpu_cost": "medium",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0255,
+      "cpu_submission_ms": 0.0306,
       "gpu_memory_bytes": 1572864,
       "passes": 2
     },
@@ -864,7 +864,7 @@
       "model": "temporal",
       "gpu_cost": "medium",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.03075,
+      "cpu_submission_ms": 0.02685,
       "gpu_memory_bytes": 1572864,
       "passes": 2
     },
@@ -874,7 +874,7 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0173,
+      "cpu_submission_ms": 0.0409,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -884,7 +884,7 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.01385,
+      "cpu_submission_ms": 0.0151,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -894,7 +894,7 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.01645,
+      "cpu_submission_ms": 0.0275,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -904,7 +904,7 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0169,
+      "cpu_submission_ms": 0.03745,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -914,7 +914,7 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.01445,
+      "cpu_submission_ms": 0.01555,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -924,7 +924,7 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0155,
+      "cpu_submission_ms": 0.03775,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -934,7 +934,7 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0148,
+      "cpu_submission_ms": 0.02835,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -944,7 +944,7 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0142,
+      "cpu_submission_ms": 0.01515,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -954,7 +954,7 @@
       "model": "single_pass",
       "gpu_cost": "medium",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.01455,
+      "cpu_submission_ms": 0.01535,
       "gpu_memory_bytes": 786432,
       "passes": 1
     },
@@ -964,7 +964,7 @@
       "model": "single_pass",
       "gpu_cost": "low",
       "gpu_ms": null,
-      "cpu_submission_ms": 0.0367,
+      "cpu_submission_ms": 0.04015,
       "gpu_memory_bytes": 786432,
       "passes": 1
     }

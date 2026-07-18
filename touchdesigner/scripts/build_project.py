@@ -655,6 +655,20 @@ def configure_extension(comp, class_name, source_path):
     return code_dat
 
 
+def configure_parameter_callbacks(owner_comp, source_path, parameters):
+    """Create relocation-safe Parameter Execute callbacks for a component."""
+
+    callbacks = owner_comp.create(parameterexecuteDAT, "parameter_callbacks")
+    callbacks.text = _read_text(source_path)
+    callbacks.par.op = callbacks.relativePath(owner_comp)
+    callbacks.par.pars = parameters
+    callbacks.par.valuechange = True
+    callbacks.par.onpulse = True
+    callbacks.par.custom = True
+    callbacks.par.builtin = False
+    return callbacks
+
+
 def _repair_effect_shader_paths(root_comp):
     """Make packaged effect GLSL-to-DAT references portable across networks."""
 
@@ -684,6 +698,31 @@ def _repair_effect_shader_paths(root_comp):
     return repaired
 
 
+def _repair_effect_callback_paths(root_comp):
+    """Repair legacy absolute reset callback targets in packaged effects."""
+
+    repaired = 0
+    pending = list(getattr(root_comp, "children", ()) or ())
+    while pending:
+        operator = pending.pop()
+        pending.extend(list(getattr(operator, "children", ()) or ()))
+        if str(getattr(operator, "name", "")) != "reset_callbacks":
+            continue
+        parameter = operator.par["op"]
+        target = operator.parent()
+        if parameter is None or target is None:
+            raise RuntimeError(
+                "{} is missing its portable reset callback target".format(operator.path)
+            )
+        parameter.val = operator.relativePath(target)
+        if parameter.eval() != target:
+            raise RuntimeError(
+                "{} reset callback target did not resolve".format(operator.path)
+            )
+        repaired += 1
+    return repaired
+
+
 def load_tox_component(parent_comp, tox_path, name):
     """Load a .tox as a direct child and return its top-level component."""
     before_ids = {child.id for child in parent_comp.children}
@@ -696,6 +735,7 @@ def load_tox_component(parent_comp, tox_path, name):
     instance = created[0]
     instance.name = name
     _repair_effect_shader_paths(instance)
+    _repair_effect_callback_paths(instance)
     return instance
 
 
@@ -807,7 +847,7 @@ def _shader_pass(
         )
 
     info = effect.create(infoDAT, "shader_info_{}".format(node_key))
-    info.par.op = glsl.path
+    info.par.op = info.relativePath(glsl)
     info.nodeX = pass_index * 230
     info.nodeY = -430
     return glsl
@@ -977,7 +1017,7 @@ def build_effect(parent_comp, manifest, report):
 
         reset_callbacks = effect.create(parameterexecuteDAT, "reset_callbacks")
         reset_callbacks.text = RESET_CALLBACK_SOURCE
-        reset_callbacks.par.op = effect.path
+        reset_callbacks.par.op = reset_callbacks.relativePath(effect)
         reset_callbacks.par.pars = "Reset"
         reset_type = _reset_parameter_type(manifest)
         reset_callbacks.par.onpulse = reset_type == "pulse"
@@ -1060,14 +1100,11 @@ def build_update_manager(parent_comp):
 
     configure_extension(updater, "UpdaterExt", PROJECT_ROOT / "touchdesigner" / "extensions" / "UpdaterExt.py")
 
-    parexec = updater.create(parameterexecuteDAT, "parameter_callbacks")
-    parexec.text = _read_text(PROJECT_ROOT / "touchdesigner" / "callbacks" / "updater_parameter_callbacks.py")
-    parexec.par.op = updater.path
-    parexec.par.pars = "Checkupdates Autocheck Intervalhours"
-    parexec.par.valuechange = True
-    parexec.par.onpulse = True
-    parexec.par.custom = True
-    parexec.par.builtin = False
+    parexec = configure_parameter_callbacks(
+        updater,
+        PROJECT_ROOT / "touchdesigner" / "callbacks" / "updater_parameter_callbacks.py",
+        "Checkupdates Autocheck Intervalhours",
+    )
     parexec.nodeX = 220
     parexec.nodeY = -120
 
@@ -1190,14 +1227,11 @@ def build_rack(parent_comp, manifests):
     rack_output.render = True
 
     configure_extension(rack, "FxRackExt", PROJECT_ROOT / "touchdesigner" / "extensions" / "FxRackExt.py")
-    parexec = rack.create(parameterexecuteDAT, "parameter_callbacks")
-    parexec.text = _read_text(PROJECT_ROOT / "touchdesigner" / "callbacks" / "rack_parameter_callbacks.py")
-    parexec.par.op = rack.path
-    parexec.par.pars = "Slot* Reset Reloadall Bypassall Enableall Exportpreset Importpreset Savepreset Loadpreset"
-    parexec.par.valuechange = True
-    parexec.par.onpulse = True
-    parexec.par.custom = True
-    parexec.par.builtin = False
+    parexec = configure_parameter_callbacks(
+        rack,
+        PROJECT_ROOT / "touchdesigner" / "callbacks" / "rack_parameter_callbacks.py",
+        "Slot* Reset Reloadall Bypassall Enableall Exportpreset Importpreset Savepreset Loadpreset",
+    )
     parexec.nodeX = 400
     parexec.nodeY = -250
 
@@ -1355,17 +1389,14 @@ def build_browser(parent_comp, manifests, compatibility_confidence="declared"):
     if browser.par["opviewer"] is not None:
         browser.par.opviewer = browser_panel.path
 
-    parexec = browser.create(parameterexecuteDAT, "parameter_callbacks")
-    parexec.text = _read_text(PROJECT_ROOT / "touchdesigner" / "callbacks" / "browser_parameter_callbacks.py")
-    parexec.par.op = browser.path
-    parexec.par.pars = (
-        "Search Category Channel Model Capability Inputreadiness Availableinputs Sortby Tags Favorites "
-        "Favoritesonly Selectedid Refresh Create Togglefavorite"
+    parexec = configure_parameter_callbacks(
+        browser,
+        PROJECT_ROOT / "touchdesigner" / "callbacks" / "browser_parameter_callbacks.py",
+        (
+            "Search Category Channel Model Capability Inputreadiness Availableinputs Sortby Tags Favorites "
+            "Favoritesonly Selectedid Refresh Create Togglefavorite"
+        ),
     )
-    parexec.par.valuechange = True
-    parexec.par.onpulse = True
-    parexec.par.custom = True
-    parexec.par.builtin = False
     parexec.nodeX = 120
     parexec.nodeY = -180
 
