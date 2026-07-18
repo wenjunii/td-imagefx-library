@@ -87,7 +87,7 @@ Updater and release work adds source/feed binding, duplicate-key and size defens
 | Masks | Four generated mask families | Vector/paint masks, tracked masks, signed-distance primitives, mask combination recipes |
 | Distortion and lens | Broad foundational coverage | Heat haze, mesh adapters, higher-quality optics and chromatic aberration |
 | Pixel/print/display style | Ten stylize tools | ASCII, stipple, engraving, CRT/phosphor, film/projector emulation |
-| Glitch and corruption | Spatial and temporal variants | Motion-aware datamosh, sorting, codec/container adapters |
+| Glitch and corruption | Five immutable effects plus a reusable 24-style Glitch Fusion core covering sorting, datamosh-like smear, VHS/CRT, hold, dropout, compression, channel, and data corruption | True inter-frame datamosh, motion-aware corruption, codec/container adapters |
 | Light and relighting | Bloom/glow, edge glow, normal lighting | Lens flare, volumetric light, environment/depth-aware relighting |
 | Transitions | Four wipe/dissolve families | Burn/liquid/pixel/geometric and motion-aware transitions |
 | Temporal and feedback | Ten upgraded stateful packages | Long-delay buffers, slit scan, timeline/cache adapters, dropped-frame policies |

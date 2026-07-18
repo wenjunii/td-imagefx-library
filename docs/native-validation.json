@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-07-18T18:57:38.771992+00:00",
+  "generated_at": "2026-07-18T20:29:45.870400+00:00",
   "library_version": "0.3.0",
   "touchdesigner": {
     "version": "099",
@@ -10,7 +10,7 @@
   },
   "builder": {
     "path": "touchdesigner/scripts/build_project.py",
-    "sha256": "fec94724e511de092a5b8136269e32c15c727ad14b10206189710d57bf5a84fe"
+    "sha256": "d704984a3e2d15d2897397489e3a7ec77bf24c6be10a3fa71701f2c6a8d47004"
   },
   "catalog": {
     "current_effects": 96,
@@ -29,38 +29,43 @@
   "artifacts": [
     {
       "path": "TD_ImageFX_Library.toe",
-      "bytes": 130722,
-      "sha256": "5f07144d1f09c7141bbba6b5d9ae39b5c8ade7a01f6a03bd14e3ad9f4800e32f"
+      "bytes": 148914,
+      "sha256": "7ffc3491c53c92d5a0816f9176086f7a5fcec5f2eaeb79e23c49243496b54956"
     },
     {
       "path": "touchdesigner/core/TDImageFXLibrary.tox",
-      "bytes": 89774,
-      "sha256": "fbf330e3105f35d0b44505abe93388f925e0955e2918007e969690cdc4e860fd"
+      "bytes": 97806,
+      "sha256": "c97ae2e16a978d9addfe0009304955caac1da30bb619adc496fe299681a76e75"
     },
     {
       "path": "touchdesigner/core/FxBrowser.tox",
       "bytes": 24622,
-      "sha256": "98b2804d21b9881148dfa9b55140177c7a626f3dd70265210d320c3bfb2d55b0"
+      "sha256": "f5de7e1a220662029042058b4de6488b96484287c0916d969dd94f46195d3241"
     },
     {
       "path": "touchdesigner/core/FxRack.tox",
       "bytes": 25158,
-      "sha256": "26c564632b6368b0d9732be9ad462aa6829b420970d012f0e70ceb02f61c0a29"
+      "sha256": "aff3a63daf8037f070a393d76f85ce6b9057825b21e51e4b693616f2dc21651b"
     },
     {
       "path": "touchdesigner/core/ParticleRandomMove.tox",
       "bytes": 5182,
-      "sha256": "5f54e734d1b696f0553073a90d766aec75e7c8d6ed72e798823e50d38e3378b4"
+      "sha256": "cc7fe88917d88d9fd11e0f8984d8b61c09580027bcaf86169b620f0379e92d14"
     },
     {
       "path": "touchdesigner/core/InkFlowFusion.tox",
       "bytes": 8542,
-      "sha256": "6ce616b46a806cff93296835c4e79308fbb4b478955782e847281494e4b3c0d6"
+      "sha256": "495985c478e3a95f7a5f6c1a7696eaf599191d95968fdffe7c6a29666e7a0dda"
+    },
+    {
+      "path": "touchdesigner/core/GlitchFusion.tox",
+      "bytes": 9030,
+      "sha256": "aa79cb5a6d3b8ffac753693318db5476545fbd3c1af1ff3fea4780c5304c2f50"
     },
     {
       "path": "touchdesigner/core/FxUpdater.tox",
       "bytes": 13294,
-      "sha256": "401091505bc1ac0e6ee75a6b41f58e3af26adfa6b8283d33b84772136e5ce92e"
+      "sha256": "e23177fc01255f86878d3abf057255ef21f9d4b86d277630eb45581ccf27e600"
     },
     {
       "path": "packages/tdimagefx.blur.bilateral-blur/1.0.0/tox/tdimagefx_blur_bilateral_blur.tox",

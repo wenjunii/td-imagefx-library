@@ -16,8 +16,14 @@ LIBRARY_TOX = PROJECT_ROOT / "touchdesigner" / "core" / "TDImageFXLibrary.tox"
 RACK_TOX = PROJECT_ROOT / "touchdesigner" / "core" / "FxRack.tox"
 PARTICLE_TOX = PROJECT_ROOT / "touchdesigner" / "core" / "ParticleRandomMove.tox"
 INK_FLOW_TOX = PROJECT_ROOT / "touchdesigner" / "core" / "InkFlowFusion.tox"
+GLITCH_TOX = PROJECT_ROOT / "touchdesigner" / "core" / "GlitchFusion.tox"
 EXTENSION_ROOT = PROJECT_ROOT / "touchdesigner" / "extensions"
 MANAGED_NAMES = ("td_imagefx", "imagefx_demo")
+OUTPUT_PRESETS = (
+    ("hd", "HD 1920 x 1080"),
+    ("uhd4k", "4K UHD 3840 x 2160"),
+    ("custom", "Custom"),
+)
 DEMO_SOURCE_SHADER = r"""
 layout(location = 0) out vec4 fragColor;
 uniform float uTime;
@@ -52,6 +58,20 @@ void main() {
     fragColor = TDOutputSwizzle(vec4(color, source.a));
 }
 """.strip()
+
+
+def _output_resolution_expression(dimension):
+    if dimension == "width":
+        hd, uhd, custom = 1920, 3840, "Customwidth"
+    elif dimension == "height":
+        hd, uhd, custom = 1080, 2160, "Customheight"
+    else:
+        raise ValueError("Output dimension must be width or height")
+    return (
+        "{hd} if parent().par.Resolutionpreset.eval() == 'hd' else "
+        "({uhd} if parent().par.Resolutionpreset.eval() == 'uhd4k' else "
+        "int(parent().par.{custom}.eval()))"
+    ).format(hd=hd, uhd=uhd, custom=custom)
 
 
 def _current_project_identity():
@@ -225,7 +245,7 @@ def install():
         demo.color = (0.32, 0.18, 0.36)
         demo.comment = (
             "Disposable Embody/Envoy QA harness with optional ink flow, "
-            "random particles, and video effects"
+            "random particles, Glitch Fusion, and video effects"
         )
         demo_page = demo.appendCustomPage("Demo")
         demo_page.appendToggle("Inkflowenabled", label="Ink Flow Module Enabled")
@@ -234,9 +254,38 @@ def install():
         demo_page.appendToggle("Particlesenabled", label="Random Particles Enabled")
         demo.par.Particlesenabled.default = False
         demo.par.Particlesenabled = False
+        demo_page.appendToggle("Glitchenabled", label="Glitch Module Enabled")
+        demo.par.Glitchenabled.default = False
+        demo.par.Glitchenabled = False
         demo_page.appendToggle("Applyvideofx", label="Apply Video Effects")
         demo.par.Applyvideofx.default = True
         demo.par.Applyvideofx = True
+        output_page = demo.appendCustomPage("Output")
+        output_page.appendMenu("Resolutionpreset", label="Resolution Preset")
+        demo.par.Resolutionpreset.menuNames = [item[0] for item in OUTPUT_PRESETS]
+        demo.par.Resolutionpreset.menuLabels = [item[1] for item in OUTPUT_PRESETS]
+        demo.par.Resolutionpreset.default = "hd"
+        demo.par.Resolutionpreset = "hd"
+        output_page.appendInt("Customwidth", label="Custom Width")
+        demo.par.Customwidth.default = 1920
+        demo.par.Customwidth = 1920
+        demo.par.Customwidth.min = 16
+        demo.par.Customwidth.max = 8192
+        demo.par.Customwidth.clampMin = True
+        demo.par.Customwidth.clampMax = True
+        demo.par.Customwidth.enableExpr = (
+            "me.par.Resolutionpreset.eval() == 'custom'"
+        )
+        output_page.appendInt("Customheight", label="Custom Height")
+        demo.par.Customheight.default = 1080
+        demo.par.Customheight = 1080
+        demo.par.Customheight.min = 16
+        demo.par.Customheight.max = 8192
+        demo.par.Customheight.clampMin = True
+        demo.par.Customheight.clampMax = True
+        demo.par.Customheight.enableExpr = (
+            "me.par.Resolutionpreset.eval() == 'custom'"
+        )
 
         source_shader = demo.create(textDAT, "source_image_shader")
         source_shader.text = DEMO_SOURCE_SHADER
@@ -258,8 +307,8 @@ def install():
         source.par.vec0valuex.expr = "absTime.seconds"
         if source.par["outputresolution"] is not None:
             source.par.outputresolution = "custom"
-            source.par.resolutionw = 1280
-            source.par.resolutionh = 720
+            source.par.resolutionw.expr = _output_resolution_expression("width")
+            source.par.resolutionh.expr = _output_resolution_expression("height")
         source.cook(force=True)
         source_errors = list(source.errors())
         if source_errors:
@@ -283,15 +332,23 @@ def install():
         _repair_effect_shader_paths(particles)
         ink_flow.outputConnectors[0].connect(particles.inputConnectors[0])
 
+        glitch = _load_single_tox(demo, GLITCH_TOX)
+        glitch.name = "glitch_fusion"
+        glitch.nodeX = 480
+        glitch.nodeY = 0
+        glitch.par.Enabled.expr = "parent().par.Glitchenabled"
+        _repair_effect_shader_paths(glitch)
+        particles.outputConnectors[0].connect(glitch.inputConnectors[0])
+
         rack = _load_single_tox(demo, RACK_TOX)
         rack.name = "fx_rack"
-        rack.nodeX = 480
+        rack.nodeX = 740
         rack.nodeY = 0
         _set_library_root(rack, "demo rack")
         _sync_extension(rack, "FxRackExt")
         _repair_effect_shader_paths(rack)
         _repair_effect_state_paths(rack)
-        particles.outputConnectors[0].connect(rack.inputConnectors[0])
+        glitch.outputConnectors[0].connect(rack.inputConnectors[0])
         fixture_values = {
             "displacement": (0.72, 0.28, 0.50, 1.0),
             "depth": (0.68, 0.68, 0.68, 1.0),
@@ -333,18 +390,22 @@ def install():
             fixture.outputConnectors[0].connect(rack.inputConnectors[input_index])
 
         video_fx_router = demo.create(switchTOP, "video_fx_router")
-        particles.outputConnectors[0].connect(video_fx_router.inputConnectors[0])
+        glitch.outputConnectors[0].connect(video_fx_router.inputConnectors[0])
         rack.outputConnectors[0].connect(video_fx_router.inputConnectors[1])
         video_fx_router.par.index.expr = (
             "1 if parent().par.Applyvideofx else 0"
         )
-        video_fx_router.nodeX = 730
+        video_fx_router.nodeX = 990
         video_fx_router.nodeY = 0
 
         output = demo.create(outTOP, "out1_image")
-        output.nodeX = 940
+        output.nodeX = 1200
         output.nodeY = 0
         video_fx_router.outputConnectors[0].connect(output.inputConnectors[0])
+        if output.par["outputresolution"] is not None:
+            output.par.outputresolution = "custom"
+            output.par.resolutionw.expr = _output_resolution_expression("width")
+            output.par.resolutionh.expr = _output_resolution_expression("height")
         output.display = True
         output.render = True
         demo.par.opviewer = output.path
@@ -356,7 +417,11 @@ def install():
             "demo": demo.path,
             "ink_flow": ink_flow.path,
             "particles": particles.path,
+            "glitch": glitch.path,
             "output": output.path,
+            "resolution_preset": str(demo.par.Resolutionpreset.eval()),
+            "output_width": int(output.width),
+            "output_height": int(output.height),
             "package_count": health.get("package_count"),
             "package_version_count": health.get("package_version_count"),
             "saved": False,

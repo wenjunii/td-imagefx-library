@@ -46,6 +46,7 @@ The repository includes:
 - `touchdesigner/core/FxRack.tox`;
 - `touchdesigner/core/InkFlowFusion.tox`;
 - `touchdesigner/core/ParticleRandomMove.tox`;
+- `touchdesigner/core/GlitchFusion.tox`;
 - `touchdesigner/core/FxBrowser.tox`;
 - `touchdesigner/core/FxUpdater.tox`.
 
@@ -68,6 +69,20 @@ styles, water-current motion, seed variation, combined rendering, the
 500-column maximum, and shader diagnostics. Its ignored report is
 `build/envoy-validation/ink-flow-module.json`.
 
+For Glitch Fusion QA, run
+`touchdesigner/scripts/validate_glitch_fusion_module.py` from the Python
+Textport. It checks whole-module and zero-mix bypass, the exact 24-style menu,
+visible and distinct output from every style, time and seed variation, rack
+routing, output resolution, and shader diagnostics. Its ignored report is
+`build/envoy-validation/glitch-fusion-module.json`.
+
+For output-resolution QA, run
+`touchdesigner/scripts/validate_output_resolution.py` from the Python Textport.
+It verifies the default HD 1920 x 1080 output, the 4K UHD 3840 x 2160 preset,
+an adjustable nonstandard custom size, 16-through-8192 parameter bounds,
+generated-source propagation, and output diagnostics. Its ignored report is
+`build/envoy-validation/output-resolution.json`.
+
 Python is not required to use the prebuilt native files. Python 3.11 or newer is required for repository tools and the standalone package CLI.
 
 ## Embody and Envoy QA harness
@@ -79,9 +94,10 @@ operators, and replaces its generated project atomically.
 For AI-assisted live inspection, create an ignored project at
 `integrations/embody/local/TD_ImageFX_DevHarness.toe`, install Embody there, and
 run `touchdesigner/scripts/install_dev_harness.py`. The script loads the compiled
-library and rack, synchronizes their tracked extension sources, repairs portable
-shader references, points them at this checkout, refuses the canonical project,
-refuses existing managed roots, and never saves. The combined TD knowledge and
+library, ink, particle, glitch, and rack components, synchronizes their tracked
+extension sources, repairs portable shader references, points them at this
+checkout, refuses the canonical project, refuses existing managed roots, and
+never saves. The combined TD knowledge and
 Envoy setup, project profile, capture requirements, and validation order are
 documented in [Embody, Envoy, and TD knowledge integration](embody-envoy-integration.md).
 
@@ -118,7 +134,7 @@ The builder creates or updates:
 
 - `TD_ImageFX_Library.toe`;
 - a versioned `.tox` for the latest version of each of 96 effect IDs while preserving all tracked exact-version artifacts;
-- six reusable core `.tox` files for the library, rack, ink flow, random particles, browser, and updater;
+- seven reusable core `.tox` files for the library, rack, ink flow, random particles, Glitch Fusion, browser, and updater;
 - declared single-pass and multi-pass GLSL graphs plus temporal/simulation feedback graphs;
 - 96 preview PNGs under `docs/gallery/`;
 - `docs/benchmark-data.json` with per-effect runtime samples;
@@ -138,7 +154,7 @@ python tools/build_gallery.py
 python tools/benchmark_report.py
 ```
 
-The native-validation command accepts only a clean build report and writes `docs/native-validation.json`, binding the named TouchDesigner environment to the size and SHA-256 digest of the library `.toe`, all versioned effect `.tox` files, and the six core `.tox` files.
+The native-validation command accepts only a clean build report and writes `docs/native-validation.json`, binding the named TouchDesigner environment to the size and SHA-256 digest of the library `.toe`, all versioned effect `.tox` files, and the seven core `.tox` files.
 
 Compare every changed preview on representative media. Only after intentional visual approval should you replace the SHA-256 baselines:
 
@@ -178,11 +194,19 @@ Wave Warp -> Exposure -> Gaussian Blur -> RGB Split
 Each of eight slots provides effect selection, enable, dry/wet mix, modulation depth/rate/state, Up, Down, Reset, and Bypass. Six auxiliary buses route second image, displacement, depth, normal, flow, and mask inputs by declared semantic role. Global controls reload/reset the rack and bypass or enable every slot. **Auto Time** and **Time Scale** drive time-aware parameters; disable Auto Time and set **Manual Time** for deterministic inspection.
 
 The generated demo routes source -> `ink_flow` -> `particle_random_move` ->
-the eight-slot rack. **Ink Flow Module Enabled** bypasses the combined ink and
-water-particle module, **Random Particles Enabled** controls the existing
-random-move stage, and **Apply Video Effects** controls the rack. Inside
-`ink_flow`, **Ink Visual Enabled** and **Water Particles Enabled** are
-independent.
+`glitch_fusion` -> the eight-slot rack. **Ink Flow Module Enabled** bypasses
+the combined ink and water-particle module, **Random Particles Enabled**
+controls the existing random-move stage, **Glitch Module Enabled** controls
+the 24-style Glitch Fusion stage, and **Apply Video Effects** controls the
+rack. Inside `ink_flow`, **Ink Visual Enabled** and **Water Particles Enabled**
+are independent.
+
+Select `imagefx_demo` and use its **Output** page to choose **HD 1920 x 1080**
+(the default), **4K UHD 3840 x 2160**, or **Custom**. Custom width and height
+accept 16 through 8192 pixels. The built-in generated source follows the
+selected size through the effect chain, and `out1_image` always uses the
+selected delivery resolution. Large resolutions should be qualified with the
+actual enabled effects and target GPU.
 
 Select `ink_flow` to choose **Minimal Ink Work** or **Minimal Ink Wash
 (Shui-mo)** and adjust visual mix, pigment strength, edge detail, wash spread,
@@ -192,6 +216,9 @@ opacity, ink mix, seed, and time. Its sparse default is 32 columns, with an
 adjustable range of 8 through 500. Select `particle_random_move` to tune the
 separate random-particle stage. That module's default 96-column grid is about
 5,000 particles at 16:9; reduce it first for 4K or multi-output qualification.
+Select `glitch_fusion` to choose one of 24 bounded GPU glitch styles and tune
+its timing, intensity, mix, geometry, signal, color, compression, corruption,
+and seed controls.
 
 **Particle Columns** accepts 8 through 500. A 500-column 16:9 grid is
 approximately 140,000 particles, so qualify the upper range against the actual

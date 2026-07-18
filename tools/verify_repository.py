@@ -259,6 +259,7 @@ def _check_manifests() -> tuple[int, set[str], dict[str, str]]:
         ROOT / "touchdesigner" / "core" / "FxRack.tox",
         ROOT / "touchdesigner" / "core" / "ParticleRandomMove.tox",
         ROOT / "touchdesigner" / "core" / "InkFlowFusion.tox",
+        ROOT / "touchdesigner" / "core" / "GlitchFusion.tox",
         ROOT / "touchdesigner" / "core" / "FxUpdater.tox",
     )
     missing = [path.relative_to(ROOT) for path in required_native_assets if not path.is_file()]
@@ -439,6 +440,7 @@ def _check_native_validation(library_version: str) -> None:
         "touchdesigner/core/FxRack.tox",
         "touchdesigner/core/ParticleRandomMove.tox",
         "touchdesigner/core/InkFlowFusion.tox",
+        "touchdesigner/core/GlitchFusion.tox",
         "touchdesigner/core/FxUpdater.tox",
         *(
             path.relative_to(ROOT).as_posix()
@@ -527,6 +529,12 @@ def _check_embody_integration() -> None:
     ink_flow_validator_path = (
         ROOT / "touchdesigner" / "scripts" / "validate_ink_flow_module.py"
     )
+    glitch_validator_path = (
+        ROOT / "touchdesigner" / "scripts" / "validate_glitch_fusion_module.py"
+    )
+    output_resolution_validator_path = (
+        ROOT / "touchdesigner" / "scripts" / "validate_output_resolution.py"
+    )
     public_guide_path = ROOT / "docs" / "embody-envoy-integration.md"
     required = (
         EMBODY_INTEGRATION / "README.md",
@@ -536,6 +544,8 @@ def _check_embody_integration() -> None:
         installer_path,
         validator_path,
         ink_flow_validator_path,
+        glitch_validator_path,
+        output_resolution_validator_path,
         public_guide_path,
     )
     missing = [path.relative_to(ROOT) for path in required if not path.is_file()]

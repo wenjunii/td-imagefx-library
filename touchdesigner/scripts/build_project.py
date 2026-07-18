@@ -242,6 +242,68 @@ void main() {
 }
 """.strip()
 
+DEMO_OUTPUT_PRESETS = (
+    ("hd", "HD 1920 x 1080", 1920, 1080),
+    ("uhd4k", "4K UHD 3840 x 2160", 3840, 2160),
+    ("custom", "Custom", None, None),
+)
+
+DEMO_OUTPUT_PARAMETER_DEFINITIONS = (
+    {
+        "name": "Resolutionpreset",
+        "label": "Resolution Preset",
+        "type": "menu",
+        "default": "hd",
+        "menu_names": [item[0] for item in DEMO_OUTPUT_PRESETS],
+        "menu_labels": [item[1] for item in DEMO_OUTPUT_PRESETS],
+        "description": (
+            "Choose the default 1920 x 1080 output, 4K UHD, or an adjustable "
+            "custom resolution."
+        ),
+    },
+    {
+        "name": "Customwidth",
+        "label": "Custom Width",
+        "type": "int",
+        "default": 1920,
+        "min": 16,
+        "max": 8192,
+        "description": (
+            "Output width used by the Custom preset. Values are bounded to "
+            "16 through 8192 pixels."
+        ),
+    },
+    {
+        "name": "Customheight",
+        "label": "Custom Height",
+        "type": "int",
+        "default": 1080,
+        "min": 16,
+        "max": 8192,
+        "description": (
+            "Output height used by the Custom preset. Values are bounded to "
+            "16 through 8192 pixels."
+        ),
+    },
+)
+
+
+def _demo_output_resolution_expression(dimension):
+    """Return a component-relative expression for the selected output size."""
+
+    if dimension == "width":
+        hd, uhd, custom = 1920, 3840, "Customwidth"
+    elif dimension == "height":
+        hd, uhd, custom = 1080, 2160, "Customheight"
+    else:
+        raise ValueError("Output dimension must be width or height")
+    return (
+        "{hd} if parent().par.Resolutionpreset.eval() == 'hd' else "
+        "({uhd} if parent().par.Resolutionpreset.eval() == 'uhd4k' else "
+        "int(parent().par.{custom}.eval()))"
+    ).format(hd=hd, uhd=uhd, custom=custom)
+
+
 PARTICLE_RANDOM_MOVE_SHADER = r"""
 layout(location = 0) out vec4 fragColor;
 
@@ -939,6 +1001,686 @@ INK_FLOW_PARAMETER_DEFINITIONS = (
         "page": "Water Particles", "default": 23,
         "min": 0, "max": 100000, "uniform": "uSeed",
         "description": "Change paper fibers and deterministic particle wandering.",
+    },
+)
+
+GLITCH_FUSION_STYLE_NAMES = (
+    "rgb_split",
+    "block_shift",
+    "slice_tear",
+    "digital_noise",
+    "pixel_sort",
+    "datamosh",
+    "vhs_tracking",
+    "scanline_jitter",
+    "macroblock",
+    "signal_dropout",
+    "frame_jitter",
+    "rolling_sync",
+    "channel_swap",
+    "color_quantize",
+    "bit_crush",
+    "mosaic_scramble",
+    "wave_interference",
+    "static_snow",
+    "crt_corruption",
+    "horizontal_hold",
+    "vertical_hold",
+    "data_bend",
+    "edge_corrupt",
+    "glitch_fusion",
+)
+
+GLITCH_FUSION_STYLE_LABELS = (
+    "RGB Split",
+    "Block Shift",
+    "Slice Tear",
+    "Digital Noise",
+    "Pixel Sort Streak",
+    "Datamosh Smear",
+    "VHS Tracking",
+    "Scanline Jitter",
+    "Macroblock Compression",
+    "Signal Dropout",
+    "Frame Jitter",
+    "Rolling Sync",
+    "Channel Swap",
+    "Color Quantize",
+    "Bit Crush",
+    "Mosaic Scramble",
+    "Wave Interference",
+    "Static Snow",
+    "CRT Corruption",
+    "Horizontal Hold",
+    "Vertical Hold",
+    "Data Bend",
+    "Edge Corrupt",
+    "Glitch Fusion",
+)
+
+GLITCH_FUSION_SHADER = r"""
+layout(location = 0) out vec4 fragColor;
+
+uniform float uTime;
+uniform float uStyle;
+uniform float uMix;
+uniform float uIntensity;
+uniform float uSpeed;
+uniform float uSeed;
+uniform float uBlockSize;
+uniform float uSliceDensity;
+uniform float uDisplacement;
+uniform float uJitter;
+uniform float uSmear;
+uniform float uRgbSplit;
+uniform float uNoiseAmount;
+uniform float uDropout;
+uniform float uScanlines;
+uniform float uTracking;
+uniform float uCompression;
+uniform float uColorShift;
+uniform float uQuantize;
+uniform float uEdgeAmount;
+
+const float TAU = 6.28318530718;
+
+float glitchHash(vec2 value) {
+    vec3 p3 = fract(vec3(value.xyx) * 0.1031);
+    p3 += dot(p3, p3.yzx + 33.33);
+    return fract((p3.x + p3.y) * p3.z);
+}
+
+vec2 glitchHash2(vec2 value) {
+    return vec2(
+        glitchHash(value + vec2(17.17, 43.71)),
+        glitchHash(value + vec2(91.37, 11.53))
+    );
+}
+
+float glitchNoise(vec2 position) {
+    vec2 cell = floor(position);
+    vec2 local = fract(position);
+    local = local * local * (3.0 - 2.0 * local);
+    float a = glitchHash(cell);
+    float b = glitchHash(cell + vec2(1.0, 0.0));
+    float c = glitchHash(cell + vec2(0.0, 1.0));
+    float d = glitchHash(cell + vec2(1.0, 1.0));
+    return mix(mix(a, b, local.x), mix(c, d, local.x), local.y);
+}
+
+vec2 wrapUV(vec2 uv) {
+    return fract(uv + 1.0);
+}
+
+vec4 sourceAt(vec2 uv) {
+    return texture(sTD2DInputs[0], wrapUV(uv));
+}
+
+float sourceLumaGlitch(vec2 uv) {
+    return dot(sourceAt(uv).rgb, vec3(0.2126, 0.7152, 0.0722));
+}
+
+vec3 rgbSplitColor(vec2 uv, vec2 shift) {
+    return vec3(
+        sourceAt(uv + shift).r,
+        sourceAt(uv).g,
+        sourceAt(uv - shift).b
+    );
+}
+
+vec3 smearColor(vec2 uv, vec2 direction, float distance) {
+    vec3 color = sourceAt(uv).rgb * 0.34;
+    color += sourceAt(uv - direction * distance * 0.25).rgb * 0.24;
+    color += sourceAt(uv - direction * distance * 0.50).rgb * 0.18;
+    color += sourceAt(uv - direction * distance * 0.75).rgb * 0.14;
+    color += sourceAt(uv - direction * distance).rgb * 0.10;
+    return color;
+}
+
+vec3 quantizeColor(vec3 color, float levels) {
+    float safeLevels = max(2.0, floor(levels + 0.5));
+    return floor(color * safeLevels + 0.5) / safeLevels;
+}
+
+vec3 glitchStyleColor(
+    float style,
+    vec2 uv,
+    vec2 texel,
+    vec2 resolution
+) {
+    float intensity = clamp(uIntensity, 0.0, 1.0);
+    float animatedFrame = floor(
+        uTime * max(uSpeed, 0.001) * 12.0 + uSeed * 13.0
+    );
+    float blockPixels = max(2.0, floor(uBlockSize + 0.5));
+    vec2 blockGrid = max(vec2(1.0), resolution / blockPixels);
+    vec2 blockId = floor(uv * blockGrid);
+    vec2 blockLocal = fract(uv * blockGrid);
+    float slices = max(2.0, floor(uSliceDensity + 0.5));
+    float sliceId = floor(uv.y * slices);
+    float lineId = floor(uv.y * max(resolution.y, 1.0));
+    float displacement = uDisplacement * intensity;
+    float split = uRgbSplit * intensity;
+    vec2 sampleUV = uv;
+    vec3 color = sourceAt(uv).rgb;
+
+    if (style < 0.5) {
+        // RGB Split
+        float wobble = mix(
+            0.65,
+            1.35,
+            glitchNoise(vec2(uv.y * slices, animatedFrame))
+        );
+        color = rgbSplitColor(
+            uv,
+            vec2(split * wobble, split * 0.18 * sin(uv.y * TAU))
+        );
+    } else if (style < 1.5) {
+        // Block Shift
+        float gate = step(
+            1.0 - intensity * 0.72,
+            glitchHash(blockId + animatedFrame)
+        );
+        vec2 randomOffset = glitchHash2(blockId + animatedFrame) - 0.5;
+        sampleUV += gate * vec2(
+            randomOffset.x * displacement,
+            randomOffset.y * displacement * 0.30
+        );
+        color = sourceAt(sampleUV).rgb;
+    } else if (style < 2.5) {
+        // Slice Tear
+        float sliceNoise = glitchHash(vec2(sliceId, animatedFrame));
+        float gate = step(1.0 - intensity * 0.82, sliceNoise);
+        float tear = (sliceNoise - 0.5) * displacement * 2.0;
+        sampleUV.x += gate * tear;
+        color = rgbSplitColor(
+            sampleUV,
+            vec2(split * gate, 0.0)
+        );
+    } else if (style < 3.5) {
+        // Digital Noise
+        float fineNoise = glitchHash(
+            floor(uv * resolution) + animatedFrame
+        );
+        float coarseNoise = glitchHash(blockId + animatedFrame * 0.37);
+        vec3 noiseColor = vec3(
+            fineNoise,
+            glitchHash(vec2(fineNoise, coarseNoise) + 7.3),
+            coarseNoise
+        );
+        float mask = uNoiseAmount * intensity
+            * mix(0.28, 1.0, step(0.72, coarseNoise));
+        color = mix(color, noiseColor, clamp(mask, 0.0, 1.0));
+    } else if (style < 4.5) {
+        // Pixel Sort Streak
+        float luminance = sourceLumaGlitch(uv);
+        float threshold = mix(0.72, 0.20, intensity);
+        float rowSeed = glitchHash(vec2(sliceId, animatedFrame));
+        float streakMask = smoothstep(threshold, threshold + 0.16, luminance);
+        float streak = streakMask
+            * (0.15 + rowSeed * 0.85)
+            * max(uSmear, displacement);
+        sampleUV.x -= streak;
+        color = smearColor(
+            sampleUV,
+            vec2(1.0, 0.0),
+            streak * 0.65
+        );
+    } else if (style < 5.5) {
+        // Datamosh Smear
+        vec2 motion = normalize(vec2(
+            1.0,
+            sin(uv.y * TAU * 2.0 + animatedFrame) * 0.28
+        ));
+        float blockMotion = (
+            glitchHash(blockId + animatedFrame) - 0.5
+        ) * 2.0;
+        color = smearColor(
+            uv,
+            motion,
+            max(0.001, uSmear * intensity * (0.35 + abs(blockMotion)))
+        );
+        color = mix(
+            color,
+            color.gbr,
+            uCompression * intensity * 0.24
+        );
+    } else if (style < 6.5) {
+        // VHS Tracking
+        float trackingBand = sin(
+            uv.y * resolution.y * 0.035
+            + uTime * uSpeed * 8.0
+        );
+        float headSwitch = smoothstep(
+            0.76,
+            1.0,
+            fract(uv.y + uTime * uSpeed * 0.13)
+        );
+        sampleUV.x += trackingBand * uTracking * intensity
+            + headSwitch * displacement;
+        color = rgbSplitColor(
+            sampleUV,
+            vec2(split * 0.72, 0.0)
+        );
+        color *= 1.0 - uScanlines
+            * (0.06 + 0.05 * sin(uv.y * resolution.y * 3.14159));
+    } else if (style < 7.5) {
+        // Scanline Jitter
+        float lineNoise = glitchHash(vec2(lineId, animatedFrame));
+        float gate = step(1.0 - intensity * 0.78, lineNoise);
+        sampleUV.x += (lineNoise - 0.5)
+            * uJitter * gate;
+        color = sourceAt(sampleUV).rgb;
+        float scan = 0.5 + 0.5 * sin(uv.y * resolution.y * 3.14159);
+        color *= 1.0 - scan * uScanlines * intensity * 0.28;
+    } else if (style < 8.5) {
+        // Macroblock Compression
+        vec2 macroUV = (blockId + vec2(0.5)) / blockGrid;
+        float detailMix = clamp(
+            uCompression * intensity * 1.25,
+            0.0,
+            1.0
+        );
+        color = mix(color, sourceAt(macroUV).rgb, detailMix);
+        color = quantizeColor(
+            color,
+            mix(max(uQuantize, 2.0), 4.0, detailMix)
+        );
+        float chromaBleed = (blockLocal.x - 0.5) * split;
+        color.rb = mix(
+            color.rb,
+            sourceAt(macroUV + vec2(chromaBleed, 0.0)).br,
+            detailMix * 0.34
+        );
+    } else if (style < 9.5) {
+        // Signal Dropout
+        float bandNoise = glitchHash(vec2(sliceId, animatedFrame));
+        float dropoutGate = step(
+            1.0 - max(uDropout, 0.02) * intensity,
+            bandNoise
+        );
+        float snow = glitchHash(
+            floor(uv * resolution) + animatedFrame
+        );
+        vec3 dropoutColor = mix(
+            vec3(0.0),
+            vec3(snow),
+            uNoiseAmount
+        );
+        color = mix(color, dropoutColor, dropoutGate);
+    } else if (style < 10.5) {
+        // Frame Jitter
+        vec2 frameOffset = (
+            glitchHash2(vec2(animatedFrame, uSeed)) - 0.5
+        ) * vec2(uJitter, uJitter * 0.45) * intensity;
+        color = rgbSplitColor(
+            uv + frameOffset,
+            vec2(split * 0.45, 0.0)
+        );
+    } else if (style < 11.5) {
+        // Rolling Sync
+        float roll = uTime * uSpeed * 0.18
+            + glitchHash(vec2(animatedFrame, uSeed)) * uJitter;
+        sampleUV.y = fract(sampleUV.y + roll * intensity);
+        sampleUV.x += sin(sampleUV.y * TAU * 2.0)
+            * uTracking * intensity;
+        color = sourceAt(sampleUV).rgb;
+    } else if (style < 12.5) {
+        // Channel Swap
+        vec3 splitColor = rgbSplitColor(
+            uv,
+            vec2(split, split * 0.25)
+        );
+        float swapState = mod(floor(animatedFrame / 2.0), 3.0);
+        color = swapState < 0.5
+            ? splitColor.gbr
+            : (swapState < 1.5 ? splitColor.brg : splitColor.rbg);
+        color = mix(sourceAt(uv).rgb, color, intensity);
+    } else if (style < 13.5) {
+        // Color Quantize
+        color = quantizeColor(color, uQuantize);
+        color = mix(
+            color,
+            color.brg,
+            uColorShift * intensity * 0.45
+        );
+    } else if (style < 14.5) {
+        // Bit Crush
+        float levels = mix(64.0, 2.0, intensity);
+        color = quantizeColor(color, levels);
+        float sampleStride = mix(1.0, blockPixels, intensity);
+        vec2 crushedUV = (
+            floor(uv * resolution / sampleStride) + 0.5
+        ) * sampleStride / resolution;
+        color = mix(color, sourceAt(crushedUV).rgb, intensity * 0.62);
+    } else if (style < 15.5) {
+        // Mosaic Scramble
+        vec2 randomCell = floor(
+            (glitchHash2(blockId + animatedFrame) - 0.5)
+            * mix(1.0, 5.0, intensity)
+        );
+        vec2 scrambled = (
+            blockId + randomCell + blockLocal
+        ) / blockGrid;
+        color = sourceAt(scrambled).rgb;
+    } else if (style < 16.5) {
+        // Wave Interference
+        vec2 wave = vec2(
+            sin(uv.y * TAU * slices + uTime * uSpeed * 5.0),
+            cos(uv.x * TAU * slices * 0.35 - uTime * uSpeed * 3.0)
+        );
+        sampleUV += wave * displacement * 0.32;
+        color = rgbSplitColor(
+            sampleUV,
+            wave * split * 0.35
+        );
+    } else if (style < 17.5) {
+        // Static Snow
+        float snow = glitchHash(
+            floor(uv * resolution) + animatedFrame * 17.0
+        );
+        float burst = step(
+            1.0 - intensity * 0.75,
+            glitchHash(blockId + animatedFrame)
+        );
+        float amount = clamp(
+            uNoiseAmount * intensity * mix(0.35, 1.0, burst),
+            0.0,
+            1.0
+        );
+        color = mix(color, vec3(snow), amount);
+    } else if (style < 18.5) {
+        // CRT Corruption
+        vec2 centered = uv * 2.0 - 1.0;
+        float radius2 = dot(centered, centered);
+        sampleUV = centered * (1.0 + radius2 * 0.10 * intensity);
+        sampleUV = sampleUV * 0.5 + 0.5;
+        color = rgbSplitColor(
+            sampleUV,
+            vec2(split * (0.4 + radius2), 0.0)
+        );
+        float scan = 0.5 + 0.5 * sin(uv.y * resolution.y * 3.14159);
+        float grille = 0.5 + 0.5 * sin(uv.x * resolution.x * 2.0944);
+        color *= 1.0 - uScanlines * intensity
+            * (0.18 * scan + 0.06 * grille);
+    } else if (style < 19.5) {
+        // Horizontal Hold
+        float holdCenter = glitchHash(vec2(animatedFrame, uSeed));
+        float band = 1.0 - smoothstep(
+            0.02,
+            0.15,
+            abs(uv.y - holdCenter)
+        );
+        sampleUV.x += band * displacement
+            * (glitchHash(vec2(sliceId, animatedFrame)) - 0.5) * 2.0;
+        color = sourceAt(sampleUV).rgb;
+        color += band * uNoiseAmount * 0.18;
+    } else if (style < 20.5) {
+        // Vertical Hold
+        float holdCenter = glitchHash(vec2(animatedFrame + 9.0, uSeed));
+        float band = 1.0 - smoothstep(
+            0.02,
+            0.15,
+            abs(uv.x - holdCenter)
+        );
+        sampleUV.y += band * displacement
+            * (glitchHash(vec2(blockId.x, animatedFrame)) - 0.5) * 2.0;
+        color = sourceAt(sampleUV).rgb;
+        color = mix(color, color.brg, band * uColorShift);
+    } else if (style < 21.5) {
+        // Data Bend
+        float bend = sin(
+            uv.y * TAU * slices
+            + glitchNoise(uv * blockGrid + animatedFrame) * TAU
+        );
+        sampleUV.x += bend * displacement * 0.55;
+        color = sourceAt(sampleUV).rgb;
+        color = mix(
+            color,
+            vec3(color.r, 1.0 - color.b, color.g),
+            uColorShift * intensity
+        );
+        color = quantizeColor(
+            color,
+            mix(uQuantize, 3.0, uCompression * intensity)
+        );
+    } else if (style < 22.5) {
+        // Edge Corrupt
+        float left = sourceLumaGlitch(uv - vec2(texel.x, 0.0));
+        float right = sourceLumaGlitch(uv + vec2(texel.x, 0.0));
+        float down = sourceLumaGlitch(uv - vec2(0.0, texel.y));
+        float up = sourceLumaGlitch(uv + vec2(0.0, texel.y));
+        float edge = smoothstep(
+            0.015,
+            0.16,
+            length(vec2(right - left, up - down)) * uEdgeAmount
+        );
+        vec2 edgeShift = (
+            glitchHash2(floor(uv * resolution) + animatedFrame) - 0.5
+        ) * displacement;
+        vec3 corrupt = rgbSplitColor(
+            uv + edgeShift,
+            vec2(split, 0.0)
+        );
+        color = mix(color, corrupt, edge * intensity);
+    } else {
+        // Glitch Fusion: block shifts, slice tears, RGB separation,
+        // compression, tracking noise, scanlines, and data loss together.
+        float blockGate = step(
+            1.0 - intensity * 0.62,
+            glitchHash(blockId + animatedFrame)
+        );
+        float sliceGate = step(
+            1.0 - intensity * 0.76,
+            glitchHash(vec2(sliceId, animatedFrame + 3.0))
+        );
+        vec2 randomOffset = glitchHash2(blockId + animatedFrame) - 0.5;
+        sampleUV += blockGate * randomOffset
+            * vec2(displacement, displacement * 0.22);
+        sampleUV.x += sliceGate
+            * (glitchHash(vec2(sliceId, animatedFrame)) - 0.5)
+            * displacement * 1.8;
+        sampleUV.x += sin(
+            uv.y * resolution.y * 0.032 + uTime * uSpeed * 7.0
+        ) * uTracking * intensity;
+        color = rgbSplitColor(
+            sampleUV,
+            vec2(split * (0.55 + blockGate), 0.0)
+        );
+        color = mix(
+            color,
+            quantizeColor(color, mix(uQuantize, 4.0, uCompression)),
+            uCompression * intensity * 0.62
+        );
+        float snow = glitchHash(
+            floor(uv * resolution) + animatedFrame * 23.0
+        );
+        color = mix(
+            color,
+            vec3(snow, snow * 0.72, 1.0 - snow),
+            uNoiseAmount * intensity * 0.22
+        );
+        float dropoutGate = step(
+            1.0 - uDropout * intensity,
+            glitchHash(vec2(sliceId, animatedFrame + 19.0))
+        );
+        color *= 1.0 - dropoutGate * 0.82;
+        float scan = 0.5 + 0.5 * sin(uv.y * resolution.y * 3.14159);
+        color *= 1.0 - scan * uScanlines * intensity * 0.24;
+    }
+
+    color = mix(
+        color,
+        color.brg,
+        clamp(uColorShift * intensity * 0.18, 0.0, 0.75)
+    );
+    return clamp(color, 0.0, 1.0);
+}
+
+void main() {
+    vec2 uv = clamp(vUV.st, 0.0, 1.0);
+    ivec2 sourceSize = textureSize(sTD2DInputs[0], 0);
+    vec2 resolution = vec2(max(sourceSize.x, 1), max(sourceSize.y, 1));
+    vec2 texel = 1.0 / resolution;
+    vec4 source = texture(sTD2DInputs[0], uv);
+    vec3 glitched = glitchStyleColor(
+        floor(uStyle + 0.5),
+        uv,
+        texel,
+        resolution
+    );
+    float mixAmount = clamp(uMix, 0.0, 1.0);
+    fragColor = TDOutputSwizzle(vec4(
+        mix(source.rgb, glitched, mixAmount),
+        source.a
+    ));
+}
+""".strip()
+
+GLITCH_FUSION_PARAMETER_DEFINITIONS = (
+    {
+        "name": "Enabled", "label": "Module Enabled", "type": "toggle",
+        "page": "Glitch", "default": True,
+        "description": "Return the input unchanged when the entire module is disabled.",
+    },
+    {
+        "name": "Autotime", "label": "Auto Time", "type": "toggle",
+        "page": "Glitch", "default": True,
+        "description": "Animate glitches from TouchDesigner's absolute time.",
+    },
+    {
+        "name": "Timescale", "label": "Time Scale", "type": "float",
+        "page": "Glitch", "default": 1.0, "min": -10.0, "max": 10.0,
+        "description": "Scale or reverse automatic glitch time.",
+    },
+    {
+        "name": "Manualtime", "label": "Manual Time", "type": "float",
+        "page": "Glitch", "default": 0.0,
+        "min": -100000.0, "max": 100000.0,
+        "description": "Deterministic time used when Auto Time is disabled.",
+    },
+    {
+        "name": "Time", "label": "Effective Time", "type": "float",
+        "page": "Glitch", "default": 0.0,
+        "min": -100000.0, "max": 100000.0,
+        "uniform": "uTime", "animatable": False,
+        "description": "Resolved animation time sent to the glitch shader.",
+    },
+    {
+        "name": "Style", "label": "Glitch Style", "type": "menu",
+        "page": "Glitch Style", "default": "glitch_fusion",
+        "menu_names": list(GLITCH_FUSION_STYLE_NAMES),
+        "menu_labels": list(GLITCH_FUSION_STYLE_LABELS),
+        "uniform": "uStyle",
+        "description": "Choose one of 24 distinct glitch treatments.",
+    },
+    {
+        "name": "Mix", "label": "Effect Mix", "type": "float",
+        "page": "Glitch Style", "default": 1.0,
+        "min": 0.0, "max": 1.0, "uniform": "uMix",
+        "description": "Blend continuously between the source and glitch output.",
+    },
+    {
+        "name": "Intensity", "label": "Glitch Intensity", "type": "float",
+        "page": "Glitch Style", "default": 0.68,
+        "min": 0.0, "max": 1.0, "uniform": "uIntensity",
+        "description": "Scale the probability and strength of the selected glitch.",
+    },
+    {
+        "name": "Speed", "label": "Glitch Speed", "type": "float",
+        "page": "Glitch Style", "default": 1.0,
+        "min": 0.0, "max": 8.0, "uniform": "uSpeed",
+        "description": "Set the temporal rate of animated glitch decisions.",
+    },
+    {
+        "name": "Blocksize", "label": "Block Size (Pixels)", "type": "int",
+        "page": "Geometry", "default": 32,
+        "min": 2, "max": 512, "uniform": "uBlockSize",
+        "description": "Set macroblock and mosaic cell size in source pixels.",
+    },
+    {
+        "name": "Slicedensity", "label": "Slice Density", "type": "int",
+        "page": "Geometry", "default": 48,
+        "min": 2, "max": 512, "uniform": "uSliceDensity",
+        "description": "Set the number of horizontal decision bands.",
+    },
+    {
+        "name": "Displacement", "label": "Displacement", "type": "float",
+        "page": "Geometry", "default": 0.12,
+        "min": 0.0, "max": 0.5, "uniform": "uDisplacement",
+        "description": "Control block, slice, wave, hold, and data-bend offsets.",
+    },
+    {
+        "name": "Jitter", "label": "Frame / Line Jitter", "type": "float",
+        "page": "Geometry", "default": 0.035,
+        "min": 0.0, "max": 0.25, "uniform": "uJitter",
+        "description": "Control frame and scanline position instability.",
+    },
+    {
+        "name": "Smear", "label": "Smear Distance", "type": "float",
+        "page": "Geometry", "default": 0.16,
+        "min": 0.0, "max": 0.6, "uniform": "uSmear",
+        "description": "Control pixel-sort and datamosh streak length.",
+    },
+    {
+        "name": "Rgbsplit", "label": "RGB Split", "type": "float",
+        "page": "Signal", "default": 0.012,
+        "min": 0.0, "max": 0.1, "uniform": "uRgbSplit",
+        "description": "Separate red and blue sampling positions.",
+    },
+    {
+        "name": "Noiseamount", "label": "Digital Noise", "type": "float",
+        "page": "Signal", "default": 0.38,
+        "min": 0.0, "max": 1.0, "uniform": "uNoiseAmount",
+        "description": "Control static, snow, and digital noise amplitude.",
+    },
+    {
+        "name": "Dropout", "label": "Signal Dropout", "type": "float",
+        "page": "Signal", "default": 0.20,
+        "min": 0.0, "max": 1.0, "uniform": "uDropout",
+        "description": "Set the probability of missing signal bands.",
+    },
+    {
+        "name": "Scanlines", "label": "Scanline Amount", "type": "float",
+        "page": "Signal", "default": 0.42,
+        "min": 0.0, "max": 1.0, "uniform": "uScanlines",
+        "description": "Control analog and CRT scanline modulation.",
+    },
+    {
+        "name": "Tracking", "label": "Tracking Error", "type": "float",
+        "page": "Signal", "default": 0.018,
+        "min": 0.0, "max": 0.2, "uniform": "uTracking",
+        "description": "Control VHS tracking and rolling signal errors.",
+    },
+    {
+        "name": "Compression", "label": "Compression Damage", "type": "float",
+        "page": "Signal", "default": 0.46,
+        "min": 0.0, "max": 1.0, "uniform": "uCompression",
+        "description": "Control macroblock, datamosh, and fusion compression artifacts.",
+    },
+    {
+        "name": "Colorshift", "label": "Color Data Shift", "type": "float",
+        "page": "Color", "default": 0.35,
+        "min": 0.0, "max": 1.0, "uniform": "uColorShift",
+        "description": "Control channel rotation and data-bend color corruption.",
+    },
+    {
+        "name": "Quantize", "label": "Color Levels", "type": "int",
+        "page": "Color", "default": 12,
+        "min": 2, "max": 64, "uniform": "uQuantize",
+        "description": "Set the color levels used by quantize and compression modes.",
+    },
+    {
+        "name": "Edgeamount", "label": "Edge Corruption", "type": "float",
+        "page": "Color", "default": 1.6,
+        "min": 0.0, "max": 6.0, "uniform": "uEdgeAmount",
+        "description": "Set sensitivity for edge-driven corruption.",
+    },
+    {
+        "name": "Seed", "label": "Random Seed", "type": "int",
+        "page": "Color", "default": 47,
+        "min": 0, "max": 100000, "uniform": "uSeed",
+        "description": "Change deterministic glitch decisions and motion.",
     },
 )
 
@@ -2228,6 +2970,129 @@ def build_ink_flow_module(parent_comp):
     return ink_flow, ink_flow_path
 
 
+def build_glitch_fusion_module(parent_comp):
+    """Build the reusable 24-style glitch treatment module."""
+
+    glitch = parent_comp.create(baseCOMP, "glitch_fusion")
+    glitch.color = (0.32, 0.12, 0.28)
+    glitch.comment = (
+        "Twenty-four selectable GPU glitch treatments with shared timing, "
+        "geometry, signal, color, mix, seed, and master-bypass controls."
+    )
+    pages = {}
+    parameter_bindings = []
+    for definition in GLITCH_FUSION_PARAMETER_DEFINITIONS:
+        page_name = definition.get("page", "Glitch")
+        page = pages.get(page_name)
+        if page is None:
+            page = glitch.appendCustomPage(page_name)
+            pages[page_name] = page
+        custom_pars = _append_parameter(glitch, page, definition)
+        parameter_bindings.append((definition, custom_pars))
+    glitch.par.Time.expr = (
+        "absTime.seconds * me.par.Timescale "
+        "if me.par.Autotime else me.par.Manualtime"
+    )
+    glitch.store(
+        "tdimagefx_glitch_fusion_module",
+        {
+            "schema_version": 1,
+            "id": "tdimagefx.core.glitch-fusion",
+            "renderer": "bounded_glsl_top",
+            "styles": list(GLITCH_FUSION_STYLE_NAMES),
+            "style_count": len(GLITCH_FUSION_STYLE_NAMES),
+            "video_fx_routing": "external_optional",
+        },
+    )
+
+    source = glitch.create(inTOP, "in1_image")
+    source.par.label = "source image"
+    source.nodeX = -400
+    source.nodeY = 0
+
+    shader_dat = glitch.create(textDAT, "pixel_shader_glitch_fusion")
+    shader_dat.text = GLITCH_FUSION_SHADER
+    shader_dat.nodeX = -200
+    shader_dat.nodeY = -200
+
+    glitch_glsl = glitch.create(glslTOP, "effect_glsl_glitch_fusion")
+    source.outputConnectors[0].connect(glitch_glsl.inputConnectors[0])
+    glitch_glsl.nodeX = 0
+    glitch_glsl.nodeY = 0
+    glitch_glsl.par.pixeldat = glitch_glsl.relativePath(shader_dat)
+    if glitch_glsl.par["glslversion"] is not None:
+        glitch_glsl.par.glslversion = "glsl460"
+    if glitch_glsl.par["compilebehavior"] is not None:
+        glitch_glsl.par.compilebehavior = "stalluntildone"
+    if glitch_glsl.par["errorbehavior"] is not None:
+        glitch_glsl.par.errorbehavior = "showerror"
+    if glitch_glsl.par["outputresolution"] is not None:
+        glitch_glsl.par.outputresolution = "useinput"
+
+    active_bindings = [
+        (definition, custom_pars)
+        for definition, custom_pars in parameter_bindings
+        if definition.get("uniform")
+    ]
+    glitch_glsl.seq.vec.numBlocks = max(
+        1,
+        sum(
+            1
+            for definition, _custom_pars in active_bindings
+            if definition.get("type") not in {"rgb", "rgba"}
+        ),
+    )
+    glitch_glsl.seq.color.numBlocks = max(
+        1,
+        sum(
+            1
+            for definition, _custom_pars in active_bindings
+            if definition.get("type") in {"rgb", "rgba"}
+        ),
+    )
+    vector_index = 0
+    color_index = 0
+    for definition, custom_pars in active_bindings:
+        current_vector_index = vector_index
+        vector_index, color_index = _configure_glsl_uniform(
+            glitch_glsl,
+            definition,
+            custom_pars,
+            vector_index,
+            color_index,
+        )
+        if definition["name"] == "Style":
+            glitch_glsl.par[
+                "vec{}valuex".format(current_vector_index)
+            ].expr = "parent().par.Style.menuIndex"
+
+    enable_switch = glitch.create(switchTOP, "enable_switch")
+    source.outputConnectors[0].connect(enable_switch.inputConnectors[0])
+    glitch_glsl.outputConnectors[0].connect(enable_switch.inputConnectors[1])
+    enable_switch.par.index.expr = "1 if parent().par.Enabled else 0"
+    enable_switch.nodeX = 200
+    enable_switch.nodeY = 0
+
+    output = glitch.create(outTOP, "out1_glitch")
+    enable_switch.outputConnectors[0].connect(output.inputConnectors[0])
+    output.nodeX = 400
+    output.nodeY = 0
+    output.display = True
+    output.render = True
+    glitch.par.opviewer = output.path
+
+    glitch_glsl.cook(force=True)
+    errors = list(glitch_glsl.errors())
+    if errors:
+        raise RuntimeError(
+            "Glitch Fusion shader failed: {}".format("; ".join(errors))
+        )
+
+    glitch_path = CORE_ROOT / "GlitchFusion.tox"
+    glitch.save(str(glitch_path), createFolders=True)
+    return glitch, glitch_path
+
+
 def build_browser(parent_comp, manifests, compatibility_confidence="declared"):
     browser = parent_comp.create(baseCOMP, "fx_browser")
     browser.color = (0.14, 0.38, 0.30)
@@ -2850,6 +3715,7 @@ def build_library(project_comp, manifests, report):
         "Use core/fx_rack for an eight-effect chain with presets and modulation.\n"
         "Use core/particle_random_move for GPU image particles with deterministic random motion.\n"
         "Use core/ink_flow_fusion for minimal ink work, ink wash, and water-current particles.\n"
+        "Use core/glitch_fusion for 24 selectable digital and analog glitch treatments.\n"
         "Use core/fx_browser to search, filter, favorite, and create effects.\n"
         "Use the promoted Find(), CreateEffect(), CheckUpdates(), and HealthCheck() methods.\n"
         "All effect versions are immutable and stored under packages/<id>/<version>.\n"
@@ -2942,8 +3808,11 @@ def build_library(project_comp, manifests, report):
     ink_flow, ink_flow_path = build_ink_flow_module(core_parent)
     ink_flow.nodeX = 520
     ink_flow.nodeY = 0
+    glitch, glitch_path = build_glitch_fusion_module(core_parent)
+    glitch.nodeX = 780
+    glitch.nodeY = 0
     browser, browser_path = build_browser(core_parent, manifests, compatibility_confidence)
-    browser.nodeX = 780
+    browser.nodeX = 1040
     browser.nodeY = 0
 
     library.par.Status = "Ready: {} packages".format(len(manifests))
@@ -2954,20 +3823,29 @@ def build_library(project_comp, manifests, report):
         "rack": str(rack_path),
         "particles": str(particle_path),
         "ink_flow": str(ink_flow_path),
+        "glitch": str(glitch_path),
         "browser": str(browser_path),
         "updater": str(CORE_ROOT / "FxUpdater.tox"),
     }
-    return library, rack_path, particle_path, ink_flow_path
+    return library, rack_path, particle_path, ink_flow_path, glitch_path
 
 
-def build_demo(project_comp, rack_path, particle_path, ink_flow_path):
+def build_demo(
+    project_comp,
+    rack_path,
+    particle_path,
+    ink_flow_path,
+    glitch_path,
+):
     demo = project_comp.create(baseCOMP, "imagefx_demo")
     demo.nodeX = 100
     demo.nodeY = 100
     demo.color = (0.32, 0.18, 0.36)
     demo.comment = (
         "Animated source -> optional ink flow -> optional random particles -> "
-        "optional eight-slot video FX. Replace source_image with any TOP."
+        "optional Glitch Fusion -> optional eight-slot video FX. "
+        "Output defaults to 1920 x 1080 with 4K UHD and custom presets. "
+        "Replace source_image with any TOP."
     )
     demo_page = demo.appendCustomPage("Demo")
     _append_parameter(
@@ -2996,12 +3874,32 @@ def build_demo(project_comp, rack_path, particle_path, ink_flow_path):
         demo,
         demo_page,
         {
+            "name": "Glitchenabled",
+            "label": "Glitch Module Enabled",
+            "type": "toggle",
+            "default": False,
+            "description": "Apply the selected Glitch Fusion treatment after both particle stages.",
+        },
+    )
+    _append_parameter(
+        demo,
+        demo_page,
+        {
             "name": "Applyvideofx",
             "label": "Apply Video Effects",
             "type": "toggle",
             "default": True,
             "description": "Route the source or particles through the eight-slot rack.",
         },
+    )
+    output_page = demo.appendCustomPage("Output")
+    for definition in DEMO_OUTPUT_PARAMETER_DEFINITIONS:
+        _append_parameter(demo, output_page, definition)
+    demo.par.Customwidth.enableExpr = (
+        "me.par.Resolutionpreset.eval() == 'custom'"
+    )
+    demo.par.Customheight.enableExpr = (
+        "me.par.Resolutionpreset.eval() == 'custom'"
     )
 
     source_shader = demo.create(textDAT, "source_image_shader")
@@ -3024,8 +3922,8 @@ def build_demo(project_comp, rack_path, particle_path, ink_flow_path):
     source.par.vec0valuex.expr = "absTime.seconds"
     if source.par["outputresolution"] is not None:
         source.par.outputresolution = "custom"
-        source.par.resolutionw = 1280
-        source.par.resolutionh = 720
+        source.par.resolutionw.expr = _demo_output_resolution_expression("width")
+        source.par.resolutionh.expr = _demo_output_resolution_expression("height")
     source.cook(force=True)
     source_errors = list(source.errors())
     if source_errors:
@@ -3053,10 +3951,20 @@ def build_demo(project_comp, rack_path, particle_path, ink_flow_path):
     particles.par.Enabled.expr = "parent().par.Particlesenabled"
     ink_flow.outputConnectors[0].connect(particles.inputConnectors[0])
 
+    glitch = load_tox_component(
+        demo,
+        glitch_path,
+        "glitch_fusion",
+    )
+    glitch.nodeX = 480
+    glitch.nodeY = 0
+    glitch.par.Enabled.expr = "parent().par.Glitchenabled"
+    particles.outputConnectors[0].connect(glitch.inputConnectors[0])
+
     rack = load_tox_component(demo, rack_path, "fx_rack")
-    rack.nodeX = 480
+    rack.nodeX = 740
     rack.nodeY = 0
-    particles.outputConnectors[0].connect(rack.inputConnectors[0])
+    glitch.outputConnectors[0].connect(rack.inputConnectors[0])
 
     # Supply visible, deterministic fixtures for every semantic auxiliary bus.
     # The reusable rack still exposes these as normal inputs; this only makes
@@ -3103,16 +4011,20 @@ def build_demo(project_comp, rack_path, particle_path, ink_flow_path):
         fixture.outputConnectors[0].connect(rack.inputConnectors[input_index])
 
     video_fx_router = demo.create(switchTOP, "video_fx_router")
-    particles.outputConnectors[0].connect(video_fx_router.inputConnectors[0])
+    glitch.outputConnectors[0].connect(video_fx_router.inputConnectors[0])
     rack.outputConnectors[0].connect(video_fx_router.inputConnectors[1])
     video_fx_router.par.index.expr = "1 if parent().par.Applyvideofx else 0"
-    video_fx_router.nodeX = 730
+    video_fx_router.nodeX = 990
     video_fx_router.nodeY = 0
 
     output = demo.create(outTOP, "out1_image")
     video_fx_router.outputConnectors[0].connect(output.inputConnectors[0])
-    output.nodeX = 940
+    output.nodeX = 1200
     output.nodeY = 0
+    if output.par["outputresolution"] is not None:
+        output.par.outputresolution = "custom"
+        output.par.resolutionw.expr = _demo_output_resolution_expression("width")
+        output.par.resolutionh.expr = _demo_output_resolution_expression("height")
     output.display = True
     output.render = True
     demo.par.opviewer = output.path
@@ -3289,7 +4201,13 @@ def build():
         template_nodes = _default_template_nodes(project_comp)
         for node in [*existing, *template_nodes]:
             node.destroy()
-        library, rack_path, particle_path, ink_flow_path = build_library(
+        (
+            library,
+            rack_path,
+            particle_path,
+            ink_flow_path,
+            glitch_path,
+        ) = build_library(
             project_comp,
             manifests,
             report,
@@ -3299,6 +4217,7 @@ def build():
             rack_path,
             particle_path,
             ink_flow_path,
+            glitch_path,
         )
         report["benchmark_data"] = str(_write_benchmark_data(report))
         if report["shader_errors"]:

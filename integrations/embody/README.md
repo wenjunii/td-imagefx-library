@@ -32,11 +32,12 @@ top-level operators.
    ```
 
 The installer loads the tracked `TDImageFXLibrary.tox`, `InkFlowFusion.tox`,
-`ParticleRandomMove.tox`, and `FxRack.tox`,
+`ParticleRandomMove.tox`, `GlitchFusion.tox`, and `FxRack.tox`,
 synchronizes their extension DATs from `touchdesigner/extensions/`, repairs
 legacy absolute Pixel Shader DAT paths inside loaded effects, points every
-library root at the checkout, and creates the same managed paths used by the
-canonical project. It refuses to run in `TD_ImageFX_Library.toe`, refuses to
+library root at the checkout, creates the same managed paths used by the
+canonical project, and exposes HD, 4K UHD, and custom output-resolution
+controls. It refuses to run in `TD_ImageFX_Library.toe`, refuses to
 replace existing managed roots, and never saves a project. Run it through Envoy
 for a single undoable operation, or use a fresh local harness when you need a
 clean reset.
@@ -64,8 +65,8 @@ still using another bridge configuration.
 2. confirms the selected TD/Envoy instance and records baseline performance;
 3. checks the managed network and calls `HealthCheck`;
 4. checks recursive operator errors and warnings;
-5. captures the demo, ink-flow, random-particle, rack, and browser preview TOPs with Envoy's
-   pixel-quality verdict; and
+5. captures the demo, ink-flow, random-particle, Glitch Fusion, rack, and
+   browser preview TOPs with Envoy's pixel-quality verdict; and
 6. compares final performance before running the offline repository verifier.
 
 For a local JSON diagnostic from TouchDesigner, run:

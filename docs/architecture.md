@@ -146,19 +146,27 @@ The browser supports text/category/tag/favorite filters plus channel, model, cap
 
 The rack provides eight ordered slots; enable/mix/bypass; reset/reload; validated presets; modulation; automatic or manual time; and semantic second-image/displacement/depth/normal/flow/mask routing. Presets are UI/project state. They can retain exact versions but do not install packages, approve updates, or replace the project lock.
 
-`InkFlowFusion.tox` and `ParticleRandomMove.tox` are separate reusable core
-modules rather than immutable effect packages. Ink Flow Fusion combines two
-single-pass minimal Chinese ink treatments with an optional seeded
-water-current particle composite. Its whole module, visual treatment, and
-particle layer each have explicit bypass controls. Particle Random Move
-converts an image into deterministic seeded random-moving particles on the
-GPU and returns its input unchanged when disabled. Neither module retains
-feedback state.
+`InkFlowFusion.tox`, `ParticleRandomMove.tox`, and `GlitchFusion.tox` are
+separate reusable core modules rather than immutable effect packages. Ink Flow
+Fusion combines two single-pass minimal Chinese ink treatments with an
+optional seeded water-current particle composite. Its whole module, visual
+treatment, and particle layer each have explicit bypass controls. Particle
+Random Move converts an image into deterministic seeded random-moving
+particles on the GPU and returns its input unchanged when disabled. Glitch
+Fusion provides 24 bounded single-pass corruption styles with shared timing,
+geometry, signal, color, seed, mix, and master-bypass controls. None of these
+modules retains feedback state.
 
 The canonical demo routes source -> ink-flow module -> random-particle module
--> rack, then uses an explicit final switch for the rack. The three demo-level
-bypasses and the two feature switches inside Ink Flow Fusion allow the stages
-to be used independently or combined without rewiring.
+-> Glitch Fusion -> rack, then uses an explicit final switch for the rack. The
+four demo-level bypasses and the two feature switches inside Ink Flow Fusion
+allow every stage to be used independently or combined without rewiring.
+
+The demo owns a separate delivery-resolution contract. Its Output page selects
+HD 1920 x 1080 by default, 4K UHD 3840 x 2160, or bounded custom dimensions.
+The generated source and final Out TOP bind to that target, while replacement
+source TOPs may retain their native working resolution until the final resize.
+Resolution selection is project state, not package metadata.
 
 ### Update and release layer
 

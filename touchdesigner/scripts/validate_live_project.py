@@ -19,12 +19,14 @@ OUTPUTS = (
     "/project1/imagefx_demo/out1_image",
     "/project1/imagefx_demo/ink_flow/out1_ink_flow",
     "/project1/imagefx_demo/particle_random_move/out1_particles",
+    "/project1/imagefx_demo/glitch_fusion/out1_glitch",
     "/project1/imagefx_demo/fx_rack/out1_image",
     "/project1/td_imagefx/core/fx_browser/selected_preview",
 )
 DIAGNOSTIC_COOKS = (
     "/project1/td_imagefx/core/fx_browser",
 )
+EXPECTED_RESOLUTION_PRESETS = ("hd", "uhd4k", "custom")
 
 
 def _messages(operator, method_name):
@@ -116,6 +118,64 @@ def _output_diagnostics(path):
     }
 
 
+def _resolution_diagnostics(primary_output):
+    demo = op("/project1/imagefx_demo")
+    if demo is None:
+        return {
+            "ok": False,
+            "errors": ["imagefx_demo is missing"],
+        }
+    try:
+        preset = str(demo.par.Resolutionpreset.eval())
+        custom_width = int(demo.par.Customwidth.eval())
+        custom_height = int(demo.par.Customheight.eval())
+        menu_names = tuple(
+            str(item) for item in demo.par.Resolutionpreset.menuNames
+        )
+        targets = {
+            "hd": (1920, 1080),
+            "uhd4k": (3840, 2160),
+            "custom": (custom_width, custom_height),
+        }
+        target = targets.get(preset)
+        actual = (
+            primary_output.get("width"),
+            primary_output.get("height"),
+        )
+        errors = []
+        if menu_names != EXPECTED_RESOLUTION_PRESETS:
+            errors.append("Resolution preset menu does not match the contract")
+        if target is None:
+            errors.append("Unknown resolution preset: {}".format(preset))
+        elif actual != target:
+            errors.append(
+                "Primary output is {}x{} but {} requires {}x{}".format(
+                    actual[0],
+                    actual[1],
+                    preset,
+                    target[0],
+                    target[1],
+                )
+            )
+        return {
+            "ok": not errors,
+            "preset": preset,
+            "preset_menu": list(menu_names),
+            "custom_width": custom_width,
+            "custom_height": custom_height,
+            "target_width": target[0] if target else None,
+            "target_height": target[1] if target else None,
+            "actual_width": actual[0],
+            "actual_height": actual[1],
+            "errors": errors,
+        }
+    except Exception as exc:
+        return {
+            "ok": False,
+            "errors": ["{}: {}".format(type(exc).__name__, exc)],
+        }
+
+
 def validate(write_report=True):
     """Return a JSON-safe diagnostic report and optionally write the ignored copy."""
 
@@ -139,6 +199,7 @@ def validate(write_report=True):
     # errors or operator-parameter warnings on parent COMPs until the repaired
     # node has cooked again.
     outputs = [_output_diagnostics(path) for path in OUTPUTS]
+    resolution = _resolution_diagnostics(outputs[0])
     for path in DIAGNOSTIC_COOKS:
         operator = op(path)
         if operator is not None:
@@ -162,7 +223,7 @@ def validate(write_report=True):
         "schema_version": 1,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "project_id": "td-imagefx-library",
-        "ok": health_ok and roots_ok and outputs_ok,
+        "ok": health_ok and roots_ok and outputs_ok and resolution["ok"],
         "touchdesigner": {
             "version": str(app.version),
             "build": str(app.build),
@@ -172,6 +233,7 @@ def validate(write_report=True):
         "health": health,
         "managed_roots": roots,
         "outputs": outputs,
+        "output_resolution": resolution,
         "pixel_validation_required": True,
         "pixel_validation_note": (
             "Use Envoy capture_top on every configured output; structural checks "

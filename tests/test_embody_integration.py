@@ -93,6 +93,7 @@ class EmbodyIntegrationTests(unittest.TestCase):
                 "/project1/imagefx_demo/out1_image",
                 "/project1/imagefx_demo/ink_flow/out1_ink_flow",
                 "/project1/imagefx_demo/particle_random_move/out1_particles",
+                "/project1/imagefx_demo/glitch_fusion/out1_glitch",
                 "/project1/imagefx_demo/fx_rack/out1_image",
                 "/project1/td_imagefx/core/fx_browser/selected_preview",
             ],
@@ -105,6 +106,9 @@ class EmbodyIntegrationTests(unittest.TestCase):
         validator = (
             ROOT / "touchdesigner" / "scripts" / "validate_live_project.py"
         ).read_text(encoding="utf-8")
+        output_validator = (
+            ROOT / "touchdesigner" / "scripts" / "validate_output_resolution.py"
+        ).read_text(encoding="utf-8")
 
         self.assertIn("Refusing to install the QA harness", installer)
         self.assertIn("managed root already exists", installer)
@@ -114,9 +118,14 @@ class EmbodyIntegrationTests(unittest.TestCase):
         self.assertIn('parameter.val = ""', installer)
         self.assertIn('parameter.expr = "me.op(\'../../effects\')"', installer)
         self.assertIn("browser.cook(force=True)", installer)
-        self.assertEqual(installer.count("_repair_effect_shader_paths("), 5)
+        self.assertEqual(installer.count("_repair_effect_shader_paths("), 6)
         self.assertIn("ParticleRandomMove.tox", installer)
         self.assertIn("InkFlowFusion.tox", installer)
+        self.assertIn("GlitchFusion.tox", installer)
+        self.assertIn("HD 1920 x 1080", installer)
+        self.assertIn("4K UHD 3840 x 2160", installer)
+        self.assertIn("Customwidth", installer)
+        self.assertIn("Customheight", installer)
         self.assertEqual(installer.count("_sync_extension("), 6)
         self.assertIn('_sync_extension(browser, "ImageFXBrowserExt")', installer)
         self.assertIn('_sync_extension(updater, "UpdaterExt")', installer)
@@ -129,6 +138,12 @@ class EmbodyIntegrationTests(unittest.TestCase):
         self.assertIn("pixel_validation_required", validator)
         self.assertIn("EXPECTED_PACKAGES = 96", validator)
         self.assertIn("EXPECTED_VERSIONS = 122", validator)
+        self.assertIn("EXPECTED_RESOLUTION_PRESETS", validator)
+        self.assertIn("EXPECTED_PRESETS", output_validator)
+        self.assertIn("3840", output_validator)
+        self.assertIn("2160", output_validator)
+        self.assertIn("1234", output_validator)
+        self.assertIn("678", output_validator)
         self.assertTrue(
             (ROOT / "docs" / "embody-envoy-integration.md").is_file()
         )

@@ -242,6 +242,93 @@ class TouchDesignerBuilderPathTests(unittest.TestCase):
         self.assertIn("for (int offsetX = -2; offsetX <= 2; ++offsetX)", shader)
         self.assertNotIn("feedback", shader.lower())
 
+    def test_glitch_fusion_exposes_twenty_four_bounded_styles(self) -> None:
+        shader = BUILDER.GLITCH_FUSION_SHADER
+        uniform_names = {
+            definition["uniform"]
+            for definition in BUILDER.GLITCH_FUSION_PARAMETER_DEFINITIONS
+            if definition.get("uniform")
+        }
+        self.assertEqual(
+            uniform_names,
+            {
+                "uTime",
+                "uStyle",
+                "uMix",
+                "uIntensity",
+                "uSpeed",
+                "uSeed",
+                "uBlockSize",
+                "uSliceDensity",
+                "uDisplacement",
+                "uJitter",
+                "uSmear",
+                "uRgbSplit",
+                "uNoiseAmount",
+                "uDropout",
+                "uScanlines",
+                "uTracking",
+                "uCompression",
+                "uColorShift",
+                "uQuantize",
+                "uEdgeAmount",
+            },
+        )
+        for uniform in uniform_names:
+            self.assertIn(uniform, shader)
+        style = next(
+            definition
+            for definition in BUILDER.GLITCH_FUSION_PARAMETER_DEFINITIONS
+            if definition["name"] == "Style"
+        )
+        self.assertEqual(len(BUILDER.GLITCH_FUSION_STYLE_NAMES), 24)
+        self.assertEqual(len(set(BUILDER.GLITCH_FUSION_STYLE_NAMES)), 24)
+        self.assertEqual(
+            tuple(style["menu_names"]),
+            BUILDER.GLITCH_FUSION_STYLE_NAMES,
+        )
+        self.assertEqual(style["default"], "glitch_fusion")
+        self.assertIn("rgbSplitColor", shader)
+        self.assertIn("smearColor", shader)
+        self.assertIn("Glitch Fusion", shader)
+        self.assertNotIn("for (", shader)
+        self.assertNotIn("feedback", shader.lower())
+
+    def test_demo_output_supports_hd_4k_and_bounded_custom_resolution(self) -> None:
+        self.assertEqual(
+            BUILDER.DEMO_OUTPUT_PRESETS,
+            (
+                ("hd", "HD 1920 x 1080", 1920, 1080),
+                ("uhd4k", "4K UHD 3840 x 2160", 3840, 2160),
+                ("custom", "Custom", None, None),
+            ),
+        )
+        definitions = {
+            item["name"]: item
+            for item in BUILDER.DEMO_OUTPUT_PARAMETER_DEFINITIONS
+        }
+        self.assertEqual(
+            definitions["Resolutionpreset"]["menu_names"],
+            ["hd", "uhd4k", "custom"],
+        )
+        self.assertEqual(definitions["Resolutionpreset"]["default"], "hd")
+        self.assertEqual(definitions["Customwidth"]["default"], 1920)
+        self.assertEqual(definitions["Customheight"]["default"], 1080)
+        self.assertEqual(definitions["Customwidth"]["min"], 16)
+        self.assertEqual(definitions["Customwidth"]["max"], 8192)
+        self.assertEqual(definitions["Customheight"]["min"], 16)
+        self.assertEqual(definitions["Customheight"]["max"], 8192)
+        width_expression = BUILDER._demo_output_resolution_expression("width")
+        height_expression = BUILDER._demo_output_resolution_expression("height")
+        self.assertIn("1920", width_expression)
+        self.assertIn("3840", width_expression)
+        self.assertIn("Customwidth", width_expression)
+        self.assertIn("1080", height_expression)
+        self.assertIn("2160", height_expression)
+        self.assertIn("Customheight", height_expression)
+        with self.assertRaisesRegex(ValueError, "width or height"):
+            BUILDER._demo_output_resolution_expression("depth")
+
     def test_native_project_rejects_foreign_top_level_nodes(self) -> None:
         project_comp = SimpleNamespace(
             children=[
