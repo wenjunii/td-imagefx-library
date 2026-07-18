@@ -105,7 +105,7 @@ git clone https://github.com/wenjunii/td-imagefx-library.git
 cd td-imagefx-library
 ```
 
-The v0.3 source and generated artifacts are synchronized. The recorded Windows build used TouchDesigner `2025.32820` and validated all 96 current effects with 122 versioned effect `.tox` files, four core `.tox` files, one library `.toe`, 96 previews, 96 visual baselines, and 96 benchmark samples. The build report contains zero shader, preview, or builder errors. A fresh repository run completed 153 tests successfully, with four expected Windows symlink-permission skips, and two independent 99-file release builds matched byte-for-byte. Read [TouchDesigner setup](docs/touchdesigner-setup.md) to reproduce the native build.
+The v0.3 source and generated artifacts are synchronized. The recorded Windows build used TouchDesigner `2025.32820` and validated all 96 current effects with 122 versioned effect `.tox` files, four core `.tox` files, one library `.toe`, 96 previews, 96 visual baselines, and 96 benchmark samples. The build report contains zero shader, preview, or builder errors. A fresh repository run completed 154 tests successfully, with four expected Windows symlink-permission skips, and two independent 99-file release builds matched byte-for-byte. Read [TouchDesigner setup](docs/touchdesigner-setup.md) to reproduce the native build.
 
 The generated project targets TouchDesigner 2025. Validate the exact TouchDesigner build, operating system, GPU, driver, resolution, pixel format, and color pipeline used by your production system. Python 3.11 or newer is required for repository tooling; it is not required merely to use already-built native components.
 
@@ -187,7 +187,7 @@ Run the dependency-free repository check with Python 3.11 or newer:
 python tools/verify_repository.py
 ```
 
-The verifier expects exactly 96 current IDs and 122 immutable manifests. It compiles Python, runs tests, validates manifests and feeds, verifies the recorded hashes of the library `.toe`, all 122 effect `.tox` files, and four core `.tox` files, compares generated gallery/baseline/benchmark coverage with the latest catalog, and prevents version drift. A failure caused by stale native or generated artifacts is intentional: rebuild and review them rather than weakening the invariant.
+The verifier expects exactly 96 current IDs and 122 immutable manifests. It compiles Python, runs tests, validates manifests and feeds, verifies the recorded hashes of the library `.toe`, all 122 effect `.tox` files, and four core `.tox` files, compares generated gallery/baseline/benchmark coverage with the latest catalog, and prevents version drift. It also cross-checks this README's test and catalog claims, the ImageFX project context, and the live validator's package/build constants against checked source and native records. A failure caused by stale native or generated artifacts is intentional: rebuild and review them rather than weakening the invariant.
 
 GitHub Actions runs verification on Windows, macOS, and Linux with Python 3.11 and 3.13, and separately rejects modifications to package versions already present in repository history.
 

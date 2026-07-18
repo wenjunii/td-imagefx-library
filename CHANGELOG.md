@@ -22,6 +22,9 @@ All notable changes to TD ImageFX Library are recorded here. Package versions fo
 - Repository verification now protects the live-QA integration identity,
   catalog counts, managed paths, required audit tools, and no-save harness
   boundary.
+- Repository verification now also rejects drift between public README claims,
+  the checked source test count, the live validator's catalog constants, and
+  the native TouchDesigner build recorded in the ImageFX project context.
 - The native builder and runtime loaders now keep GLSL Pixel Shader DAT
   references package-relative when effects move into a rack or user network.
 - The browser now reloads and cooks its selected preview after a catalog
@@ -30,8 +33,8 @@ All notable changes to TD ImageFX Library are recorded here. Package versions fo
 - The native `.toe`, four core `.tox` components, benchmark report, and
   SHA-256-bound native validation record were rebuilt with TouchDesigner
   `2025.32820`.
-- The offline suite now contains 153 tests, including four integration contract
-  checks and three portable-shader-path checks.
+- The offline suite now contains 154 tests, including five integration and
+  public-documentation contract checks and three portable-shader-path checks.
 
 ## [0.3.0] - 2026-07-16
 

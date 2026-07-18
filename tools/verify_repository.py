@@ -7,6 +7,7 @@ This script has no third-party dependencies. Run it from any working directory:
 
 from __future__ import annotations
 
+import ast
 import json
 import hashlib
 import math
@@ -60,6 +61,78 @@ def _extract_assignment(path: Path, name: str) -> str:
     if match is None:
         raise VerificationError(f"Cannot find {name} in {path.relative_to(ROOT)}")
     return match.group(1)
+
+
+def _source_test_count() -> int:
+    """Count checked-in unittest methods without importing the test modules."""
+
+    count = 0
+    for path in sorted((ROOT / "tests").glob("test_*.py")):
+        try:
+            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        except (OSError, SyntaxError) as exc:
+            raise VerificationError(
+                f"Cannot inspect tests in {path.relative_to(ROOT)}: {exc}"
+            ) from exc
+        count += sum(
+            1
+            for node in ast.walk(tree)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and node.name.startswith("test_")
+        )
+    if count < 1:
+        raise VerificationError("No source unit tests were discovered")
+    return count
+
+
+def _check_public_documentation() -> None:
+    """Keep public verification claims synchronized with checked source data."""
+
+    readme_path = ROOT / "README.md"
+    try:
+        readme = readme_path.read_text(encoding="utf-8")
+    except OSError as exc:
+        raise VerificationError(f"Cannot read README.md: {exc}") from exc
+
+    catalog_claim = re.search(
+        r"validated all (\d+) current effects with (\d+) versioned effect",
+        readme,
+    )
+    coverage_claim = re.search(
+        r"(\d+) previews, (\d+) visual baselines, and (\d+) benchmark samples",
+        readme,
+    )
+    test_claim = re.search(
+        r"fresh repository run completed (\d+) tests successfully",
+        readme,
+        re.IGNORECASE,
+    )
+    if (
+        catalog_claim is None
+        or tuple(map(int, catalog_claim.groups()))
+        != (EXPECTED_EFFECT_ID_COUNT, EXPECTED_PACKAGE_VERSION_COUNT)
+    ):
+        raise VerificationError("README catalog counts do not match the repository")
+    if (
+        coverage_claim is None
+        or tuple(map(int, coverage_claim.groups()))
+        != (EXPECTED_EFFECT_ID_COUNT,) * 3
+    ):
+        raise VerificationError("README generated-coverage counts do not match the catalog")
+    source_test_count = _source_test_count()
+    if test_claim is None or int(test_claim.group(1)) != source_test_count:
+        raise VerificationError(
+            "README test count does not match the checked-in suite "
+            f"({source_test_count})"
+        )
+    for reference in (
+        "docs/embody-envoy-integration.md",
+        "integrations/embody/",
+    ):
+        if reference not in readme:
+            raise VerificationError(
+                f"README is missing the public integration reference: {reference}"
+            )
 
 
 def _check_versions() -> str:
@@ -445,13 +518,17 @@ def _check_update_sources() -> None:
 def _check_embody_integration() -> None:
     """Validate the public, non-destructive live-QA integration contract."""
 
+    installer_path = ROOT / "touchdesigner" / "scripts" / "install_dev_harness.py"
+    validator_path = ROOT / "touchdesigner" / "scripts" / "validate_live_project.py"
+    public_guide_path = ROOT / "docs" / "embody-envoy-integration.md"
     required = (
         EMBODY_INTEGRATION / "README.md",
         EMBODY_INTEGRATION / "project-context.json",
         EMBODY_INTEGRATION / "mcp-config.example.json",
         EMBODY_INTEGRATION / "envoy-validation-plan.json",
-        ROOT / "touchdesigner" / "scripts" / "install_dev_harness.py",
-        ROOT / "touchdesigner" / "scripts" / "validate_live_project.py",
+        installer_path,
+        validator_path,
+        public_guide_path,
     )
     missing = [path.relative_to(ROOT) for path in required if not path.is_file()]
     if missing:
@@ -461,14 +538,18 @@ def _check_embody_integration() -> None:
 
     context = _read_json(EMBODY_INTEGRATION / "project-context.json")
     catalog = (context.get("overview") or {}).get("catalog") or {}
+    native = _read_json(ROOT / "docs" / "native-validation.json")
+    native_build = (native.get("touchdesigner") or {}).get("build")
     if (
         context.get("schema_version") != 1
         or context.get("project_id") != "td-imagefx-library"
         or catalog.get("current_effect_ids") != EXPECTED_EFFECT_ID_COUNT
         or catalog.get("immutable_package_versions") != EXPECTED_PACKAGE_VERSION_COUNT
+        or (context.get("overview") or {}).get("validated_touchdesigner_build")
+        != native_build
     ):
         raise VerificationError(
-            "Embody project context does not match the current ImageFX catalog"
+            "Embody project context does not match the ImageFX catalog/native build"
         )
     network = context.get("network") or {}
     outputs = context.get("outputs") or {}
@@ -522,9 +603,19 @@ def _check_embody_integration() -> None:
     if not required_tools.issubset(tools):
         raise VerificationError("Envoy validation plan is missing required audit tools")
 
-    installer = required[-2].read_text(encoding="utf-8")
+    installer = installer_path.read_text(encoding="utf-8")
     if "project.save(" in installer or "_save_project_atomically" in installer:
         raise VerificationError("Development harness installer may not save a project")
+    validator = validator_path.read_text(encoding="utf-8")
+    for name, expected in (
+        ("EXPECTED_PACKAGES", EXPECTED_EFFECT_ID_COUNT),
+        ("EXPECTED_VERSIONS", EXPECTED_PACKAGE_VERSION_COUNT),
+    ):
+        match = re.search(rf"^{name}\s*=\s*(\d+)\s*$", validator, re.MULTILINE)
+        if match is None or int(match.group(1)) != expected:
+            raise VerificationError(
+                f"Live validator {name} does not match the repository catalog"
+            )
 
 
 def _run(label: str, arguments: list[str], env: dict[str, str]) -> None:
@@ -547,6 +638,7 @@ def main() -> int:
         _check_embody_integration()
         _check_generated_artifacts(package_ids, latest_versions)
         _check_native_validation(version)
+        _check_public_documentation()
 
         env = os.environ.copy()
         existing_pythonpath = env.get("PYTHONPATH")

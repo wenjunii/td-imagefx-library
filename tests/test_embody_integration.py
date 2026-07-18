@@ -30,10 +30,16 @@ class EmbodyIntegrationTests(unittest.TestCase):
         context = json.loads(
             (INTEGRATION / "project-context.json").read_text(encoding="utf-8")
         )
+        native = json.loads(
+            (ROOT / "docs" / "native-validation.json").read_text(encoding="utf-8")
+        )
 
         self.assertEqual(context["schema_version"], 1)
         self.assertEqual(context["project_id"], "td-imagefx-library")
-        self.assertEqual(context["overview"]["validated_touchdesigner_build"], "2025.32820")
+        self.assertEqual(
+            context["overview"]["validated_touchdesigner_build"],
+            native["touchdesigner"]["build"],
+        )
         self.assertEqual(context["overview"]["catalog"]["current_effect_ids"], 96)
         self.assertEqual(context["overview"]["catalog"]["immutable_package_versions"], 122)
         self.assertEqual(context["network"]["library"], "/project1/td_imagefx")
@@ -117,6 +123,11 @@ class EmbodyIntegrationTests(unittest.TestCase):
         self.assertIn('"warnings"', validator)
         self.assertIn('"script_errors"', validator)
         self.assertIn("pixel_validation_required", validator)
+        self.assertIn("EXPECTED_PACKAGES = 96", validator)
+        self.assertIn("EXPECTED_VERSIONS = 122", validator)
+        self.assertTrue(
+            (ROOT / "docs" / "embody-envoy-integration.md").is_file()
+        )
         self.assertLess(
             validator.index("outputs = [_output_diagnostics"),
             validator.index("roots = [_operator_diagnostics"),
