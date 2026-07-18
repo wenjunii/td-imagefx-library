@@ -37,7 +37,7 @@ the knowledge library before writing TouchDesigner Python or GLSL.
 
 For an audit, follow `envoy-validation-plan.json`: confirm the TD instance,
 record baseline performance, discover the network, run `HealthCheck`, check
-recursive errors and warnings, capture the three approved TOPs, and compare
+recursive errors and warnings, capture the four approved TOPs, and compare
 final performance. Envoy's `capture_top` quality verdict must pass, and the
 images still require visual inspection. A clean operator graph does not prove
 that a frame is visible or aesthetically correct.

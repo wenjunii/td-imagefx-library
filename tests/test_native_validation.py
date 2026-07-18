@@ -10,6 +10,12 @@ from tools import record_native_validation
 
 
 class NativeValidationRecordTests(unittest.TestCase):
+    def test_particle_module_is_a_required_core_asset(self) -> None:
+        self.assertIn(
+            "touchdesigner/core/ParticleRandomMove.tox",
+            record_native_validation.CORE_ASSETS,
+        )
+
     def _fixture(self, root: Path) -> Path:
         package = root / "packages" / "tdimagefx.test.effect" / "1.0.0"
         (package / "tox").mkdir(parents=True, exist_ok=True)
@@ -69,7 +75,7 @@ class NativeValidationRecordTests(unittest.TestCase):
             self.assertEqual(record["catalog"], {"current_effects": 1, "package_versions": 1})
             self.assertEqual(record["touchdesigner"]["build"], "12345")
             self.assertEqual(record["builder"]["path"], record_native_validation.BUILDER_SOURCE)
-            self.assertEqual(len(record["artifacts"]), 6)
+            self.assertEqual(len(record["artifacts"]), 7)
             self.assertTrue(all(len(item["sha256"]) == 64 for item in record["artifacts"]))
 
     def test_record_rejects_a_build_with_errors(self) -> None:

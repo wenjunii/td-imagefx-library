@@ -242,6 +242,218 @@ void main() {
 }
 """.strip()
 
+PARTICLE_RANDOM_MOVE_SHADER = r"""
+layout(location = 0) out vec4 fragColor;
+
+uniform float uTime;
+uniform float uDensity;
+uniform float uSize;
+uniform float uSpeed;
+uniform float uMoveAmount;
+uniform float uJitter;
+uniform float uSeed;
+uniform float uShape;
+uniform float uSourceBlend;
+uniform float uOpacity;
+uniform vec2 uDrift;
+uniform vec4 uBackground;
+
+const float TAU = 6.28318530718;
+
+float particleHash(vec2 value) {
+    vec3 p3 = fract(vec3(value.xyx) * 0.1031);
+    p3 += dot(p3, p3.yzx + 33.33);
+    return fract((p3.x + p3.y) * p3.z);
+}
+
+vec2 particleMotion(vec2 cell) {
+    vec2 seededCell = cell + vec2(uSeed * 17.17, uSeed * 43.71);
+    float phase = TAU * particleHash(seededCell);
+    float rate = mix(0.55, 1.45, particleHash(seededCell + 19.31));
+    float time = uTime * uSpeed * rate;
+    vec2 orbit = vec2(
+        cos(time + phase),
+        sin(time * 1.137 + phase * 0.73)
+    ) * uMoveAmount;
+    vec2 jitter = vec2(
+        sin(time * 3.11 + phase * 2.07),
+        cos(time * 2.73 + phase * 1.61)
+    ) * uJitter;
+    vec2 drift = uDrift * sin(time * 0.43 + phase);
+    return orbit + jitter + drift;
+}
+
+float particleMetric(vec2 delta) {
+    vec2 absoluteDelta = abs(delta);
+    float circle = length(delta);
+    float square = max(absoluteDelta.x, absoluteDelta.y);
+    float diamond = (absoluteDelta.x + absoluteDelta.y) * 0.70710678118;
+    if (uShape < 0.5) {
+        return circle;
+    }
+    if (uShape < 1.5) {
+        return square;
+    }
+    return diamond;
+}
+
+void main() {
+    vec2 uv = clamp(vUV.st, 0.0, 1.0);
+    ivec2 sourceSize = textureSize(sTD2DInputs[0], 0);
+    float aspect = float(max(sourceSize.x, 1)) / float(max(sourceSize.y, 1));
+    float columns = max(4.0, floor(uDensity + 0.5));
+    float rows = max(4.0, floor(columns / max(aspect, 0.001) + 0.5));
+    vec2 grid = vec2(columns, rows);
+    vec2 gridPosition = uv * grid;
+    vec2 baseCell = floor(gridPosition);
+
+    vec4 sourceHere = texture(sTD2DInputs[0], uv);
+    vec4 baseLayer = mix(uBackground, sourceHere, clamp(uSourceBlend, 0.0, 1.0));
+    vec3 premultiplied = baseLayer.rgb * baseLayer.a;
+    float accumulatedAlpha = baseLayer.a;
+    float radius = max(0.035, uSize * 0.46);
+
+    // Motion controls are clamped so a fixed 5x5 neighborhood is sufficient.
+    // This keeps work bounded at every density and resolution.
+    for (int offsetY = -2; offsetY <= 2; ++offsetY) {
+        for (int offsetX = -2; offsetX <= 2; ++offsetX) {
+            vec2 cell = baseCell + vec2(float(offsetX), float(offsetY));
+            if (
+                cell.x < 0.0 || cell.y < 0.0
+                || cell.x >= grid.x || cell.y >= grid.y
+            ) {
+                continue;
+            }
+            vec2 center = cell + vec2(0.5) + particleMotion(cell);
+            vec2 delta = gridPosition - center;
+            float metric = particleMetric(delta);
+            float antialias = max(fwidth(metric), 0.006);
+            float coverage = 1.0 - smoothstep(
+                radius - antialias,
+                radius + antialias,
+                metric
+            );
+            if (coverage <= 0.0) {
+                continue;
+            }
+            vec2 sourceUV = (cell + vec2(0.5)) / grid;
+            vec4 source = texture(sTD2DInputs[0], sourceUV);
+            float layerAlpha = clamp(
+                coverage * source.a * uOpacity,
+                0.0,
+                1.0
+            );
+            premultiplied = source.rgb * layerAlpha
+                + premultiplied * (1.0 - layerAlpha);
+            accumulatedAlpha = layerAlpha
+                + accumulatedAlpha * (1.0 - layerAlpha);
+        }
+    }
+
+    vec3 color = accumulatedAlpha > 0.00001
+        ? premultiplied / accumulatedAlpha
+        : vec3(0.0);
+    fragColor = TDOutputSwizzle(vec4(color, accumulatedAlpha));
+}
+""".strip()
+
+PARTICLE_PARAMETER_DEFINITIONS = (
+    {
+        "name": "Enabled", "label": "Particles Enabled", "type": "toggle",
+        "default": True,
+        "description": "Return the source unchanged when disabled.",
+    },
+    {
+        "name": "Autotime", "label": "Auto Time", "type": "toggle",
+        "default": True,
+        "description": "Animate from TouchDesigner's absolute time.",
+    },
+    {
+        "name": "Timescale", "label": "Time Scale", "type": "float",
+        "default": 1.0, "min": -10.0, "max": 10.0,
+        "description": "Scale or reverse automatic particle time.",
+    },
+    {
+        "name": "Manualtime", "label": "Manual Time", "type": "float",
+        "default": 0.0, "min": -100000.0, "max": 100000.0,
+        "description": "Deterministic time used when Auto Time is disabled.",
+    },
+    {
+        "name": "Time", "label": "Effective Time", "type": "float",
+        "default": 0.0, "min": -100000.0, "max": 100000.0,
+        "uniform": "uTime", "animatable": False,
+        "description": "Resolved animation time sent to the particle shader.",
+    },
+    {
+        "name": "Density", "label": "Particle Columns", "type": "int",
+        "default": 96, "min": 8, "max": 500,
+        "uniform": "uDensity",
+        "description": "Particle columns; rows follow the source aspect ratio.",
+    },
+    {
+        "name": "Size", "label": "Particle Size", "type": "float",
+        "default": 0.72, "min": 0.08, "max": 1.25,
+        "uniform": "uSize",
+        "description": "Particle radius relative to one grid cell.",
+    },
+    {
+        "name": "Speed", "label": "Move Speed", "type": "float",
+        "default": 0.8, "min": 0.0, "max": 8.0,
+        "uniform": "uSpeed",
+        "description": "Speed of the deterministic random motion.",
+    },
+    {
+        "name": "Moveamount", "label": "Move Amount", "type": "float",
+        "default": 0.55, "min": 0.0, "max": 0.65,
+        "uniform": "uMoveAmount",
+        "description": "Random orbit distance in particle-cell units.",
+    },
+    {
+        "name": "Jitter", "label": "Jitter", "type": "float",
+        "default": 0.12, "min": 0.0, "max": 0.15,
+        "uniform": "uJitter",
+        "description": "Adds faster secondary random movement.",
+    },
+    {
+        "name": "Drift", "label": "Directional Drift", "type": "xy",
+        "default": [0.08, 0.03], "min": -0.2, "max": 0.2,
+        "uniform": "uDrift",
+        "description": "Adds bounded directional motion in cell units.",
+    },
+    {
+        "name": "Seed", "label": "Random Seed", "type": "int",
+        "default": 1, "min": 0, "max": 100000,
+        "uniform": "uSeed",
+        "description": "Changes the deterministic motion pattern.",
+    },
+    {
+        "name": "Shape", "label": "Particle Shape", "type": "menu",
+        "default": "circle",
+        "menu_names": ["circle", "square", "diamond"],
+        "menu_labels": ["Circle", "Square", "Diamond"],
+        "uniform": "uShape",
+        "description": "Choose the particle silhouette.",
+    },
+    {
+        "name": "Sourceblend", "label": "Source Blend", "type": "float",
+        "default": 0.0, "min": 0.0, "max": 1.0,
+        "uniform": "uSourceBlend",
+        "description": "Blend the original source behind the particles.",
+    },
+    {
+        "name": "Opacity", "label": "Particle Opacity", "type": "float",
+        "default": 1.0, "min": 0.0, "max": 1.0,
+        "uniform": "uOpacity",
+        "description": "Multiply particle alpha.",
+    },
+    {
+        "name": "Background", "label": "Background", "type": "rgba",
+        "default": [0.0, 0.0, 0.0, 0.0],
+        "uniform": "uBackground",
+        "description": "Color and alpha behind the particle field.",
+    },
+)
+
 PREVIEW_IDENTITY_LUT_SHADER = r"""
 layout(location = 0) out vec4 fragColor;
 void main() {
@@ -1289,6 +1501,122 @@ def build_rack(parent_comp, manifests):
     return rack, rack_path
 
 
+def build_particle_module(parent_comp):
+    """Build the reusable, GPU-only random-move particle module."""
+
+    particles = parent_comp.create(baseCOMP, "particle_random_move")
+    particles.color = (0.52, 0.24, 0.10)
+    particles.comment = (
+        "GPU random-move image particles. Use the demo routing toggles to "
+        "choose particles and optional video effects."
+    )
+    page = particles.appendCustomPage("Particles")
+    parameter_bindings = []
+    for definition in PARTICLE_PARAMETER_DEFINITIONS:
+        custom_pars = _append_parameter(particles, page, definition)
+        parameter_bindings.append((definition, custom_pars))
+    particles.par.Time.expr = (
+        "absTime.seconds * me.par.Timescale "
+        "if me.par.Autotime else me.par.Manualtime"
+    )
+    particles.store(
+        "tdimagefx_particle_module",
+        {
+            "schema_version": 1,
+            "id": "tdimagefx.core.particle-random-move",
+            "renderer": "bounded_glsl_top",
+            "video_fx_routing": "external_optional",
+        },
+    )
+
+    source = particles.create(inTOP, "in1_image")
+    source.par.label = "source image"
+    source.nodeX = -420
+    source.nodeY = 0
+
+    shader_dat = particles.create(textDAT, "pixel_shader_particles")
+    shader_dat.text = PARTICLE_RANDOM_MOVE_SHADER
+    shader_dat.nodeX = -210
+    shader_dat.nodeY = -260
+
+    particle_glsl = particles.create(glslTOP, "effect_glsl_particles")
+    source.outputConnectors[0].connect(particle_glsl.inputConnectors[0])
+    particle_glsl.nodeX = -80
+    particle_glsl.nodeY = 0
+    particle_glsl.par.pixeldat = particle_glsl.relativePath(shader_dat)
+    if particle_glsl.par["glslversion"] is not None:
+        particle_glsl.par.glslversion = "glsl460"
+    if particle_glsl.par["compilebehavior"] is not None:
+        particle_glsl.par.compilebehavior = "stalluntildone"
+    if particle_glsl.par["errorbehavior"] is not None:
+        particle_glsl.par.errorbehavior = "showerror"
+    if particle_glsl.par["outputresolution"] is not None:
+        particle_glsl.par.outputresolution = "useinput"
+
+    active_bindings = [
+        (definition, custom_pars)
+        for definition, custom_pars in parameter_bindings
+        if definition.get("uniform")
+    ]
+    particle_glsl.seq.vec.numBlocks = max(
+        1,
+        sum(
+            1
+            for definition, _custom_pars in active_bindings
+            if definition.get("type") not in {"rgb", "rgba"}
+        ),
+    )
+    particle_glsl.seq.color.numBlocks = max(
+        1,
+        sum(
+            1
+            for definition, _custom_pars in active_bindings
+            if definition.get("type") in {"rgb", "rgba"}
+        ),
+    )
+    vector_index = 0
+    color_index = 0
+    for definition, custom_pars in active_bindings:
+        current_vector_index = vector_index
+        vector_index, color_index = _configure_glsl_uniform(
+            particle_glsl,
+            definition,
+            custom_pars,
+            vector_index,
+            color_index,
+        )
+        if definition["name"] == "Shape":
+            particle_glsl.par[
+                "vec{}valuex".format(current_vector_index)
+            ].expr = "parent().par.Shape.menuIndex"
+
+    enable_switch = particles.create(switchTOP, "enable_switch")
+    source.outputConnectors[0].connect(enable_switch.inputConnectors[0])
+    particle_glsl.outputConnectors[0].connect(enable_switch.inputConnectors[1])
+    enable_switch.par.index.expr = "1 if parent().par.Enabled else 0"
+    enable_switch.nodeX = 170
+    enable_switch.nodeY = 0
+
+    output = particles.create(outTOP, "out1_particles")
+    enable_switch.outputConnectors[0].connect(output.inputConnectors[0])
+    output.nodeX = 380
+    output.nodeY = 0
+    output.display = True
+    output.render = True
+    particles.par.opviewer = output.path
+
+    particle_glsl.cook(force=True)
+    errors = list(particle_glsl.errors())
+    if errors:
+        raise RuntimeError(
+            "Random-move particle shader failed: {}".format("; ".join(errors))
+        )
+
+    particle_path = CORE_ROOT / "ParticleRandomMove.tox"
+    particles.save(str(particle_path), createFolders=True)
+    return particles, particle_path
+
+
 def build_browser(parent_comp, manifests, compatibility_confidence="declared"):
     browser = parent_comp.create(baseCOMP, "fx_browser")
     browser.color = (0.14, 0.38, 0.30)
@@ -1386,6 +1714,13 @@ def build_browser(parent_comp, manifests, compatibility_confidence="declared"):
     selected_preview.par.file.expr = "parent().PreviewPath()"
     if selected_preview.par["play"] is not None:
         selected_preview.par.play = False
+    # Preview PNGs are contractually 512x288. Pinning the TOP output avoids a
+    # transient 128x128 fallback while Movie File In completes its first load,
+    # without resampling a successfully loaded preview.
+    if selected_preview.par["outputresolution"] is not None:
+        selected_preview.par.outputresolution = "custom"
+        selected_preview.par.resolutionw = 512
+        selected_preview.par.resolutionh = 288
 
     results_view = browser.create(textTOP, "results_view")
     results_view.nodeX = -100
@@ -1902,6 +2237,7 @@ def build_library(project_comp, manifests, report):
     readme.text = (
         "TD ImageFX Library {}\n\n"
         "Use core/fx_rack for an eight-effect chain with presets and modulation.\n"
+        "Use core/particle_random_move for GPU image particles with deterministic random motion.\n"
         "Use core/fx_browser to search, filter, favorite, and create effects.\n"
         "Use the promoted Find(), CreateEffect(), CheckUpdates(), and HealthCheck() methods.\n"
         "All effect versions are immutable and stored under packages/<id>/<version>.\n"
@@ -1988,8 +2324,11 @@ def build_library(project_comp, manifests, report):
     rack, rack_path = build_rack(core_parent, manifests)
     rack.nodeX = 0
     rack.nodeY = 0
+    particles, particle_path = build_particle_module(core_parent)
+    particles.nodeX = 260
+    particles.nodeY = 0
     browser, browser_path = build_browser(core_parent, manifests, compatibility_confidence)
-    browser.nodeX = 260
+    browser.nodeX = 520
     browser.nodeY = 0
 
     library.par.Status = "Ready: {} packages".format(len(manifests))
@@ -1998,18 +2337,45 @@ def build_library(project_comp, manifests, report):
     report["core"] = {
         "library": str(library_path),
         "rack": str(rack_path),
+        "particles": str(particle_path),
         "browser": str(browser_path),
         "updater": str(CORE_ROOT / "FxUpdater.tox"),
     }
-    return library, rack_path
+    return library, rack_path, particle_path
 
 
-def build_demo(project_comp, rack_path):
+def build_demo(project_comp, rack_path, particle_path):
     demo = project_comp.create(baseCOMP, "imagefx_demo")
     demo.nodeX = 100
     demo.nodeY = 100
     demo.color = (0.32, 0.18, 0.36)
-    demo.comment = "Animated starter chain. Replace source_image with any TOP."
+    demo.comment = (
+        "Animated source -> optional random particles -> optional eight-slot "
+        "video FX. Replace source_image with any TOP."
+    )
+    demo_page = demo.appendCustomPage("Demo")
+    _append_parameter(
+        demo,
+        demo_page,
+        {
+            "name": "Particlesenabled",
+            "label": "Particles Enabled",
+            "type": "toggle",
+            "default": True,
+            "description": "Particleize the source before optional video effects.",
+        },
+    )
+    _append_parameter(
+        demo,
+        demo_page,
+        {
+            "name": "Applyvideofx",
+            "label": "Apply Video Effects",
+            "type": "toggle",
+            "default": True,
+            "description": "Route the source or particles through the eight-slot rack.",
+        },
+    )
 
     source_shader = demo.create(textDAT, "source_image_shader")
     source_shader.text = PREVIEW_SOURCE_SHADER
@@ -2040,10 +2406,20 @@ def build_demo(project_comp, rack_path):
             "Demo source shader failed: {}".format("; ".join(source_errors))
         )
 
+    particles = load_tox_component(
+        demo,
+        particle_path,
+        "particle_random_move",
+    )
+    particles.nodeX = -40
+    particles.nodeY = 0
+    particles.par.Enabled.expr = "parent().par.Particlesenabled"
+    source.outputConnectors[0].connect(particles.inputConnectors[0])
+
     rack = load_tox_component(demo, rack_path, "fx_rack")
-    rack.nodeX = 0
+    rack.nodeX = 220
     rack.nodeY = 0
-    source.outputConnectors[0].connect(rack.inputConnectors[0])
+    particles.outputConnectors[0].connect(rack.inputConnectors[0])
 
     # Supply visible, deterministic fixtures for every semantic auxiliary bus.
     # The reusable rack still exposes these as normal inputs; this only makes
@@ -2089,9 +2465,16 @@ def build_demo(project_comp, rack_path):
             fixture.par.resolutionh = 1
         fixture.outputConnectors[0].connect(rack.inputConnectors[input_index])
 
+    video_fx_router = demo.create(switchTOP, "video_fx_router")
+    particles.outputConnectors[0].connect(video_fx_router.inputConnectors[0])
+    rack.outputConnectors[0].connect(video_fx_router.inputConnectors[1])
+    video_fx_router.par.index.expr = "1 if parent().par.Applyvideofx else 0"
+    video_fx_router.nodeX = 470
+    video_fx_router.nodeY = 0
+
     output = demo.create(outTOP, "out1_image")
-    rack.outputConnectors[0].connect(output.inputConnectors[0])
-    output.nodeX = 280
+    video_fx_router.outputConnectors[0].connect(output.inputConnectors[0])
+    output.nodeX = 680
     output.nodeY = 0
     output.display = True
     output.render = True
@@ -2269,8 +2652,12 @@ def build():
         template_nodes = _default_template_nodes(project_comp)
         for node in [*existing, *template_nodes]:
             node.destroy()
-        library, rack_path = build_library(project_comp, manifests, report)
-        build_demo(project_comp, rack_path)
+        library, rack_path, particle_path = build_library(
+            project_comp,
+            manifests,
+            report,
+        )
+        build_demo(project_comp, rack_path, particle_path)
         report["benchmark_data"] = str(_write_benchmark_data(report))
         if report["shader_errors"]:
             raise RuntimeError("{} effects have GLSL errors".format(len(report["shader_errors"])))

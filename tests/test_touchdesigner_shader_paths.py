@@ -113,6 +113,9 @@ class TouchDesignerShaderPathTests(unittest.TestCase):
         self.assertIn('browser.par.Target.val = ""', source)
         self.assertEqual(source.count("browser.UpdateSelection()"), 2)
         self.assertIn("(selected_preview.width, selected_preview.height) != (512, 288)", source)
+        self.assertIn('selected_preview.par.outputresolution = "custom"', source)
+        self.assertIn("selected_preview.par.resolutionw = 512", source)
+        self.assertIn("selected_preview.par.resolutionh = 288", source)
         self.assertIn("browser.cook(force=True)", source)
         self.assertLess(
             source.index('configure_extension(\n        library,\n        "ImageFXLibraryExt"'),

@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-07-18T15:21:09.803346+00:00",
+  "generated_at": "2026-07-18T17:42:29.814949+00:00",
   "library_version": "0.3.0",
   "touchdesigner": {
     "version": "099",
@@ -10,7 +10,7 @@
   },
   "builder": {
     "path": "touchdesigner/scripts/build_project.py",
-    "sha256": "2dab85358b631e0fc02c267b6f1774eba8432d52e90d85a0f8d557d764dae51c"
+    "sha256": "b8ee48c4e1e879553747e79068df0266b92161f0fb529ac1854396155d19032f"
   },
   "catalog": {
     "current_effects": 96,
@@ -29,28 +29,33 @@
   "artifacts": [
     {
       "path": "TD_ImageFX_Library.toe",
-      "bytes": 108642,
-      "sha256": "b052e66b7f3d3fcf13d65ec536a99bc75ee33dcc6646cc24639abd3301d8153e"
+      "bytes": 118458,
+      "sha256": "50b61d6a8d133fd5aa4449c7dc8052b1f982a180374b2cd22e3499d7e878da4f"
     },
     {
       "path": "touchdesigner/core/TDImageFXLibrary.tox",
-      "bytes": 78798,
-      "sha256": "b2e676b5b542b73c474b684cfd234ed7356b921a2270b81e1f98c51075b6c0fb"
+      "bytes": 83886,
+      "sha256": "af6b4a384c850abe97672c959b3a1a1c6546ccf04494698ddd405161a166c4cf"
     },
     {
       "path": "touchdesigner/core/FxBrowser.tox",
-      "bytes": 24614,
-      "sha256": "f8539d106b846e2cd0116de122c01242d0182c9d0a1d9552cd22294ebad0dafe"
+      "bytes": 24622,
+      "sha256": "000a2e3844d897e06a3244ff7075a5ac80848c1bcef0ee57670a1aa860389ce3"
     },
     {
       "path": "touchdesigner/core/FxRack.tox",
       "bytes": 25158,
-      "sha256": "03c9f06fc0e17988bb9717a1d3c3a64220e03df69e5c89e77ff1718023a016ed"
+      "sha256": "b63ac97aef23252d03829747f8f92cfa5d8aee97b94381b9540e354141937074"
+    },
+    {
+      "path": "touchdesigner/core/ParticleRandomMove.tox",
+      "bytes": 5182,
+      "sha256": "efcba44817b7e43a0e9e23048e0d954e139b1a494b22278e73760da6532f8c01"
     },
     {
       "path": "touchdesigner/core/FxUpdater.tox",
       "bytes": 13294,
-      "sha256": "df4cc09d88e934ddc29040a775482ed24161d1f217840e8dc96fae3782bb7424"
+      "sha256": "d7c4cf077831b603077e1db59b0a46232d5b50fe630442be2444a286e011460d"
     },
     {
       "path": "packages/tdimagefx.blur.bilateral-blur/1.0.0/tox/tdimagefx_blur_bilateral_blur.tox",

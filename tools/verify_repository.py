@@ -257,6 +257,7 @@ def _check_manifests() -> tuple[int, set[str], dict[str, str]]:
         ROOT / "touchdesigner" / "core" / "TDImageFXLibrary.tox",
         ROOT / "touchdesigner" / "core" / "FxBrowser.tox",
         ROOT / "touchdesigner" / "core" / "FxRack.tox",
+        ROOT / "touchdesigner" / "core" / "ParticleRandomMove.tox",
         ROOT / "touchdesigner" / "core" / "FxUpdater.tox",
     )
     missing = [path.relative_to(ROOT) for path in required_native_assets if not path.is_file()]
@@ -435,6 +436,7 @@ def _check_native_validation(library_version: str) -> None:
         "touchdesigner/core/TDImageFXLibrary.tox",
         "touchdesigner/core/FxBrowser.tox",
         "touchdesigner/core/FxRack.tox",
+        "touchdesigner/core/ParticleRandomMove.tox",
         "touchdesigner/core/FxUpdater.tox",
         *(
             path.relative_to(ROOT).as_posix()

@@ -14,6 +14,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 CANONICAL_PROJECT = PROJECT_ROOT / "TD_ImageFX_Library.toe"
 LIBRARY_TOX = PROJECT_ROOT / "touchdesigner" / "core" / "TDImageFXLibrary.tox"
 RACK_TOX = PROJECT_ROOT / "touchdesigner" / "core" / "FxRack.tox"
+PARTICLE_TOX = PROJECT_ROOT / "touchdesigner" / "core" / "ParticleRandomMove.tox"
 EXTENSION_ROOT = PROJECT_ROOT / "touchdesigner" / "extensions"
 MANAGED_NAMES = ("td_imagefx", "imagefx_demo")
 DEMO_SOURCE_SHADER = r"""
@@ -221,7 +222,17 @@ def install():
         demo.nodeX = 100
         demo.nodeY = 100
         demo.color = (0.32, 0.18, 0.36)
-        demo.comment = "Disposable Embody/Envoy QA harness"
+        demo.comment = (
+            "Disposable Embody/Envoy QA harness with optional particles "
+            "and optional video effects"
+        )
+        demo_page = demo.appendCustomPage("Demo")
+        demo_page.appendToggle("Particlesenabled", label="Particles Enabled")
+        demo.par.Particlesenabled.default = True
+        demo.par.Particlesenabled = True
+        demo_page.appendToggle("Applyvideofx", label="Apply Video Effects")
+        demo.par.Applyvideofx.default = True
+        demo.par.Applyvideofx = True
 
         source_shader = demo.create(textDAT, "source_image_shader")
         source_shader.text = DEMO_SOURCE_SHADER
@@ -252,15 +263,23 @@ def install():
                 "QA demo source shader failed: {}".format("; ".join(source_errors))
             )
 
+        particles = _load_single_tox(demo, PARTICLE_TOX)
+        particles.name = "particle_random_move"
+        particles.nodeX = -40
+        particles.nodeY = 0
+        particles.par.Enabled.expr = "parent().par.Particlesenabled"
+        _repair_effect_shader_paths(particles)
+        source.outputConnectors[0].connect(particles.inputConnectors[0])
+
         rack = _load_single_tox(demo, RACK_TOX)
         rack.name = "fx_rack"
-        rack.nodeX = 0
+        rack.nodeX = 220
         rack.nodeY = 0
         _set_library_root(rack, "demo rack")
         _sync_extension(rack, "FxRackExt")
         _repair_effect_shader_paths(rack)
         _repair_effect_state_paths(rack)
-        source.outputConnectors[0].connect(rack.inputConnectors[0])
+        particles.outputConnectors[0].connect(rack.inputConnectors[0])
         fixture_values = {
             "displacement": (0.72, 0.28, 0.50, 1.0),
             "depth": (0.68, 0.68, 0.68, 1.0),
@@ -301,10 +320,19 @@ def install():
                 fixture.par.resolutionh = 1
             fixture.outputConnectors[0].connect(rack.inputConnectors[input_index])
 
+        video_fx_router = demo.create(switchTOP, "video_fx_router")
+        particles.outputConnectors[0].connect(video_fx_router.inputConnectors[0])
+        rack.outputConnectors[0].connect(video_fx_router.inputConnectors[1])
+        video_fx_router.par.index.expr = (
+            "1 if parent().par.Applyvideofx else 0"
+        )
+        video_fx_router.nodeX = 470
+        video_fx_router.nodeY = 0
+
         output = demo.create(outTOP, "out1_image")
-        output.nodeX = 280
+        output.nodeX = 680
         output.nodeY = 0
-        rack.outputConnectors[0].connect(output.inputConnectors[0])
+        video_fx_router.outputConnectors[0].connect(output.inputConnectors[0])
         output.display = True
         output.render = True
         demo.par.opviewer = output.path
@@ -314,6 +342,7 @@ def install():
             "ok": bool(health.get("ok")),
             "library": library.path,
             "demo": demo.path,
+            "particles": particles.path,
             "output": output.path,
             "package_count": health.get("package_count"),
             "package_version_count": health.get("package_version_count"),

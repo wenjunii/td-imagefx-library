@@ -146,6 +146,8 @@ The browser supports text/category/tag/favorite filters plus channel, model, cap
 
 The rack provides eight ordered slots; enable/mix/bypass; reset/reload; validated presets; modulation; automatic or manual time; and semantic second-image/displacement/depth/normal/flow/mask routing. Presets are UI/project state. They can retain exact versions but do not install packages, approve updates, or replace the project lock.
 
+`ParticleRandomMove.tox` is a separate reusable core module rather than an immutable effect package. It converts an image into deterministic seeded random-moving particles on the GPU, returns the source unchanged when disabled, and exposes no retained state. The canonical demo routes source → particle module → rack, then uses an explicit final switch so particle generation and video-effect application are independent choices.
+
 ### Update and release layer
 
 The TouchDesigner updater is notification-only. It reads explicitly configured HTTPS or local feeds off the cook path, rejects duplicate JSON keys and oversized responses, binds source configuration to the feed ID and optional digest, applies channel hierarchy and runtime compatibility, reconciles cross-feed package collisions by exact project-lock source or configured trust, and reports one candidate per package with installed and locked context. It never downloads or activates a candidate.

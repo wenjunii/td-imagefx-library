@@ -105,7 +105,7 @@ git clone https://github.com/wenjunii/td-imagefx-library.git
 cd td-imagefx-library
 ```
 
-The v0.3 source and generated artifacts are synchronized. The recorded Windows build used TouchDesigner `2025.32820` and validated all 96 current effects with 122 versioned effect `.tox` files, four core `.tox` files, one library `.toe`, 96 previews, 96 visual baselines, and 96 benchmark samples. The build report contains zero shader, preview, or builder errors. A fresh repository run completed 157 tests successfully, with four expected Windows symlink-permission skips, and two independent 99-file release builds matched byte-for-byte. Read [TouchDesigner setup](docs/touchdesigner-setup.md) to reproduce the native build.
+The v0.3 source and generated artifacts are synchronized. The recorded Windows build used TouchDesigner `2025.32820` and validated all 96 current effects with 122 versioned effect `.tox` files, five core `.tox` files, one library `.toe`, 96 previews, 96 visual baselines, and 96 benchmark samples. The build report contains zero shader, preview, or builder errors. A fresh repository run completed 159 tests successfully, with four expected Windows symlink-permission skips, and two independent 99-file release builds matched byte-for-byte. Read [TouchDesigner setup](docs/touchdesigner-setup.md) to reproduce the native build.
 
 The generated project targets TouchDesigner 2025. Validate the exact TouchDesigner build, operating system, GPU, driver, resolution, pixel format, and color pipeline used by your production system. Python 3.11 or newer is required for repository tooling; it is not required merely to use already-built native components.
 
@@ -115,15 +115,34 @@ For knowledge-grounded live inspection, use the separate [Embody, Envoy, and TD 
 
 ## Use in TouchDesigner
 
+### Random-move particles
+
+The reusable `ParticleRandomMove.tox` module turns any image TOP into a GPU particle field. Every particle samples the source image and follows deterministic seeded random motion. Controls cover particle count, size, speed, move amount, jitter, directional drift, seed, circle/square/diamond shape, source blend, opacity, background, and automatic or manual time.
+
+The canonical demo exposes two independent toggles on `/project1/imagefx_demo`:
+
+| Particles Enabled | Apply Video Effects | Result |
+| --- | --- | --- |
+| Off | Off | Original image |
+| Off | On | Original image through the eight-slot rack |
+| On | Off | Random-moving particles only |
+| On | On | Random-moving particles through the eight-slot rack |
+
+Select `/project1/imagefx_demo/particle_random_move` to tune particle controls. The default 96-column grid produces about 5,000 particles for a 16:9 source. The shader uses a fixed 5×5 search neighborhood, so work remains bounded; reduce **Particle Columns** first when qualifying 4K or multi-output shows.
+
+**Particle Columns** ranges from 8 to 500. At 16:9, the 500-column
+maximum represents about 140,000 particles; use it when the target resolution
+and frame-time budget have been qualified.
+
 ### Eight-slot rack
 
 1. Open `/project1/imagefx_demo` after a successful native build.
-2. Drag a still or movie into the demo to create a **Movie File In TOP**. Disconnect the generated `source_image` from input 0 of `fx_rack`, then connect your Movie File In TOP there.
+2. Drag a still or movie into the demo to create a **Movie File In TOP**. Disconnect the generated `source_image` from input 0 of `particle_random_move`, then connect your Movie File In TOP there.
 3. Keep your source connected to `fixture_image_b` if you want its derived clean/alternate image, or replace rack input 1 with a different TOP for transitions, composites, and Difference Key.
-4. Select `fx_rack` and open its **Rack** custom parameter page.
-5. Choose up to eight effects and adjust slot enable, mix, order, bypass, reset, and modulation.
-6. View `out1_image`. Leave **Auto Time** enabled for timeline-driven and feedback effects, or disable it and set **Manual Time** for deterministic inspection.
-7. Export/import validated JSON presets or save/load preset files inside the configured preset root.
+4. On `imagefx_demo`, choose whether **Particles Enabled** and **Apply Video Effects** are on.
+5. Select `particle_random_move` to tune the particles, or select `fx_rack` and open its **Rack** custom parameter page to choose up to eight effects.
+6. Adjust slot enable, mix, order, bypass, reset, and modulation. Leave **Auto Time** enabled for timeline-driven, particle, and feedback motion.
+7. View `out1_image`, then export/import validated JSON rack presets if needed.
 
 The canonical demo supplies deterministic fixtures to all six auxiliary rack inputs so every package can be auditioned immediately. In a production network, replace those fixtures with the required media: a second image/clean plate, displacement, depth, normal, flow, or mask TOP. Color-correction and transform packages use neutral defaults by design; open the loaded `slot1` through `slot8` component and adjust its custom effect parameters to see and tune the operation.
 
@@ -135,7 +154,7 @@ Open `/project1/td_imagefx/core/fx_browser`. Search is case-insensitive across c
 
 ### Individual components
 
-Versioned effect components live under `packages/<package-id>/<version>/tox/`. Reusable core components are generated under `touchdesigner/core/`. When importing one into another show, set **Library Root** to this checkout or a verified installed-package root.
+Versioned effect components live under `packages/<package-id>/<version>/tox/`. Reusable core components, including `ParticleRandomMove.tox`, are generated under `touchdesigner/core/`. When importing one into another show, set **Library Root** to this checkout or a verified installed-package root.
 
 ## Author and validate effects
 
@@ -192,7 +211,7 @@ Run the dependency-free repository check with Python 3.11 or newer:
 python tools/verify_repository.py
 ```
 
-The verifier expects exactly 96 current IDs and 122 immutable manifests. It compiles Python, runs tests, validates manifests and feeds, verifies the recorded hashes of the library `.toe`, all 122 effect `.tox` files, and four core `.tox` files, compares generated gallery/baseline/benchmark coverage with the latest catalog, and prevents version drift. It also cross-checks this README's test and catalog claims, the ImageFX project context, and the live validator's package/build constants against checked source and native records. A failure caused by stale native or generated artifacts is intentional: rebuild and review them rather than weakening the invariant.
+The verifier expects exactly 96 current IDs and 122 immutable manifests. It compiles Python, runs tests, validates manifests and feeds, verifies the recorded hashes of the library `.toe`, all 122 effect `.tox` files, and five core `.tox` files, compares generated gallery/baseline/benchmark coverage with the latest catalog, and prevents version drift. It also cross-checks this README's test and catalog claims, the ImageFX project context, and the live validator's package/build constants against checked source and native records. A failure caused by stale native or generated artifacts is intentional: rebuild and review them rather than weakening the invariant.
 
 GitHub Actions runs verification on Windows, macOS, and Linux with Python 3.11 and 3.13, and separately rejects modifications to package versions already present in repository history.
 

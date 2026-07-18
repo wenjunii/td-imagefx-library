@@ -44,12 +44,21 @@ The repository includes:
 - 122 versioned effect `.tox` files under `packages/<package-id>/<version>/tox/`: one current version for each of 96 effect IDs plus 26 retained predecessors;
 - `touchdesigner/core/TDImageFXLibrary.tox`;
 - `touchdesigner/core/FxRack.tox`;
+- `touchdesigner/core/ParticleRandomMove.tox`;
 - `touchdesigner/core/FxBrowser.tox`;
 - `touchdesigner/core/FxUpdater.tox`.
 
 Open the `.toe` directly for the fastest start. Its browser, rack, demo, gallery, and benchmark data use the latest 96 versions. Exact retained versions remain available through version-aware library calls and project locks. Keep the project in the repository root when using the default configuration: blank **Library Root** fields resolve to `project.folder`. When importing a core `.tox` into a show elsewhere, set its **Library Root** to this checkout or a verified installed-package root.
 
 For a quick inventory check in the Textport, `op('/project1/td_imagefx').HealthCheck()` should return `ok=True`, `package_count=96`, and `package_version_count=122`, with an empty `missing_entrypoints` list.
+
+For particle-specific GPU and routing QA, run
+`touchdesigner/scripts/validate_particle_module.py` from the Python Textport.
+It temporarily freezes demo time, exercises all four combinations of
+**Particles Enabled** and **Apply Video Effects**, checks bypass fidelity,
+random movement, seed variation, and shader diagnostics, then restores the
+artist-facing values. Its ignored report is written to
+`build/envoy-validation/particle-module.json`.
 
 Python is not required to use the prebuilt native files. Python 3.11 or newer is required for repository tools and the standalone package CLI.
 
@@ -101,7 +110,7 @@ The builder creates or updates:
 
 - `TD_ImageFX_Library.toe`;
 - a versioned `.tox` for the latest version of each of 96 effect IDs while preserving all tracked exact-version artifacts;
-- four reusable core `.tox` files for the library, rack, browser, and updater;
+- five reusable core `.tox` files for the library, rack, particles, browser, and updater;
 - declared single-pass and multi-pass GLSL graphs plus temporal/simulation feedback graphs;
 - 96 preview PNGs under `docs/gallery/`;
 - `docs/benchmark-data.json` with per-effect runtime samples;
@@ -121,7 +130,7 @@ python tools/build_gallery.py
 python tools/benchmark_report.py
 ```
 
-The native-validation command accepts only a clean build report and writes `docs/native-validation.json`, binding the named TouchDesigner environment to the size and SHA-256 digest of the library `.toe`, all versioned effect `.tox` files, and the four core `.tox` files.
+The native-validation command accepts only a clean build report and writes `docs/native-validation.json`, binding the named TouchDesigner environment to the size and SHA-256 digest of the library `.toe`, all versioned effect `.tox` files, and the five core `.tox` files.
 
 Compare every changed preview on representative media. Only after intentional visual approval should you replace the SHA-256 baselines:
 
@@ -160,9 +169,15 @@ Wave Warp -> Exposure -> Gaussian Blur -> RGB Split
 
 Each of eight slots provides effect selection, enable, dry/wet mix, modulation depth/rate/state, Up, Down, Reset, and Bypass. Six auxiliary buses route second image, displacement, depth, normal, flow, and mask inputs by declared semantic role. Global controls reload/reset the rack and bypass or enable every slot. **Auto Time** and **Time Scale** drive time-aware parameters; disable Auto Time and set **Manual Time** for deterministic inspection.
 
-The generated demo connects deterministic fixtures to every auxiliary input, including the second-image bus used by transitions, composites, and clean-reference keys. Replace those fixtures with production TOPs in a real project. Several grading and transform effects intentionally load with neutral parameter values; enter the loaded `slot1` through `slot8` component to adjust its effect-specific custom parameters.
+The generated demo routes the source through the reusable `particle_random_move` module and then the eight-slot rack. Its **Particles Enabled** and **Apply Video Effects** toggles independently select original image, image plus effects, particles only, or particles plus effects. Select `particle_random_move` to tune density, size, speed, move amount, jitter, drift, seed, shape, opacity, source blend, background, and time. The default 96-column grid is about 5,000 particles at 16:9; reduce it first for 4K or multi-output qualification.
 
-To use your own source in `/project1/imagefx_demo`, drag the still or movie into the network to create a Movie File In TOP, disconnect the generated `source_image` from input 0 of `fx_rack`, and connect the Movie File In TOP there. Keep that source connected to `fixture_image_b` to derive the supplied alternate/clean-reference image, or replace rack input 1 with an independent TOP. View the result at `out1_image`. A Video Device In TOP can replace the Movie File In TOP for a live camera.
+**Particle Columns** accepts 8 through 500. A 500-column 16:9 grid is
+approximately 140,000 particles, so qualify the upper range against the actual
+resolution and frame-time budget.
+
+The demo also connects deterministic fixtures to every auxiliary rack input, including the second-image bus used by transitions, composites, and clean-reference keys. Replace those fixtures with production TOPs in a real project. Several grading and transform effects intentionally load with neutral parameter values; enter the loaded `slot1` through `slot8` component to adjust its effect-specific custom parameters.
+
+To use your own source in `/project1/imagefx_demo`, drag the still or movie into the network to create a Movie File In TOP, disconnect the generated `source_image` from input 0 of `particle_random_move`, and connect the Movie File In TOP there. Keep that source connected to `fixture_image_b` to derive the supplied alternate/clean-reference image, or replace rack input 1 with an independent TOP. View the result at `out1_image`. A Video Device In TOP can replace the Movie File In TOP for a live camera.
 
 Rack, browser, updater, and stateful-effect callback targets are stored as component-relative operator paths. Stateful Feedback TOPs likewise target their package-local state nodes relatively. An imported `FxRack.tox` therefore watches its own slot parameters and retains working temporal history after it is moved or renamed; it does not retain absolute paths from the network that produced the `.tox`.
 

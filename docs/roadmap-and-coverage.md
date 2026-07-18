@@ -94,7 +94,7 @@ Updater and release work adds source/feed binding, duplicate-key and size defens
 | Motion analysis | Optical-flow warp and flow-assisted effects | Vector estimation/export, tracking, stabilization, quality/fallback tiers |
 | Simulation | Four upgraded reference systems | Robust pressure/fluid solver, substeps/quality tiers, validation at varied resolution/frame rate |
 | Depth and spatial | Depth parallax and normal lighting | Height fields, point clouds, camera projection, volumetric slices |
-| Particles and point clouds | Particle-advection simulation only | Image-to-particle, instancing, fragmentation, depth clouds |
+| Particles and point clouds | Random-move image-particle core plus particle-advection simulation | Instancing, fragmentation, depth clouds |
 | Segmentation and ML | Research only | Model/package metadata, offline/online trust boundaries, deterministic fallback |
 | Input and control | Rack time and mix modulation | Audio, MIDI, OSC, DMX, camera/sensor adapters |
 | Output and calibration | Outside effect core | Mapping, multi-display calibration, recording/streaming adapters |
@@ -120,7 +120,7 @@ Updater and release work adds source/feed binding, duplicate-key and size defens
 - Add representative alpha, HDR/negative, odd-resolution, auxiliary-input, and dynamic-resolution preview/test fixtures.
 - Implement and measure quality tiers for the most expensive multi-pass, blur, temporal, and simulation packages.
 - Add optical-flow estimation/export, tracking, stabilization, and capability-based fallbacks.
-- Explore image-to-particle, instancing, point-cloud, depth/height-field, and camera-projection adapters.
+- Expand the random-move image-particle core toward instancing, fragmentation, point clouds, depth/height fields, and camera-projection adapters.
 - Provide audio, MIDI, OSC, DMX, camera, and sensor modulation examples outside immutable effect packages.
 
 ### 0.5 — curated ecosystem updates

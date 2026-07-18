@@ -27,6 +27,7 @@
     "demo": "/project1/imagefx_demo",
     "browser": "/project1/td_imagefx/core/fx_browser",
     "rack": "/project1/td_imagefx/core/fx_rack",
+    "particles": "/project1/td_imagefx/core/particle_random_move",
     "update_manager": "/project1/td_imagefx/update_manager",
     "approved_read_scope": [
       "/project1/td_imagefx",
@@ -40,6 +41,7 @@
   },
   "outputs": {
     "primary_demo": "/project1/imagefx_demo/out1_image",
+    "particles": "/project1/imagefx_demo/particle_random_move/out1_particles",
     "rack": "/project1/imagefx_demo/fx_rack/out1_image",
     "browser_preview": "/project1/td_imagefx/core/fx_browser/selected_preview",
     "visual_failure_signals": [
@@ -125,7 +127,7 @@
       "TouchDesigner build is 2025.32820 or a deliberately qualified newer build.",
       "HealthCheck reports 96 current packages and 122 immutable versions with no missing entrypoints.",
       "Managed roots report no operator, warning, or script messages.",
-      "All approved TOPs exist, cook, have usable resolution, and are neither black nor fully transparent.",
+      "All four approved TOPs exist, cook, have usable resolution, and are neither black nor fully transparent.",
       "No unexplained frame drops, memory spike, or material frame-time regression is introduced.",
       "python tools/verify_repository.py passes."
     ],

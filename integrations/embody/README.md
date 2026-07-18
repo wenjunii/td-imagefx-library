@@ -31,7 +31,8 @@ top-level operators.
    )
    ```
 
-The installer loads the tracked `TDImageFXLibrary.tox` and `FxRack.tox`,
+The installer loads the tracked `TDImageFXLibrary.tox`, `ParticleRandomMove.tox`,
+and `FxRack.tox`,
 synchronizes their extension DATs from `touchdesigner/extensions/`, repairs
 legacy absolute Pixel Shader DAT paths inside loaded effects, points every
 library root at the checkout, and creates the same managed paths used by the
@@ -63,8 +64,8 @@ still using another bridge configuration.
 2. confirms the selected TD/Envoy instance and records baseline performance;
 3. checks the managed network and calls `HealthCheck`;
 4. checks recursive operator errors and warnings;
-5. captures the demo, rack, and browser preview TOPs with Envoy's pixel-quality
-   verdict; and
+5. captures the demo, particle, rack, and browser preview TOPs with Envoy's
+   pixel-quality verdict; and
 6. compares final performance before running the offline repository verifier.
 
 For a local JSON diagnostic from TouchDesigner, run:

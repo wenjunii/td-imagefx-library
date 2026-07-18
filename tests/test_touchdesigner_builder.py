@@ -145,6 +145,44 @@ class TouchDesignerBuilderPathTests(unittest.TestCase):
         self.assertEqual(feedback.parameter.val, "state_target")
         self.assertIs(feedback.parameter.eval(), root.target)
 
+    def test_random_move_particle_shader_has_bounded_deterministic_controls(self) -> None:
+        shader = BUILDER.PARTICLE_RANDOM_MOVE_SHADER
+        uniform_names = {
+            definition["uniform"]
+            for definition in BUILDER.PARTICLE_PARAMETER_DEFINITIONS
+            if definition.get("uniform")
+        }
+        self.assertEqual(
+            uniform_names,
+            {
+                "uTime",
+                "uDensity",
+                "uSize",
+                "uSpeed",
+                "uMoveAmount",
+                "uJitter",
+                "uDrift",
+                "uSeed",
+                "uShape",
+                "uSourceBlend",
+                "uOpacity",
+                "uBackground",
+            },
+        )
+        for uniform in uniform_names:
+            self.assertIn(uniform, shader)
+        density = next(
+            definition
+            for definition in BUILDER.PARTICLE_PARAMETER_DEFINITIONS
+            if definition["name"] == "Density"
+        )
+        self.assertEqual(density["max"], 500)
+        self.assertIn("textureSize(sTD2DInputs[0], 0)", shader)
+        self.assertIn("particleHash", shader)
+        self.assertIn("for (int offsetY = -2; offsetY <= 2; ++offsetY)", shader)
+        self.assertIn("for (int offsetX = -2; offsetX <= 2; ++offsetX)", shader)
+        self.assertNotIn("feedback", shader.lower())
+
     def test_native_project_rejects_foreign_top_level_nodes(self) -> None:
         project_comp = SimpleNamespace(
             children=[

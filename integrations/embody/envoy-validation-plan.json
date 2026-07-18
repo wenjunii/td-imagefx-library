@@ -101,6 +101,15 @@
         {
           "tool": "capture_top",
           "arguments": {
+            "op_path": "/project1/imagefx_demo/particle_random_move/out1_particles",
+            "format": "png",
+            "max_resolution": 960,
+            "inline": false
+          }
+        },
+        {
+          "tool": "capture_top",
+          "arguments": {
             "op_path": "/project1/imagefx_demo/fx_rack/out1_image",
             "format": "png",
             "max_resolution": 960,

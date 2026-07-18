@@ -21,6 +21,7 @@ CORE_ASSETS = (
     "touchdesigner/core/TDImageFXLibrary.tox",
     "touchdesigner/core/FxBrowser.tox",
     "touchdesigner/core/FxRack.tox",
+    "touchdesigner/core/ParticleRandomMove.tox",
     "touchdesigner/core/FxUpdater.tox",
 )
 BUILDER_SOURCE = "touchdesigner/scripts/build_project.py"
