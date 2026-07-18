@@ -24,6 +24,7 @@ project.
 | `integrations/embody/envoy-validation-plan.json` | Ordered read-only live audit |
 | `touchdesigner/scripts/install_dev_harness.py` | Non-saving compiled-core installer for a disposable project |
 | `touchdesigner/scripts/validate_live_project.py` | Read-only health, error, and TOP structural report |
+| `touchdesigner/scripts/validate_ink_flow_module.py` | Pixel checks for both ink styles, water particles, bypass, and deterministic motion |
 
 Detailed setup and commands are in
 [`integrations/embody/README.md`](../integrations/embody/README.md).
@@ -37,7 +38,7 @@ the knowledge library before writing TouchDesigner Python or GLSL.
 
 For an audit, follow `envoy-validation-plan.json`: confirm the TD instance,
 record baseline performance, discover the network, run `HealthCheck`, check
-recursive errors and warnings, capture the four approved TOPs, and compare
+recursive errors and warnings, capture the five approved TOPs, and compare
 final performance. Envoy's `capture_top` quality verdict must pass, and the
 images still require visual inspection. A clean operator graph does not prove
 that a frame is visible or aesthetically correct.

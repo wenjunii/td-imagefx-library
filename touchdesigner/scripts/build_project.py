@@ -454,6 +454,494 @@ PARTICLE_PARAMETER_DEFINITIONS = (
     },
 )
 
+INK_FLOW_SHADER = r"""
+layout(location = 0) out vec4 fragColor;
+
+uniform float uTime;
+uniform float uVisualEnabled;
+uniform float uStyle;
+uniform float uVisualMix;
+uniform float uInkStrength;
+uniform float uEdgeDetail;
+uniform float uWashSpread;
+uniform float uGranulation;
+uniform float uPaperTexture;
+uniform vec4 uInkColor;
+uniform vec4 uPaperColor;
+uniform float uParticlesEnabled;
+uniform float uParticleDensity;
+uniform float uParticleSize;
+uniform float uFlowSpeed;
+uniform vec2 uFlowDirection;
+uniform float uFlowStrength;
+uniform float uTurbulence;
+uniform float uRandomness;
+uniform float uParticleStretch;
+uniform float uParticleShape;
+uniform float uParticleOpacity;
+uniform float uParticleInkMix;
+uniform float uSeed;
+
+const float TAU = 6.28318530718;
+
+float inkHash(vec2 value) {
+    vec3 p3 = fract(vec3(value.xyx) * 0.1031);
+    p3 += dot(p3, p3.yzx + 33.33);
+    return fract((p3.x + p3.y) * p3.z);
+}
+
+float inkNoise(vec2 position) {
+    vec2 cell = floor(position);
+    vec2 local = fract(position);
+    local = local * local * (3.0 - 2.0 * local);
+    float a = inkHash(cell);
+    float b = inkHash(cell + vec2(1.0, 0.0));
+    float c = inkHash(cell + vec2(0.0, 1.0));
+    float d = inkHash(cell + vec2(1.0, 1.0));
+    return mix(mix(a, b, local.x), mix(c, d, local.x), local.y);
+}
+
+float inkFbm(vec2 position) {
+    float value = 0.0;
+    float amplitude = 0.55;
+    for (int octave = 0; octave < 4; ++octave) {
+        value += amplitude * inkNoise(position);
+        position = position * 2.03 + vec2(13.17, 7.91);
+        amplitude *= 0.48;
+    }
+    return value;
+}
+
+float sourceLuma(vec2 uv) {
+    vec3 color = texture(sTD2DInputs[0], clamp(uv, 0.0, 1.0)).rgb;
+    return dot(color, vec3(0.2126, 0.7152, 0.0722));
+}
+
+vec3 paperSurface(vec2 uv) {
+    float fiber = inkFbm(
+        uv * vec2(410.0, 245.0) + vec2(uSeed * 0.37, uSeed * 0.19)
+    );
+    float verticalFiber = inkNoise(
+        vec2(uv.x * 57.0 + uSeed, uv.y * 780.0)
+    );
+    float textureAmount = (fiber - 0.48) * 0.10
+        + (verticalFiber - 0.5) * 0.025;
+    return clamp(
+        uPaperColor.rgb * (1.0 + textureAmount * uPaperTexture),
+        0.0,
+        1.0
+    );
+}
+
+vec3 minimalInkWork(vec2 uv, vec2 texel, vec4 source) {
+    float left = sourceLuma(uv - vec2(texel.x, 0.0));
+    float right = sourceLuma(uv + vec2(texel.x, 0.0));
+    float down = sourceLuma(uv - vec2(0.0, texel.y));
+    float up = sourceLuma(uv + vec2(0.0, texel.y));
+    float gradient = length(vec2(right - left, up - down));
+    float line = smoothstep(
+        mix(0.18, 0.035, clamp(uEdgeDetail * 0.25, 0.0, 1.0)),
+        mix(0.32, 0.11, clamp(uEdgeDetail * 0.25, 0.0, 1.0)),
+        gradient
+    );
+    float luma = dot(source.rgb, vec3(0.2126, 0.7152, 0.0722));
+    float restrainedTone = (
+        1.0 - smoothstep(0.08, 0.58, luma)
+    ) * 0.58;
+    float dryBrush = mix(
+        0.82,
+        1.16,
+        inkFbm(uv * 170.0 + vec2(uSeed * 1.7, 0.0))
+    );
+    float pigment = clamp(
+        (line + restrainedTone) * uInkStrength * dryBrush,
+        0.0,
+        1.0
+    );
+    return mix(paperSurface(uv), uInkColor.rgb, pigment);
+}
+
+vec3 minimalInkWash(vec2 uv, vec2 texel, vec4 source) {
+    vec2 spread = texel * max(uWashSpread, 0.25);
+    vec3 wash = source.rgb * 0.28;
+    wash += texture(sTD2DInputs[0], clamp(uv + vec2(spread.x, 0.0), 0.0, 1.0)).rgb * 0.12;
+    wash += texture(sTD2DInputs[0], clamp(uv - vec2(spread.x, 0.0), 0.0, 1.0)).rgb * 0.12;
+    wash += texture(sTD2DInputs[0], clamp(uv + vec2(0.0, spread.y), 0.0, 1.0)).rgb * 0.12;
+    wash += texture(sTD2DInputs[0], clamp(uv - vec2(0.0, spread.y), 0.0, 1.0)).rgb * 0.12;
+    wash += texture(sTD2DInputs[0], clamp(uv + spread, 0.0, 1.0)).rgb * 0.06;
+    wash += texture(sTD2DInputs[0], clamp(uv - spread, 0.0, 1.0)).rgb * 0.06;
+    wash += texture(sTD2DInputs[0], clamp(uv + vec2(spread.x, -spread.y), 0.0, 1.0)).rgb * 0.06;
+    wash += texture(sTD2DInputs[0], clamp(uv + vec2(-spread.x, spread.y), 0.0, 1.0)).rgb * 0.06;
+
+    float washLuma = dot(wash, vec3(0.2126, 0.7152, 0.0722));
+    float sourceValue = 1.0 - dot(
+        source.rgb,
+        vec3(0.2126, 0.7152, 0.0722)
+    );
+    float pooledEdge = abs(sourceLuma(uv + spread) - sourceLuma(uv - spread));
+    float diffusion = inkFbm(
+        uv * 92.0 + vec2(uSeed * 2.11, uTime * 0.035)
+    );
+    float granules = mix(
+        1.0,
+        mix(0.68, 1.28, diffusion),
+        clamp(uGranulation, 0.0, 1.0)
+    );
+    float layeredWash = pow(clamp(1.0 - washLuma, 0.0, 1.0), 1.18);
+    layeredWash = smoothstep(0.035, 0.965, layeredWash);
+    layeredWash *= mix(0.88, 1.10, diffusion);
+    float pigment = clamp(
+        (
+            layeredWash * 0.72
+            + sourceValue * 0.22
+            + pooledEdge * uEdgeDetail * 0.32
+        ) * uInkStrength * granules,
+        0.0,
+        1.0
+    );
+    return mix(paperSurface(uv), uInkColor.rgb, pigment);
+}
+
+vec3 visualLayer(vec2 uv, vec2 texel, vec4 source) {
+    if (uVisualEnabled <= 0.5) {
+        return source.rgb;
+    }
+    vec3 stylized = uStyle < 0.5
+        ? minimalInkWork(uv, texel, source)
+        : minimalInkWash(uv, texel, source);
+    return mix(source.rgb, stylized, clamp(uVisualMix, 0.0, 1.0));
+}
+
+vec2 flowBasisDirection() {
+    float magnitude = length(uFlowDirection);
+    return magnitude > 0.0001
+        ? uFlowDirection / magnitude
+        : vec2(1.0, 0.0);
+}
+
+vec2 waterParticleMotion(vec2 cell, vec2 direction) {
+    vec2 seeded = cell + vec2(uSeed * 17.17, uSeed * 43.71);
+    float phase = inkHash(seeded);
+    float rate = mix(0.64, 1.38, inkHash(seeded + 19.31));
+    float travel = fract(uTime * uFlowSpeed * rate + phase) * 2.0 - 1.0;
+    float randomPhase = TAU * inkHash(seeded + 7.13);
+    vec2 normal = vec2(-direction.y, direction.x);
+    float crossCurrent = sin(
+        uTime * uFlowSpeed * 1.73 + randomPhase
+    ) * uTurbulence;
+    float wandering = (
+        sin(uTime * uFlowSpeed * 2.91 + randomPhase * 1.37)
+        + cos(uTime * uFlowSpeed * 1.19 + randomPhase * 0.73)
+    ) * 0.5 * uRandomness;
+    return direction * (travel * uFlowStrength + wandering * 0.35)
+        + normal * (crossCurrent + wandering);
+}
+
+float waterParticleMetric(
+    vec2 delta,
+    vec2 direction,
+    float radius,
+    float variation
+) {
+    vec2 normal = vec2(-direction.y, direction.x);
+    float along = dot(delta, direction);
+    float across = dot(delta, normal);
+    float stretch = 1.0 + uParticleStretch * mix(0.85, 1.35, variation);
+    vec2 shaped = vec2(
+        along / max(radius * stretch, 0.001),
+        across / max(radius, 0.001)
+    );
+    float roundDrop = length(shaped);
+    float brushFleck = max(abs(shaped.x), abs(shaped.y))
+        + 0.10 * sin(shaped.x * 8.0 + variation * TAU);
+    float taperedDrop = length(shaped)
+        + max(0.0, shaped.x) * 0.16
+        - max(0.0, -shaped.x) * 0.08;
+    if (uParticleShape < 0.5) {
+        return roundDrop;
+    }
+    if (uParticleShape < 1.5) {
+        return brushFleck;
+    }
+    return taperedDrop;
+}
+
+void main() {
+    vec2 uv = clamp(vUV.st, 0.0, 1.0);
+    ivec2 sourceSize = textureSize(sTD2DInputs[0], 0);
+    vec2 texel = 1.0 / vec2(max(sourceSize.x, 1), max(sourceSize.y, 1));
+    vec4 source = texture(sTD2DInputs[0], uv);
+    vec3 baseColor = visualLayer(uv, texel, source);
+    vec3 premultiplied = baseColor * source.a;
+    float accumulatedAlpha = source.a;
+
+    if (uParticlesEnabled > 0.5 && uParticleOpacity > 0.0) {
+        float aspect = float(max(sourceSize.x, 1))
+            / float(max(sourceSize.y, 1));
+        float columns = max(4.0, floor(uParticleDensity + 0.5));
+        float rows = max(
+            4.0,
+            floor(columns / max(aspect, 0.001) + 0.5)
+        );
+        vec2 grid = vec2(columns, rows);
+        vec2 gridPosition = uv * grid;
+        vec2 baseCell = floor(gridPosition);
+        vec2 direction = flowBasisDirection();
+        float radius = max(0.04, uParticleSize * 0.46);
+
+        // Motion and stretch are bounded so this fixed 5x5 search remains
+        // sufficient at every density and output resolution.
+        for (int offsetY = -2; offsetY <= 2; ++offsetY) {
+            for (int offsetX = -2; offsetX <= 2; ++offsetX) {
+                vec2 cell = baseCell + vec2(float(offsetX), float(offsetY));
+                if (
+                    cell.x < 0.0 || cell.y < 0.0
+                    || cell.x >= grid.x || cell.y >= grid.y
+                ) {
+                    continue;
+                }
+                float variation = inkHash(
+                    cell + vec2(uSeed * 5.73, uSeed * 11.19)
+                );
+                vec2 center = cell + vec2(0.5)
+                    + waterParticleMotion(cell, direction);
+                vec2 delta = gridPosition - center;
+                float metric = waterParticleMetric(
+                    delta,
+                    direction,
+                    radius,
+                    variation
+                );
+                float antialias = max(fwidth(metric), 0.008);
+                float raggedEdge = mix(
+                    0.96,
+                    1.06,
+                    inkNoise(cell * 5.0 + delta * 2.5 + uSeed)
+                );
+                float coverage = 1.0 - smoothstep(
+                    raggedEdge - antialias,
+                    raggedEdge + antialias,
+                    metric
+                );
+                if (coverage <= 0.0) {
+                    continue;
+                }
+
+                vec2 sourceUV = (cell + vec2(0.5)) / grid;
+                vec4 particleSource = texture(
+                    sTD2DInputs[0],
+                    clamp(sourceUV, 0.0, 1.0)
+                );
+                float particleLuma = dot(
+                    particleSource.rgb,
+                    vec3(0.2126, 0.7152, 0.0722)
+                );
+                float pigmentBias = mix(0.42, 1.0, 1.0 - particleLuma);
+                vec3 particleColor = mix(
+                    particleSource.rgb,
+                    uInkColor.rgb,
+                    clamp(uParticleInkMix * pigmentBias, 0.0, 1.0)
+                );
+                float layerAlpha = clamp(
+                    coverage
+                    * particleSource.a
+                    * uParticleOpacity
+                    * mix(0.72, 1.0, variation),
+                    0.0,
+                    1.0
+                );
+                premultiplied = particleColor * layerAlpha
+                    + premultiplied * (1.0 - layerAlpha);
+                accumulatedAlpha = layerAlpha
+                    + accumulatedAlpha * (1.0 - layerAlpha);
+            }
+        }
+    }
+
+    vec3 color = accumulatedAlpha > 0.00001
+        ? premultiplied / accumulatedAlpha
+        : vec3(0.0);
+    fragColor = TDOutputSwizzle(vec4(color, accumulatedAlpha));
+}
+""".strip()
+
+INK_FLOW_PARAMETER_DEFINITIONS = (
+    {
+        "name": "Enabled", "label": "Module Enabled", "type": "toggle",
+        "page": "Ink Flow", "default": True,
+        "description": "Return the input unchanged when the entire module is disabled.",
+    },
+    {
+        "name": "Autotime", "label": "Auto Time", "type": "toggle",
+        "page": "Ink Flow", "default": True,
+        "description": "Animate water particles from TouchDesigner's absolute time.",
+    },
+    {
+        "name": "Timescale", "label": "Time Scale", "type": "float",
+        "page": "Ink Flow", "default": 1.0, "min": -10.0, "max": 10.0,
+        "description": "Scale or reverse automatic water-flow time.",
+    },
+    {
+        "name": "Manualtime", "label": "Manual Time", "type": "float",
+        "page": "Ink Flow", "default": 0.0,
+        "min": -100000.0, "max": 100000.0,
+        "description": "Deterministic time used when Auto Time is disabled.",
+    },
+    {
+        "name": "Time", "label": "Effective Time", "type": "float",
+        "page": "Ink Flow", "default": 0.0,
+        "min": -100000.0, "max": 100000.0,
+        "uniform": "uTime", "animatable": False,
+        "description": "Resolved animation time sent to the ink-flow shader.",
+    },
+    {
+        "name": "Visualenabled", "label": "Ink Visual Enabled",
+        "type": "toggle", "page": "Ink Visuals", "default": True,
+        "uniform": "uVisualEnabled",
+        "description": "Apply the selected ink treatment independently of particles.",
+    },
+    {
+        "name": "Style", "label": "Ink Style", "type": "menu",
+        "page": "Ink Visuals", "default": "ink_work",
+        "menu_names": ["ink_work", "ink_wash"],
+        "menu_labels": [
+            "Minimal Ink Work (Line and Brush)",
+            "Minimal Ink Wash (Shui-mo)",
+        ],
+        "uniform": "uStyle",
+        "description": "Choose crisp restrained ink work or soft layered ink wash.",
+    },
+    {
+        "name": "Visualmix", "label": "Ink Visual Mix", "type": "float",
+        "page": "Ink Visuals", "default": 1.0,
+        "min": 0.0, "max": 1.0, "uniform": "uVisualMix",
+        "description": "Blend the selected ink treatment with the source.",
+    },
+    {
+        "name": "Inkstrength", "label": "Ink Strength", "type": "float",
+        "page": "Ink Visuals", "default": 0.92,
+        "min": 0.0, "max": 2.0, "uniform": "uInkStrength",
+        "description": "Control pigment depth and tonal weight.",
+    },
+    {
+        "name": "Edgedetail", "label": "Edge Detail", "type": "float",
+        "page": "Ink Visuals", "default": 1.6,
+        "min": 0.0, "max": 4.0, "uniform": "uEdgeDetail",
+        "description": "Control line sensitivity and pooled wash edges.",
+    },
+    {
+        "name": "Washspread", "label": "Wash Spread", "type": "float",
+        "page": "Ink Visuals", "default": 3.2,
+        "min": 0.25, "max": 10.0, "uniform": "uWashSpread",
+        "description": "Set the diffusion radius used by the ink-wash style.",
+    },
+    {
+        "name": "Granulation", "label": "Wash Granulation", "type": "float",
+        "page": "Ink Visuals", "default": 0.42,
+        "min": 0.0, "max": 1.0, "uniform": "uGranulation",
+        "description": "Add controlled pigment granulation to ink wash.",
+    },
+    {
+        "name": "Papertexture", "label": "Paper Texture", "type": "float",
+        "page": "Ink Visuals", "default": 0.55,
+        "min": 0.0, "max": 1.0, "uniform": "uPaperTexture",
+        "description": "Reveal a subtle rice-paper-like procedural fiber texture.",
+    },
+    {
+        "name": "Inkcolor", "label": "Ink Color", "type": "rgba",
+        "page": "Ink Palette", "default": [0.035, 0.032, 0.028, 1.0],
+        "uniform": "uInkColor",
+        "description": "Set the pigment color used by both styles and particles.",
+    },
+    {
+        "name": "Papercolor", "label": "Paper Color", "type": "rgba",
+        "page": "Ink Palette", "default": [0.94, 0.915, 0.84, 1.0],
+        "uniform": "uPaperColor",
+        "description": "Set the warm paper ground used by both ink styles.",
+    },
+    {
+        "name": "Particlesenabled", "label": "Water Particles Enabled",
+        "type": "toggle", "page": "Water Particles", "default": True,
+        "uniform": "uParticlesEnabled",
+        "description": "Composite the water-current particle layer independently.",
+    },
+    {
+        "name": "Particledensity", "label": "Particle Columns",
+        "type": "int", "page": "Water Particles", "default": 32,
+        "min": 8, "max": 500, "uniform": "uParticleDensity",
+        "description": "Particle columns; rows follow the source aspect ratio.",
+    },
+    {
+        "name": "Particlesize", "label": "Particle Size",
+        "type": "float", "page": "Water Particles", "default": 0.46,
+        "min": 0.08, "max": 0.90, "uniform": "uParticleSize",
+        "description": "Particle radius relative to one grid cell.",
+    },
+    {
+        "name": "Flowspeed", "label": "Flow Speed",
+        "type": "float", "page": "Water Particles", "default": 0.34,
+        "min": 0.0, "max": 4.0, "uniform": "uFlowSpeed",
+        "description": "Speed of particle travel through the water current.",
+    },
+    {
+        "name": "Flowdirection", "label": "Flow Direction",
+        "type": "xy", "page": "Water Particles",
+        "default": [1.0, -0.12], "min": -1.0, "max": 1.0,
+        "uniform": "uFlowDirection",
+        "description": "Set the principal two-dimensional water-flow direction.",
+    },
+    {
+        "name": "Flowstrength", "label": "Flow Distance",
+        "type": "float", "page": "Water Particles", "default": 0.48,
+        "min": 0.0, "max": 0.65, "uniform": "uFlowStrength",
+        "description": "Set bounded downstream travel in grid-cell units.",
+    },
+    {
+        "name": "Turbulence", "label": "Cross-current Turbulence",
+        "type": "float", "page": "Water Particles", "default": 0.11,
+        "min": 0.0, "max": 0.25, "uniform": "uTurbulence",
+        "description": "Add smooth movement across the main current.",
+    },
+    {
+        "name": "Randomness", "label": "Random Wandering",
+        "type": "float", "page": "Water Particles", "default": 0.06,
+        "min": 0.0, "max": 0.15, "uniform": "uRandomness",
+        "description": "Add deterministic seeded irregular motion.",
+    },
+    {
+        "name": "Particlestretch", "label": "Flow Stretch",
+        "type": "float", "page": "Water Particles", "default": 0.62,
+        "min": 0.0, "max": 1.0, "uniform": "uParticleStretch",
+        "description": "Stretch particles along the water-flow direction.",
+    },
+    {
+        "name": "Particleshape", "label": "Particle Shape", "type": "menu",
+        "page": "Water Particles", "default": "brush",
+        "menu_names": ["round", "brush", "droplet"],
+        "menu_labels": ["Round Pigment", "Brush Fleck", "Water Droplet"],
+        "uniform": "uParticleShape",
+        "description": "Choose the silhouette of the flowing particle marks.",
+    },
+    {
+        "name": "Particleopacity", "label": "Particle Opacity",
+        "type": "float", "page": "Water Particles", "default": 0.58,
+        "min": 0.0, "max": 1.0, "uniform": "uParticleOpacity",
+        "description": "Control the opacity of the water-current particle layer.",
+    },
+    {
+        "name": "Particleinkmix", "label": "Particle Ink Mix",
+        "type": "float", "page": "Water Particles", "default": 0.86,
+        "min": 0.0, "max": 1.0, "uniform": "uParticleInkMix",
+        "description": "Blend source color toward the selected ink pigment.",
+    },
+    {
+        "name": "Seed", "label": "Random Seed", "type": "int",
+        "page": "Water Particles", "default": 23,
+        "min": 0, "max": 100000, "uniform": "uSeed",
+        "description": "Change paper fibers and deterministic particle wandering.",
+    },
+)
+
 PREVIEW_IDENTITY_LUT_SHADER = r"""
 layout(location = 0) out vec4 fragColor;
 void main() {
@@ -1617,6 +2105,129 @@ def build_particle_module(parent_comp):
     return particles, particle_path
 
 
+def build_ink_flow_module(parent_comp):
+    """Build the reusable ink-style and water-flow particle module."""
+
+    ink_flow = parent_comp.create(baseCOMP, "ink_flow_fusion")
+    ink_flow.color = (0.16, 0.22, 0.19)
+    ink_flow.comment = (
+        "Minimal Chinese ink work and ink wash with an independently "
+        "switchable water-current particle layer."
+    )
+    pages = {}
+    parameter_bindings = []
+    for definition in INK_FLOW_PARAMETER_DEFINITIONS:
+        page_name = definition.get("page", "Ink Flow")
+        page = pages.get(page_name)
+        if page is None:
+            page = ink_flow.appendCustomPage(page_name)
+            pages[page_name] = page
+        custom_pars = _append_parameter(ink_flow, page, definition)
+        parameter_bindings.append((definition, custom_pars))
+    ink_flow.par.Time.expr = (
+        "absTime.seconds * me.par.Timescale "
+        "if me.par.Autotime else me.par.Manualtime"
+    )
+    ink_flow.store(
+        "tdimagefx_ink_flow_module",
+        {
+            "schema_version": 1,
+            "id": "tdimagefx.core.ink-flow-fusion",
+            "renderer": "bounded_glsl_top",
+            "styles": ["minimal_ink_work", "minimal_ink_wash"],
+            "particle_motion": "seeded_water_current",
+            "video_fx_routing": "external_optional",
+        },
+    )
+
+    source = ink_flow.create(inTOP, "in1_image")
+    source.par.label = "source image"
+    source.nodeX = -420
+    source.nodeY = 0
+
+    shader_dat = ink_flow.create(textDAT, "pixel_shader_ink_flow")
+    shader_dat.text = INK_FLOW_SHADER
+    shader_dat.nodeX = -210
+    shader_dat.nodeY = -260
+
+    ink_glsl = ink_flow.create(glslTOP, "effect_glsl_ink_flow")
+    source.outputConnectors[0].connect(ink_glsl.inputConnectors[0])
+    ink_glsl.nodeX = -80
+    ink_glsl.nodeY = 0
+    ink_glsl.par.pixeldat = ink_glsl.relativePath(shader_dat)
+    if ink_glsl.par["glslversion"] is not None:
+        ink_glsl.par.glslversion = "glsl460"
+    if ink_glsl.par["compilebehavior"] is not None:
+        ink_glsl.par.compilebehavior = "stalluntildone"
+    if ink_glsl.par["errorbehavior"] is not None:
+        ink_glsl.par.errorbehavior = "showerror"
+    if ink_glsl.par["outputresolution"] is not None:
+        ink_glsl.par.outputresolution = "useinput"
+
+    active_bindings = [
+        (definition, custom_pars)
+        for definition, custom_pars in parameter_bindings
+        if definition.get("uniform")
+    ]
+    ink_glsl.seq.vec.numBlocks = max(
+        1,
+        sum(
+            1
+            for definition, _custom_pars in active_bindings
+            if definition.get("type") not in {"rgb", "rgba"}
+        ),
+    )
+    ink_glsl.seq.color.numBlocks = max(
+        1,
+        sum(
+            1
+            for definition, _custom_pars in active_bindings
+            if definition.get("type") in {"rgb", "rgba"}
+        ),
+    )
+    vector_index = 0
+    color_index = 0
+    for definition, custom_pars in active_bindings:
+        current_vector_index = vector_index
+        vector_index, color_index = _configure_glsl_uniform(
+            ink_glsl,
+            definition,
+            custom_pars,
+            vector_index,
+            color_index,
+        )
+        if definition["name"] in {"Style", "Particleshape"}:
+            ink_glsl.par[
+                "vec{}valuex".format(current_vector_index)
+            ].expr = "parent().par.{}.menuIndex".format(definition["name"])
+
+    enable_switch = ink_flow.create(switchTOP, "enable_switch")
+    source.outputConnectors[0].connect(enable_switch.inputConnectors[0])
+    ink_glsl.outputConnectors[0].connect(enable_switch.inputConnectors[1])
+    enable_switch.par.index.expr = "1 if parent().par.Enabled else 0"
+    enable_switch.nodeX = 170
+    enable_switch.nodeY = 0
+
+    output = ink_flow.create(outTOP, "out1_ink_flow")
+    enable_switch.outputConnectors[0].connect(output.inputConnectors[0])
+    output.nodeX = 380
+    output.nodeY = 0
+    output.display = True
+    output.render = True
+    ink_flow.par.opviewer = output.path
+
+    ink_glsl.cook(force=True)
+    errors = list(ink_glsl.errors())
+    if errors:
+        raise RuntimeError(
+            "Ink-flow shader failed: {}".format("; ".join(errors))
+        )
+
+    ink_flow_path = CORE_ROOT / "InkFlowFusion.tox"
+    ink_flow.save(str(ink_flow_path), createFolders=True)
+    return ink_flow, ink_flow_path
+
+
 def build_browser(parent_comp, manifests, compatibility_confidence="declared"):
     browser = parent_comp.create(baseCOMP, "fx_browser")
     browser.color = (0.14, 0.38, 0.30)
@@ -2238,6 +2849,7 @@ def build_library(project_comp, manifests, report):
         "TD ImageFX Library {}\n\n"
         "Use core/fx_rack for an eight-effect chain with presets and modulation.\n"
         "Use core/particle_random_move for GPU image particles with deterministic random motion.\n"
+        "Use core/ink_flow_fusion for minimal ink work, ink wash, and water-current particles.\n"
         "Use core/fx_browser to search, filter, favorite, and create effects.\n"
         "Use the promoted Find(), CreateEffect(), CheckUpdates(), and HealthCheck() methods.\n"
         "All effect versions are immutable and stored under packages/<id>/<version>.\n"
@@ -2327,8 +2939,11 @@ def build_library(project_comp, manifests, report):
     particles, particle_path = build_particle_module(core_parent)
     particles.nodeX = 260
     particles.nodeY = 0
+    ink_flow, ink_flow_path = build_ink_flow_module(core_parent)
+    ink_flow.nodeX = 520
+    ink_flow.nodeY = 0
     browser, browser_path = build_browser(core_parent, manifests, compatibility_confidence)
-    browser.nodeX = 520
+    browser.nodeX = 780
     browser.nodeY = 0
 
     library.par.Status = "Ready: {} packages".format(len(manifests))
@@ -2338,31 +2953,43 @@ def build_library(project_comp, manifests, report):
         "library": str(library_path),
         "rack": str(rack_path),
         "particles": str(particle_path),
+        "ink_flow": str(ink_flow_path),
         "browser": str(browser_path),
         "updater": str(CORE_ROOT / "FxUpdater.tox"),
     }
-    return library, rack_path, particle_path
+    return library, rack_path, particle_path, ink_flow_path
 
 
-def build_demo(project_comp, rack_path, particle_path):
+def build_demo(project_comp, rack_path, particle_path, ink_flow_path):
     demo = project_comp.create(baseCOMP, "imagefx_demo")
     demo.nodeX = 100
     demo.nodeY = 100
     demo.color = (0.32, 0.18, 0.36)
     demo.comment = (
-        "Animated source -> optional random particles -> optional eight-slot "
-        "video FX. Replace source_image with any TOP."
+        "Animated source -> optional ink flow -> optional random particles -> "
+        "optional eight-slot video FX. Replace source_image with any TOP."
     )
     demo_page = demo.appendCustomPage("Demo")
     _append_parameter(
         demo,
         demo_page,
         {
-            "name": "Particlesenabled",
-            "label": "Particles Enabled",
+            "name": "Inkflowenabled",
+            "label": "Ink Flow Module Enabled",
             "type": "toggle",
             "default": True,
-            "description": "Particleize the source before optional video effects.",
+            "description": "Enable the ink styles and water particles configured inside ink_flow.",
+        },
+    )
+    _append_parameter(
+        demo,
+        demo_page,
+        {
+            "name": "Particlesenabled",
+            "label": "Random Particles Enabled",
+            "type": "toggle",
+            "default": False,
+            "description": "Apply the separate legacy random-move particle module after ink_flow.",
         },
     )
     _append_parameter(
@@ -2406,18 +3033,28 @@ def build_demo(project_comp, rack_path, particle_path):
             "Demo source shader failed: {}".format("; ".join(source_errors))
         )
 
+    ink_flow = load_tox_component(
+        demo,
+        ink_flow_path,
+        "ink_flow",
+    )
+    ink_flow.nodeX = -40
+    ink_flow.nodeY = 0
+    ink_flow.par.Enabled.expr = "parent().par.Inkflowenabled"
+    source.outputConnectors[0].connect(ink_flow.inputConnectors[0])
+
     particles = load_tox_component(
         demo,
         particle_path,
         "particle_random_move",
     )
-    particles.nodeX = -40
+    particles.nodeX = 220
     particles.nodeY = 0
     particles.par.Enabled.expr = "parent().par.Particlesenabled"
-    source.outputConnectors[0].connect(particles.inputConnectors[0])
+    ink_flow.outputConnectors[0].connect(particles.inputConnectors[0])
 
     rack = load_tox_component(demo, rack_path, "fx_rack")
-    rack.nodeX = 220
+    rack.nodeX = 480
     rack.nodeY = 0
     particles.outputConnectors[0].connect(rack.inputConnectors[0])
 
@@ -2469,12 +3106,12 @@ def build_demo(project_comp, rack_path, particle_path):
     particles.outputConnectors[0].connect(video_fx_router.inputConnectors[0])
     rack.outputConnectors[0].connect(video_fx_router.inputConnectors[1])
     video_fx_router.par.index.expr = "1 if parent().par.Applyvideofx else 0"
-    video_fx_router.nodeX = 470
+    video_fx_router.nodeX = 730
     video_fx_router.nodeY = 0
 
     output = demo.create(outTOP, "out1_image")
     video_fx_router.outputConnectors[0].connect(output.inputConnectors[0])
-    output.nodeX = 680
+    output.nodeX = 940
     output.nodeY = 0
     output.display = True
     output.render = True
@@ -2652,12 +3289,17 @@ def build():
         template_nodes = _default_template_nodes(project_comp)
         for node in [*existing, *template_nodes]:
             node.destroy()
-        library, rack_path, particle_path = build_library(
+        library, rack_path, particle_path, ink_flow_path = build_library(
             project_comp,
             manifests,
             report,
         )
-        build_demo(project_comp, rack_path, particle_path)
+        build_demo(
+            project_comp,
+            rack_path,
+            particle_path,
+            ink_flow_path,
+        )
         report["benchmark_data"] = str(_write_benchmark_data(report))
         if report["shader_errors"]:
             raise RuntimeError("{} effects have GLSL errors".format(len(report["shader_errors"])))

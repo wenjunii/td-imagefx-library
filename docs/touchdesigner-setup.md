@@ -44,6 +44,7 @@ The repository includes:
 - 122 versioned effect `.tox` files under `packages/<package-id>/<version>/tox/`: one current version for each of 96 effect IDs plus 26 retained predecessors;
 - `touchdesigner/core/TDImageFXLibrary.tox`;
 - `touchdesigner/core/FxRack.tox`;
+- `touchdesigner/core/InkFlowFusion.tox`;
 - `touchdesigner/core/ParticleRandomMove.tox`;
 - `touchdesigner/core/FxBrowser.tox`;
 - `touchdesigner/core/FxUpdater.tox`.
@@ -55,10 +56,17 @@ For a quick inventory check in the Textport, `op('/project1/td_imagefx').HealthC
 For particle-specific GPU and routing QA, run
 `touchdesigner/scripts/validate_particle_module.py` from the Python Textport.
 It temporarily freezes demo time, exercises all four combinations of
-**Particles Enabled** and **Apply Video Effects**, checks bypass fidelity,
+**Random Particles Enabled** and **Apply Video Effects**, checks bypass fidelity,
 random movement, seed variation, and shader diagnostics, then restores the
 artist-facing values. Its ignored report is written to
 `build/envoy-validation/particle-module.json`.
+
+For ink-flow QA, run
+`touchdesigner/scripts/validate_ink_flow_module.py` from the Python Textport.
+It checks whole-module and independent-feature bypass, both distinct ink
+styles, water-current motion, seed variation, combined rendering, the
+500-column maximum, and shader diagnostics. Its ignored report is
+`build/envoy-validation/ink-flow-module.json`.
 
 Python is not required to use the prebuilt native files. Python 3.11 or newer is required for repository tools and the standalone package CLI.
 
@@ -110,7 +118,7 @@ The builder creates or updates:
 
 - `TD_ImageFX_Library.toe`;
 - a versioned `.tox` for the latest version of each of 96 effect IDs while preserving all tracked exact-version artifacts;
-- five reusable core `.tox` files for the library, rack, particles, browser, and updater;
+- six reusable core `.tox` files for the library, rack, ink flow, random particles, browser, and updater;
 - declared single-pass and multi-pass GLSL graphs plus temporal/simulation feedback graphs;
 - 96 preview PNGs under `docs/gallery/`;
 - `docs/benchmark-data.json` with per-effect runtime samples;
@@ -130,7 +138,7 @@ python tools/build_gallery.py
 python tools/benchmark_report.py
 ```
 
-The native-validation command accepts only a clean build report and writes `docs/native-validation.json`, binding the named TouchDesigner environment to the size and SHA-256 digest of the library `.toe`, all versioned effect `.tox` files, and the five core `.tox` files.
+The native-validation command accepts only a clean build report and writes `docs/native-validation.json`, binding the named TouchDesigner environment to the size and SHA-256 digest of the library `.toe`, all versioned effect `.tox` files, and the six core `.tox` files.
 
 Compare every changed preview on representative media. Only after intentional visual approval should you replace the SHA-256 baselines:
 
@@ -169,7 +177,21 @@ Wave Warp -> Exposure -> Gaussian Blur -> RGB Split
 
 Each of eight slots provides effect selection, enable, dry/wet mix, modulation depth/rate/state, Up, Down, Reset, and Bypass. Six auxiliary buses route second image, displacement, depth, normal, flow, and mask inputs by declared semantic role. Global controls reload/reset the rack and bypass or enable every slot. **Auto Time** and **Time Scale** drive time-aware parameters; disable Auto Time and set **Manual Time** for deterministic inspection.
 
-The generated demo routes the source through the reusable `particle_random_move` module and then the eight-slot rack. Its **Particles Enabled** and **Apply Video Effects** toggles independently select original image, image plus effects, particles only, or particles plus effects. Select `particle_random_move` to tune density, size, speed, move amount, jitter, drift, seed, shape, opacity, source blend, background, and time. The default 96-column grid is about 5,000 particles at 16:9; reduce it first for 4K or multi-output qualification.
+The generated demo routes source -> `ink_flow` -> `particle_random_move` ->
+the eight-slot rack. **Ink Flow Module Enabled** bypasses the combined ink and
+water-particle module, **Random Particles Enabled** controls the existing
+random-move stage, and **Apply Video Effects** controls the rack. Inside
+`ink_flow`, **Ink Visual Enabled** and **Water Particles Enabled** are
+independent.
+
+Select `ink_flow` to choose **Minimal Ink Work** or **Minimal Ink Wash
+(Shui-mo)** and adjust visual mix, pigment strength, edge detail, wash spread,
+granulation, paper texture, paper/ink colors, water-particle density, size,
+flow direction/speed/distance, turbulence, random wandering, stretch, shape,
+opacity, ink mix, seed, and time. Its sparse default is 32 columns, with an
+adjustable range of 8 through 500. Select `particle_random_move` to tune the
+separate random-particle stage. That module's default 96-column grid is about
+5,000 particles at 16:9; reduce it first for 4K or multi-output qualification.
 
 **Particle Columns** accepts 8 through 500. A 500-column 16:9 grid is
 approximately 140,000 particles, so qualify the upper range against the actual
@@ -177,7 +199,7 @@ resolution and frame-time budget.
 
 The demo also connects deterministic fixtures to every auxiliary rack input, including the second-image bus used by transitions, composites, and clean-reference keys. Replace those fixtures with production TOPs in a real project. Several grading and transform effects intentionally load with neutral parameter values; enter the loaded `slot1` through `slot8` component to adjust its effect-specific custom parameters.
 
-To use your own source in `/project1/imagefx_demo`, drag the still or movie into the network to create a Movie File In TOP, disconnect the generated `source_image` from input 0 of `particle_random_move`, and connect the Movie File In TOP there. Keep that source connected to `fixture_image_b` to derive the supplied alternate/clean-reference image, or replace rack input 1 with an independent TOP. View the result at `out1_image`. A Video Device In TOP can replace the Movie File In TOP for a live camera.
+To use your own source in `/project1/imagefx_demo`, drag the still or movie into the network to create a Movie File In TOP, disconnect the generated `source_image` from input 0 of `ink_flow`, and connect the Movie File In TOP there. Keep that source connected to `fixture_image_b` to derive the supplied alternate/clean-reference image, or replace rack input 1 with an independent TOP. View the result at `out1_image`. A Video Device In TOP can replace the Movie File In TOP for a live camera.
 
 Rack, browser, updater, and stateful-effect callback targets are stored as component-relative operator paths. Stateful Feedback TOPs likewise target their package-local state nodes relatively. An imported `FxRack.tox` therefore watches its own slot parameters and retains working temporal history after it is moved or renamed; it does not retain absolute paths from the network that produced the `.tox`.
 

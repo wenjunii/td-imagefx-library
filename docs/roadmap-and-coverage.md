@@ -94,7 +94,8 @@ Updater and release work adds source/feed binding, duplicate-key and size defens
 | Motion analysis | Optical-flow warp and flow-assisted effects | Vector estimation/export, tracking, stabilization, quality/fallback tiers |
 | Simulation | Four upgraded reference systems | Robust pressure/fluid solver, substeps/quality tiers, validation at varied resolution/frame rate |
 | Depth and spatial | Depth parallax and normal lighting | Height fields, point clouds, camera projection, volumetric slices |
-| Particles and point clouds | Random-move image-particle core plus particle-advection simulation | Instancing, fragmentation, depth clouds |
+| Particles and point clouds | Random-move image particles, ink-flow water particles, and particle-advection simulation | Instancing, fragmentation, depth clouds |
+| Cultural and painterly style | Minimal Chinese ink work and ink wash with procedural paper/pigment controls | Curated brush libraries, calligraphy-aware stroke analysis, additional reviewed traditions |
 | Segmentation and ML | Research only | Model/package metadata, offline/online trust boundaries, deterministic fallback |
 | Input and control | Rack time and mix modulation | Audio, MIDI, OSC, DMX, camera/sensor adapters |
 | Output and calibration | Outside effect core | Mapping, multi-display calibration, recording/streaming adapters |
@@ -120,7 +121,7 @@ Updater and release work adds source/feed binding, duplicate-key and size defens
 - Add representative alpha, HDR/negative, odd-resolution, auxiliary-input, and dynamic-resolution preview/test fixtures.
 - Implement and measure quality tiers for the most expensive multi-pass, blur, temporal, and simulation packages.
 - Add optical-flow estimation/export, tracking, stabilization, and capability-based fallbacks.
-- Expand the random-move image-particle core toward instancing, fragmentation, point clouds, depth/height fields, and camera-projection adapters.
+- Expand the random-move and ink-flow particle cores toward instancing, fragmentation, point clouds, depth/height fields, and camera-projection adapters.
 - Provide audio, MIDI, OSC, DMX, camera, and sensor modulation examples outside immutable effect packages.
 
 ### 0.5 — curated ecosystem updates

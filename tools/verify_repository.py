@@ -258,6 +258,7 @@ def _check_manifests() -> tuple[int, set[str], dict[str, str]]:
         ROOT / "touchdesigner" / "core" / "FxBrowser.tox",
         ROOT / "touchdesigner" / "core" / "FxRack.tox",
         ROOT / "touchdesigner" / "core" / "ParticleRandomMove.tox",
+        ROOT / "touchdesigner" / "core" / "InkFlowFusion.tox",
         ROOT / "touchdesigner" / "core" / "FxUpdater.tox",
     )
     missing = [path.relative_to(ROOT) for path in required_native_assets if not path.is_file()]
@@ -437,6 +438,7 @@ def _check_native_validation(library_version: str) -> None:
         "touchdesigner/core/FxBrowser.tox",
         "touchdesigner/core/FxRack.tox",
         "touchdesigner/core/ParticleRandomMove.tox",
+        "touchdesigner/core/InkFlowFusion.tox",
         "touchdesigner/core/FxUpdater.tox",
         *(
             path.relative_to(ROOT).as_posix()
@@ -522,6 +524,9 @@ def _check_embody_integration() -> None:
 
     installer_path = ROOT / "touchdesigner" / "scripts" / "install_dev_harness.py"
     validator_path = ROOT / "touchdesigner" / "scripts" / "validate_live_project.py"
+    ink_flow_validator_path = (
+        ROOT / "touchdesigner" / "scripts" / "validate_ink_flow_module.py"
+    )
     public_guide_path = ROOT / "docs" / "embody-envoy-integration.md"
     required = (
         EMBODY_INTEGRATION / "README.md",
@@ -530,6 +535,7 @@ def _check_embody_integration() -> None:
         EMBODY_INTEGRATION / "envoy-validation-plan.json",
         installer_path,
         validator_path,
+        ink_flow_validator_path,
         public_guide_path,
     )
     missing = [path.relative_to(ROOT) for path in required if not path.is_file()]

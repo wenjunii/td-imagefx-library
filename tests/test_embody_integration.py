@@ -91,6 +91,7 @@ class EmbodyIntegrationTests(unittest.TestCase):
             captures,
             [
                 "/project1/imagefx_demo/out1_image",
+                "/project1/imagefx_demo/ink_flow/out1_ink_flow",
                 "/project1/imagefx_demo/particle_random_move/out1_particles",
                 "/project1/imagefx_demo/fx_rack/out1_image",
                 "/project1/td_imagefx/core/fx_browser/selected_preview",
@@ -113,8 +114,9 @@ class EmbodyIntegrationTests(unittest.TestCase):
         self.assertIn('parameter.val = ""', installer)
         self.assertIn('parameter.expr = "me.op(\'../../effects\')"', installer)
         self.assertIn("browser.cook(force=True)", installer)
-        self.assertEqual(installer.count("_repair_effect_shader_paths("), 4)
+        self.assertEqual(installer.count("_repair_effect_shader_paths("), 5)
         self.assertIn("ParticleRandomMove.tox", installer)
+        self.assertIn("InkFlowFusion.tox", installer)
         self.assertEqual(installer.count("_sync_extension("), 6)
         self.assertIn('_sync_extension(browser, "ImageFXBrowserExt")', installer)
         self.assertIn('_sync_extension(updater, "UpdaterExt")', installer)

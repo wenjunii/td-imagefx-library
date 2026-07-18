@@ -15,6 +15,7 @@ CANONICAL_PROJECT = PROJECT_ROOT / "TD_ImageFX_Library.toe"
 LIBRARY_TOX = PROJECT_ROOT / "touchdesigner" / "core" / "TDImageFXLibrary.tox"
 RACK_TOX = PROJECT_ROOT / "touchdesigner" / "core" / "FxRack.tox"
 PARTICLE_TOX = PROJECT_ROOT / "touchdesigner" / "core" / "ParticleRandomMove.tox"
+INK_FLOW_TOX = PROJECT_ROOT / "touchdesigner" / "core" / "InkFlowFusion.tox"
 EXTENSION_ROOT = PROJECT_ROOT / "touchdesigner" / "extensions"
 MANAGED_NAMES = ("td_imagefx", "imagefx_demo")
 DEMO_SOURCE_SHADER = r"""
@@ -223,13 +224,16 @@ def install():
         demo.nodeY = 100
         demo.color = (0.32, 0.18, 0.36)
         demo.comment = (
-            "Disposable Embody/Envoy QA harness with optional particles "
-            "and optional video effects"
+            "Disposable Embody/Envoy QA harness with optional ink flow, "
+            "random particles, and video effects"
         )
         demo_page = demo.appendCustomPage("Demo")
-        demo_page.appendToggle("Particlesenabled", label="Particles Enabled")
-        demo.par.Particlesenabled.default = True
-        demo.par.Particlesenabled = True
+        demo_page.appendToggle("Inkflowenabled", label="Ink Flow Module Enabled")
+        demo.par.Inkflowenabled.default = True
+        demo.par.Inkflowenabled = True
+        demo_page.appendToggle("Particlesenabled", label="Random Particles Enabled")
+        demo.par.Particlesenabled.default = False
+        demo.par.Particlesenabled = False
         demo_page.appendToggle("Applyvideofx", label="Apply Video Effects")
         demo.par.Applyvideofx.default = True
         demo.par.Applyvideofx = True
@@ -263,17 +267,25 @@ def install():
                 "QA demo source shader failed: {}".format("; ".join(source_errors))
             )
 
+        ink_flow = _load_single_tox(demo, INK_FLOW_TOX)
+        ink_flow.name = "ink_flow"
+        ink_flow.nodeX = -40
+        ink_flow.nodeY = 0
+        ink_flow.par.Enabled.expr = "parent().par.Inkflowenabled"
+        _repair_effect_shader_paths(ink_flow)
+        source.outputConnectors[0].connect(ink_flow.inputConnectors[0])
+
         particles = _load_single_tox(demo, PARTICLE_TOX)
         particles.name = "particle_random_move"
-        particles.nodeX = -40
+        particles.nodeX = 220
         particles.nodeY = 0
         particles.par.Enabled.expr = "parent().par.Particlesenabled"
         _repair_effect_shader_paths(particles)
-        source.outputConnectors[0].connect(particles.inputConnectors[0])
+        ink_flow.outputConnectors[0].connect(particles.inputConnectors[0])
 
         rack = _load_single_tox(demo, RACK_TOX)
         rack.name = "fx_rack"
-        rack.nodeX = 220
+        rack.nodeX = 480
         rack.nodeY = 0
         _set_library_root(rack, "demo rack")
         _sync_extension(rack, "FxRackExt")
@@ -326,11 +338,11 @@ def install():
         video_fx_router.par.index.expr = (
             "1 if parent().par.Applyvideofx else 0"
         )
-        video_fx_router.nodeX = 470
+        video_fx_router.nodeX = 730
         video_fx_router.nodeY = 0
 
         output = demo.create(outTOP, "out1_image")
-        output.nodeX = 680
+        output.nodeX = 940
         output.nodeY = 0
         video_fx_router.outputConnectors[0].connect(output.inputConnectors[0])
         output.display = True
@@ -342,6 +354,7 @@ def install():
             "ok": bool(health.get("ok")),
             "library": library.path,
             "demo": demo.path,
+            "ink_flow": ink_flow.path,
             "particles": particles.path,
             "output": output.path,
             "package_count": health.get("package_count"),

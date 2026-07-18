@@ -183,6 +183,65 @@ class TouchDesignerBuilderPathTests(unittest.TestCase):
         self.assertIn("for (int offsetX = -2; offsetX <= 2; ++offsetX)", shader)
         self.assertNotIn("feedback", shader.lower())
 
+    def test_ink_flow_module_combines_two_styles_with_bounded_water_particles(self) -> None:
+        shader = BUILDER.INK_FLOW_SHADER
+        uniform_names = {
+            definition["uniform"]
+            for definition in BUILDER.INK_FLOW_PARAMETER_DEFINITIONS
+            if definition.get("uniform")
+        }
+        self.assertEqual(
+            uniform_names,
+            {
+                "uTime",
+                "uVisualEnabled",
+                "uStyle",
+                "uVisualMix",
+                "uInkStrength",
+                "uEdgeDetail",
+                "uWashSpread",
+                "uGranulation",
+                "uPaperTexture",
+                "uInkColor",
+                "uPaperColor",
+                "uParticlesEnabled",
+                "uParticleDensity",
+                "uParticleSize",
+                "uFlowSpeed",
+                "uFlowDirection",
+                "uFlowStrength",
+                "uTurbulence",
+                "uRandomness",
+                "uParticleStretch",
+                "uParticleShape",
+                "uParticleOpacity",
+                "uParticleInkMix",
+                "uSeed",
+            },
+        )
+        for uniform in uniform_names:
+            self.assertIn(uniform, shader)
+        style = next(
+            definition
+            for definition in BUILDER.INK_FLOW_PARAMETER_DEFINITIONS
+            if definition["name"] == "Style"
+        )
+        density = next(
+            definition
+            for definition in BUILDER.INK_FLOW_PARAMETER_DEFINITIONS
+            if definition["name"] == "Particledensity"
+        )
+        self.assertEqual(style["menu_names"], ["ink_work", "ink_wash"])
+        self.assertEqual(density["max"], 500)
+        self.assertIn("minimalInkWork", shader)
+        self.assertIn("minimalInkWash", shader)
+        self.assertIn("waterParticleMotion", shader)
+        self.assertIn("uVisualEnabled <= 0.5", shader)
+        self.assertIn("uParticlesEnabled > 0.5", shader)
+        self.assertIn("for (int offsetY = -2; offsetY <= 2; ++offsetY)", shader)
+        self.assertIn("for (int offsetX = -2; offsetX <= 2; ++offsetX)", shader)
+        self.assertNotIn("feedback", shader.lower())
+
     def test_native_project_rejects_foreign_top_level_nodes(self) -> None:
         project_comp = SimpleNamespace(
             children=[

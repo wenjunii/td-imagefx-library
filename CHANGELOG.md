@@ -16,6 +16,13 @@ All notable changes to TD ImageFX Library are recorded here. Package versions fo
 - A live structural validator covering library health, recursive operator
   errors, warnings, script errors, and approved TOP existence/resolution before
   Envoy performs pixel-quality capture.
+- `InkFlowFusion.tox`, a reusable GPU module with independently switchable
+  minimal Chinese ink work, minimal ink wash (Shui-mo), and seeded
+  water-current particles, plus adjustable paper, pigment, flow, randomness,
+  density, shape, palette, bypass, and deterministic-time controls.
+- A dedicated live ink-flow validator covering both visual styles, whole-module
+  and feature-level bypass, water-particle motion, seed variation, combined
+  rendering, maximum density, and GLSL diagnostics.
 
 ### Changed
 
@@ -30,11 +37,14 @@ All notable changes to TD ImageFX Library are recorded here. Package versions fo
 - The browser now reloads and cooks its selected preview after a catalog
   selection changes; the native builder also initializes and validates the
   first 512x288 preview before exporting the component.
-- The native `.toe`, four core `.tox` components, benchmark report, and
+- The canonical demo now routes source through ink flow, optional random
+  particles, and the eight-slot rack with explicit stage-level bypass controls.
+- The native `.toe`, six core `.tox` components, benchmark report, and
   SHA-256-bound native validation record were rebuilt with TouchDesigner
   `2025.32820`.
-- The offline suite now contains 154 tests, including five integration and
-  public-documentation contract checks and three portable-shader-path checks.
+- The offline suite now contains 160 tests, including contracts for bounded
+  ink-flow particles, two distinct visual styles, native artifact inventory,
+  and the five-output Embody audit.
 
 ## [0.3.0] - 2026-07-16
 

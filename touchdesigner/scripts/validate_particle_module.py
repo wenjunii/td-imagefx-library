@@ -13,6 +13,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 REPORT_PATH = PROJECT_ROOT / "build" / "envoy-validation" / "particle-module.json"
 DEMO_PATH = "/project1/imagefx_demo"
 PARTICLE_PATH = DEMO_PATH + "/particle_random_move"
+INK_FLOW_PATH = DEMO_PATH + "/ink_flow"
 OUTPUT_PATH = DEMO_PATH + "/out1_image"
 SOURCE_PATH = DEMO_PATH + "/source_image"
 ROUTER_PATH = DEMO_PATH + "/video_fx_router"
@@ -87,6 +88,7 @@ def validate(write_report=True):
 
     required = {
         "demo": op(DEMO_PATH),
+        "ink_flow": op(INK_FLOW_PATH),
         "particles": op(PARTICLE_PATH),
         "particle_output": op(PARTICLE_OUTPUT_PATH),
         "particle_shader": op(PARTICLE_SHADER_PATH),
@@ -128,6 +130,7 @@ def validate(write_report=True):
 
     saved = {
         "particles_enabled": demo.par.Particlesenabled.eval(),
+        "ink_flow_enabled": demo.par.Inkflowenabled.eval(),
         "apply_video_fx": demo.par.Applyvideofx.eval(),
         "auto_time": particles.par.Autotime.eval(),
         "manual_time": particles.par.Manualtime.eval(),
@@ -142,6 +145,7 @@ def validate(write_report=True):
         # a later animation frame.
         source.par.vec0valuex.expr = ""
         source.par.vec0valuex = 0.0
+        demo.par.Inkflowenabled = False
         particles.par.Autotime = False
         particles.par.Manualtime = 0.0
 
@@ -267,6 +271,7 @@ def validate(write_report=True):
         report["error"] = "{}: {}".format(type(exc).__name__, exc)
     finally:
         demo.par.Particlesenabled = saved["particles_enabled"]
+        demo.par.Inkflowenabled = saved["ink_flow_enabled"]
         demo.par.Applyvideofx = saved["apply_video_fx"]
         particles.par.Autotime = saved["auto_time"]
         particles.par.Manualtime = saved["manual_time"]
