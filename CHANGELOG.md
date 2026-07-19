@@ -37,6 +37,12 @@ All notable changes to TD ImageFX Library are recorded here. Package versions fo
 
 ### Changed
 
+- The project-scoped TD knowledge bridge now follows the active Envoy instance
+  in the ImageFX Embody registry and fails closed unless both ImageFX managed
+  roots are present, preventing another open TouchDesigner project from being
+  mistaken for the QA harness.
+- The standalone bridge checker now rejects missing-root and malformed Envoy
+  error reports instead of treating absent health flags as a clean project.
 - Repository verification now protects the live-QA integration identity,
   catalog counts, managed paths, required audit tools, and no-save harness
   boundary.

@@ -123,6 +123,14 @@ the project-scoped MCP server through the official client, confirms the
 optionally requires a clean live Envoy connection. This distinguishes an open
 TouchDesigner window from an actually reachable Envoy endpoint.
 
+The project-scoped MCP configuration follows the active instance in the
+ImageFX harness's local `.embody/envoy.json` registry, including automatic port
+changes after rapid TouchDesigner restarts. Before any Envoy tools are exposed,
+the bridge verifies both `/project1/td_imagefx` and
+`/project1/imagefx_demo`. A FlexGPU, FlexShow, or other open TouchDesigner
+project is rejected, while the local knowledge and project-contract tools
+remain available.
+
 ## Use in TouchDesigner
 
 ### Output resolution
@@ -142,7 +150,8 @@ is resized to the selected delivery resolution.
 
 4K and large custom sizes increase GPU memory and cook time substantially,
 especially with eight rack slots, particles, ink, and Glitch Fusion enabled.
-Qualify the chosen combination on the target machine before a performance.
+Qualify the chosen combination on the target machine before using it in a
+performance.
 
 ### Ink-flow fusion
 

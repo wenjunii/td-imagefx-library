@@ -25,6 +25,9 @@ WORKSPACE_ROOT = PROJECT_ROOT.parent
 DEFAULT_SERVER = WORKSPACE_ROOT / "td-knowledge-mcp" / "td_knowledge_mcp.py"
 DEFAULT_FAISS_DB = WORKSPACE_ROOT / "td-ai-assistant" / "faiss_db"
 DEFAULT_CONTEXT = Path(__file__).resolve().parent / "project-context.json"
+DEFAULT_ENVOY_CONFIG = (
+    Path(__file__).resolve().parent / "local" / ".embody" / "envoy.json"
+)
 EXPECTED_PROJECT_ID = "td-imagefx-library"
 LOCAL_TOOL_NAMES = {
     "query_td_knowledge",
@@ -83,6 +86,15 @@ def _arguments(argv=None):
         help="Envoy Streamable HTTP port",
     )
     parser.add_argument(
+        "--envoy-config",
+        type=Path,
+        default=DEFAULT_ENVOY_CONFIG,
+        help=(
+            "Project-local Embody .embody/envoy.json registry; its active "
+            "instance port takes precedence over --port"
+        ),
+    )
+    parser.add_argument(
         "--wait-seconds",
         type=_positive_timeout,
         default=60.0,
@@ -111,6 +123,35 @@ def _payload(result):
         if isinstance(block, types.TextContent):
             return json.loads(block.text)
     raise RuntimeError("Tool result did not include JSON content")
+
+
+def _validated_error_report(payload, expected_path):
+    if payload.get("error"):
+        raise RuntimeError(
+            "Live ImageFX root {!r} is unavailable: {}".format(
+                expected_path,
+                payload["error"],
+            )
+        )
+    if payload.get("path") != expected_path:
+        raise RuntimeError(
+            "Live error report did not confirm {!r}".format(expected_path)
+        )
+    for key in ("hasErrors", "hasWarnings"):
+        if not isinstance(payload.get(key), bool):
+            raise RuntimeError(
+                "Live error report for {!r} is missing boolean {!r}".format(
+                    expected_path,
+                    key,
+                )
+            )
+    return payload
+
+
+def _root_exception(error):
+    while isinstance(error, BaseExceptionGroup) and len(error.exceptions) == 1:
+        error = error.exceptions[0]
+    return error
 
 
 async def _wait_for_knowledge(session, timeout):
@@ -151,20 +192,32 @@ async def _check(config):
 
     child_env = os.environ.copy()
     child_env["PYTHONUTF8"] = "1"
-    parameters = StdioServerParameters(
-        command=sys.executable,
-        args=[
-            "-u",
-            str(server),
-            "--port",
-            str(config.port),
+    server_args = [
+        "-u",
+        str(server),
+        "--port",
+        str(config.port),
+    ]
+    if config.envoy_config is not None:
+        server_args.extend(
+            [
+                "--envoy-config",
+                str(config.envoy_config.expanduser().resolve()),
+            ]
+        )
+    server_args.extend(
+        [
             "--faiss-db",
             str(faiss_db),
             "--project-context",
             str(project_context),
             "--max-concurrent-queries",
             "4",
-        ],
+        ]
+    )
+    parameters = StdioServerParameters(
+        command=sys.executable,
+        args=server_args,
         cwd=str(server.parent),
         env=child_env,
     )
@@ -215,23 +268,29 @@ async def _check(config):
             live = {"status": "online" if envoy_online else "offline"}
             live_clean = True
             if envoy_online:
-                library_errors = _payload(
-                    await session.call_tool(
-                        "get_op_errors",
-                        {
-                            "op_path": "/project1/td_imagefx",
-                            "recurse": True,
-                        },
-                    )
+                library_errors = _validated_error_report(
+                    _payload(
+                        await session.call_tool(
+                            "get_op_errors",
+                            {
+                                "op_path": "/project1/td_imagefx",
+                                "recurse": True,
+                            },
+                        )
+                    ),
+                    "/project1/td_imagefx",
                 )
-                demo_errors = _payload(
-                    await session.call_tool(
-                        "get_op_errors",
-                        {
-                            "op_path": "/project1/imagefx_demo",
-                            "recurse": True,
-                        },
-                    )
+                demo_errors = _validated_error_report(
+                    _payload(
+                        await session.call_tool(
+                            "get_op_errors",
+                            {
+                                "op_path": "/project1/imagefx_demo",
+                                "recurse": True,
+                            },
+                        )
+                    ),
+                    "/project1/imagefx_demo",
                 )
                 live_clean = not any(
                     (
@@ -291,6 +350,7 @@ def main(argv=None):
     try:
         report = anyio.run(_check, config)
     except Exception as exc:
+        exc = _root_exception(exc)
         report = {
             "ok": False,
             "error": "{}: {}".format(type(exc).__name__, exc),

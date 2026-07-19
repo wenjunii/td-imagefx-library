@@ -37,9 +37,12 @@ Detailed setup and commands are in
 ## Operating model
 
 The combined bridge must be started with
-`--project-context integrations/embody/project-context.json`. Before live work,
-call `get_td_project_context`; it must return `td-imagefx-library`. Then query
-the knowledge library before writing TouchDesigner Python or GLSL.
+`--project-context integrations/embody/project-context.json` and the
+project-local `--envoy-config integrations/embody/local/.embody/envoy.json`.
+Before live work, call `get_td_project_context`; it must return
+`td-imagefx-library`. The bridge also verifies both managed root operators
+before it exposes Envoy tools. Then query the knowledge library before writing
+TouchDesigner Python or GLSL.
 
 For an audit, follow `envoy-validation-plan.json`: confirm the TD instance,
 record baseline performance, discover the network, run `HealthCheck`, check
@@ -52,7 +55,8 @@ that a frame is visible or aesthetically correct.
 health; add `--require-envoy` only after the harness is open and Embody's Envoy
 switch is enabled. Its child-server output is quiet by default; add `--verbose`
 for MCP diagnostics. If Embody advances from port 9870 during a rapid restart,
-pass the port shown in its status/Textport output with `--port`.
+the bridge follows the active project-local registry entry automatically;
+`--port` remains the fallback when that registry is unavailable.
 `validate_rack_selection.py` is an explicit mutation test:
 it snapshots the rack preset, exercises all eight menu callbacks, restores the
 snapshot in a `finally` block, and never saves the project.

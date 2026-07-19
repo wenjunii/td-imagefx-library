@@ -44,6 +44,10 @@ class EmbodyIntegrationTests(unittest.TestCase):
         self.assertEqual(context["overview"]["catalog"]["immutable_package_versions"], 122)
         self.assertEqual(context["network"]["library"], "/project1/td_imagefx")
         self.assertEqual(
+            context["network"]["identity_operators"],
+            ["/project1/td_imagefx", "/project1/imagefx_demo"],
+        )
+        self.assertEqual(
             context["outputs"]["primary_demo"],
             "/project1/imagefx_demo/out1_image",
         )
@@ -59,6 +63,7 @@ class EmbodyIntegrationTests(unittest.TestCase):
 
         self.assertEqual(server["type"], "stdio")
         self.assertIn("--project-context", server["args"])
+        self.assertIn("--envoy-config", server["args"])
         self.assertIn("--faiss-db", server["args"])
         self.assertGreaterEqual(text.count("ABSOLUTE\\\\PATH\\\\TO"), 4)
         self.assertNotIn("wenju", text.lower())
@@ -68,6 +73,7 @@ class EmbodyIntegrationTests(unittest.TestCase):
         codex_text = codex_path.read_text(encoding="utf-8")
         self.assertIn("[mcp_servers.td-knowledge]", codex_text)
         self.assertIn("--project-context", codex_text)
+        self.assertIn("--envoy-config", codex_text)
         self.assertIn("--faiss-db", codex_text)
         self.assertGreaterEqual(codex_text.count("ABSOLUTE"), 4)
         self.assertNotIn("wenju", codex_text.lower())
@@ -184,7 +190,10 @@ class EmbodyIntegrationTests(unittest.TestCase):
         self.assertIn("get_knowledge_stats", bridge_checker)
         self.assertIn("get_project_performance", bridge_checker)
         self.assertIn("--require-envoy", bridge_checker)
+        self.assertIn("--envoy-config", bridge_checker)
         self.assertIn("--verbose", bridge_checker)
+        self.assertIn("def _validated_error_report", bridge_checker)
+        self.assertIn("Live error report did not confirm", bridge_checker)
         self.assertIn("subprocess.DEVNULL", bridge_checker)
         self.assertIn("def onStart():", browser_start_callbacks)
         self.assertIn("def onCreate():", browser_start_callbacks)

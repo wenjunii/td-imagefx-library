@@ -46,16 +46,20 @@ Do not run `touchdesigner/scripts/build_project.py` in this harness. Native
 rebuilds require a separate blank TouchDesigner project.
 
 Opening the harness does not by itself prove that Envoy is online. Confirm
-Embody's Envoy switch is enabled after every launch and that port 9870 is
-listening before starting a live audit.
+Embody's Envoy switch is enabled after every launch and that the active
+instance in `integrations/embody/local/.embody/envoy.json` is listening before
+starting a live audit.
 
 ## Connect the combined MCP bridge
 
 Copy `mcp-config.example.json` to the MCP configuration used by your client and
 replace every `C:\ABSOLUTE\PATH\TO\...` placeholder with an absolute local path.
-Do not commit the resulting local configuration. The bridge connects to Envoy
-on port 9870, queries the assistant's FAISS index, and serves this repository's
-`project-context.json`.
+Do not commit the resulting local configuration. The bridge follows this
+project's active Embody registry entry (with port 9870 only as a fallback),
+queries the assistant's FAISS index, and serves this repository's
+`project-context.json`. Before it exposes live tools, it verifies both
+`/project1/td_imagefx` and `/project1/imagefx_demo`; a FlexGPU or other TOE on
+the selected port is rejected.
 
 After reconnecting, call `get_td_project_context`. It must return
 `project_id: td-imagefx-library`; a different project ID means the client is
@@ -103,13 +107,15 @@ startup or shutdown.
 
 If the result says Envoy is offline or Codex reports `Transport closed`, first
 confirm that TouchDesigner is still running and Embody's Envoy switch is on.
-Then confirm that no other TouchDesigner project is trying to own port 9870.
-During a rapid restart, Embody may temporarily select the next free port while
-Windows releases the previous socket. Read the active port from Embody's
-Textport/status message and pass it explicitly, for example
-`--require-envoy --port 9872`.
-Restart the Codex task after Envoy is listening so the project-scoped MCP
-process can refresh its live tools.
+Then confirm that the project-local `.embody/envoy.json` selects the intended
+ImageFX harness. During a rapid restart, Embody may select the next free port
+while Windows releases the previous socket; the bridge now follows that active
+registry entry automatically. Use `--port` only as a fallback when the registry
+is unavailable.
+Clients that honor MCP `tools/list_changed` notifications refresh the live
+catalog automatically. If Codex still shows only the five local tools after
+Envoy is listening, restart the Codex task once to reconnect the
+project-scoped MCP process.
 
 ## Validate a live project
 

@@ -23,6 +23,10 @@
   },
   "network": {
     "project_container": "/project1",
+    "identity_operators": [
+      "/project1/td_imagefx",
+      "/project1/imagefx_demo"
+    ],
     "library": "/project1/td_imagefx",
     "demo": "/project1/imagefx_demo",
     "browser": "/project1/td_imagefx/core/fx_browser",

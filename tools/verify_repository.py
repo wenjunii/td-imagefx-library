@@ -587,9 +587,13 @@ def _check_embody_integration() -> None:
         )
     network = context.get("network") or {}
     outputs = context.get("outputs") or {}
-    if network.get("library") != "/project1/td_imagefx" or outputs.get(
-        "primary_demo"
-    ) != "/project1/imagefx_demo/out1_image":
+    if (
+        network.get("library") != "/project1/td_imagefx"
+        or network.get("identity_operators")
+        != ["/project1/td_imagefx", "/project1/imagefx_demo"]
+        or outputs.get("primary_demo")
+        != "/project1/imagefx_demo/out1_image"
+    ):
         raise VerificationError("Embody project context has unexpected managed paths")
 
     example_path = EMBODY_INTEGRATION / "mcp-config.example.json"
@@ -601,6 +605,7 @@ def _check_embody_integration() -> None:
         server.get("type") != "stdio"
         or not isinstance(arguments, list)
         or "--project-context" not in arguments
+        or "--envoy-config" not in arguments
         or "--faiss-db" not in arguments
         or "ABSOLUTE" not in example_text
         or "wenju" in example_text.lower()
@@ -613,6 +618,7 @@ def _check_embody_integration() -> None:
     if (
         "[mcp_servers.td-knowledge]" not in codex_example_text
         or "--project-context" not in codex_example_text
+        or "--envoy-config" not in codex_example_text
         or "--faiss-db" not in codex_example_text
         or "ABSOLUTE" not in codex_example_text
         or "wenju" in codex_example_text.lower()
