@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import importlib.util
 import json
 import re
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -23,6 +25,16 @@ def _walk_keys(value):
     elif isinstance(value, list):
         for child in value:
             yield from _walk_keys(child)
+
+
+def _load_harness_installer():
+    path = ROOT / "touchdesigner" / "scripts" / "install_dev_harness.py"
+    spec = importlib.util.spec_from_file_location("imagefx_dev_harness_installer", path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError("Could not load the development harness installer")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 class EmbodyIntegrationTests(unittest.TestCase):
@@ -210,6 +222,37 @@ class EmbodyIntegrationTests(unittest.TestCase):
             validator.index("for path in DIAGNOSTIC_COOKS"),
             validator.index("roots = [_operator_diagnostics"),
         )
+
+    def test_harness_installer_requires_the_exact_unnumbered_project(self):
+        installer = _load_harness_installer()
+        expected = installer.EXPECTED_HARNESS_PROJECT.resolve()
+        canonical = installer.CANONICAL_PROJECT.resolve()
+        numbered = expected.with_name(expected.stem + ".2.toe")
+
+        self.assertEqual(
+            installer._project_path(expected.parent, expected.stem),
+            expected,
+        )
+
+        installer.project = SimpleNamespace(
+            folder=str(expected.parent),
+            name=expected.name,
+        )
+        self.assertEqual(installer._validate_harness_project(), expected)
+
+        installer.project = SimpleNamespace(
+            folder=str(numbered.parent),
+            name=numbered.name,
+        )
+        with self.assertRaisesRegex(RuntimeError, "numbered harness identity"):
+            installer._validate_harness_project()
+
+        installer.project = SimpleNamespace(
+            folder=str(canonical.parent),
+            name=canonical.name,
+        )
+        with self.assertRaisesRegex(RuntimeError, "Refusing to install"):
+            installer._validate_harness_project()
 
 
 if __name__ == "__main__":

@@ -38,9 +38,17 @@ legacy absolute Pixel Shader DAT paths inside loaded effects, points every
 library root at the checkout, creates the same managed paths used by the
 canonical project, and exposes HD, 4K UHD, and custom output-resolution
 controls. It refuses to run in `TD_ImageFX_Library.toe`, refuses to
-replace existing managed roots, and never saves a project. Run it through Envoy
-for a single undoable operation, or use a fresh local harness when you need a
-clean reset.
+replace existing managed roots, requires the exact unnumbered
+`TD_ImageFX_DevHarness.toe` identity, and never saves a project. Run it through
+Envoy for a single undoable operation, or use a fresh local harness when you
+need a clean reset.
+
+The direction of synchronization is tracked source into the harness, not the
+harness into the canonical `.toe`. After an experiment is approved, encode it
+in the tracked manifests, shaders, extensions, callbacks, or builder scripts;
+validate it; then run `build_project.py` from a separate blank project to
+regenerate `TD_ImageFX_Library.toe`. Changes made only in the ignored harness
+remain local.
 
 Do not run `touchdesigner/scripts/build_project.py` in this harness. Native
 rebuilds require a separate blank TouchDesigner project.
@@ -161,10 +169,15 @@ newly loaded package, and restores the exact preset snapshot in a `finally`
 block. It changes live rack state temporarily, so run it only in the ignored
 development harness. It never saves the project.
 
-When TouchDesigner asks whether to replace
-`TD_ImageFX_DevHarness.1.toe`, replacing that ignored development copy is safe
-only after confirming the dialog names the development harness. Never approve
-a replacement dialog for `TD_ImageFX_Library.toe`.
+If opening `TD_ImageFX_DevHarness.toe` leaves a numbered project name such as
+`TD_ImageFX_DevHarness.1.toe` or `.2.toe` in TouchDesigner's title, the file was
+copied from a numbered recovery project and retained that embedded identity.
+Use **File > Save Project As**, select the unnumbered
+`TD_ImageFX_DevHarness.toe`, and approve replacement only when the dialog names
+that ignored harness. Close TouchDesigner and reopen the unnumbered file before
+running the installer. The installer rejects numbered identities so they
+cannot silently become the active QA project. Never approve a replacement
+dialog for `TD_ImageFX_Library.toe`.
 
 ## Safety boundary
 

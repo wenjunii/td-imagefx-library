@@ -104,8 +104,11 @@ For AI-assisted live inspection, create an ignored project at
 run `touchdesigner/scripts/install_dev_harness.py`. The script loads the compiled
 library, ink, particle, glitch, and rack components, synchronizes their tracked
 extension sources, repairs portable shader references, points them at this
-checkout, refuses the canonical project, refuses existing managed roots, and
-never saves. The combined TD knowledge and
+checkout, requires the exact unnumbered harness identity, refuses the canonical
+project, refuses existing managed roots, and never saves. If TouchDesigner's
+title shows a numbered harness such as `.1.toe` or `.2.toe`, use **File > Save
+Project As** to replace only the unnumbered `TD_ImageFX_DevHarness.toe`, then
+close and reopen it before installing. The combined TD knowledge and
 Envoy setup, project profile, capture requirements, and validation order are
 documented in [Embody, Envoy, and TD knowledge integration](embody-envoy-integration.md).
 Opening the `.toe` does not automatically prove that Envoy is listening; enable
@@ -115,7 +118,12 @@ check.
 
 ## Native rebuild
 
-The project remains source-first. `touchdesigner/scripts/build_project.py` runs inside TouchDesigner and recreates the native assets from manifests and shaders. It owns and replaces `/project1/td_imagefx` and `/project1/imagefx_demo`; use a disposable build project or save any work before running it.
+The project remains source-first. Harness edits do not automatically synchronize
+to `TD_ImageFX_Library.toe`; first encode approved changes in tracked source.
+`touchdesigner/scripts/build_project.py` then runs inside TouchDesigner and
+recreates the native assets from manifests and shaders. It owns and replaces
+`/project1/td_imagefx` and `/project1/imagefx_demo`; use a disposable build
+project or save any work before running it.
 
 1. Copy or clone the repository to a stable local path.
 2. Record the TouchDesigner build and GPU/driver details.

@@ -663,6 +663,14 @@ def _check_embody_integration() -> None:
     installer = installer_path.read_text(encoding="utf-8")
     if "project.save(" in installer or "_save_project_atomically" in installer:
         raise VerificationError("Development harness installer may not save a project")
+    if (
+        "EXPECTED_HARNESS_PROJECT" not in installer
+        or "numbered harness identity" not in installer
+        or "_validate_harness_project()" not in installer
+    ):
+        raise VerificationError(
+            "Development harness installer must require the exact unnumbered project"
+        )
     validator = validator_path.read_text(encoding="utf-8")
     for name, expected in (
         ("EXPECTED_PACKAGES", EXPECTED_EFFECT_ID_COUNT),

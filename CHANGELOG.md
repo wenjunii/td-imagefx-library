@@ -37,6 +37,12 @@ All notable changes to TD ImageFX Library are recorded here. Package versions fo
 
 ### Changed
 
+- The development harness installer now requires the exact unnumbered
+  `TD_ImageFX_DevHarness.toe` identity and rejects `.1`, `.2`, and other
+  numbered recovery identities before modifying the live network.
+- Setup documentation now distinguishes the generated runtime `.toe` from the
+  ignored development harness and documents the source-first rebuild path;
+  harness-only edits never silently synchronize into the release artifact.
 - The project-scoped TD knowledge bridge now follows the active Envoy instance
   in the ImageFX Embody registry and fails closed unless both ImageFX managed
   roots are present, preventing another open TouchDesigner project from being

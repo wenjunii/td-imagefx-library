@@ -105,7 +105,7 @@ git clone https://github.com/wenjunii/td-imagefx-library.git
 cd td-imagefx-library
 ```
 
-The v0.3 source and generated artifacts are synchronized. The recorded Windows build used TouchDesigner `2025.32820` and validated all 96 current effects with 122 versioned effect `.tox` files, seven core `.tox` files, one library `.toe`, 96 previews, 96 visual baselines, and 96 benchmark samples. The build report contains zero shader, preview, or builder errors. A fresh repository run completed 163 tests successfully, with four expected Windows symlink-permission skips, and two independent 99-file release builds matched byte-for-byte. Read [TouchDesigner setup](docs/touchdesigner-setup.md) to reproduce the native build.
+The v0.3 source and generated artifacts are synchronized. The recorded Windows build used TouchDesigner `2025.32820` and validated all 96 current effects with 122 versioned effect `.tox` files, seven core `.tox` files, one library `.toe`, 96 previews, 96 visual baselines, and 96 benchmark samples. The build report contains zero shader, preview, or builder errors. A fresh repository run completed 164 tests successfully, with four expected Windows symlink-permission skips, and two independent 99-file release builds matched byte-for-byte. Read [TouchDesigner setup](docs/touchdesigner-setup.md) to reproduce the native build.
 
 The generated project targets TouchDesigner 2025. Validate the exact TouchDesigner build, operating system, GPU, driver, resolution, pixel format, and color pipeline used by your production system. Python 3.11 or newer is required for repository tooling; it is not required merely to use already-built native components.
 
@@ -130,6 +130,36 @@ the bridge verifies both `/project1/td_imagefx` and
 `/project1/imagefx_demo`. A FlexGPU, FlexShow, or other open TouchDesigner
 project is rejected, while the local knowledge and project-contract tools
 remain available.
+
+### Which TouchDesigner project should I open?
+
+Open `TD_ImageFX_Library.toe` to use, demonstrate, or perform with the generated
+library. Open the ignored
+`integrations/embody/local/TD_ImageFX_DevHarness.toe` for effect development,
+Embody/Envoy control, MCP-assisted inspection, and live regression testing.
+Do not add Embody to the generated library project.
+
+The harness does not synchronize directly into `TD_ImageFX_Library.toe`.
+Synchronization is source-driven:
+
+1. Finalize harness experiments in the tracked manifests, shaders, extensions,
+   callbacks, or builder scripts.
+2. Run repository and live validation.
+3. Run `touchdesigner/scripts/build_project.py` from a separate blank,
+   disposable TouchDesigner project to regenerate the canonical `.tox` and
+   `.toe` artifacts.
+
+`install_dev_harness.py` performs the other direction: tracked source and
+compiled core components are loaded into the harness. It never saves either
+project. Parameter or network edits that exist only in the harness remain
+local.
+
+The installer now requires the exact unnumbered harness identity. If
+TouchDesigner opens `TD_ImageFX_DevHarness.toe` but its title shows
+`TD_ImageFX_DevHarness.1.toe`, `.2.toe`, or another numbered name, use
+**File > Save Project As**, select `TD_ImageFX_DevHarness.toe`, approve
+replacement only for that ignored harness, close TouchDesigner, and reopen the
+unnumbered file. Never approve replacement of `TD_ImageFX_Library.toe`.
 
 ## Use in TouchDesigner
 

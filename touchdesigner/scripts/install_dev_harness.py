@@ -8,10 +8,22 @@ Executing it through Envoy makes the operation one TouchDesigner undo step.
 from __future__ import annotations
 
 from pathlib import Path
+import re
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 CANONICAL_PROJECT = PROJECT_ROOT / "TD_ImageFX_Library.toe"
+EXPECTED_HARNESS_PROJECT = (
+    PROJECT_ROOT
+    / "integrations"
+    / "embody"
+    / "local"
+    / "TD_ImageFX_DevHarness.toe"
+)
+NUMBERED_HARNESS_NAME = re.compile(
+    r"^{}\.[1-9][0-9]*\.toe$".format(re.escape(EXPECTED_HARNESS_PROJECT.stem)),
+    re.IGNORECASE,
+)
 LIBRARY_TOX = PROJECT_ROOT / "touchdesigner" / "core" / "TDImageFXLibrary.tox"
 RACK_TOX = PROJECT_ROOT / "touchdesigner" / "core" / "FxRack.tox"
 PARTICLE_TOX = PROJECT_ROOT / "touchdesigner" / "core" / "ParticleRandomMove.tox"
@@ -74,16 +86,48 @@ def _output_resolution_expression(dimension):
     ).format(hd=hd, uhd=uhd, custom=custom)
 
 
-def _current_project_identity():
-    return Path(str(project.folder)).resolve(), Path(str(project.name)).stem
+def _project_path(folder, name):
+    """Return TouchDesigner's current project as a normalized .toe path."""
+
+    project_name = Path(str(name)).name
+    if not project_name.lower().endswith(".toe"):
+        project_name += ".toe"
+    return (Path(str(folder)) / project_name).resolve()
 
 
-def _refuse_canonical_project():
-    folder, name = _current_project_identity()
-    if folder == CANONICAL_PROJECT.parent.resolve() and name == CANONICAL_PROJECT.stem:
+def _current_project_path():
+    return _project_path(project.folder, project.name)
+
+
+def _validate_harness_project():
+    """Require the exact ignored harness and reject numbered recovery identities."""
+
+    current = _current_project_path()
+    canonical = CANONICAL_PROJECT.resolve()
+    expected = EXPECTED_HARNESS_PROJECT.resolve()
+    if current == canonical:
         raise RuntimeError(
             "Refusing to install the QA harness into TD_ImageFX_Library.toe"
         )
+    if current != expected:
+        if current.parent == expected.parent and NUMBERED_HARNESS_NAME.fullmatch(
+            current.name
+        ):
+            raise RuntimeError(
+                "TouchDesigner is using a numbered harness identity: {}. "
+                "Use File > Save Project As, replace only {}, close TouchDesigner, "
+                "and reopen the unnumbered harness before installing.".format(
+                    current.name,
+                    expected.name,
+                )
+            )
+        raise RuntimeError(
+            "QA harness must be opened and saved as {}; current project is {}".format(
+                expected,
+                current,
+            )
+        )
+    return current
 
 
 def _load_single_tox(parent_comp, source):
@@ -202,7 +246,7 @@ def _set_browser_target(browser, library):
 def install():
     """Load the library and demo into the current live project without saving."""
 
-    _refuse_canonical_project()
+    harness_project = _validate_harness_project()
     project_comp = op("/project1")
     if project_comp is None:
         project_comp = root.create(baseCOMP, "project1")
@@ -424,6 +468,7 @@ def install():
             "output_height": int(output.height),
             "package_count": health.get("package_count"),
             "package_version_count": health.get("package_version_count"),
+            "harness_project": str(harness_project),
             "saved": False,
         }
     except Exception:
