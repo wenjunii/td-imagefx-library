@@ -27,6 +27,9 @@ DIAGNOSTIC_COOKS = (
     "/project1/td_imagefx/core/fx_browser",
 )
 EXPECTED_RESOLUTION_PRESETS = ("hd", "uhd4k", "custom")
+RACK_PATH = "/project1/imagefx_demo/fx_rack"
+RACK_SLOT_COUNT = 8
+BROWSER_PATH = "/project1/td_imagefx/core/fx_browser"
 
 
 def _messages(operator, method_name):
@@ -176,6 +179,158 @@ def _resolution_diagnostics(primary_output):
         }
 
 
+def _rack_diagnostics():
+    rack = op(RACK_PATH)
+    if rack is None:
+        return {
+            "ok": False,
+            "path": RACK_PATH,
+            "errors": ["rack is missing"],
+            "slots": [],
+        }
+
+    callbacks = rack.op("parameter_callbacks")
+    callback_checks = {
+        "exists": callbacks is not None,
+        "targets_owning_rack": False,
+        "watches_all_slot_parameters": False,
+        "value_change_enabled": False,
+    }
+    callback_errors = []
+    if callbacks is not None:
+        try:
+            callback_checks.update(
+                {
+                    "targets_owning_rack": callbacks.par.op.eval() == rack,
+                    "watches_all_slot_parameters": (
+                        "Slot*" in str(callbacks.par.pars.eval())
+                    ),
+                    "value_change_enabled": bool(
+                        callbacks.par.valuechange.eval()
+                    ),
+                }
+            )
+            callback_errors.extend(_messages(callbacks, "errors"))
+            callback_errors.extend(_messages(callbacks, "warnings"))
+        except Exception as exc:
+            callback_errors.append(
+                "{}: {}".format(type(exc).__name__, exc)
+            )
+
+    slots = []
+    for index in range(1, RACK_SLOT_COUNT + 1):
+        try:
+            state = dict(rack.SlotState(index))
+            package = state.get("package")
+            package_id = (
+                package.get("id") if isinstance(package, dict) else None
+            )
+            parameter = rack.par["Slot{}effect".format(index)]
+            selected_id = (
+                str(parameter.eval()) if parameter is not None else None
+            )
+            loaded = rack.op("slot{}".format(index))
+            checks = {
+                "parameter_exists": parameter is not None,
+                "component_matches_state": (
+                    (package_id is None and loaded is None)
+                    or (package_id is not None and loaded is not None)
+                ),
+                "selection_matches_loaded_package": (
+                    package_id is None or selected_id == package_id
+                ),
+            }
+            slots.append(
+                {
+                    "slot": index,
+                    "selected_package": selected_id,
+                    "loaded_package": package,
+                    "checks": checks,
+                    "ok": all(checks.values()),
+                }
+            )
+        except Exception as exc:
+            slots.append(
+                {
+                    "slot": index,
+                    "ok": False,
+                    "errors": [
+                        "{}: {}".format(type(exc).__name__, exc)
+                    ],
+                }
+            )
+
+    rack_errors = _messages(rack, "errors")
+    rack_warnings = _messages(rack, "warnings")
+    return {
+        "ok": (
+            all(callback_checks.values())
+            and not callback_errors
+            and len(slots) == RACK_SLOT_COUNT
+            and all(item["ok"] for item in slots)
+            and not rack_errors
+            and not rack_warnings
+        ),
+        "path": RACK_PATH,
+        "parameter_callbacks": {
+            "checks": callback_checks,
+            "errors": callback_errors,
+        },
+        "slots": slots,
+        "errors": rack_errors,
+        "warnings": rack_warnings,
+    }
+
+
+def _browser_diagnostics():
+    browser = op(BROWSER_PATH)
+    if browser is None:
+        return {
+            "ok": False,
+            "path": BROWSER_PATH,
+            "errors": ["browser is missing"],
+        }
+
+    preview = browser.op("selected_preview")
+    callbacks = browser.op("startup_callbacks")
+    callback_text = str(callbacks.text) if callbacks is not None else ""
+    preview_path = ""
+    try:
+        preview_path = str(browser.PreviewPath())
+    except Exception:
+        pass
+    checks = {
+        "preview_exists": preview is not None,
+        "preview_file_exists": bool(
+            preview_path and Path(preview_path).is_file()
+        ),
+        "startup_callbacks_exist": callbacks is not None,
+        "startup_enabled": bool(
+            callbacks is not None and callbacks.par.start.eval()
+        ),
+        "create_enabled": bool(
+            callbacks is not None
+            and callbacks.par["create"] is not None
+            and callbacks.par.create.eval()
+        ),
+        "reloads_selected_preview": (
+            "UpdateSelection()" in callback_text
+            and "delayFrames=1" in callback_text
+        ),
+    }
+    errors = _messages(browser, "errors")
+    warnings = _messages(browser, "warnings")
+    return {
+        "ok": all(checks.values()) and not errors and not warnings,
+        "path": BROWSER_PATH,
+        "checks": checks,
+        "selected_id": str(browser.par.Selectedid.eval()),
+        "preview_path": preview_path,
+        "errors": errors,
+        "warnings": warnings,
+    }
+
+
 def validate(write_report=True):
     """Return a JSON-safe diagnostic report and optionally write the ignored copy."""
 
@@ -200,6 +355,8 @@ def validate(write_report=True):
     # node has cooked again.
     outputs = [_output_diagnostics(path) for path in OUTPUTS]
     resolution = _resolution_diagnostics(outputs[0])
+    rack = _rack_diagnostics()
+    browser = _browser_diagnostics()
     for path in DIAGNOSTIC_COOKS:
         operator = op(path)
         if operator is not None:
@@ -223,7 +380,14 @@ def validate(write_report=True):
         "schema_version": 1,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "project_id": "td-imagefx-library",
-        "ok": health_ok and roots_ok and outputs_ok and resolution["ok"],
+        "ok": (
+            health_ok
+            and roots_ok
+            and outputs_ok
+            and resolution["ok"]
+            and rack["ok"]
+            and browser["ok"]
+        ),
         "touchdesigner": {
             "version": str(app.version),
             "build": str(app.build),
@@ -234,6 +398,8 @@ def validate(write_report=True):
         "managed_roots": roots,
         "outputs": outputs,
         "output_resolution": resolution,
+        "rack_selection": rack,
+        "browser_startup": browser,
         "pixel_validation_required": True,
         "pixel_validation_note": (
             "Use Envoy capture_top on every configured output; structural checks "

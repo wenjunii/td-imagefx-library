@@ -64,6 +64,18 @@ class EmbodyIntegrationTests(unittest.TestCase):
         self.assertNotIn("wenju", text.lower())
         self.assertNotRegex(text.lower(), r"(api[_-]?key|password|bearer)")
 
+        codex_path = ROOT / ".codex" / "config.toml.example"
+        codex_text = codex_path.read_text(encoding="utf-8")
+        self.assertIn("[mcp_servers.td-knowledge]", codex_text)
+        self.assertIn("--project-context", codex_text)
+        self.assertIn("--faiss-db", codex_text)
+        self.assertGreaterEqual(codex_text.count("ABSOLUTE"), 4)
+        self.assertNotIn("wenju", codex_text.lower())
+        self.assertNotRegex(
+            codex_text.lower(),
+            r"(api[_-]?key|password|bearer|credential)",
+        )
+
     def test_validation_plan_covers_health_errors_pixels_and_performance(self):
         plan = json.loads(
             (INTEGRATION / "envoy-validation-plan.json").read_text(encoding="utf-8")
@@ -109,6 +121,18 @@ class EmbodyIntegrationTests(unittest.TestCase):
         output_validator = (
             ROOT / "touchdesigner" / "scripts" / "validate_output_resolution.py"
         ).read_text(encoding="utf-8")
+        rack_validator = (
+            ROOT / "touchdesigner" / "scripts" / "validate_rack_selection.py"
+        ).read_text(encoding="utf-8")
+        bridge_checker = (
+            ROOT / "integrations" / "embody" / "check_td_bridge.py"
+        ).read_text(encoding="utf-8")
+        browser_start_callbacks = (
+            ROOT
+            / "touchdesigner"
+            / "callbacks"
+            / "browser_start_callbacks.py"
+        ).read_text(encoding="utf-8")
 
         self.assertIn("Refusing to install the QA harness", installer)
         self.assertIn("managed root already exists", installer)
@@ -139,11 +163,33 @@ class EmbodyIntegrationTests(unittest.TestCase):
         self.assertIn("EXPECTED_PACKAGES = 96", validator)
         self.assertIn("EXPECTED_VERSIONS = 122", validator)
         self.assertIn("EXPECTED_RESOLUTION_PRESETS", validator)
+        self.assertIn("rack_selection", validator)
+        self.assertIn("selection_matches_loaded_package", validator)
+        self.assertIn("browser_startup", validator)
+        self.assertIn("reloads_selected_preview", validator)
         self.assertIn("EXPECTED_PRESETS", output_validator)
         self.assertIn("3840", output_validator)
         self.assertIn("2160", output_validator)
         self.assertIn("1234", output_validator)
         self.assertIn("678", output_validator)
+        self.assertIn("SLOT_COUNT = 8", rack_validator)
+        self.assertIn("ExportPreset", rack_validator)
+        self.assertIn("ImportPreset", rack_validator)
+        self.assertIn("finally:", rack_validator)
+        self.assertNotIn("project.save(", rack_validator)
+        self.assertIn(
+            'EXPECTED_PROJECT_ID = "td-imagefx-library"',
+            bridge_checker,
+        )
+        self.assertIn("get_knowledge_stats", bridge_checker)
+        self.assertIn("get_project_performance", bridge_checker)
+        self.assertIn("--require-envoy", bridge_checker)
+        self.assertIn("--verbose", bridge_checker)
+        self.assertIn("subprocess.DEVNULL", bridge_checker)
+        self.assertIn("def onStart():", browser_start_callbacks)
+        self.assertIn("def onCreate():", browser_start_callbacks)
+        self.assertIn("UpdateSelection()", browser_start_callbacks)
+        self.assertIn("delayFrames=1", browser_start_callbacks)
         self.assertTrue(
             (ROOT / "docs" / "embody-envoy-integration.md").is_file()
         )

@@ -526,6 +526,12 @@ def _check_embody_integration() -> None:
 
     installer_path = ROOT / "touchdesigner" / "scripts" / "install_dev_harness.py"
     validator_path = ROOT / "touchdesigner" / "scripts" / "validate_live_project.py"
+    rack_selection_validator_path = (
+        ROOT / "touchdesigner" / "scripts" / "validate_rack_selection.py"
+    )
+    particle_validator_path = (
+        ROOT / "touchdesigner" / "scripts" / "validate_particle_module.py"
+    )
     ink_flow_validator_path = (
         ROOT / "touchdesigner" / "scripts" / "validate_ink_flow_module.py"
     )
@@ -535,6 +541,11 @@ def _check_embody_integration() -> None:
     output_resolution_validator_path = (
         ROOT / "touchdesigner" / "scripts" / "validate_output_resolution.py"
     )
+    browser_start_callbacks_path = (
+        ROOT / "touchdesigner" / "callbacks" / "browser_start_callbacks.py"
+    )
+    bridge_checker_path = EMBODY_INTEGRATION / "check_td_bridge.py"
+    codex_example_path = ROOT / ".codex" / "config.toml.example"
     public_guide_path = ROOT / "docs" / "embody-envoy-integration.md"
     required = (
         EMBODY_INTEGRATION / "README.md",
@@ -543,9 +554,14 @@ def _check_embody_integration() -> None:
         EMBODY_INTEGRATION / "envoy-validation-plan.json",
         installer_path,
         validator_path,
+        rack_selection_validator_path,
+        particle_validator_path,
         ink_flow_validator_path,
         glitch_validator_path,
         output_resolution_validator_path,
+        browser_start_callbacks_path,
+        bridge_checker_path,
+        codex_example_path,
         public_guide_path,
     )
     missing = [path.relative_to(ROOT) for path in required if not path.is_file()]
@@ -593,6 +609,23 @@ def _check_embody_integration() -> None:
             "Embody MCP example must remain portable and project-scoped"
         )
 
+    codex_example_text = codex_example_path.read_text(encoding="utf-8")
+    if (
+        "[mcp_servers.td-knowledge]" not in codex_example_text
+        or "--project-context" not in codex_example_text
+        or "--faiss-db" not in codex_example_text
+        or "ABSOLUTE" not in codex_example_text
+        or "wenju" in codex_example_text.lower()
+        or re.search(
+            r"(api[_-]?key|password|bearer|credential)",
+            codex_example_text,
+            re.IGNORECASE,
+        )
+    ):
+        raise VerificationError(
+            "Codex MCP example must remain portable and credential-free"
+        )
+
     plan = _read_json(EMBODY_INTEGRATION / "envoy-validation-plan.json")
     if (
         plan.get("schema_version") != 1
@@ -634,6 +667,50 @@ def _check_embody_integration() -> None:
             raise VerificationError(
                 f"Live validator {name} does not match the repository catalog"
             )
+    if (
+        "rack_selection" not in validator
+        or "selection_matches_loaded_package" not in validator
+        or "browser_startup" not in validator
+        or "reloads_selected_preview" not in validator
+    ):
+        raise VerificationError(
+            "Live validator is missing the rack or browser startup audit"
+        )
+
+    rack_validator = rack_selection_validator_path.read_text(encoding="utf-8")
+    if (
+        "SLOT_COUNT = 8" not in rack_validator
+        or "ExportPreset" not in rack_validator
+        or "ImportPreset" not in rack_validator
+        or "project.save(" in rack_validator
+    ):
+        raise VerificationError(
+            "Rack selection validator must test eight slots, restore state, and never save"
+        )
+
+    bridge_checker = bridge_checker_path.read_text(encoding="utf-8")
+    if (
+        "EXPECTED_PROJECT_ID = \"td-imagefx-library\"" not in bridge_checker
+        or "get_knowledge_stats" not in bridge_checker
+        or "get_project_performance" not in bridge_checker
+        or "--require-envoy" not in bridge_checker
+    ):
+        raise VerificationError(
+            "TD bridge checker is missing required project, knowledge, or Envoy checks"
+        )
+
+    browser_start_callbacks = browser_start_callbacks_path.read_text(
+        encoding="utf-8"
+    )
+    if (
+        "def onStart():" not in browser_start_callbacks
+        or "def onCreate():" not in browser_start_callbacks
+        or "UpdateSelection()" not in browser_start_callbacks
+        or "delayFrames=1" not in browser_start_callbacks
+    ):
+        raise VerificationError(
+            "Browser startup callbacks must reload the selected preview after startup"
+        )
 
 
 def _run(label: str, arguments: list[str], env: dict[str, str]) -> None:

@@ -45,6 +45,10 @@ clean reset.
 Do not run `touchdesigner/scripts/build_project.py` in this harness. Native
 rebuilds require a separate blank TouchDesigner project.
 
+Opening the harness does not by itself prove that Envoy is online. Confirm
+Embody's Envoy switch is enabled after every launch and that port 9870 is
+listening before starting a live audit.
+
 ## Connect the combined MCP bridge
 
 Copy `mcp-config.example.json` to the MCP configuration used by your client and
@@ -56,6 +60,56 @@ on port 9870, queries the assistant's FAISS index, and serves this repository's
 After reconnecting, call `get_td_project_context`. It must return
 `project_id: td-imagefx-library`; a different project ID means the client is
 still using another bridge configuration.
+
+### Codex project-scoped configuration
+
+Codex can keep a different `td-knowledge` project contract in each trusted
+repository. Copy `.codex/config.toml.example` to `.codex/config.toml`, replace
+the placeholders with absolute local paths, and restart Codex or start a new
+task from this repository. The local file is ignored because its paths are
+machine-specific.
+
+The project-scoped entry deliberately uses the same `td-knowledge` server name
+as the user-level entry. Inside this repository, Codex loads the closer
+`.codex/config.toml` and supplies `integrations/embody/project-context.json`;
+outside it, the user's existing server configuration remains active. Confirm
+the active contract before live work:
+
+```text
+get_td_project_context -> project_id: td-imagefx-library
+```
+
+### Check the complete bridge
+
+Run the standalone checker with the Python interpreter from the
+`td-ai-assistant` virtual environment. With the three repositories next to one
+another in the same workspace, its default paths are sufficient:
+
+```powershell
+..\td-ai-assistant\venv\Scripts\python.exe integrations\embody\check_td_bridge.py
+```
+
+This checks the MCP subprocess, the ImageFX project contract, and knowledge
+retrieval even when TouchDesigner is closed. Require the live Envoy connection,
+managed-root diagnostics, and project performance as well with:
+
+```powershell
+..\td-ai-assistant\venv\Scripts\python.exe integrations\embody\check_td_bridge.py --require-envoy
+```
+
+Child-server diagnostics are quiet by default so a normal successful shutdown
+does not print transport cleanup noise. Add `--verbose` when diagnosing MCP
+startup or shutdown.
+
+If the result says Envoy is offline or Codex reports `Transport closed`, first
+confirm that TouchDesigner is still running and Embody's Envoy switch is on.
+Then confirm that no other TouchDesigner project is trying to own port 9870.
+During a rapid restart, Embody may temporarily select the next free port while
+Windows releases the previous socket. Read the active port from Embody's
+Textport/status message and pass it explicitly, for example
+`--require-envoy --port 9872`.
+Restart the Codex task after Envoy is listening so the project-scoped MCP
+process can refresh its live tools.
 
 ## Validate a live project
 
@@ -82,8 +136,29 @@ print(result)
 The report is written to the ignored
 `build/envoy-validation/live-project.json`. It checks structure, health,
 recursive `errors`, `warnings`, and `scriptErrors`, output family and
-resolution. Envoy's `capture_top` remains the required pixel-level check:
+resolution, all eight rack selections, and the browser's deferred preview
+startup callback. Envoy's `capture_top` remains the required pixel-level check:
 structural success alone cannot prove that an image is visible or correct.
+
+For the reported rack-menu regression, run the state-restoring validator:
+
+```python
+script = r"C:/absolute/path/to/td-imagefx-library/touchdesigner/scripts/validate_rack_selection.py"
+namespace = {"__file__": script, "__name__": "td_imagefx_rack_validation"}
+exec(compile(open(script, encoding="utf-8").read(), script, "exec"), namespace)
+result = namespace["validate"]()
+print(result)
+```
+
+It exercises the effect-selection callback in all eight slots, verifies the
+newly loaded package, and restores the exact preset snapshot in a `finally`
+block. It changes live rack state temporarily, so run it only in the ignored
+development harness. It never saves the project.
+
+When TouchDesigner asks whether to replace
+`TD_ImageFX_DevHarness.1.toe`, replacing that ignored development copy is safe
+only after confirming the dialog names the development harness. Never approve
+a replacement dialog for `TD_ImageFX_Library.toe`.
 
 ## Safety boundary
 

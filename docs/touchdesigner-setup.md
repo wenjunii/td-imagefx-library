@@ -83,6 +83,14 @@ an adjustable nonstandard custom size, 16-through-8192 parameter bounds,
 generated-source propagation, and output diagnostics. Its ignored report is
 `build/envoy-validation/output-resolution.json`.
 
+For rack effect-menu QA, run
+`touchdesigner/scripts/validate_rack_selection.py` from the Python Textport in
+the ignored development harness. It changes all eight effect selections to a
+known alternate package, verifies that each slot actually reloads, restores
+the exact preset snapshot in a `finally` block, and writes
+`build/envoy-validation/rack-selection.json`. It never saves the project; do
+not run this mutating regression test in a production show.
+
 Python is not required to use the prebuilt native files. Python 3.11 or newer is required for repository tools and the standalone package CLI.
 
 ## Embody and Envoy QA harness
@@ -100,6 +108,10 @@ checkout, refuses the canonical project, refuses existing managed roots, and
 never saves. The combined TD knowledge and
 Envoy setup, project profile, capture requirements, and validation order are
 documented in [Embody, Envoy, and TD knowledge integration](embody-envoy-integration.md).
+Opening the `.toe` does not automatically prove that Envoy is listening; enable
+Envoy in Embody after launch and use
+`integrations/embody/check_td_bridge.py --require-envoy` for an end-to-end
+check.
 
 ## Native rebuild
 

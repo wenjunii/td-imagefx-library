@@ -24,6 +24,10 @@ CALLBACKS = _load_module(
     "tdimagefx_touchdesigner_browser_callbacks",
     Path("touchdesigner") / "callbacks" / "browser_parameter_callbacks.py",
 )
+START_CALLBACKS = _load_module(
+    "tdimagefx_touchdesigner_browser_start_callbacks",
+    Path("touchdesigner") / "callbacks" / "browser_start_callbacks.py",
+)
 
 
 class FakeParameter:
@@ -325,6 +329,40 @@ class BrowserCallbackTests(unittest.TestCase):
             calls,
             ["ApplyFilters", "ApplyFilters", "UpdateSelection", "Refresh", "CreateSelected", "ToggleFavorite"],
         )
+
+    def test_start_callbacks_defer_preview_reload_until_network_is_ready(self):
+        scheduled = []
+
+        class Browser:
+            path = "/project1/td_imagefx/core/fx_browser"
+
+        original_parent = getattr(START_CALLBACKS, "parent", None)
+        original_run = getattr(START_CALLBACKS, "run", None)
+        START_CALLBACKS.parent = lambda: Browser()
+        START_CALLBACKS.run = lambda code, **kwargs: scheduled.append(
+            (code, kwargs)
+        )
+        try:
+            START_CALLBACKS.onStart()
+            START_CALLBACKS.onCreate()
+        finally:
+            if original_parent is None:
+                del START_CALLBACKS.parent
+            else:
+                START_CALLBACKS.parent = original_parent
+            if original_run is None:
+                del START_CALLBACKS.run
+            else:
+                START_CALLBACKS.run = original_run
+
+        self.assertEqual(len(scheduled), 2)
+        for code, kwargs in scheduled:
+            self.assertIn(
+                "/project1/td_imagefx/core/fx_browser",
+                code,
+            )
+            self.assertIn("UpdateSelection()", code)
+            self.assertEqual(kwargs, {"delayFrames": 1})
 
 
 if __name__ == "__main__":

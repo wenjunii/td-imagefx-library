@@ -105,13 +105,23 @@ git clone https://github.com/wenjunii/td-imagefx-library.git
 cd td-imagefx-library
 ```
 
-The v0.3 source and generated artifacts are synchronized. The recorded Windows build used TouchDesigner `2025.32820` and validated all 96 current effects with 122 versioned effect `.tox` files, seven core `.tox` files, one library `.toe`, 96 previews, 96 visual baselines, and 96 benchmark samples. The build report contains zero shader, preview, or builder errors. A fresh repository run completed 162 tests successfully, with four expected Windows symlink-permission skips, and two independent 99-file release builds matched byte-for-byte. Read [TouchDesigner setup](docs/touchdesigner-setup.md) to reproduce the native build.
+The v0.3 source and generated artifacts are synchronized. The recorded Windows build used TouchDesigner `2025.32820` and validated all 96 current effects with 122 versioned effect `.tox` files, seven core `.tox` files, one library `.toe`, 96 previews, 96 visual baselines, and 96 benchmark samples. The build report contains zero shader, preview, or builder errors. A fresh repository run completed 163 tests successfully, with four expected Windows symlink-permission skips, and two independent 99-file release builds matched byte-for-byte. Read [TouchDesigner setup](docs/touchdesigner-setup.md) to reproduce the native build.
 
 The generated project targets TouchDesigner 2025. Validate the exact TouchDesigner build, operating system, GPU, driver, resolution, pixel format, and color pipeline used by your production system. Python 3.11 or newer is required for repository tooling; it is not required merely to use already-built native components.
 
 Reusable core components use component-relative callback and feedback-state targets, so slot selection, Parameter Execute actions, and temporal history continue to work after a `.tox` is imported, moved, or renamed.
 
+The effect browser now reloads its selected preview one frame after project
+startup or component creation. This prevents a valid gallery file from
+appearing black/transparent until the first manual selection change.
+
 For knowledge-grounded live inspection, use the separate [Embody, Envoy, and TD knowledge integration](docs/embody-envoy-integration.md). It combines the local TouchDesigner knowledge index with Envoy's live tools and a checked ImageFX project profile. Embody runs in an ignored QA harness, never inside the canonical builder-owned `.toe`.
+
+The integration includes `integrations/embody/check_td_bridge.py`, which starts
+the project-scoped MCP server through the official client, confirms the
+`td-imagefx-library` contract, waits for the 3,022-chunk knowledge index, and
+optionally requires a clean live Envoy connection. This distinguishes an open
+TouchDesigner window from an actually reachable Envoy endpoint.
 
 ## Use in TouchDesigner
 
@@ -213,6 +223,17 @@ whether the rack also processes that glitch output.
 The canonical demo supplies deterministic fixtures to all six auxiliary rack inputs so every package can be auditioned immediately. In a production network, replace those fixtures with the required media: a second image/clean plate, displacement, depth, normal, flow, or mask TOP. Color-correction and transform packages use neutral defaults by design; open the loaded `slot1` through `slot8` component and adjust its custom effect parameters to see and tune the operation.
 
 Presets capture exact package versions, slot order, enable/mix state, modulation, manual time, and eligible effect parameters. They do not install packages, approve updates, or replace a production project lock.
+
+For the exact selection-callback regression check, run
+`touchdesigner/scripts/validate_rack_selection.py` in the development harness.
+It snapshots the complete rack preset, changes every `Slot1effect` through
+`Slot8effect` menu to a known alternative package, verifies that the loaded
+component and stored package changed, restores each original selection, and
+finally imports the snapshot again. The script reports to the ignored
+`build/envoy-validation/rack-selection.json` file and never saves the project.
+The read-only `validate_live_project.py` audit also checks that every current
+menu selection matches its loaded slot package and that the relocated Parameter
+Execute DAT targets its owning rack.
 
 ### Searchable browser
 

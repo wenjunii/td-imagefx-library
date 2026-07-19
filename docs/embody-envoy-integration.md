@@ -21,9 +21,12 @@ project.
 | --- | --- |
 | `integrations/embody/project-context.json` | Public-safe network, output, workflow, safety, and validation contract |
 | `integrations/embody/mcp-config.example.json` | Combined bridge example with local-path placeholders only |
+| `.codex/config.toml.example` | Portable project-scoped Codex MCP configuration template |
+| `integrations/embody/check_td_bridge.py` | Official-client smoke test for the contract, knowledge index, and optional Envoy session |
 | `integrations/embody/envoy-validation-plan.json` | Ordered read-only live audit |
 | `touchdesigner/scripts/install_dev_harness.py` | Non-saving compiled-core installer for a disposable project |
 | `touchdesigner/scripts/validate_live_project.py` | Read-only health, error, and TOP structural report |
+| `touchdesigner/scripts/validate_rack_selection.py` | State-restoring live regression test for all eight rack effect menus |
 | `touchdesigner/scripts/validate_ink_flow_module.py` | Pixel checks for both ink styles, water particles, bypass, and deterministic motion |
 | `touchdesigner/scripts/validate_glitch_fusion_module.py` | Pixel checks for 24 glitch styles, bypass, timing, seed, routing, and shader diagnostics |
 | `touchdesigner/scripts/validate_output_resolution.py` | Live checks for default HD, 4K UHD, custom dimensions, bounds, and output propagation |
@@ -44,6 +47,21 @@ recursive errors and warnings, capture the six approved TOPs, and compare
 final performance. Envoy's `capture_top` quality verdict must pass, and the
 images still require visual inspection. A clean operator graph does not prove
 that a frame is visible or aesthetically correct.
+
+`check_td_bridge.py` separates local MCP/knowledge health from live Envoy
+health; add `--require-envoy` only after the harness is open and Embody's Envoy
+switch is enabled. Its child-server output is quiet by default; add `--verbose`
+for MCP diagnostics. If Embody advances from port 9870 during a rapid restart,
+pass the port shown in its status/Textport output with `--port`.
+`validate_rack_selection.py` is an explicit mutation test:
+it snapshots the rack preset, exercises all eight menu callbacks, restores the
+snapshot in a `finally` block, and never saves the project.
+
+The reusable browser includes an Execute DAT that defers `UpdateSelection()` by
+one frame on project startup and component creation. This forces Movie File In
+to reload the selected gallery PNG after deserialization; the live validator
+checks that startup contract, while `capture_top` proves the preview is not
+black or fully transparent.
 
 Any mutation requires explicit authorization and belongs in the disposable
 harness, preferably under `/project1/imagefx_sandbox`. Immutable package `.tox`

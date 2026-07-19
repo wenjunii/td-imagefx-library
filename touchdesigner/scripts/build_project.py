@@ -3260,6 +3260,18 @@ def build_browser(parent_comp, manifests, compatibility_confidence="declared"):
     parexec.nodeX = 120
     parexec.nodeY = -180
 
+    starter = browser.create(executeDAT, "startup_callbacks")
+    starter.text = _read_text(
+        PROJECT_ROOT
+        / "touchdesigner"
+        / "callbacks"
+        / "browser_start_callbacks.py"
+    )
+    starter.par.start = True
+    starter.par.create = True
+    starter.nodeX = 300
+    starter.nodeY = -300
+
     # Keep the dormant constant empty: TouchDesigner can preserve a warning for
     # a relative operator path stored there even while the active expression
     # resolves correctly. Set and cook the expression both before and after
