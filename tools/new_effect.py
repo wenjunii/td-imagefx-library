@@ -80,6 +80,21 @@ void main()
 """
 
 
+TEMPORAL_RENDER_TEMPLATE = """// Render pass. Input 0 is current state; input 1 is the source image.
+uniform float uMix;
+
+layout(location = 0) out vec4 fragColor;
+
+void main()
+{
+    vec2 uv = vUV.st;
+    vec4 state = texture(sTD2DInputs[0], uv);
+    vec4 source = texture(sTD2DInputs[1], uv);
+    fragColor = TDOutputSwizzle(mix(source, state, clamp(uMix, 0.0, 1.0)));
+}
+"""
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("slug", help="Effect id suffix, for example chromatic-smear")
@@ -149,14 +164,50 @@ def scaffold(args: argparse.Namespace) -> Path:
     if input_count > 1:
         capabilities = list(dict.fromkeys([*capabilities, "second_input"]))
 
-    inputs = [{"id": "image", "family": "TOP", "required": True, "semantic": "source"}]
+    inputs = [
+        {
+            "id": "image",
+            "family": "TOP",
+            "required": True,
+            "semantic": "source",
+            "role": "source_image",
+        }
+    ]
     for index in range(1, input_count):
-        inputs.append({"id": f"input_{index + 1}", "family": "TOP", "required": True, "semantic": "auxiliary"})
+        inputs.append({
+            "id": f"input_{index + 1}",
+            "family": "TOP",
+            "required": True,
+            "semantic": "auxiliary",
+            "role": "auxiliary_image",
+        })
 
     passes = [shader_path]
     if args.model == "multi_pass":
         capabilities = list(dict.fromkeys([*capabilities, "multi_pass"]))
         passes.append("shaders/pass2.frag")
+    elif args.model in {"temporal", "simulation"}:
+        passes.append("shaders/render.frag")
+
+    parameters = [
+        {"id": "enable", "name": "Enable", "type": "toggle", "default": True},
+        {"id": "mix", "name": "Mix", "type": "float", "default": 1.0, "min": 0.0, "max": 1.0, "uniform": "uMix"},
+    ]
+    if args.model in {"temporal", "simulation"}:
+        parameters.append({"id": "reset", "name": "Reset", "type": "pulse", "default": False})
+
+    processing = {
+        "model": args.model,
+        "gpu_cost": args.gpu_cost,
+        "capabilities": capabilities,
+        "passes": passes,
+        "history_frames": args.history_frames,
+        "pass_scale": 1.0,
+        "iterations": 1,
+    }
+    if args.model in {"temporal", "simulation"}:
+        processing["state_pass"] = shader_path
+        processing["render_pass"] = "shaders/render.frag"
 
     manifest = {
         "schema_version": 1,
@@ -175,11 +226,8 @@ def scaffold(args: argparse.Namespace) -> Path:
             "touchdesigner_component": f"tox/{safe_name}.tox",
         },
         "inputs": inputs,
-        "outputs": [{"id": "image", "family": "TOP"}],
-        "parameters": [
-            {"id": "enable", "name": "Enable", "type": "toggle", "default": True},
-            {"id": "mix", "name": "Mix", "type": "float", "default": 1.0, "min": 0.0, "max": 1.0, "uniform": "uMix"},
-        ],
+        "outputs": [{"id": "image", "family": "TOP", "role": "image"}],
+        "parameters": parameters,
         "compatibility": {
             "touchdesigner_min_build": 2022.2,
             "touchdesigner_max_build": None,
@@ -192,14 +240,40 @@ def scaffold(args: argparse.Namespace) -> Path:
         "resolution_policy": "input",
         "stateful": args.model in {"temporal", "simulation"},
         "tags": [category, "scaffold"],
-        "processing": {
-            "model": args.model,
-            "gpu_cost": args.gpu_cost,
-            "capabilities": capabilities,
-            "passes": passes,
-            "history_frames": args.history_frames,
+        "processing": processing,
+        "image_contract": {
+            "color": {
+                "input_space": "source",
+                "working_space": "project",
+                "output_space": "source",
+                "reference": "display_referred",
+            },
+            "alpha": {"input": "any", "working": "any", "output": "any"},
+            "pixel_format": {"policy": "inherit"},
+            "sampling": {"filter": "linear", "edge": "clamp", "mipmaps": False},
+        },
+        "determinism": {"mode": "deterministic"},
+        "provenance": {
+            "origin": "original",
+            "source": {"type": "original"},
+            "examples": [],
+            "presets": [],
+            "known_limitations": [
+                "Generated scaffold; replace the sample shader and validate the effect before release."
+            ],
         },
     }
+    if args.model in {"temporal", "simulation"}:
+        manifest["temporal"] = {
+            "reset": {
+                "strategy": "pulse_parameter",
+                "parameter": "reset",
+                "clears": "simulation_state" if args.model == "simulation" else "history",
+                "on_resolution_change": True,
+                "on_input_change": False,
+            },
+            "warmup_frames": 0,
+        }
 
     try:
         PackageManifest.from_data(manifest)
@@ -211,6 +285,8 @@ def scaffold(args: argparse.Namespace) -> Path:
     _write_text(package_root / shader_path, template)
     if args.model == "multi_pass":
         _write_text(package_root / "shaders" / "pass2.frag", SECOND_PASS_TEMPLATE)
+    elif args.model in {"temporal", "simulation"}:
+        _write_text(package_root / "shaders" / "render.frag", TEMPORAL_RENDER_TEMPLATE)
     return package_root
 
 

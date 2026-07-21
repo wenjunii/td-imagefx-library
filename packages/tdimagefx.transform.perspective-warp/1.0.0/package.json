@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "id": "tdimagefx.transform.perspective-warp",
+  "name": "Perspective Warp",
+  "version": "1.0.0",
+  "fx_api": "1.0",
+  "kind": "effect",
+  "category": "transform",
+  "channel": "experimental",
+  "description": "Applies a controllable projective tilt around horizontal and vertical axes with center and zoom controls.",
+  "publisher": "TD ImageFX Library",
+  "license": "MIT",
+  "entrypoints": {"shader": "shaders/perspective_warp.frag", "touchdesigner_component": "tox/tdimagefx_transform_perspective_warp.tox"},
+  "inputs": [{"id": "image", "family": "TOP", "required": true, "semantic": "source", "role": "source_image", "description": "Image to projectively warp."}],
+  "outputs": [{"id": "image", "family": "TOP", "role": "image"}],
+  "parameters": [
+    {"id": "enable", "name": "Enable", "label": "Enable", "type": "toggle", "default": true, "description": "Bypass projection when disabled."},
+    {"id": "mix", "name": "Mix", "label": "Mix", "type": "float", "default": 1.0, "min": 0.0, "max": 1.0, "uniform": "uMix", "description": "Blends source and projected output."},
+    {"id": "tilt_x", "name": "Tiltx", "label": "Horizontal Tilt", "type": "float", "default": 0.0, "min": -1.2, "max": 1.2, "unit": "radians", "uniform": "uTiltX", "description": "Perspective tilt around the horizontal axis."},
+    {"id": "tilt_y", "name": "Tilty", "label": "Vertical Tilt", "type": "float", "default": 0.0, "min": -1.2, "max": 1.2, "unit": "radians", "uniform": "uTiltY", "description": "Perspective tilt around the vertical axis."},
+    {"id": "perspective", "name": "Perspective", "label": "Perspective", "type": "float", "default": 1.0, "min": 0.0, "max": 4.0, "uniform": "uPerspective", "description": "Strength of projective foreshortening."},
+    {"id": "zoom", "name": "Zoom", "label": "Zoom", "type": "float", "default": 1.0, "min": 0.1, "max": 8.0, "uniform": "uZoom", "description": "Scale applied after projection."},
+    {"id": "center", "name": "Center", "label": "Center", "type": "xy", "default": [0.5, 0.5], "min": -1.0, "max": 2.0, "unit": "normalized", "uniform": "uCenter", "description": "Projection center."}
+  ],
+  "compatibility": {"touchdesigner_min_build": 2025.3, "touchdesigner_max_build": null, "os": ["windows", "macos"], "architectures": ["x86_64", "arm64"]},
+  "permissions": {"python": false, "filesystem": false, "network": false, "subprocess": false},
+  "dependencies": [],
+  "alpha_policy": "process",
+  "resolution_policy": "input",
+  "stateful": false,
+  "image_contract": {
+    "color": {"input_space": "source", "working_space": "project", "output_space": "source", "reference": "display_referred"},
+    "alpha": {"input": "any", "working": "any", "output": "any"},
+    "pixel_format": {"policy": "inherit"},
+    "sampling": {"filter": "linear", "edge": "clamp", "mipmaps": false}
+  },
+  "determinism": {"mode": "deterministic"},
+  "provenance": {"origin": "original", "source": {"type": "original"}},
+  "tags": ["transform", "perspective", "projective", "tilt", "uv"],
+  "processing": {"model": "single_pass", "gpu_cost": "low", "capabilities": [], "passes": ["shaders/perspective_warp.frag"], "history_frames": 0}
+}

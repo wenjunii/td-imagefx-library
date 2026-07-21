@@ -1,152 +1,157 @@
 # Roadmap and category coverage
 
-"Every effect" is not a finish line: visual techniques, TouchDesigner operators, GPU APIs, hardware, and third-party tools continue to change. TD ImageFX measures coverage with a maintained taxonomy and an authoring/update system that can absorb new methods without redesigning the library.
+“Every effect” is not a finish line. Visual techniques, TouchDesigner operators, GPU APIs, hardware, and third-party tools continue to change. TD ImageFX measures coverage through a maintained taxonomy plus an authoring/update system that can absorb new methods without redesigning the library.
 
 ## Coverage rubric
-
-Each technique progresses through these levels:
 
 | Level | Meaning |
 | --- | --- |
 | Cataloged | Named, categorized, sourced, licensed, and tagged; may be documentation-only |
-| Prototype | Demonstrates the technique but may lack the full effect contract |
-| Packaged | Valid manifest, immutable version, declared assets and dependencies |
-| Verified | Automated validation plus native TouchDesigner compile, preview, and benchmark coverage |
-| Stable | Backward-compatible interface, production documentation, presets/examples, rollback-ready artifact |
+| Prototype | Demonstrates the technique but may lack the complete effect contract |
+| Packaged | Valid manifest, immutable version, declared implementation assets and dependencies |
+| Native verified | Compiles/runs in a named TouchDesigner environment with reviewed preview and benchmark coverage |
+| Stable | Backward-compatible interface, production documentation, representative tests/presets, and rollback-ready artifact |
 
-Counting raw shader files is not meaningful coverage. A category is healthy when it has useful breadth, consistent controls, representative previews, measured target-hardware behavior, and composable packages.
+Counting shader files is not meaningful coverage. A healthy category needs useful breadth, consistent controls, representative media, explicit image/state contracts, measured target-hardware behavior, and composable packages.
 
-## v0.2.0 catalog
+## v0.3.0 source catalog
 
-Version 0.2.0 contains **66 current effects across 13 manifest categories**, backed by **78 immutable package versions**. The twelve original v0.1 effects retain their `1.0.0` packages beside upgraded `1.1.0` versions. Current discovery and generated artifacts use the latest version per effect ID; exact historical versions remain available to version-aware calls and project locks.
+Version 0.3.0 contains **96 current effects across 18 manifest categories**, backed by **122 immutable package versions**. Twenty-six older versions remain beside their successors: the twelve original v0.1 packages and the fourteen temporal/simulation `1.0.0` packages now upgraded to `1.1.0`.
 
-| Category | Count | Packages |
+| Category | Count | Current packages |
 | --- | ---: | --- |
-| Blur | 6 | Box Blur, Chromatic Blur, Directional Blur, Gaussian Blur, Radial Blur, Tilt Shift |
-| Color | 9 | Channel Mixer, Duotone, Exposure, Gradient Map, HSV Shift, Levels, Lift Gamma Gain, Posterize, Temperature Tint |
+| Blur | 9 | Bilateral, Bokeh, Box, Chromatic, Depth-Aware, Directional, Gaussian, Radial, Tilt Shift |
+| Color | 13 | Channel Mixer, Color Decision List, Curves, Duotone, Exposure, Gradient Map, HSV Shift, Levels, Lift Gamma Gain, LUT 3D, Posterize, Temperature Tint, Tone Map |
+| Composite | 5 | Alpha Composite, Blend Modes, Channel Shuffle, Edge Extend, Matte Composite |
 | Distortion | 10 | Bulge Pinch, Displacement Map, Flow Field Warp, Kaleidoscope, Lens Distortion, Mirror, Polar Coordinates, Ripple, Twirl, Wave Warp |
 | Glitch | 5 | Block Shift, Digital Noise, RGB Split, Scan Tear, Slice Shift |
+| Key | 4 | Chroma Key, Despill, Difference Key, Luma Key |
 | Light | 3 | Bloom, Edge Glow, Glow |
 | Lighting | 1 | Normal Lighting |
+| Mask | 4 | Gradient Mask, Noise Mask, Radial Mask, Shape Mask |
+| Matte | 4 | Alpha Repair, Dilate, Erode, Feather |
 | Motion | 1 | Optical Flow Warp |
 | Sharpen | 2 | Sharpen, Unsharp Mask |
 | Simulation | 4 | Cellular Automata, Fluid Ink, Particle Advection, Reaction Diffusion |
 | Spatial | 1 | Depth Parallax |
 | Stylize | 10 | Edge Detect, Emboss, Frosted Glass, Halftone, Ordered Dither, Pixelate, Scanlines, Sepia, VHS, Vignette |
 | Temporal | 10 | Echo, Feedback Kaleidoscope, Feedback Rotate, Feedback Trails, Frame Blend, Motion Smear, Recursive Zoom, Stutter, Temporal Glitch, Time Displacement |
+| Transform | 6 | Corner Pin, Crop Feather, Fit Fill, Perspective Warp, Tile Repeat, Transform 2D |
 | Transition | 4 | Directional Wipe, Luma Wipe, Noise Dissolve, Radial Wipe |
 
-The generated [effect gallery](gallery.md) provides previews and package metadata for the latest 66-version catalog; `gallery.json` is the programmatic index. Immutable history is represented by the version directories and manifests rather than duplicate gallery rows.
+Latest-version processing coverage is 68 single-pass, 14 multi-pass, 10 temporal, and 4 simulation packages. No external-runtime adapter package is bundled.
 
-## Processing coverage
+The v0.3 source and generated artifacts are synchronized. All 96 current effects, including the 30 new effects and 14 stateful upgrades, have native compile, preview, baseline, and benchmark coverage from the recorded TouchDesigner `2025.32820` Windows build. That is **native verified** for the named environment, not a claim of stability on every production GPU, driver, resolution, or color pipeline.
 
-The v0.2 manifest contract distinguishes graph shape from user-facing category. These counts describe the latest 66 versions, all of which explicitly declare their processing contract. The twelve retained `1.0.0` manifests predate that object and resolve through the schema-v1 conservative defaults:
+## What v0.3 adds
 
-| Processing model | Count | Coverage |
-| --- | ---: | --- |
-| `single_pass` | 40 | Color transforms, UV distortion, print/display styling, wipes, and lightweight glitches |
-| `multi_pass` | 12 | Blur, bloom/glow, sharpening, edge lighting, depth/normal, and flow-assisted spatial effects |
-| `temporal` | 10 | Feedback, echo, frame blend, stutter, motion smear, recursive and time-displacement effects |
-| `simulation` | 4 | Cellular, reaction-diffusion, particle, and fluid-like iterative systems |
-| `adapter` | 0 | Contract reserved; no external-runtime adapter is bundled in v0.2 |
+### Production image operations
 
-Capabilities make routing and trust needs searchable: v0.2 uses `multi_pass`, `history`, `second_input`, `transition`, `displacement`, `depth`, `normal`, `flow`, and `simulation`. The schema also reserves `audio`, `native_plugin`, `network`, and `python` for future packages that declare corresponding permissions. Relative GPU-cost labels help browsing, while the generated [benchmark report](benchmarks.md) records hardware-specific measurements.
+- Six transform/framing effects cover common 2D placement, crop/feather, corner pin, repeat, fit/fill, and perspective workflows.
+- Five compositing effects cover two-source alpha/blend operations, dedicated-matte compositing, channel routing, and edge extension.
+- Four key effects provide chroma, luma, and difference keying plus despill.
+- Four matte effects provide alpha repair, morphology, and feathering.
+- Four mask generators provide gradient, radial, shape, and noise masks.
+- Curves, CDL, tone map, and 3D LUT extend the color pipeline.
+- Bilateral, bokeh, and depth-aware blur extend focus and edge-aware processing.
 
-## Taxonomy status
+All 30 are experimental while their behavior and performance are evaluated across representative images and target GPUs.
 
-| Area | v0.2 status | Important gaps |
+### Stateful correctness
+
+Every temporal and simulation effect now has a `1.1.0` package with:
+
+- private state separated from public rendering;
+- declared state/render pass paths;
+- real Reset behavior and reset metadata;
+- deterministic or fixed-step declarations where applicable;
+- warmup and known-limitation metadata;
+- corrected cellular and Gray-Scott state evolution where prior implementation behavior was incomplete.
+
+### Contract and tooling
+
+The additive schema-v1 contract now represents semantic ports, image color/alpha/format/sampling, determinism, reset/warmup, provenance, pass scale/iterations/quality tiers, and state/render separation. The browser surfaces much of this metadata and can filter by maturity, processing model, capability, and input readiness. The rack routes second-image, displacement, depth, normal, flow, and mask buses; supports manual time; and resets all declared histories.
+
+Updater and release work adds source/feed binding, duplicate-key and size defenses, channel/compatibility/lock reporting, deterministic transactional release preparation, release provenance/checksums, immutable-history enforcement, and a broader Python/OS CI matrix.
+
+## Taxonomy status and gaps
+
+| Area | v0.3 source status | Important gaps |
 | --- | --- | --- |
-| Transform and framing | Partial through mirror, polar, lens, ripple, and other distortion tools | Translate/rotate/scale/crop/fit, corner pin, projection mapping |
-| Color and tone | Strong foundation with exposure, levels, white balance, channel mixing, gradient mapping, HSV, duotone, posterize | Curves, LUT workflow, color-management adapters, selective correction |
-| Blur and focus | Six single/multi-pass effects | Bokeh/depth-aware blur, edge-aware blur, quality tiers |
-| Detail and morphology | Sharpen, unsharp mask, edge detect, emboss | Dilate/erode, distance fields, matte morphology |
-| Distortion and lens | Broad foundational coverage | Heat haze, mesh/deformation adapters, higher-quality chromatic optics |
-| Pixel, print, and display style | Pixelate, ordered dither, halftone, scanlines, VHS, frosted glass | ASCII, stipple, engraving, CRT/phosphor families, film/projector emulation |
-| Glitch and corruption | Five spatial/animated glitches plus temporal variants | Motion-aware datamosh-like processing, sorting, codec adapters |
+| Transform and framing | Six dedicated packages plus distortion tools | Mesh/bezier deformation, camera-aware projection, calibration/warping adapters |
+| Color and tone | 13 effects including curves, CDL, LUT, tone map | OCIO/color-management adapter, gamut mapping, selective/secondary correction, LUT asset UX |
+| Blur and focus | Nine effects including bilateral, bokeh, depth-aware | Physically based depth of field, adaptive kernels, validated quality tiers |
+| Detail and morphology | Sharpen/unsharp plus dilate, erode, feather, alpha repair | Distance fields, skeletonization, connected-region cleanup |
+| Keying and despill | Chroma/luma/difference keys and despill | Screen modeling, edge color, garbage/core matte workflow, temporal key stabilization |
+| Compositing | Alpha/matte composite, blend modes, channel shuffle, edge extend | Layer stacks, transform-per-layer recipes, premultiply audit tools, deep compositing |
+| Masks | Four generated mask families | Vector/paint masks, tracked masks, signed-distance primitives, mask combination recipes |
+| Distortion and lens | Broad foundational coverage | Heat haze, mesh adapters, higher-quality optics and chromatic aberration |
+| Pixel/print/display style | Ten stylize tools | ASCII, stipple, engraving, CRT/phosphor, film/projector emulation |
+| Glitch and corruption | Five immutable effects plus a reusable 24-style Glitch Fusion core covering sorting, datamosh-like smear, VHS/CRT, hold, dropout, compression, channel, and data corruption | True inter-frame datamosh, motion-aware corruption, codec/container adapters |
 | Light and relighting | Bloom/glow, edge glow, normal lighting | Lens flare, volumetric light, environment/depth-aware relighting |
 | Transitions | Four wipe/dissolve families | Burn/liquid/pixel/geometric and motion-aware transitions |
-| Temporal and feedback | Ten packaged temporal effects | Long-delay buffers, slit-scan, explicit timeline/cache adapters |
-| Motion analysis | Optical-flow warp and flow-assisted techniques | Vector export, tracking, stabilization, quality/fallback tiers |
-| Simulation | Four reference systems | More robust advection, fluid solvers, growth systems, quality controls |
-| Depth and spatial | Depth parallax and normal lighting | Height fields, projection, point clouds, camera mapping, volumetric slices |
-| Keying, matting, and compositing | Not yet packaged | Luma/chroma/difference keys, despill, alpha repair, blend modes, layer stacks |
-| Particles and point clouds | Particle-advection simulation only | Image-to-particle, instancing, depth clouds, fragmentation |
-| Segmentation and ML | Research only | Model metadata, offline/online trust boundaries, fallback behavior |
-| Input and control | Rack time and mix modulation | Audio, MIDI, OSC, DMX, sensors, control-surface adapters |
-| Output and calibration | Kept outside the effect core | Warping, mapping, multi-display, recording/streaming adapters |
-| External plugins | Adapter contract only | C++ TOPs, vendor SDKs, signing/ABI matrix, commercial licensing |
-| Learning techniques | Gallery, examples, architecture, authoring contract | Annotated recipes, comparisons, performance labs |
+| Temporal and feedback | Ten upgraded stateful packages | Long-delay buffers, slit scan, timeline/cache adapters, dropped-frame policies |
+| Motion analysis | Optical-flow warp and flow-assisted effects | Vector estimation/export, tracking, stabilization, quality/fallback tiers |
+| Simulation | Four upgraded reference systems | Robust pressure/fluid solver, substeps/quality tiers, validation at varied resolution/frame rate |
+| Depth and spatial | Depth parallax and normal lighting | Height fields, point clouds, camera projection, volumetric slices |
+| Particles and point clouds | Random-move image particles, ink-flow water particles, and particle-advection simulation | Instancing, fragmentation, depth clouds |
+| Cultural and painterly style | Minimal Chinese ink work and ink wash with procedural paper/pigment controls | Curated brush libraries, calligraphy-aware stroke analysis, additional reviewed traditions |
+| Segmentation and ML | Research only | Model/package metadata, offline/online trust boundaries, deterministic fallback |
+| Input and control | Rack time and mix modulation | Audio, MIDI, OSC, DMX, camera/sensor adapters |
+| Output and calibration | Outside effect core | Mapping, multi-display calibration, recording/streaming adapters |
+| External plugins | Adapter contract only | C++ TOP ABI/signing matrix, vendor SDK policy, commercial licensing |
+| Learning techniques | Gallery and authoring/architecture docs | Annotated recipes, comparisons, interactive performance labs |
 
-## v0.2.0 platform milestone
+## Known v0.3 limitations
 
-The catalog expansion is paired with infrastructure so it remains usable:
+- Native validation currently represents TouchDesigner `2025.32820` on Windows and one GPU/driver benchmark environment; other production targets require their own validation records.
+- The 30 new production-oriented effects are experimental, not a promise of studio-qualified keying/color science.
+- No bundled package currently publishes quality tiers even though the schema can validate them.
+- Rack semantic routing covers image buses only; audio/control/data inputs need dedicated adapters.
+- Browser input readiness is metadata-based and cannot prove upstream encoding, color space, or content quality.
+- Update checking is notification-only. It does not download, install, activate, or migrate packages.
+- The project does not autonomously scrape and import shaders/plugins/techniques from the internet. New sources require curation, license review, security review, and packaging.
+- CI validates ordinary Python across three operating systems; native TouchDesigner/GPU validation still requires named Windows/macOS machines and drivers.
 
-- a searchable TouchDesigner browser with category/tag filters, favorites, compatibility, processing model, GPU cost, and target-COMP creation;
-- an eight-slot rack with reordering, per-slot/global bypass, reset/reload, validated presets, shared time, and sine/triangle/saw mix modulation;
-- processing-aware native generation for pass chains and feedback/history graphs;
-- `tools/new_effect.py` for non-overwriting single-pass, multi-pass, temporal, simulation, and adapter scaffolds;
-- `tools/build_gallery.py`, `tools/check_gallery.py`, and `tools/benchmark_report.py` for generated discovery and regression/performance artifacts;
-- `tools/package_release.py` for deterministic latest-66 ZIPs containing the license, third-party notices, manifest, and declared assets, plus SHA-256 metadata and release-tag-pinned update-feed staging;
-- `tools/verify_repository.py` and CI coverage for all 78 immutable manifests and native entrypoints, plus latest-66 previews, baselines, benchmarks, feeds, tests, and version metadata;
-- a native `.toe`, 78 versioned package `.tox` files (66 current and 12 historical), four core `.tox` files, and a notify-only Update Manager.
+## Roadmap
 
-## Release roadmap
+### 0.4 — validation matrix and advanced spatial/control systems
 
-### 0.3 - compositing and production controls
+- Automate multi-resolution, warmed steady-state benchmarks and native validation across named TouchDesigner, GPU, driver, and operating-system environments.
+- Add representative alpha, HDR/negative, odd-resolution, auxiliary-input, and dynamic-resolution preview/test fixtures.
+- Implement and measure quality tiers for the most expensive multi-pass, blur, temporal, and simulation packages.
+- Add optical-flow estimation/export, tracking, stabilization, and capability-based fallbacks.
+- Expand the random-move and ink-flow particle cores toward instancing, fragmentation, point clouds, depth/height fields, and camera-projection adapters.
+- Provide audio, MIDI, OSC, DMX, camera, and sensor modulation examples outside immutable effect packages.
 
-- Keying, despill, matte refinement, morphology, blend modes, alpha repair, and layer-stack recipes.
-- Transform/framing packages and calibration-friendly adapters.
-- Version-aware preset migration and rack-level project-lock reporting.
-- Additional preview fixtures for alpha, HDR/negative color, dynamic resolution, and temporal reset behavior.
-- Broader cross-platform TouchDesigner/GPU validation and explicit quality tiers.
-
-### 0.4 - advanced spatial and control systems
-
-- Optical-flow analysis/export, tracking, stabilization, and capability-based fallbacks.
-- Image-to-particle, instancing, depth/height-field, point-cloud, and 3D projection adapters.
-- Audio, MIDI, OSC, DMX, camera, and sensor modulation examples separated from immutable effect packages.
-- Extended simulation quality controls and deterministic initialization.
-
-### 0.5 - curated ecosystem updates
+### 0.5 — curated ecosystem updates
 
 - Signed-feed format, key-rotation procedure, and publisher trust UI.
-- Curated source monitors for releases, shaders, plugins, and techniques.
-- License/attribution review queues for discovered content.
-- Isolated evaluation strategy where TouchDesigner and plugin constraints permit it.
-- Staged downloads with explicit activation, restart handling, and transactional rollback.
+- Curated monitors for official releases, approved shader repositories, plugins, and techniques.
+- License/attribution/security review queues for discoveries.
+- Staged downloads with explicit activation, restart handling, smoke tests, and transactional rollback.
+- Offline bundle/export workflow for locked production projects.
 
-### 1.0 - production contract
+### 1.0 — production contract
 
 - Freeze and document effect API 1.x compatibility guarantees.
-- Production-ready browser, rack, presets, project-lock migration, offline bundle, update, and rollback workflows.
+- Production-ready browser, rack, preset migration, project-lock migration, update, and rollback workflows.
 - Supported TouchDesigner build/OS/GPU matrix with repeatable target-hardware verification.
 - Authoring templates and contribution review for every supported content type.
-- A meaningful stable set across color, spatial, temporal, compositing, control, simulation, and 3D categories.
+- A stable, quality-reviewed set across color, transform, blur, key/matte/composite, temporal, simulation, spatial, and control categories.
 
-Roadmap versions describe intent, not release promises. Security or compatibility work can move earlier than visual breadth.
+Roadmap versions describe intent, not release promises. Security, compatibility, or regression work can move earlier than visual breadth.
 
-## Adding a category
+## Adding a category or technique
 
-Before creating many effects in a new category:
+Before creating many effects in a new area:
 
-1. Define its common input/output roles and alpha/color behavior.
-2. Choose representative techniques at low, medium, and high GPU cost.
-3. Add test media and measurable performance scenarios.
-4. Scaffold and package one reference effect through the complete lifecycle.
-5. Build its `.tox`, preview, benchmark sample, and gallery entry.
-6. Validate composability in the browser and eight-slot rack.
-7. Document external licenses, permissions, dependencies, and fallback behavior.
+1. Define input/output roles and alpha/color/state behavior.
+2. Choose representative low-, medium-, and high-cost techniques.
+3. Create representative test media and measurable scenarios.
+4. Package one reference effect through the complete lifecycle.
+5. Build its `.tox`, preview, baseline, benchmark sample, and gallery entry.
+6. Validate composability in the browser and rack, including missing auxiliary inputs.
+7. Document source, license, permissions, dependencies, limitations, reset, and fallback behavior.
 
-This prevents a large folder of examples from becoming an unusable library.
-
-## Prioritization
-
-Prefer work that improves many packages at once:
-
-1. authoring contract, validator, locks, and rollback;
-2. browser/rack usability, presets, and common modulation;
-3. alpha, color, resolution, temporal-reset, and performance correctness;
-4. missing foundational categories such as keying and compositing;
-5. advanced effects with special hardware or external dependencies.
-
-A new effect should fill a real creative gap or demonstrate a reusable method; near-duplicates should normally be presets or parameter modes.
+Prefer improvements that make many effects more trustworthy: contract validation, reproducible builds, color/alpha correctness, state/reset behavior, target-hardware tests, presets/examples, and rollback. A near-duplicate look should usually be a preset or parameter mode rather than another package.

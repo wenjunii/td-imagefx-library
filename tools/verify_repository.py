@@ -7,14 +7,20 @@ This script has no third-party dependencies. Run it from any working directory:
 
 from __future__ import annotations
 
+import ast
 import json
+import hashlib
 import math
 import os
 import re
 import subprocess
 import sys
-import tomllib
 from pathlib import Path
+
+try:
+    import tomllib
+except ModuleNotFoundError:  # Friendly error from main() on Python 3.10 and older.
+    tomllib = None
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -22,8 +28,9 @@ SRC_ROOT = ROOT / "src"
 PACKAGE_ROOT = ROOT / "packages"
 PUBLIC_FEED = ROOT / "registry" / "update-feed.json"
 LOCAL_FEED = ROOT / "registry" / "update-feed.local.json"
-EXPECTED_EFFECT_ID_COUNT = 66
-EXPECTED_PACKAGE_VERSION_COUNT = 78
+EMBODY_INTEGRATION = ROOT / "integrations" / "embody"
+EXPECTED_EFFECT_ID_COUNT = 96
+EXPECTED_PACKAGE_VERSION_COUNT = 122
 PUBLIC_FEED_URL = (
     "https://raw.githubusercontent.com/wenjunii/td-imagefx-library/"
     "main/registry/update-feed.json"
@@ -54,6 +61,78 @@ def _extract_assignment(path: Path, name: str) -> str:
     if match is None:
         raise VerificationError(f"Cannot find {name} in {path.relative_to(ROOT)}")
     return match.group(1)
+
+
+def _source_test_count() -> int:
+    """Count checked-in unittest methods without importing the test modules."""
+
+    count = 0
+    for path in sorted((ROOT / "tests").glob("test_*.py")):
+        try:
+            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        except (OSError, SyntaxError) as exc:
+            raise VerificationError(
+                f"Cannot inspect tests in {path.relative_to(ROOT)}: {exc}"
+            ) from exc
+        count += sum(
+            1
+            for node in ast.walk(tree)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and node.name.startswith("test_")
+        )
+    if count < 1:
+        raise VerificationError("No source unit tests were discovered")
+    return count
+
+
+def _check_public_documentation() -> None:
+    """Keep public verification claims synchronized with checked source data."""
+
+    readme_path = ROOT / "README.md"
+    try:
+        readme = readme_path.read_text(encoding="utf-8")
+    except OSError as exc:
+        raise VerificationError(f"Cannot read README.md: {exc}") from exc
+
+    catalog_claim = re.search(
+        r"validated all (\d+) current effects with (\d+) versioned effect",
+        readme,
+    )
+    coverage_claim = re.search(
+        r"(\d+) previews, (\d+) visual baselines, and (\d+) benchmark samples",
+        readme,
+    )
+    test_claim = re.search(
+        r"fresh repository run completed (\d+) tests successfully",
+        readme,
+        re.IGNORECASE,
+    )
+    if (
+        catalog_claim is None
+        or tuple(map(int, catalog_claim.groups()))
+        != (EXPECTED_EFFECT_ID_COUNT, EXPECTED_PACKAGE_VERSION_COUNT)
+    ):
+        raise VerificationError("README catalog counts do not match the repository")
+    if (
+        coverage_claim is None
+        or tuple(map(int, coverage_claim.groups()))
+        != (EXPECTED_EFFECT_ID_COUNT,) * 3
+    ):
+        raise VerificationError("README generated-coverage counts do not match the catalog")
+    source_test_count = _source_test_count()
+    if test_claim is None or int(test_claim.group(1)) != source_test_count:
+        raise VerificationError(
+            "README test count does not match the checked-in suite "
+            f"({source_test_count})"
+        )
+    for reference in (
+        "docs/embody-envoy-integration.md",
+        "integrations/embody/",
+    ):
+        if reference not in readme:
+            raise VerificationError(
+                f"README is missing the public integration reference: {reference}"
+            )
 
 
 def _check_versions() -> str:
@@ -168,7 +247,7 @@ def _check_manifests() -> tuple[int, set[str], dict[str, str]]:
         or len(package_ids) != EXPECTED_EFFECT_ID_COUNT
     ):
         raise VerificationError(
-            "Completed v0.2 catalog must contain exactly "
+            "Completed v0.3 catalog must contain exactly "
             f"{EXPECTED_EFFECT_ID_COUNT} effect IDs and {EXPECTED_PACKAGE_VERSION_COUNT} immutable versions; "
             f"found {len(manifest_paths)} manifests for {len(package_ids)} effect IDs"
         )
@@ -178,6 +257,9 @@ def _check_manifests() -> tuple[int, set[str], dict[str, str]]:
         ROOT / "touchdesigner" / "core" / "TDImageFXLibrary.tox",
         ROOT / "touchdesigner" / "core" / "FxBrowser.tox",
         ROOT / "touchdesigner" / "core" / "FxRack.tox",
+        ROOT / "touchdesigner" / "core" / "ParticleRandomMove.tox",
+        ROOT / "touchdesigner" / "core" / "InkFlowFusion.tox",
+        ROOT / "touchdesigner" / "core" / "GlitchFusion.tox",
         ROOT / "touchdesigner" / "core" / "FxUpdater.tox",
     )
     missing = [path.relative_to(ROOT) for path in required_native_assets if not path.is_file()]
@@ -289,6 +371,123 @@ def _check_generated_artifacts(package_ids: set[str], latest_versions: dict[str,
         raise VerificationError("benchmark data contains no runtime measurement")
 
 
+def _sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for block in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def _resolve_native_artifact(relative: str) -> Path:
+    """Resolve a recorded native artifact without ever accepting a symlink."""
+
+    unresolved = ROOT.joinpath(*Path(relative).parts)
+    cursor = ROOT
+    for part in Path(relative).parts:
+        cursor = cursor / part
+        if cursor.is_symlink():
+            raise VerificationError(
+                f"Native validation artifact is missing or unsafe: {relative}"
+            )
+    try:
+        path = unresolved.resolve(strict=True)
+        path.relative_to(ROOT.resolve())
+    except (OSError, ValueError) as exc:
+        raise VerificationError(
+            f"Native validation artifact is missing or unsafe: {relative}"
+        ) from exc
+    if not path.is_file():
+        raise VerificationError(f"Native validation artifact is missing or unsafe: {relative}")
+    return path
+
+
+def _check_native_validation(library_version: str) -> None:
+    record = _read_json(ROOT / "docs" / "native-validation.json")
+    if record.get("schema_version") != 1 or record.get("library_version") != library_version:
+        raise VerificationError("docs/native-validation.json has an incompatible schema or library version")
+    if record.get("catalog") != {
+        "current_effects": EXPECTED_EFFECT_ID_COUNT,
+        "package_versions": EXPECTED_PACKAGE_VERSION_COUNT,
+    }:
+        raise VerificationError("Native validation catalog counts do not match the repository")
+    if record.get("results") != {
+        "builder_errors": 0,
+        "shader_errors": 0,
+        "preview_errors": 0,
+    }:
+        raise VerificationError("Native validation does not record a clean TouchDesigner build")
+    builder = record.get("builder")
+    builder_relative = "touchdesigner/scripts/build_project.py"
+    builder_path = ROOT / builder_relative
+    if (
+        not isinstance(builder, dict)
+        or builder.get("path") != builder_relative
+        or builder.get("sha256") != _sha256(builder_path)
+    ):
+        raise VerificationError("Native validation is not bound to the current builder source")
+    environment = record.get("touchdesigner")
+    if not isinstance(environment, dict) or any(
+        not isinstance(environment.get(field), str) or not environment[field].strip()
+        for field in ("version", "build", "os", "architecture")
+    ):
+        raise VerificationError("Native validation must name its TouchDesigner environment")
+
+    expected_paths = {
+        "TD_ImageFX_Library.toe",
+        "touchdesigner/core/TDImageFXLibrary.tox",
+        "touchdesigner/core/FxBrowser.tox",
+        "touchdesigner/core/FxRack.tox",
+        "touchdesigner/core/ParticleRandomMove.tox",
+        "touchdesigner/core/InkFlowFusion.tox",
+        "touchdesigner/core/GlitchFusion.tox",
+        "touchdesigner/core/FxUpdater.tox",
+        *(
+            path.relative_to(ROOT).as_posix()
+            for path in sorted(PACKAGE_ROOT.glob("*/*/tox/*.tox"))
+        ),
+    }
+    artifacts = record.get("artifacts")
+    if not isinstance(artifacts, list):
+        raise VerificationError("Native validation artifacts must be a list")
+    recorded_paths: set[str] = set()
+    for index, artifact in enumerate(artifacts):
+        if not isinstance(artifact, dict):
+            raise VerificationError(f"Native validation artifact {index} must be an object")
+        relative = artifact.get("path")
+        size = artifact.get("bytes")
+        digest = artifact.get("sha256")
+        if (
+            not isinstance(relative, str)
+            or not relative
+            or "\\" in relative
+            or Path(relative).is_absolute()
+            or ".." in Path(relative).parts
+        ):
+            raise VerificationError(f"Native validation artifact {index} has an unsafe path")
+        if relative in recorded_paths:
+            raise VerificationError(f"Native validation contains duplicate artifact {relative}")
+        recorded_paths.add(relative)
+        path = _resolve_native_artifact(relative)
+        if isinstance(size, bool) or not isinstance(size, int) or size != path.stat().st_size:
+            raise VerificationError(f"Native validation size mismatch: {relative}")
+        if not isinstance(digest, str) or re.fullmatch(r"[0-9a-f]{64}", digest) is None:
+            raise VerificationError(f"Native validation digest is invalid: {relative}")
+        if _sha256(path) != digest:
+            raise VerificationError(f"Native validation digest mismatch: {relative}")
+    if recorded_paths != expected_paths:
+        raise VerificationError("Native validation artifact inventory does not match native entrypoints")
+
+    benchmark = _read_json(ROOT / "docs" / "benchmark-data.json")
+    benchmark_summary = record.get("benchmark")
+    if not isinstance(benchmark_summary, dict) or benchmark_summary != {
+        "resolution": benchmark.get("resolution"),
+        "frames_per_sample": benchmark.get("frames_per_sample"),
+        "gpu": benchmark.get("gpu"),
+    }:
+        raise VerificationError("Native validation benchmark environment does not match benchmark data")
+
+
 def _check_update_sources() -> None:
     config = _read_json(ROOT / "config" / "update_sources.json")
     sources = config.get("sources")
@@ -322,6 +521,212 @@ def _check_update_sources() -> None:
         raise VerificationError("Bundled local feed is not declared correctly")
 
 
+def _check_embody_integration() -> None:
+    """Validate the public, non-destructive live-QA integration contract."""
+
+    installer_path = ROOT / "touchdesigner" / "scripts" / "install_dev_harness.py"
+    validator_path = ROOT / "touchdesigner" / "scripts" / "validate_live_project.py"
+    rack_selection_validator_path = (
+        ROOT / "touchdesigner" / "scripts" / "validate_rack_selection.py"
+    )
+    particle_validator_path = (
+        ROOT / "touchdesigner" / "scripts" / "validate_particle_module.py"
+    )
+    ink_flow_validator_path = (
+        ROOT / "touchdesigner" / "scripts" / "validate_ink_flow_module.py"
+    )
+    glitch_validator_path = (
+        ROOT / "touchdesigner" / "scripts" / "validate_glitch_fusion_module.py"
+    )
+    output_resolution_validator_path = (
+        ROOT / "touchdesigner" / "scripts" / "validate_output_resolution.py"
+    )
+    browser_start_callbacks_path = (
+        ROOT / "touchdesigner" / "callbacks" / "browser_start_callbacks.py"
+    )
+    bridge_checker_path = EMBODY_INTEGRATION / "check_td_bridge.py"
+    codex_example_path = ROOT / ".codex" / "config.toml.example"
+    public_guide_path = ROOT / "docs" / "embody-envoy-integration.md"
+    required = (
+        EMBODY_INTEGRATION / "README.md",
+        EMBODY_INTEGRATION / "project-context.json",
+        EMBODY_INTEGRATION / "mcp-config.example.json",
+        EMBODY_INTEGRATION / "envoy-validation-plan.json",
+        installer_path,
+        validator_path,
+        rack_selection_validator_path,
+        particle_validator_path,
+        ink_flow_validator_path,
+        glitch_validator_path,
+        output_resolution_validator_path,
+        browser_start_callbacks_path,
+        bridge_checker_path,
+        codex_example_path,
+        public_guide_path,
+    )
+    missing = [path.relative_to(ROOT) for path in required if not path.is_file()]
+    if missing:
+        raise VerificationError(
+            "Missing Embody integration files: " + ", ".join(map(str, missing))
+        )
+
+    context = _read_json(EMBODY_INTEGRATION / "project-context.json")
+    catalog = (context.get("overview") or {}).get("catalog") or {}
+    native = _read_json(ROOT / "docs" / "native-validation.json")
+    native_build = (native.get("touchdesigner") or {}).get("build")
+    if (
+        context.get("schema_version") != 1
+        or context.get("project_id") != "td-imagefx-library"
+        or catalog.get("current_effect_ids") != EXPECTED_EFFECT_ID_COUNT
+        or catalog.get("immutable_package_versions") != EXPECTED_PACKAGE_VERSION_COUNT
+        or (context.get("overview") or {}).get("validated_touchdesigner_build")
+        != native_build
+    ):
+        raise VerificationError(
+            "Embody project context does not match the ImageFX catalog/native build"
+        )
+    network = context.get("network") or {}
+    outputs = context.get("outputs") or {}
+    if (
+        network.get("library") != "/project1/td_imagefx"
+        or network.get("identity_operators")
+        != ["/project1/td_imagefx", "/project1/imagefx_demo"]
+        or outputs.get("primary_demo")
+        != "/project1/imagefx_demo/out1_image"
+    ):
+        raise VerificationError("Embody project context has unexpected managed paths")
+
+    example_path = EMBODY_INTEGRATION / "mcp-config.example.json"
+    example_text = example_path.read_text(encoding="utf-8")
+    example = _read_json(example_path)
+    server = (example.get("mcpServers") or {}).get("td-knowledge") or {}
+    arguments = server.get("args")
+    if (
+        server.get("type") != "stdio"
+        or not isinstance(arguments, list)
+        or "--project-context" not in arguments
+        or "--envoy-config" not in arguments
+        or "--faiss-db" not in arguments
+        or "ABSOLUTE" not in example_text
+        or "wenju" in example_text.lower()
+    ):
+        raise VerificationError(
+            "Embody MCP example must remain portable and project-scoped"
+        )
+
+    codex_example_text = codex_example_path.read_text(encoding="utf-8")
+    if (
+        "[mcp_servers.td-knowledge]" not in codex_example_text
+        or "--project-context" not in codex_example_text
+        or "--envoy-config" not in codex_example_text
+        or "--faiss-db" not in codex_example_text
+        or "ABSOLUTE" not in codex_example_text
+        or "wenju" in codex_example_text.lower()
+        or re.search(
+            r"(api[_-]?key|password|bearer|credential)",
+            codex_example_text,
+            re.IGNORECASE,
+        )
+    ):
+        raise VerificationError(
+            "Codex MCP example must remain portable and credential-free"
+        )
+
+    plan = _read_json(EMBODY_INTEGRATION / "envoy-validation-plan.json")
+    if (
+        plan.get("schema_version") != 1
+        or plan.get("project_id") != context["project_id"]
+        or plan.get("mode") != "read-only"
+    ):
+        raise VerificationError("Envoy validation plan has an incompatible identity")
+    tools = {
+        call.get("tool")
+        for stage in plan.get("stages", [])
+        if isinstance(stage, dict)
+        for call in stage.get("calls", [])
+        if isinstance(call, dict)
+    }
+    required_tools = {
+        "get_td_project_context",
+        "query_td_knowledge",
+        "get_td_info",
+        "get_project_performance",
+        "query_network",
+        "exec_op_method",
+        "get_op_errors",
+        "execute_python",
+        "capture_top",
+    }
+    if not required_tools.issubset(tools):
+        raise VerificationError("Envoy validation plan is missing required audit tools")
+
+    installer = installer_path.read_text(encoding="utf-8")
+    if "project.save(" in installer or "_save_project_atomically" in installer:
+        raise VerificationError("Development harness installer may not save a project")
+    if (
+        "EXPECTED_HARNESS_PROJECT" not in installer
+        or "numbered harness identity" not in installer
+        or "_validate_harness_project()" not in installer
+    ):
+        raise VerificationError(
+            "Development harness installer must require the exact unnumbered project"
+        )
+    validator = validator_path.read_text(encoding="utf-8")
+    for name, expected in (
+        ("EXPECTED_PACKAGES", EXPECTED_EFFECT_ID_COUNT),
+        ("EXPECTED_VERSIONS", EXPECTED_PACKAGE_VERSION_COUNT),
+    ):
+        match = re.search(rf"^{name}\s*=\s*(\d+)\s*$", validator, re.MULTILINE)
+        if match is None or int(match.group(1)) != expected:
+            raise VerificationError(
+                f"Live validator {name} does not match the repository catalog"
+            )
+    if (
+        "rack_selection" not in validator
+        or "selection_matches_loaded_package" not in validator
+        or "browser_startup" not in validator
+        or "reloads_selected_preview" not in validator
+    ):
+        raise VerificationError(
+            "Live validator is missing the rack or browser startup audit"
+        )
+
+    rack_validator = rack_selection_validator_path.read_text(encoding="utf-8")
+    if (
+        "SLOT_COUNT = 8" not in rack_validator
+        or "ExportPreset" not in rack_validator
+        or "ImportPreset" not in rack_validator
+        or "project.save(" in rack_validator
+    ):
+        raise VerificationError(
+            "Rack selection validator must test eight slots, restore state, and never save"
+        )
+
+    bridge_checker = bridge_checker_path.read_text(encoding="utf-8")
+    if (
+        "EXPECTED_PROJECT_ID = \"td-imagefx-library\"" not in bridge_checker
+        or "get_knowledge_stats" not in bridge_checker
+        or "get_project_performance" not in bridge_checker
+        or "--require-envoy" not in bridge_checker
+    ):
+        raise VerificationError(
+            "TD bridge checker is missing required project, knowledge, or Envoy checks"
+        )
+
+    browser_start_callbacks = browser_start_callbacks_path.read_text(
+        encoding="utf-8"
+    )
+    if (
+        "def onStart():" not in browser_start_callbacks
+        or "def onCreate():" not in browser_start_callbacks
+        or "UpdateSelection()" not in browser_start_callbacks
+        or "delayFrames=1" not in browser_start_callbacks
+    ):
+        raise VerificationError(
+            "Browser startup callbacks must reload the selected preview after startup"
+        )
+
+
 def _run(label: str, arguments: list[str], env: dict[str, str]) -> None:
     print(f"\n[verify] {label}", flush=True)
     subprocess.run(arguments, cwd=ROOT, env=env, check=True)
@@ -339,7 +744,10 @@ def main() -> int:
             if not feed_path.is_file():
                 raise VerificationError(f"Missing update feed: {feed_path.relative_to(ROOT)}")
         _check_update_sources()
+        _check_embody_integration()
         _check_generated_artifacts(package_ids, latest_versions)
+        _check_native_validation(version)
+        _check_public_documentation()
 
         env = os.environ.copy()
         existing_pythonpath = env.get("PYTHONPATH")
@@ -350,6 +758,11 @@ def main() -> int:
         _run(
             "Compile Python sources",
             [python, "-m", "compileall", "-q", "src", "tests", "tools", "touchdesigner"],
+            env,
+        )
+        _run(
+            "Scan tracked files for credentials",
+            [python, "tools/check_credentials.py"],
             env,
         )
         _run("Run unit tests", [python, "-m", "unittest", "discover", "-s", "tests", "-v"], env)
@@ -386,7 +799,7 @@ def main() -> int:
     print(
         f"\n[verify] PASS: TD ImageFX {version}, {len(package_ids)} effect IDs / "
         f"{package_version_count} immutable versions, "
-        "2 feeds, gallery and benchmarks",
+        "2 feeds, native artifacts, gallery and benchmarks",
         flush=True,
     )
     return 0

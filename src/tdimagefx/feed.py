@@ -43,11 +43,24 @@ class FetchResult:
 
 
 def redact_source_url(value: str) -> str:
-    """Remove query tokens and fragments before persisting a source URL."""
+    """Remove credentials, query tokens, fragments, and machine-local paths."""
 
-    parsed = urlsplit(value)
+    try:
+        parsed = urlsplit(value)
+    except ValueError:
+        return "invalid-source"
     if parsed.scheme.lower() == "https":
-        return urlunsplit((parsed.scheme, parsed.netloc, parsed.path, "", ""))
+        hostname = parsed.hostname or "invalid-host"
+        if ":" in hostname and not hostname.startswith("["):
+            hostname = f"[{hostname}]"
+        try:
+            port = parsed.port
+        except ValueError:
+            return "https://invalid-host/"
+        authority = f"{hostname}:{port}" if port is not None else hostname
+        return urlunsplit(("https", authority, parsed.path, "", ""))
+    if parsed.scheme.lower() == "file":
+        return "file:///REDACTED"
     return value
 
 
@@ -146,11 +159,16 @@ def download_source(
 ) -> FetchResult:
     """Fetch to a file atomically, allowing only HTTPS or explicitly enabled files."""
 
-    if max_bytes <= 0:
-        raise ValueError("max_bytes must be positive")
-    if expected_size is not None and (expected_size < 0 or expected_size > max_bytes):
+    if not isinstance(max_bytes, int) or isinstance(max_bytes, bool) or max_bytes <= 0:
+        raise ValueError("max_bytes must be a positive integer")
+    if expected_size is not None and (
+        not isinstance(expected_size, int)
+        or isinstance(expected_size, bool)
+        or expected_size < 0
+        or expected_size > max_bytes
+    ):
         raise SecurityError("expected size is outside the configured download limit")
-    normalized_hash = expected_sha256.lower() if expected_sha256 else None
+    normalized_hash = expected_sha256.lower() if expected_sha256 is not None else None
     if normalized_hash is not None and re.fullmatch(r"[0-9a-f]{64}", normalized_hash) is None:
         raise ValidationError("Expected SHA-256 digest is invalid")
 
@@ -185,7 +203,10 @@ def download_source(
                     )
                     response = opener.open(request, timeout=policy.timeout_seconds)
                 except (urllib.error.URLError, TimeoutError, OSError) as exc:
-                    raise FeedError(f"could not fetch {raw_source}: {exc}") from exc
+                    raise FeedError(
+                        f"could not fetch {redact_source_url(raw_source)}: "
+                        f"network or TLS failure ({type(exc).__name__})"
+                    ) from exc
                 with response:
                     final_source = response.geturl()
                     _validate_https_url(final_source, policy)
@@ -246,6 +267,7 @@ def load_update_feed(
     *,
     policy: SourcePolicy = SourcePolicy(),
     expected_sha256: str | None = None,
+    expected_feed_id: str | None = None,
     max_bytes: int = DEFAULT_FEED_LIMIT,
 ) -> tuple[UpdateFeed, FetchResult]:
     payload, fetch_result = fetch_bytes(
@@ -255,7 +277,13 @@ def load_update_feed(
         max_bytes=max_bytes,
     )
     try:
-        data = loads_json(payload, source=f"update feed {source}")
-        return UpdateFeed.from_data(data), fetch_result
+        data = loads_json(payload, source=f"update feed {redact_source_url(os.fspath(source))}")
+        feed = UpdateFeed.from_data(data)
+        if expected_feed_id is not None and feed.feed_id != expected_feed_id:
+            raise ValidationError(
+                "Update feed source binding failed",
+                [f"expected feed_id {expected_feed_id!r}, received {feed.feed_id!r}"],
+            )
+        return feed, fetch_result
     except ValidationError as exc:
         raise FeedError(str(exc)) from exc

@@ -24,6 +24,39 @@ VERSION_RE = re.compile(
 )
 PARAMETER_NAME_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_]{0,79}$")
 MODULATION_STATES = ("off", "sine", "triangle", "saw")
+RACK_AUXILIARY_INPUTS = (
+    "image_b",
+    "displacement",
+    "depth",
+    "normal",
+    "flow",
+    "mask",
+)
+_AUXILIARY_ROLE_ALIASES = {
+    "image_b": "image_b",
+    "second_image": "image_b",
+    "second_input": "image_b",
+    "auxiliary_image": "image_b",
+    "transition_image": "image_b",
+    "transition": "image_b",
+    "reference": "image_b",
+    "reference_image": "image_b",
+    "clean_plate": "image_b",
+    "background": "image_b",
+    "displacement": "displacement",
+    "displacement_map": "displacement",
+    "depth": "depth",
+    "depth_map": "depth",
+    "normal": "normal",
+    "normal_map": "normal",
+    "normals": "normal",
+    "flow": "flow",
+    "optical_flow": "flow",
+    "motion": "flow",
+    "motion_vectors": "flow",
+    "mask": "mask",
+    "matte": "mask",
+}
 SYSTEM_PARAMETER_NAMES = {
     "Enable",
     "Mix",
@@ -32,6 +65,10 @@ SYSTEM_PARAMETER_NAMES = {
     "Packageid",
     "Packageversion",
     "Fxapi",
+    "Processingmodel",
+    "Historyframes",
+    "Gpucost",
+    "Capabilities",
     "Status",
     "Reset",
 }
@@ -44,6 +81,85 @@ def _reject_duplicate_keys(pairs):
             raise ValueError("Duplicate JSON key: {}".format(key))
         result[key] = value
     return result
+
+
+def _repair_effect_shader_paths(root_comp):
+    """Repair legacy absolute GLSL Pixel Shader paths in a loaded package."""
+
+    repaired = 0
+    pending = list(getattr(root_comp, "children", ()) or ())
+    while pending:
+        operator = pending.pop()
+        pending.extend(list(getattr(operator, "children", ()) or ()))
+        name = str(getattr(operator, "name", ""))
+        if str(getattr(operator, "type", "")) != "glsl" or not name.startswith(
+            "effect_glsl_"
+        ):
+            continue
+        shader_name = "pixel_shader_" + name[len("effect_glsl_"):]
+        shader_dat = operator.parent().op(shader_name)
+        parameter = operator.par["pixeldat"]
+        if shader_dat is None or parameter is None:
+            raise RuntimeError(
+                "{} is missing its portable Pixel Shader DAT".format(operator.path)
+            )
+        parameter.val = operator.relativePath(shader_dat)
+        if parameter.eval() != shader_dat:
+            raise RuntimeError(
+                "{} Pixel Shader reference did not resolve".format(operator.path)
+            )
+        repaired += 1
+    return repaired
+
+
+def _repair_effect_callback_paths(root_comp):
+    """Repair legacy absolute reset callback targets in a loaded package."""
+
+    repaired = 0
+    pending = list(getattr(root_comp, "children", ()) or ())
+    while pending:
+        operator = pending.pop()
+        pending.extend(list(getattr(operator, "children", ()) or ()))
+        if str(getattr(operator, "name", "")) != "reset_callbacks":
+            continue
+        parameter = operator.par["op"]
+        target = operator.parent()
+        if parameter is None or target is None:
+            raise RuntimeError(
+                "{} is missing its portable reset callback target".format(operator.path)
+            )
+        parameter.val = operator.relativePath(target)
+        if parameter.eval() != target:
+            raise RuntimeError(
+                "{} reset callback target did not resolve".format(operator.path)
+            )
+        repaired += 1
+    return repaired
+
+
+def _repair_effect_state_paths(root_comp):
+    """Repair legacy absolute Feedback TOP targets in a loaded package."""
+
+    repaired = 0
+    pending = list(getattr(root_comp, "children", ()) or ())
+    while pending:
+        operator = pending.pop()
+        pending.extend(list(getattr(operator, "children", ()) or ()))
+        if str(getattr(operator, "name", "")) != "history_feedback":
+            continue
+        target = operator.parent().op("state_target")
+        parameter = operator.par["top"]
+        if parameter is None or target is None:
+            raise RuntimeError(
+                "{} is missing its portable state target".format(operator.path)
+            )
+        parameter.val = operator.relativePath(target)
+        if parameter.eval() != target:
+            raise RuntimeError(
+                "{} Feedback TOP target did not resolve".format(operator.path)
+            )
+        repaired += 1
+    return repaired
 
 
 class FxRackExt:
@@ -141,6 +257,50 @@ class FxRackExt:
         if not isinstance(version, str) or not VERSION_RE.fullmatch(version):
             raise ValueError("Invalid package version")
         return {"id": package_id, "version": version}
+
+    @staticmethod
+    def _normalized_input_role(value):
+        return re.sub(r"[^a-z0-9]+", "_", str(value or "").strip().lower()).strip("_")
+
+    @classmethod
+    def _input_role(cls, input_definition, input_index):
+        if input_index == 0:
+            return "image"
+        if not isinstance(input_definition, dict):
+            raise RuntimeError("Effect input definitions must be objects")
+        for candidate in (
+            input_definition.get("role"),
+            input_definition.get("semantic"),
+            input_definition.get("id"),
+        ):
+            role = _AUXILIARY_ROLE_ALIASES.get(cls._normalized_input_role(candidate))
+            if role is not None:
+                return role
+        raise RuntimeError(
+            "Unsupported auxiliary TOP input {!r}; use one of: {}".format(
+                input_definition.get("semantic") or input_definition.get("id"),
+                ", ".join(RACK_AUXILIARY_INPUTS),
+            )
+        )
+
+    @classmethod
+    def _input_routes(cls, manifest):
+        inputs = manifest.get("inputs") if isinstance(manifest, dict) else None
+        if not isinstance(inputs, list) or not inputs:
+            raise RuntimeError("Package must declare at least one TOP input")
+        routes = {0: "image"}
+        for input_index, input_definition in enumerate(inputs[1:], start=1):
+            routes[input_index] = cls._input_role(input_definition, input_index)
+        return routes
+
+    @staticmethod
+    def _rack_input_name(role):
+        roles = ("image", *RACK_AUXILIARY_INPUTS)
+        try:
+            index = roles.index(role) + 1
+        except ValueError as exc:
+            raise RuntimeError("Unknown rack input role: {}".format(role)) from exc
+        return "in{}_{}".format(index, role)
 
     def _parameter(self, name):
         try:
@@ -292,17 +452,27 @@ class FxRackExt:
             pass
         source_connector.connect(target_connector)
 
-    def _connect_slot(self, index, slot):
+    def _connect_slot(self, index, slot, routes, store_routes=True):
         source = self._slot_source(index)
         if source is None:
             raise RuntimeError("Rack input is unavailable")
         self._connect(source.outputConnectors[0], slot.inputConnectors[0])
-        rack_input = self.ownerComp.op("in1_image")
-        if len(slot.inputConnectors) > 1 and rack_input is not None:
-            self._connect(rack_input.outputConnectors[0], slot.inputConnectors[1])
+        for input_index in range(1, len(slot.inputConnectors)):
+            role = routes.get(input_index)
+            if role is None:
+                raise RuntimeError("Loaded component exposes an undeclared input at index {}".format(input_index))
+            rack_input = self.ownerComp.op(self._rack_input_name(role))
+            if rack_input is None:
+                raise RuntimeError("Rack {} input is unavailable".format(role))
+            self._connect(rack_input.outputConnectors[0], slot.inputConnectors[input_index])
         next_target = self._next_slot_target(index)
         if next_target is not None:
             self._connect(slot.outputConnectors[0], next_target.inputConnectors[0])
+        if store_routes:
+            self.ownerComp.store(
+                "slot{}_input_routes".format(index),
+                {str(input_index): role for input_index, role in sorted(routes.items())},
+            )
 
     def _bind_slot(self, index, slot):
         enable_parameter = self._component_parameter(slot, "Enable")
@@ -315,13 +485,50 @@ class FxRackExt:
         if time_parameter is not None:
             time_parameter.expr = "parent().par.Time"
 
+    def _unique_operator_name(self, base_name):
+        candidate = base_name
+        suffix = 2
+        while self.ownerComp.op(candidate) is not None:
+            candidate = "{}_{}".format(base_name, suffix)
+            suffix += 1
+        return candidate
+
+    @staticmethod
+    def _rename_exact(operator, name):
+        operator.name = name
+        if str(getattr(operator, "name", "")) != name:
+            raise RuntimeError("Unable to reserve rack operator name {}".format(name))
+
+    def _connect_without_slot(self, index):
+        source = self._slot_source(index)
+        target = self._next_slot_target(index)
+        if source is None:
+            raise RuntimeError("Rack input is unavailable")
+        if target is not None:
+            self._connect(source.outputConnectors[0], target.inputConnectors[0])
+
+    def _restore_failed_load(self, index, candidate, old_slot, old_routes):
+        try:
+            candidate.destroy()
+        except Exception:
+            pass
+        if old_slot is None:
+            self._connect_without_slot(index)
+            return
+        self._rename_exact(old_slot, "slot{}".format(index))
+        self._connect_slot(index, old_slot, old_routes, store_routes=False)
+
     def LoadSlot(self, index, package_id=None, version=None):
-        """Load an immutable package into a rack slot without changing other slots."""
+        """Transactionally replace one rack slot with an immutable package."""
         index = self._slot_index(index)
         menu_parameter = self._parameter("Slot{}effect".format(index))
         package_id = package_id or self._eval(menu_parameter, None)
         manifest, manifest_path = self._find_manifest(package_id, version)
         tox_path = self._component_path(manifest, manifest_path)
+        routes = self._input_routes(manifest)
+        for role in set(routes.values()) - {"image"}:
+            if self.ownerComp.op(self._rack_input_name(role)) is None:
+                raise RuntimeError("Rack {} input is unavailable".format(role))
 
         old_slot = self.ownerComp.op("slot{}".format(index))
         before_ids = {child.id for child in self.ownerComp.children}
@@ -335,30 +542,133 @@ class FxRackExt:
                     pass
             raise RuntimeError("Expected one top-level component in {}".format(tox_path))
         slot = created[0]
-        if old_slot is not None:
-            old_slot.destroy()
-        slot.name = "slot{}".format(index)
-        self._connect_slot(index, slot)
-        self._bind_slot(index, slot)
+        if len(slot.inputConnectors) != len(routes):
+            try:
+                slot.destroy()
+            except Exception:
+                pass
+            raise RuntimeError(
+                "Package declares {} inputs but its component exposes {}".format(
+                    len(routes), len(slot.inputConnectors)
+                )
+            )
+        if not getattr(slot, "outputConnectors", None):
+            try:
+                slot.destroy()
+            except Exception:
+                pass
+            raise RuntimeError("Loaded component exposes no TOP output")
+
+        old_routes = self.SlotInputRoutes(index) if old_slot is not None else {"0": "image"}
+        try:
+            # Bind and wire the candidate while the prior slot is still alive.
+            # Nothing persistent changes until the candidate has passed every
+            # connector and parameter-binding operation.
+            _repair_effect_shader_paths(slot)
+            _repair_effect_callback_paths(slot)
+            _repair_effect_state_paths(slot)
+            self._bind_slot(index, slot)
+            self._connect_slot(index, slot, routes, store_routes=False)
+            if old_slot is not None:
+                backup_name = self._unique_operator_name(
+                    "tdimagefx_slot{}_backup".format(index)
+                )
+                self._rename_exact(old_slot, backup_name)
+            self._rename_exact(slot, "slot{}".format(index))
+            if old_slot is not None:
+                old_slot.destroy()
+        except Exception:
+            self._restore_failed_load(index, slot, old_slot, old_routes)
+            raise
+
         package = {"id": package_id, "version": manifest["version"]}
         self.ownerComp.store("slot{}_package".format(index), package)
+        self.ownerComp.store(
+            "slot{}_input_routes".format(index),
+            {str(input_index): role for input_index, role in sorted(routes.items())},
+        )
         return slot
+
+    def ClearSlot(self, index):
+        """Remove one effect and reconnect the surrounding rack chain."""
+        index = self._slot_index(index)
+        slot = self.ownerComp.op("slot{}".format(index))
+        if slot is not None:
+            target = self._next_slot_target(index)
+            try:
+                self._connect_without_slot(index)
+            except Exception:
+                if target is not None:
+                    try:
+                        self._connect(slot.outputConnectors[0], target.inputConnectors[0])
+                    except Exception:
+                        pass
+                raise
+            slot.destroy()
+        self.ownerComp.store("slot{}_package".format(index), None)
+        self.ownerComp.store("slot{}_input_routes".format(index), {"0": "image"})
+        return slot is not None
 
     def ReloadAll(self):
         loaded = []
         for index in range(1, SLOT_COUNT + 1):
-            if self._parameter("Slot{}effect".format(index)) is not None:
-                loaded.append(self.LoadSlot(index))
+            package = self.SlotState(index)["package"]
+            if package is not None:
+                loaded.append(self.LoadSlot(index, package["id"], package["version"]))
         return loaded
 
     def ResetSlot(self, index):
         index = self._slot_index(index)
         slot = self.ownerComp.op("slot{}".format(index))
         reset_parameter = self._component_parameter(slot, "Reset")
-        if reset_parameter is None:
-            return False
-        reset_parameter.pulse()
-        return True
+        if reset_parameter is not None:
+            try:
+                reset_parameter.pulse()
+            except Exception:
+                previous_value = self._eval(reset_parameter, False)
+                reset_parameter.val = True
+                runner = globals().get("run")
+                if callable(runner):
+                    runner(
+                        "args[0].val = args[1]",
+                        reset_parameter,
+                        previous_value,
+                        delayFrames=1,
+                    )
+                else:
+                    reset_parameter.val = previous_value
+            return True
+
+        # Compatibility fallback for stateful components built before the
+        # adapter began guaranteeing a public Reset pulse.
+        try:
+            history_nodes = slot.fetch("tdimagefx_history_nodes", []) if slot is not None else []
+        except Exception:
+            history_nodes = []
+        reset_any = False
+        for operator_name in history_nodes if isinstance(history_nodes, (list, tuple)) else ():
+            try:
+                history_operator = slot.op(operator_name)
+            except Exception:
+                history_operator = None
+            reset_pulse = self._component_parameter(history_operator, "resetpulse")
+            if reset_pulse is not None:
+                reset_pulse.pulse()
+                reset_any = True
+        return reset_any
+
+    def SlotInputRoutes(self, index):
+        """Return the semantic rack bus selected for each slot input."""
+        index = self._slot_index(index)
+        routes = self.ownerComp.fetch("slot{}_input_routes".format(index), {"0": "image"})
+        if not isinstance(routes, dict):
+            return {"0": "image"}
+        allowed = {"image", *RACK_AUXILIARY_INPUTS}
+        result = {}
+        for input_index, role in routes.items():
+            if str(input_index).isdigit() and role in allowed:
+                result[str(input_index)] = role
+        return result or {"0": "image"}
 
     def Reset(self):
         for index in range(1, SLOT_COUNT + 1):
@@ -584,14 +894,34 @@ class FxRackExt:
             "slots": slots,
         }
 
+    @staticmethod
+    def _complete_preset_slots(slots):
+        provided = {state["index"]: state for state in slots}
+        return [
+            provided.get(index, {
+                "index": index,
+                "package": None,
+                "enabled": False,
+                "mix": 1.0,
+                "modulation": {"depth": 0.0, "rate": 1.0, "state": "off"},
+                "parameters": {},
+            })
+            for index in range(1, SLOT_COUNT + 1)
+        ]
+
     def PresetData(self, name=""):
+        manual_time_parameter = self._parameter("Manualtime")
+        manual_time = self._eval(
+            manual_time_parameter,
+            self._parameter_value("Time", 0.0),
+        )
         return {
             "schema_version": PRESET_SCHEMA_VERSION,
             "kind": PRESET_KIND,
             "name": str(name or "")[:120],
             "autotime": self._parameter_boolean("Autotime", True),
             "timescale": self._finite_float(self._parameter_value("Timescale", 1.0), "Time scale"),
-            "time": self._finite_float(self._parameter_value("Time", 0.0), "Time"),
+            "time": self._finite_float(manual_time, "Manual time"),
             "slots": [self.SlotState(index) for index in range(1, SLOT_COUNT + 1)],
         }
 
@@ -634,6 +964,9 @@ class FxRackExt:
         if package is not None:
             slot = self.LoadSlot(index, package["id"], package["version"])
             self._set_parameter("Slot{}effect".format(index), package["id"])
+        else:
+            self.ClearSlot(index)
+            slot = None
         self._set_parameter("Slot{}enable".format(index), state["enabled"])
         self._set_parameter("Slot{}mix".format(index), state["mix"])
         self.SetModulation(index, **state["modulation"])
@@ -660,12 +993,17 @@ class FxRackExt:
 
     def ImportPreset(self, payload):
         preset = self.ValidatePreset(self._parse_preset(payload))
-        self._apply_states_with_rollback(preset["slots"])
+        # Presets are complete rack snapshots. A compact preset may omit empty
+        # trailing or intermediate slots; omission means an explicitly empty,
+        # bypassed slot rather than "leave whatever happened to be loaded".
+        states = self._complete_preset_slots(preset["slots"])
+        self._apply_states_with_rollback(states)
         self._callback_depth += 1
         try:
             self._set_parameter("Autotime", preset["autotime"])
             self._set_parameter("Timescale", preset["timescale"])
-            self._set_parameter("Time", preset["time"])
+            if not self._set_parameter("Manualtime", preset["time"]):
+                self._set_parameter("Time", preset["time"])
         finally:
             self._callback_depth -= 1
         return self.State()
@@ -683,6 +1021,23 @@ class FxRackExt:
         if candidate.suffix.lower() != ".json":
             raise ValueError("Rack presets must use the .json extension")
         candidate = Path(os.path.abspath(candidate))
+        # Inspect the unresolved spelling first so a symlink cannot disappear
+        # during canonicalization. Canonicalizing afterward makes equivalent
+        # filesystem aliases compare consistently on macOS and Windows.
+        cursor = candidate
+        while True:
+            if cursor.is_symlink():
+                raise ValueError("Rack preset paths may not contain symbolic links")
+            try:
+                if cursor.exists() and cursor.samefile(preset_root):
+                    break
+            except OSError:
+                pass
+            parent = cursor.parent
+            if parent == cursor:
+                break
+            cursor = parent
+        candidate = candidate.resolve(strict=False)
         try:
             relative = candidate.relative_to(preset_root)
         except ValueError as exc:
@@ -770,10 +1125,15 @@ class FxRackExt:
     def State(self):
         """Return the legacy state fields plus full eight-slot rack state."""
         slot_states = [self.SlotState(index) for index in range(1, SLOT_COUNT + 1)]
+        manual_time = self._parameter_value(
+            "Manualtime", self._parameter_value("Time", 0.0)
+        )
         return {
             "slots": [state["package"] for state in slot_states],
             "time": self._finite_float(self._parameter_value("Time", 0.0), "Time"),
+            "manual_time": self._finite_float(manual_time, "Manual time"),
             "slot_states": slot_states,
+            "input_routes": [self.SlotInputRoutes(index) for index in range(1, SLOT_COUNT + 1)],
             "autotime": self._parameter_boolean("Autotime", True),
             "timescale": self._finite_float(self._parameter_value("Timescale", 1.0), "Time scale"),
         }

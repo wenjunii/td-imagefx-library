@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "id": "tdimagefx.key.difference-key",
+  "name": "Difference Key",
+  "version": "1.0.0",
+  "fx_api": "1.0",
+  "kind": "effect",
+  "category": "key",
+  "channel": "experimental",
+  "description": "Creates an alpha matte from the color difference between a foreground and a clean reference plate.",
+  "publisher": "TD ImageFX Library",
+  "license": "MIT",
+  "entrypoints": {"shader": "shaders/difference_key.frag", "touchdesigner_component": "tox/tdimagefx_key_difference_key.tox"},
+  "inputs": [
+    {"id": "image", "family": "TOP", "required": true, "semantic": "foreground", "description": "Foreground containing changed elements."},
+    {"id": "clean_plate", "family": "TOP", "required": true, "semantic": "reference", "description": "Reference image without foreground elements."}
+  ],
+  "outputs": [{"id": "image", "family": "TOP"}],
+  "parameters": [
+    {"id": "enable", "name": "Enable", "label": "Enable", "type": "toggle", "default": true, "description": "Bypass the key when disabled."},
+    {"id": "mix", "name": "Mix", "label": "Mix", "type": "float", "default": 1.0, "min": 0.0, "max": 1.0, "uniform": "uMix", "description": "Blends source and keyed alpha."},
+    {"id": "threshold", "name": "Threshold", "label": "Difference Threshold", "type": "float", "default": 0.08, "min": 0.0, "max": 2.0, "uniform": "uThreshold", "description": "Difference treated as unchanged background."},
+    {"id": "softness", "name": "Softness", "label": "Softness", "type": "float", "default": 0.08, "min": 0.0001, "max": 1.0, "uniform": "uSoftness", "description": "Width of the transition into foreground."},
+    {"id": "luma_weight", "name": "Lumaweight", "label": "Luma Weight", "type": "float", "default": 0.5, "min": 0.0, "max": 1.0, "uniform": "uLumaWeight", "description": "Balances luminance difference against RGB distance."}
+  ],
+  "compatibility": {"touchdesigner_min_build": 2025.3, "touchdesigner_max_build": null, "os": ["windows", "macos"], "architectures": ["x86_64", "arm64"]},
+  "permissions": {"python": false, "filesystem": false, "network": false, "subprocess": false},
+  "dependencies": [],
+  "alpha_policy": "process",
+  "resolution_policy": "first_input",
+  "stateful": false,
+  "image_contract": {
+    "color": {"input_space": "source", "working_space": "project", "output_space": "source", "reference": "display_referred"},
+    "alpha": {"input": "any", "working": "any", "output": "any"},
+    "pixel_format": {"policy": "inherit"},
+    "sampling": {"filter": "linear", "edge": "clamp", "mipmaps": false}
+  },
+  "determinism": {"mode": "deterministic"},
+  "provenance": {"origin": "original", "source": {"type": "original"}},
+  "tags": ["key", "difference", "clean-plate", "matte", "two-input"],
+  "processing": {"model": "single_pass", "gpu_cost": "low", "capabilities": ["second_input"], "passes": ["shaders/difference_key.frag"], "history_frames": 0}
+}

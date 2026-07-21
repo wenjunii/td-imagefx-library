@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "id": "tdimagefx.color.tone-map",
+  "name": "Tone Map",
+  "version": "1.0.0",
+  "fx_api": "1.0",
+  "kind": "effect",
+  "category": "color",
+  "channel": "experimental",
+  "description": "Maps scene-linear HDR values with Reinhard, ACES-fitted, or filmic curves in the incoming RGB primaries while preserving source alpha.",
+  "publisher": "TD ImageFX Library",
+  "license": "MIT",
+  "entrypoints": {"shader": "shaders/tone_map.frag", "touchdesigner_component": "tox/tdimagefx_color_tone_map.tox"},
+  "inputs": [{"id": "image", "family": "TOP", "required": true, "semantic": "source", "description": "Scene-linear HDR image."}],
+  "outputs": [{"id": "image", "family": "TOP", "role": "image"}],
+  "parameters": [
+    {"id": "enable", "name": "Enable", "label": "Enable", "type": "toggle", "default": true, "description": "Bypass tone mapping when disabled."},
+    {"id": "mix", "name": "Mix", "label": "Mix", "type": "float", "default": 1.0, "min": 0.0, "max": 1.0, "uniform": "uMix", "description": "Blends source and mapped output."},
+    {"id": "mode", "name": "Mode", "label": "Curve", "type": "float", "default": 1.0, "min": 0.0, "max": 2.0, "uniform": "uMode", "description": "0 Reinhard, 1 ACES fitted, 2 filmic."},
+    {"id": "exposure", "name": "Exposure", "label": "Exposure", "type": "float", "default": 0.0, "min": -10.0, "max": 10.0, "unit": "stops", "uniform": "uExposure", "description": "Exposure applied before tone mapping."},
+    {"id": "white_point", "name": "Whitepoint", "label": "White Point", "type": "float", "default": 4.0, "min": 0.01, "max": 32.0, "uniform": "uWhitePoint", "description": "Reference white used by the Reinhard curve."}
+  ],
+  "compatibility": {"touchdesigner_min_build": 2025.3, "touchdesigner_max_build": null, "os": ["windows", "macos"], "architectures": ["x86_64", "arm64"]},
+  "permissions": {"python": false, "filesystem": false, "network": false, "subprocess": false},
+  "dependencies": [],
+  "alpha_policy": "preserve",
+  "resolution_policy": "input",
+  "stateful": false,
+  "image_contract": {
+    "color": {"input_space": "source", "working_space": "source", "output_space": "source", "reference": "scene_referred"},
+    "alpha": {"input": "any", "working": "any", "output": "any"},
+    "pixel_format": {"policy": "minimum", "format": "rgba16f"},
+    "sampling": {"filter": "linear", "edge": "clamp", "mipmaps": false}
+  },
+  "determinism": {"mode": "deterministic"},
+  "provenance": {
+    "origin": "original",
+    "source": {"type": "original"},
+    "known_limitations": [
+      "The ACES-fitted option is a curve only: it does not transform source primaries into ACEScg or apply an output-device transform."
+    ]
+  },
+  "tags": ["color", "tone-map", "hdr", "aces", "filmic"],
+  "processing": {"model": "single_pass", "gpu_cost": "low", "capabilities": [], "passes": ["shaders/tone_map.frag"], "history_frames": 0}
+}

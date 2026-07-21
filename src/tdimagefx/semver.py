@@ -9,14 +9,55 @@ from functools import total_ordering
 from .errors import ValidationError
 
 
-_VERSION_RE = re.compile(
-    r"^(?P<major>0|[1-9]\d*)\."
-    r"(?P<minor>0|[1-9]\d*)\."
-    r"(?P<patch>0|[1-9]\d*)"
-    r"(?:-(?P<pre>(?:0|[1-9]\d*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*)"
-    r"(?:\.(?:0|[1-9]\d*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*))*))?"
-    r"(?:\+(?P<build>[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$"
+MAX_SEMVER_CHARS = 256
+_ASCII_DIGITS = frozenset("0123456789")
+_IDENTIFIER_CHARS = frozenset(
+    "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-"
 )
+
+
+def _parse_identifiers(value: str, *, reject_numeric_leading_zero: bool) -> tuple[str, ...]:
+    identifiers = tuple(value.split("."))
+    if not identifiers or any(
+        not item or any(character not in _IDENTIFIER_CHARS for character in item)
+        for item in identifiers
+    ):
+        raise ValueError("invalid semantic-version identifier")
+    if reject_numeric_leading_zero and any(
+        len(item) > 1 and item[0] == "0" and all(char in _ASCII_DIGITS for char in item)
+        for item in identifiers
+    ):
+        raise ValueError("numeric prerelease identifiers may not contain leading zeros")
+    return identifiers
+
+
+def _parse_version_text(value: str) -> tuple[int, int, int, tuple[str, ...], tuple[str, ...]]:
+    """Parse bounded SemVer text without backtracking regular expressions."""
+
+    if not value or len(value) > MAX_SEMVER_CHARS or value.count("+") > 1:
+        raise ValueError("invalid semantic-version length or build separator")
+    core_and_pre, build_separator, build_text = value.partition("+")
+    build = (
+        _parse_identifiers(build_text, reject_numeric_leading_zero=False)
+        if build_separator
+        else ()
+    )
+    core_text, prerelease_separator, prerelease_text = core_and_pre.partition("-")
+    prerelease = (
+        _parse_identifiers(prerelease_text, reject_numeric_leading_zero=True)
+        if prerelease_separator
+        else ()
+    )
+    core = tuple(core_text.split("."))
+    if len(core) != 3 or any(
+        not item
+        or any(character not in _ASCII_DIGITS for character in item)
+        or (len(item) > 1 and item[0] == "0")
+        for item in core
+    ):
+        raise ValueError("invalid semantic-version core")
+    major, minor, patch = (int(item) for item in core)
+    return major, minor, patch, prerelease, build
 
 
 @total_ordering
@@ -32,12 +73,14 @@ class Version:
     def parse(cls, value: str) -> "Version":
         if not isinstance(value, str):
             raise ValidationError("Invalid semantic version", ["version must be a string"])
-        match = _VERSION_RE.fullmatch(value)
-        if match is None:
-            raise ValidationError("Invalid semantic version", [f"{value!r} is not valid SemVer 2.0.0"])
-        prerelease = tuple(match.group("pre").split(".")) if match.group("pre") else ()
-        build = tuple(match.group("build").split(".")) if match.group("build") else ()
-        return cls(int(match.group("major")), int(match.group("minor")), int(match.group("patch")), prerelease, build)
+        try:
+            major, minor, patch, prerelease, build = _parse_version_text(value)
+        except ValueError:
+            raise ValidationError(
+                "Invalid semantic version",
+                ["version is not valid bounded SemVer 2.0.0"],
+            ) from None
+        return cls(major, minor, patch, prerelease, build)
 
     def _compare_precedence(self, other: "Version") -> int:
         core = (self.major, self.minor, self.patch)

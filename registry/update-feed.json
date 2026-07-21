@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "feed_id": "tdimagefx.github.stable",
-  "generated_at": "2026-07-15T00:00:00Z",
+  "feed_id": "tdimagefx.github.catalog",
+  "generated_at": "2026-07-16T16:37:52Z",
   "channel": "stable",
   "packages": [],
   "signature": null

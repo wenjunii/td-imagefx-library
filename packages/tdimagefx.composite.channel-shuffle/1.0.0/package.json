@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "id": "tdimagefx.composite.channel-shuffle",
+  "name": "Channel Shuffle",
+  "version": "1.0.0",
+  "fx_api": "1.0",
+  "kind": "effect",
+  "category": "composite",
+  "channel": "experimental",
+  "description": "Reorders RGB channels and optionally derives alpha from source luminance.",
+  "publisher": "TD ImageFX Library",
+  "license": "MIT",
+  "entrypoints": {"shader": "shaders/channel_shuffle.frag", "touchdesigner_component": "tox/tdimagefx_composite_channel_shuffle.tox"},
+  "inputs": [{"id": "image", "family": "TOP", "required": true, "semantic": "source", "description": "Image whose channels are rearranged."}],
+  "outputs": [{"id": "image", "family": "TOP"}],
+  "parameters": [
+    {"id": "enable", "name": "Enable", "label": "Enable", "type": "toggle", "default": true, "description": "Bypass channel shuffling when disabled."},
+    {"id": "mix", "name": "Mix", "label": "Mix", "type": "float", "default": 1.0, "min": 0.0, "max": 1.0, "uniform": "uMix", "description": "Blends source and shuffled output."},
+    {"id": "order", "name": "Order", "label": "RGB Order", "type": "float", "default": 0.0, "min": 0.0, "max": 5.0, "uniform": "uOrder", "description": "0 RGB, 1 RBG, 2 GRB, 3 GBR, 4 BRG, 5 BGR."},
+    {"id": "alpha_from_luma", "name": "Alphafromluma", "label": "Alpha From Luma", "type": "toggle", "default": false, "uniform": "uAlphaFromLuma", "description": "Replaces source alpha with Rec.709 luminance."},
+    {"id": "monochrome", "name": "Monochrome", "label": "Monochrome", "type": "toggle", "default": false, "uniform": "uMonochrome", "description": "Copies luminance into all RGB channels after reordering."}
+  ],
+  "compatibility": {"touchdesigner_min_build": 2025.3, "touchdesigner_max_build": null, "os": ["windows", "macos"], "architectures": ["x86_64", "arm64"]},
+  "permissions": {"python": false, "filesystem": false, "network": false, "subprocess": false},
+  "dependencies": [],
+  "alpha_policy": "configurable",
+  "resolution_policy": "input",
+  "stateful": false,
+  "image_contract": {
+    "color": {"input_space": "source", "working_space": "project", "output_space": "source", "reference": "display_referred"},
+    "alpha": {"input": "any", "working": "any", "output": "any"},
+    "pixel_format": {"policy": "inherit"},
+    "sampling": {"filter": "linear", "edge": "clamp", "mipmaps": false}
+  },
+  "determinism": {"mode": "deterministic"},
+  "provenance": {"origin": "original", "source": {"type": "original"}},
+  "tags": ["composite", "channels", "shuffle", "alpha", "luminance"],
+  "processing": {"model": "single_pass", "gpu_cost": "low", "capabilities": [], "passes": ["shaders/channel_shuffle.frag"], "history_frames": 0}
+}

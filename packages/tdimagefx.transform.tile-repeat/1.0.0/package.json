@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "id": "tdimagefx.transform.tile-repeat",
+  "name": "Tile Repeat",
+  "version": "1.0.0",
+  "fx_api": "1.0",
+  "kind": "effect",
+  "category": "transform",
+  "channel": "experimental",
+  "description": "Tiles, offsets, rotates, and optionally mirrors repeated copies of an image.",
+  "publisher": "TD ImageFX Library",
+  "license": "MIT",
+  "entrypoints": {"shader": "shaders/tile_repeat.frag", "touchdesigner_component": "tox/tdimagefx_transform_tile_repeat.tox"},
+  "inputs": [{"id": "image", "family": "TOP", "required": true, "semantic": "source", "description": "Image to tile."}],
+  "outputs": [{"id": "image", "family": "TOP"}],
+  "parameters": [
+    {"id": "enable", "name": "Enable", "label": "Enable", "type": "toggle", "default": true, "description": "Bypass tiling when disabled."},
+    {"id": "mix", "name": "Mix", "label": "Mix", "type": "float", "default": 1.0, "min": 0.0, "max": 1.0, "uniform": "uMix", "description": "Blends source and tiled output."},
+    {"id": "tiles", "name": "Tiles", "label": "Tiles", "type": "xy", "default": [2.0, 2.0], "min": 0.1, "max": 32.0, "uniform": "uTiles", "description": "Number of repetitions on each axis."},
+    {"id": "offset", "name": "Offset", "label": "Offset", "type": "xy", "default": [0.0, 0.0], "min": -10.0, "max": 10.0, "unit": "normalized", "uniform": "uOffset", "description": "Offset applied before repetition."},
+    {"id": "rotation", "name": "Rotation", "label": "Rotation", "type": "float", "default": 0.0, "min": -6.283185, "max": 6.283185, "unit": "radians", "uniform": "uRotation", "description": "Rotation applied to the complete tiled field."},
+    {"id": "mirror", "name": "Mirror", "label": "Mirror Alternate Tiles", "type": "toggle", "default": true, "uniform": "uMirror", "description": "Mirrors alternating tiles to remove hard directional seams."}
+  ],
+  "compatibility": {"touchdesigner_min_build": 2025.3, "touchdesigner_max_build": null, "os": ["windows", "macos"], "architectures": ["x86_64", "arm64"]},
+  "permissions": {"python": false, "filesystem": false, "network": false, "subprocess": false},
+  "dependencies": [],
+  "alpha_policy": "process",
+  "resolution_policy": "input",
+  "stateful": false,
+  "image_contract": {
+    "color": {"input_space": "source", "working_space": "project", "output_space": "source", "reference": "display_referred"},
+    "alpha": {"input": "any", "working": "any", "output": "any"},
+    "pixel_format": {"policy": "inherit"},
+    "sampling": {"filter": "linear", "edge": "clamp", "mipmaps": false}
+  },
+  "determinism": {"mode": "deterministic"},
+  "provenance": {"origin": "original", "source": {"type": "original"}},
+  "tags": ["transform", "tile", "repeat", "mirror", "pattern"],
+  "processing": {"model": "single_pass", "gpu_cost": "low", "capabilities": [], "passes": ["shaders/tile_repeat.frag"], "history_frames": 0}
+}

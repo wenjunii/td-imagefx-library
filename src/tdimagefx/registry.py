@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, urlunsplit
 
 from .compatibility import CompatibilityReport, RuntimeContext, check_compatibility, normalize_architecture, normalize_os, validate_compatibility_spec
 from .errors import StateError, ValidationError
@@ -16,6 +16,12 @@ from .semver import Version
 
 
 REGISTRY_SCHEMA_VERSION = 1
+MAX_FEED_PACKAGES = 4096
+MAX_RELEASES_PER_PACKAGE = 128
+MAX_ARTIFACTS_PER_RELEASE = 16
+MAX_UPDATE_URI_LENGTH = 4096
+MAX_FEED_TEXT_LENGTH = 20000
+MAX_ARTIFACT_SIZE_BYTES = 256 * 1024 * 1024
 _INSTALL_STATUSES = {"staged", "ready", "broken", "quarantined", "pending_delete"}
 _VERIFICATIONS = {"verified", "unverified", "failed"}
 _SOURCE_TYPES = {"bundled", "feed", "local"}
@@ -45,14 +51,38 @@ def _valid_uri(value: Any) -> bool:
 
 
 def _valid_update_uri(value: Any) -> bool:
-    if not _valid_uri(value):
+    if not _valid_uri(value) or len(value) > MAX_UPDATE_URI_LENGTH:
         return False
     parsed = urlsplit(value)
     if parsed.scheme.lower() == "https":
+        try:
+            parsed.port
+        except ValueError:
+            return False
         return bool(parsed.hostname and parsed.username is None and parsed.password is None)
     if parsed.scheme.lower() == "file":
         return parsed.netloc in {"", "localhost"} and not parsed.query and not parsed.fragment
     return False
+
+
+def _valid_persisted_uri(value: Any) -> bool:
+    if not _valid_update_uri(value):
+        return False
+    parsed = urlsplit(value)
+    return not parsed.query and not parsed.fragment
+
+
+def _redact_update_uri(value: str) -> str:
+    parsed = urlsplit(value)
+    if parsed.scheme.lower() == "https":
+        hostname = parsed.hostname or "invalid-host"
+        if ":" in hostname and not hostname.startswith("["):
+            hostname = f"[{hostname}]"
+        authority = f"{hostname}:{parsed.port}" if parsed.port is not None else hostname
+        return urlunsplit(("https", authority, parsed.path, "", ""))
+    if parsed.scheme.lower() == "file":
+        return "file:///REDACTED"
+    return value
 
 
 def _check_exact_keys(value: dict[str, Any], allowed: set[str], path: str, issues: list[str]) -> None:
@@ -166,13 +196,32 @@ def validate_local_registry_data(data: Any) -> list[str]:
             if not _valid_datetime(installed.get("installed_at")):
                 issues.append(f"{path}.installed_at must be an RFC 3339 date-time")
             source = installed.get("source")
-            if not isinstance(source, dict) or source.get("type") not in _SOURCE_TYPES:
+            if (
+                not isinstance(source, dict)
+                or not isinstance(source.get("type"), str)
+                or source.get("type") not in _SOURCE_TYPES
+            ):
                 issues.append(f"{path}.source.type must be bundled, feed, or local")
             else:
-                _check_exact_keys(source, {"type", "feed_url", "artifact_url"}, f"{path}.source", issues)
+                _check_exact_keys(
+                    source,
+                    {"type", "feed_url", "artifact_url", "feed_id", "feed_sha256"},
+                    f"{path}.source",
+                    issues,
+                )
                 for key in ("feed_url", "artifact_url"):
-                    if source.get(key) is not None and not _valid_uri(source[key]):
-                        issues.append(f"{path}.source.{key} must be null or a URI")
+                    if source.get(key) is not None and not _valid_persisted_uri(source[key]):
+                        issues.append(f"{path}.source.{key} must be null or a safe update URI")
+                if source.get("feed_id") is not None:
+                    feed_id = source["feed_id"]
+                    if (
+                        not isinstance(feed_id, str)
+                        or len(feed_id) > 180
+                        or PACKAGE_ID_RE.fullmatch(feed_id) is None
+                    ):
+                        issues.append(f"{path}.source.feed_id must be null or a valid feed id")
+                if source.get("feed_sha256") is not None and not is_sha256(source["feed_sha256"]):
+                    issues.append(f"{path}.source.feed_sha256 must be null or a SHA-256 digest")
             integrity = installed.get("integrity")
             if not isinstance(integrity, dict):
                 issues.append(f"{path}.integrity must be an object")
@@ -184,9 +233,9 @@ def validate_local_registry_data(data: Any) -> list[str]:
                 for key in ("manifest_sha256", "artifact_sha256"):
                     if integrity.get(key) is not None and not is_sha256(integrity[key]):
                         issues.append(f"{path}.integrity.{key} must be null or a SHA-256 digest")
-                if integrity.get("verification") not in _VERIFICATIONS:
+                if not isinstance(integrity.get("verification"), str) or integrity.get("verification") not in _VERIFICATIONS:
                     issues.append(f"{path}.integrity.verification is invalid")
-            if installed.get("status") not in _INSTALL_STATUSES:
+            if not isinstance(installed.get("status"), str) or installed.get("status") not in _INSTALL_STATUSES:
                 issues.append(f"{path}.status is invalid")
             if installed.get("last_checked_at") is not None and not _valid_datetime(installed["last_checked_at"]):
                 issues.append(f"{path}.last_checked_at must be null or a date-time")
@@ -319,7 +368,9 @@ class UpdateCandidate:
             "installed_version": str(self.installed_version) if self.installed_version else None,
             "available_version": str(self.release.version),
             "channel": self.release.channel,
-            "artifact_url": self.artifact.url,
+            "manifest_url": _redact_update_uri(self.release.manifest_url),
+            "manifest_sha256": self.release.manifest_sha256,
+            "artifact_url": _redact_update_uri(self.artifact.url),
             "artifact_sha256": self.artifact.sha256,
             "size_bytes": self.artifact.size_bytes,
             "requires_restart": self.release.requires_restart,
@@ -335,11 +386,15 @@ def _validate_signature(value: Any, path: str, issues: list[str]) -> None:
         issues.append(f"{path} must be null or an object")
         return
     _check_exact_keys(value, {"algorithm", "key_id", "value"}, path, issues)
-    if value.get("algorithm") not in {"ed25519", "rsa_pss_sha256", "ecdsa_p384_sha384"}:
+    if not isinstance(value.get("algorithm"), str) or value.get("algorithm") not in {"ed25519", "rsa_pss_sha256", "ecdsa_p384_sha384"}:
         issues.append(f"{path}.algorithm is invalid")
     for key in ("key_id", "value"):
         if not isinstance(value.get(key), str) or not value[key]:
             issues.append(f"{path}.{key} must be a non-empty string")
+    if isinstance(value.get("key_id"), str) and len(value["key_id"]) > 200:
+        issues.append(f"{path}.key_id is too long")
+    if isinstance(value.get("value"), str) and len(value["value"]) > 16384:
+        issues.append(f"{path}.value is too long")
 
 
 def validate_update_feed_data(data: Any) -> list[str]:
@@ -356,13 +411,18 @@ def validate_update_feed_data(data: Any) -> list[str]:
         issues.append("$.feed_id is too long")
     if not _valid_datetime(data.get("generated_at")):
         issues.append("$.generated_at must be an RFC 3339 date-time with timezone")
-    if data.get("channel") not in CHANNELS:
+    if not isinstance(data.get("channel"), str) or data.get("channel") not in CHANNELS:
         issues.append("$.channel is invalid")
     _validate_signature(data.get("signature"), "$.signature", issues)
     packages = data.get("packages")
     if not isinstance(packages, list):
         issues.append("$.packages must be an array")
         return issues
+    if len(packages) > MAX_FEED_PACKAGES:
+        issues.append(f"$.packages exceeds the {MAX_FEED_PACKAGES}-package limit")
+        return issues
+    channel_order = {"stable": 0, "beta": 1, "experimental": 2}
+    feed_channel = data.get("channel")
     seen_packages: set[str] = set()
     for package_index, package in enumerate(packages):
         package_path = f"$.packages[{package_index}]"
@@ -383,13 +443,19 @@ def validate_update_feed_data(data: Any) -> list[str]:
             issues.append(f"{package_path}.name must be a non-empty string")
         elif len(package["name"]) > 120:
             issues.append(f"{package_path}.name is too long")
-        if package.get("kind") not in KINDS:
+        if not isinstance(package.get("kind"), str) or package.get("kind") not in KINDS:
             issues.append(f"{package_path}.kind is invalid")
         releases = package.get("releases")
         if not isinstance(releases, list) or not releases:
             issues.append(f"{package_path}.releases must be a non-empty array")
             continue
+        if len(releases) > MAX_RELEASES_PER_PACKAGE:
+            issues.append(
+                f"{package_path}.releases exceeds the {MAX_RELEASES_PER_PACKAGE}-release limit"
+            )
+            continue
         seen_releases: set[str] = set()
+        seen_precedence: dict[Version, str] = {}
         for release_index, release in enumerate(releases):
             path = f"{package_path}.releases[{release_index}]"
             if not isinstance(release, dict):
@@ -412,16 +478,30 @@ def validate_update_feed_data(data: Any) -> list[str]:
                 exact = str(parsed_version)
                 if exact in seen_releases:
                     issues.append(f"{path}.version duplicates {exact!r}")
+                previous = seen_precedence.get(parsed_version)
+                if previous is not None and previous != exact:
+                    issues.append(
+                        f"{path}.version has ambiguous SemVer precedence with {previous!r}"
+                    )
                 seen_releases.add(exact)
-            if release.get("channel") not in CHANNELS:
+                seen_precedence[parsed_version] = exact
+            if not isinstance(release.get("channel"), str) or release.get("channel") not in CHANNELS:
                 issues.append(f"{path}.channel is invalid")
+            elif isinstance(feed_channel, str) and feed_channel in CHANNELS and channel_order[release["channel"]] > channel_order[feed_channel]:
+                issues.append(f"{path}.channel is outside the {feed_channel!r} feed hierarchy")
             if not _valid_datetime(release.get("published_at")):
                 issues.append(f"{path}.published_at must be a date-time")
             if not _valid_update_uri(release.get("manifest_url")):
                 issues.append(f"{path}.manifest_url must be a safe HTTPS or local file URI")
             if not is_sha256(release.get("manifest_sha256")):
                 issues.append(f"{path}.manifest_sha256 must be a SHA-256 digest")
-            issues.extend(validate_compatibility_spec(release.get("compatibility"), path=f"{path}.compatibility"))
+            try:
+                compatibility_issues = validate_compatibility_spec(
+                    release.get("compatibility"), path=f"{path}.compatibility"
+                )
+            except (TypeError, ValueError):
+                compatibility_issues = [f"{path}.compatibility contains invalid value types"]
+            issues.extend(compatibility_issues)
             for key in ("requires_restart", "yanked"):
                 if not isinstance(release.get(key), bool):
                     issues.append(f"{path}.{key} must be boolean")
@@ -429,7 +509,7 @@ def validate_update_feed_data(data: Any) -> list[str]:
                 issues.append(f"{path}.permissions_changed must be boolean")
             if not isinstance(release.get("changelog"), str):
                 issues.append(f"{path}.changelog must be a string")
-            elif len(release["changelog"]) > 20000:
+            elif len(release["changelog"]) > MAX_FEED_TEXT_LENGTH:
                 issues.append(f"{path}.changelog is too long")
             if release.get("security_advisory") is not None and not isinstance(release["security_advisory"], str):
                 issues.append(f"{path}.security_advisory must be null or a string")
@@ -439,6 +519,12 @@ def validate_update_feed_data(data: Any) -> list[str]:
             if not isinstance(artifacts, list) or not artifacts:
                 issues.append(f"{path}.artifacts must be a non-empty array")
                 continue
+            if len(artifacts) > MAX_ARTIFACTS_PER_RELEASE:
+                issues.append(
+                    f"{path}.artifacts exceeds the {MAX_ARTIFACTS_PER_RELEASE}-artifact limit"
+                )
+                continue
+            artifact_targets: set[tuple[str, str]] = set()
             for artifact_index, artifact in enumerate(artifacts):
                 artifact_path = f"{path}.artifacts[{artifact_index}]"
                 if not isinstance(artifact, dict):
@@ -453,16 +539,48 @@ def validate_update_feed_data(data: Any) -> list[str]:
                 if not is_sha256(artifact.get("sha256")):
                     issues.append(f"{artifact_path}.sha256 must be a SHA-256 digest")
                 size = artifact.get("size_bytes")
-                if not isinstance(size, int) or isinstance(size, bool) or size < 0:
-                    issues.append(f"{artifact_path}.size_bytes must be a non-negative integer")
+                if (
+                    not isinstance(size, int)
+                    or isinstance(size, bool)
+                    or size < 0
+                    or size > MAX_ARTIFACT_SIZE_BYTES
+                ):
+                    issues.append(
+                        f"{artifact_path}.size_bytes must be between 0 and "
+                        f"{MAX_ARTIFACT_SIZE_BYTES} bytes"
+                    )
                 for key, allowed_values in (("os", _SUPPORTED_OS), ("architectures", _SUPPORTED_ARCHES)):
                     values = artifact.get(key)
-                    if not isinstance(values, list) or not values or any(item not in allowed_values for item in values):
+                    if (
+                        not isinstance(values, list)
+                        or not values
+                        or any(not isinstance(item, str) or item not in allowed_values for item in values)
+                    ):
                         issues.append(f"{artifact_path}.{key} contains unsupported values")
                     elif len(set(values)) != len(values):
                         issues.append(f"{artifact_path}.{key} must not contain duplicates")
+                operating_systems = artifact.get("os")
+                architectures = artifact.get("architectures")
+                if (
+                    isinstance(operating_systems, list)
+                    and isinstance(architectures, list)
+                    and all(isinstance(item, str) for item in operating_systems)
+                    and all(isinstance(item, str) for item in architectures)
+                ):
+                    for target in (
+                        (operating_system, architecture)
+                        for operating_system in operating_systems
+                        for architecture in architectures
+                    ):
+                        if target in artifact_targets:
+                            issues.append(
+                                f"{artifact_path} overlaps another artifact for {target[0]}/{target[1]}"
+                            )
+                        artifact_targets.add(target)
                 if "media_type" in artifact and (not isinstance(artifact["media_type"], str) or not artifact["media_type"]):
                     issues.append(f"{artifact_path}.media_type must be a non-empty string")
+                elif isinstance(artifact.get("media_type"), str) and len(artifact["media_type"]) > 200:
+                    issues.append(f"{artifact_path}.media_type is too long")
                 _validate_signature(artifact.get("signature"), f"{artifact_path}.signature", issues)
     return issues
 
@@ -524,7 +642,7 @@ class UpdateFeed:
         include_new: bool = True,
         strict_compatibility: bool = False,
     ) -> tuple[UpdateCandidate, ...]:
-        if channel not in CHANNELS:
+        if not isinstance(channel, str) or channel not in CHANNELS:
             raise ValidationError("Invalid update channel", [f"channel must be one of {', '.join(sorted(CHANNELS))}"])
         channel_order = {"stable": 0, "beta": 1, "experimental": 2}
         installed_versions = {

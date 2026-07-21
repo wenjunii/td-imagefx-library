@@ -153,13 +153,34 @@
     "inputs": {
       "type": "array",
       "items": {
-        "$ref": "#/$defs/port"
+        "allOf": [
+          {"$ref": "#/$defs/port"},
+          {
+            "properties": {
+              "role": {
+                "enum": [
+                  "source_image", "second_image", "auxiliary_image", "transition_image", "mask",
+                  "depth", "normal", "flow", "displacement", "audio", "control", "data"
+                ]
+              }
+            }
+          }
+        ]
       }
     },
     "outputs": {
       "type": "array",
       "items": {
-        "$ref": "#/$defs/port"
+        "allOf": [
+          {"$ref": "#/$defs/port"},
+          {
+            "properties": {
+              "role": {
+                "enum": ["image", "mask", "state", "data"]
+              }
+            }
+          }
+        ]
       }
     },
     "parameters": {
@@ -216,8 +237,85 @@
     },
     "processing": {
       "$ref": "#/$defs/processing"
+    },
+    "image_contract": {
+      "$ref": "#/$defs/image_contract"
+    },
+    "determinism": {
+      "$ref": "#/$defs/determinism"
+    },
+    "temporal": {
+      "$ref": "#/$defs/temporal"
+    },
+    "provenance": {
+      "$ref": "#/$defs/provenance"
     }
   },
+  "allOf": [
+    {
+      "if": {
+        "required": ["temporal"]
+      },
+      "then": {
+        "required": ["processing"],
+        "properties": {
+          "stateful": {"const": true},
+          "processing": {
+            "properties": {
+              "model": {"enum": ["temporal", "simulation"]},
+              "history_frames": {"minimum": 1},
+              "capabilities": {"contains": {"const": "history"}}
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": ["image_contract"],
+        "properties": {"alpha_policy": {"const": "premultiply"}}
+      },
+      "then": {
+        "properties": {
+          "image_contract": {
+            "properties": {
+              "alpha": {"properties": {"output": {"const": "premultiplied"}}}
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": ["image_contract"],
+        "properties": {"alpha_policy": {"const": "unpremultiply"}}
+      },
+      "then": {
+        "properties": {
+          "image_contract": {
+            "properties": {
+              "alpha": {"properties": {"output": {"const": "straight"}}}
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": ["image_contract"],
+        "properties": {"alpha_policy": {"const": "force_opaque"}}
+      },
+      "then": {
+        "properties": {
+          "image_contract": {
+            "properties": {
+              "alpha": {"properties": {"output": {"const": "opaque"}}}
+            }
+          }
+        }
+      }
+    }
+  ],
   "$defs": {
     "package_id": {
       "type": "string",
@@ -281,6 +379,24 @@
         "semantic": {
           "type": "string",
           "maxLength": 80
+        },
+        "role": {
+          "enum": [
+            "source_image",
+            "second_image",
+            "auxiliary_image",
+            "transition_image",
+            "mask",
+            "depth",
+            "normal",
+            "flow",
+            "displacement",
+            "audio",
+            "control",
+            "data",
+            "image",
+            "state"
+          ]
         },
         "description": {
           "type": "string",
@@ -459,6 +575,41 @@
           "minimum": 0,
           "maximum": 64,
           "default": 0
+        },
+        "state_pass": {
+          "$ref": "#/$defs/relative_path"
+        },
+        "render_pass": {
+          "$ref": "#/$defs/relative_path"
+        },
+        "pass_scale": {
+          "type": "number",
+          "minimum": 0.0625,
+          "maximum": 4.0,
+          "default": 1.0
+        },
+        "iterations": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1024,
+          "default": 1
+        },
+        "quality_tiers": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 16,
+          "contains": {
+            "type": "object",
+            "required": ["default"],
+            "properties": {
+              "default": {"const": true}
+            }
+          },
+          "minContains": 1,
+          "maxContains": 1,
+          "items": {
+            "$ref": "#/$defs/quality_tier"
+          }
         }
       },
       "allOf": [
@@ -500,6 +651,303 @@
               "history_frames": {
                 "minimum": 1
               }
+            }
+          }
+        },
+        {
+          "if": {
+            "anyOf": [
+              {"required": ["state_pass"]},
+              {"required": ["render_pass"]}
+            ]
+          },
+          "then": {
+            "required": ["state_pass", "render_pass", "passes"],
+            "properties": {
+              "model": {
+                "enum": ["temporal", "simulation"]
+              },
+              "capabilities": {
+                "contains": {"const": "history"}
+              }
+            }
+          }
+        }
+      ]
+    },
+    "quality_tier": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "label", "pass_scale", "iterations"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "maxLength": 80
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "pass_scale": {
+          "type": "number",
+          "minimum": 0.0625,
+          "maximum": 4.0
+        },
+        "iterations": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1024
+        },
+        "default": {
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "image_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["color", "alpha", "pixel_format", "sampling"],
+      "properties": {
+        "color": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["input_space", "working_space", "output_space", "reference"],
+          "properties": {
+            "input_space": {"$ref": "#/$defs/color_space"},
+            "working_space": {"$ref": "#/$defs/color_space"},
+            "output_space": {"$ref": "#/$defs/color_space"},
+            "reference": {
+              "enum": ["scene_referred", "display_referred", "data"]
+            }
+          }
+        },
+        "alpha": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["input", "working", "output"],
+          "properties": {
+            "input": {"$ref": "#/$defs/alpha_representation"},
+            "working": {"$ref": "#/$defs/alpha_representation"},
+            "output": {"$ref": "#/$defs/alpha_representation"}
+          }
+        },
+        "pixel_format": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["policy"],
+          "properties": {
+            "policy": {
+              "enum": ["inherit", "minimum", "preferred", "fixed"]
+            },
+            "format": {"$ref": "#/$defs/pixel_format"}
+          },
+          "allOf": [
+            {
+              "if": {"properties": {"policy": {"const": "inherit"}}},
+              "then": {"not": {"required": ["format"]}},
+              "else": {"required": ["format"]}
+            }
+          ]
+        },
+        "sampling": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["filter", "edge", "mipmaps"],
+          "properties": {
+            "filter": {
+              "enum": ["inherit", "nearest", "linear", "mipmap", "anisotropic"]
+            },
+            "edge": {
+              "enum": ["inherit", "clamp", "repeat", "mirror", "border"]
+            },
+            "mipmaps": {"type": "boolean"},
+            "border_color": {
+              "type": "array",
+              "minItems": 4,
+              "maxItems": 4,
+              "items": {"type": "number"}
+            }
+          },
+          "allOf": [
+            {
+              "if": {"properties": {"edge": {"const": "border"}}},
+              "then": {"required": ["border_color"]},
+              "else": {"not": {"required": ["border_color"]}}
+            },
+            {
+              "if": {"properties": {"filter": {"enum": ["mipmap", "anisotropic"]}}},
+              "then": {"properties": {"mipmaps": {"const": true}}}
+            }
+          ]
+        }
+      }
+    },
+    "color_space": {
+      "enum": [
+        "source",
+        "project",
+        "linear-srgb",
+        "srgb",
+        "rec709",
+        "rec2020",
+        "display-p3",
+        "acescg",
+        "raw"
+      ]
+    },
+    "alpha_representation": {
+      "enum": ["straight", "premultiplied", "opaque", "none", "any"]
+    },
+    "pixel_format": {
+      "enum": ["r8", "rg8", "rgba8", "r16f", "rg16f", "rgba16f", "r32f", "rg32f", "rgba32f"]
+    },
+    "determinism": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode"],
+      "properties": {
+        "mode": {
+          "enum": ["deterministic", "seeded", "time_dependent", "external", "non_deterministic"]
+        },
+        "seed_parameter": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "maxLength": 80
+        },
+        "fixed_seed": {
+          "type": "integer",
+          "minimum": -2147483648,
+          "maximum": 2147483647
+        },
+        "fixed_timestep": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"mode": {"const": "seeded"}}},
+          "then": {
+            "oneOf": [
+              {"required": ["seed_parameter"]},
+              {"required": ["fixed_seed"]}
+            ]
+          },
+          "else": {
+            "not": {
+              "anyOf": [
+                {"required": ["seed_parameter"]},
+                {"required": ["fixed_seed"]}
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "temporal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reset"],
+      "properties": {
+        "reset": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["strategy", "clears", "on_resolution_change", "on_input_change"],
+          "properties": {
+            "strategy": {
+              "enum": ["pulse_parameter", "toggle_parameter", "automatic", "unsupported"]
+            },
+            "parameter": {
+              "type": "string",
+              "pattern": "^[a-z][a-z0-9_]*$",
+              "maxLength": 80
+            },
+            "clears": {
+              "enum": ["history", "simulation_state", "all"]
+            },
+            "on_resolution_change": {"type": "boolean"},
+            "on_input_change": {"type": "boolean"}
+          },
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "strategy": {"enum": ["pulse_parameter", "toggle_parameter"]}
+                }
+              },
+              "then": {"required": ["parameter"]},
+              "else": {"not": {"required": ["parameter"]}}
+            }
+          ]
+        },
+        "warmup_frames": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10000,
+          "default": 0
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["origin", "source"],
+      "properties": {
+        "origin": {
+          "enum": ["original", "adapted", "ported", "generated", "third_party"]
+        },
+        "source": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type"],
+          "properties": {
+            "type": {
+              "enum": ["original", "repository", "publication", "website", "generated"]
+            },
+            "url": {
+              "type": "string",
+              "pattern": "^https?://[^\\s]+$",
+              "maxLength": 2048
+            },
+            "revision": {"type": "string", "minLength": 1, "maxLength": 200},
+            "author": {"type": "string", "minLength": 1, "maxLength": 200},
+            "license": {"type": "string", "minLength": 1, "maxLength": 100}
+          }
+        },
+        "changelog": {"$ref": "#/$defs/relative_path"},
+        "examples": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/relative_path"}
+        },
+        "presets": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"$ref": "#/$defs/relative_path"}
+        },
+        "known_limitations": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "origin": {"enum": ["adapted", "ported", "third_party"]}
+            }
+          },
+          "then": {
+            "properties": {
+              "source": {"required": ["url"]}
             }
           }
         }

@@ -1,0 +1,7 @@
+* @wenjunii
+
+/packages/ @wenjunii
+/registry/ @wenjunii
+/tools/package_release.py @wenjunii
+/tools/check_immutable_history.py @wenjunii
+/.github/workflows/ @wenjunii

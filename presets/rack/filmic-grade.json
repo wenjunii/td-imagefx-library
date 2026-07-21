@@ -1,0 +1,107 @@
+{
+  "schema_version": 1,
+  "kind": "tdimagefx.rack-preset",
+  "name": "Filmic Grade",
+  "autotime": false,
+  "timescale": 1.0,
+  "time": 0.0,
+  "slots": [
+    {
+      "index": 1,
+      "package": {
+        "id": "tdimagefx.color.tone-map",
+        "version": "1.0.0"
+      },
+      "enabled": true,
+      "mix": 0.65,
+      "modulation": {
+        "depth": 0.0,
+        "rate": 1.0,
+        "state": "off"
+      },
+      "parameters": {
+        "Mode": 1.0,
+        "Exposure": 0.08,
+        "Whitepoint": 6.0
+      }
+    },
+    {
+      "index": 2,
+      "package": {
+        "id": "tdimagefx.color.color-decision-list",
+        "version": "1.0.0"
+      },
+      "enabled": true,
+      "mix": 0.7,
+      "modulation": {
+        "depth": 0.0,
+        "rate": 1.0,
+        "state": "off"
+      },
+      "parameters": {
+        "Slope": [1.03, 1.0, 0.96],
+        "Offset": [-0.012, 0.0, 0.012],
+        "Power": [0.98, 1.0, 1.03],
+        "Saturation": 0.92
+      }
+    },
+    {
+      "index": 3,
+      "package": {
+        "id": "tdimagefx.color.curves",
+        "version": "1.0.0"
+      },
+      "enabled": true,
+      "mix": 0.55,
+      "modulation": {
+        "depth": 0.0,
+        "rate": 1.0,
+        "state": "off"
+      },
+      "parameters": {
+        "Shadows": [0.31, 0.32, 0.34],
+        "Highlights": [0.69, 0.67, 0.64],
+        "Preserveluma": 0.65
+      }
+    },
+    {
+      "index": 4,
+      "package": {
+        "id": "tdimagefx.color.temperature-tint",
+        "version": "1.0.0"
+      },
+      "enabled": true,
+      "mix": 0.3,
+      "modulation": {
+        "depth": 0.0,
+        "rate": 1.0,
+        "state": "off"
+      },
+      "parameters": {
+        "Temperature": 0.06,
+        "Tint": -0.02,
+        "Strength": 0.6
+      }
+    },
+    {
+      "index": 5,
+      "package": {
+        "id": "tdimagefx.stylize.vignette",
+        "version": "1.1.0"
+      },
+      "enabled": true,
+      "mix": 0.5,
+      "modulation": {
+        "depth": 0.0,
+        "rate": 1.0,
+        "state": "off"
+      },
+      "parameters": {
+        "Amount": 0.22,
+        "Softness": 0.62,
+        "Roundness": 1.12,
+        "Color": [0.012, 0.016, 0.025, 1.0]
+      }
+    }
+  ]
+}

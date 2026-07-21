@@ -1,0 +1,20 @@
+{
+  "mcpServers": {
+    "td-knowledge": {
+      "type": "stdio",
+      "command": "C:\\ABSOLUTE\\PATH\\TO\\td-ai-assistant\\venv\\Scripts\\python.exe",
+      "args": [
+        "-u",
+        "C:\\ABSOLUTE\\PATH\\TO\\td-knowledge-mcp\\td_knowledge_mcp.py",
+        "--port",
+        "9870",
+        "--envoy-config",
+        "C:\\ABSOLUTE\\PATH\\TO\\td-imagefx-library\\integrations\\embody\\local\\.embody\\envoy.json",
+        "--faiss-db",
+        "C:\\ABSOLUTE\\PATH\\TO\\td-ai-assistant\\faiss_db",
+        "--project-context",
+        "C:\\ABSOLUTE\\PATH\\TO\\td-imagefx-library\\integrations\\embody\\project-context.json"
+      ]
+    }
+  }
+}

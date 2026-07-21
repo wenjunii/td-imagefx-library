@@ -2,6 +2,85 @@
   "schema_version": 1,
   "effects": [
     {
+      "id": "tdimagefx.blur.bilateral-blur",
+      "name": "Bilateral Blur",
+      "version": "1.0.0",
+      "category": "blur",
+      "description": "Applies a separable edge-aware bilateral blur using spatial and color-distance weights.",
+      "tags": [
+        "blur",
+        "bilateral",
+        "edge-aware",
+        "denoise",
+        "multi-pass"
+      ],
+      "processing_model": "multi_pass",
+      "gpu_cost": "high",
+      "capabilities": [
+        "multi_pass"
+      ],
+      "inputs": 1,
+      "parameters": [
+        "Enable",
+        "Mix",
+        "Radius",
+        "Spatial Sigma",
+        "Range Sigma"
+      ],
+      "compatibility": {
+        "touchdesigner_min_build": 2025.3,
+        "touchdesigner_max_build": null,
+        "os": [
+          "windows",
+          "macos"
+        ],
+        "architectures": [
+          "x86_64",
+          "arm64"
+        ]
+      },
+      "preview": "gallery/tdimagefx.blur.bilateral-blur.png"
+    },
+    {
+      "id": "tdimagefx.blur.bokeh-blur",
+      "name": "Bokeh Blur",
+      "version": "1.0.0",
+      "category": "blur",
+      "description": "Creates a circular or polygonal bokeh blur with highlight weighting and deterministic sampling.",
+      "tags": [
+        "blur",
+        "bokeh",
+        "defocus",
+        "aperture",
+        "highlight"
+      ],
+      "processing_model": "single_pass",
+      "gpu_cost": "high",
+      "capabilities": [],
+      "inputs": 1,
+      "parameters": [
+        "Enable",
+        "Mix",
+        "Radius",
+        "Samples",
+        "Aperture Blades",
+        "Highlight Gain"
+      ],
+      "compatibility": {
+        "touchdesigner_min_build": 2025.3,
+        "touchdesigner_max_build": null,
+        "os": [
+          "windows",
+          "macos"
+        ],
+        "architectures": [
+          "x86_64",
+          "arm64"
+        ]
+      },
+      "preview": "gallery/tdimagefx.blur.bokeh-blur.png"
+    },
+    {
       "id": "tdimagefx.blur.box-blur",
       "name": "Box Blur",
       "version": "1.0.0",
@@ -76,6 +155,48 @@
         ]
       },
       "preview": "gallery/tdimagefx.blur.chromatic-blur.png"
+    },
+    {
+      "id": "tdimagefx.blur.depth-aware-blur",
+      "name": "Depth Aware Blur",
+      "version": "1.0.0",
+      "category": "blur",
+      "description": "Applies depth-of-field blur using a depth-map focus plane and edge-aware sample rejection.",
+      "tags": [
+        "blur",
+        "depth",
+        "depth-of-field",
+        "focus",
+        "two-input"
+      ],
+      "processing_model": "single_pass",
+      "gpu_cost": "high",
+      "capabilities": [
+        "second_input",
+        "depth"
+      ],
+      "inputs": 2,
+      "parameters": [
+        "Enable",
+        "Mix",
+        "Focus Depth",
+        "Aperture",
+        "Maximum Radius",
+        "Depth Edge Tolerance"
+      ],
+      "compatibility": {
+        "touchdesigner_min_build": 2025.3,
+        "touchdesigner_max_build": null,
+        "os": [
+          "windows",
+          "macos"
+        ],
+        "architectures": [
+          "x86_64",
+          "arm64"
+        ]
+      },
+      "preview": "gallery/tdimagefx.blur.depth-aware-blur.png"
     },
     {
       "id": "tdimagefx.blur.directional-blur",
@@ -274,6 +395,83 @@
         ]
       },
       "preview": "gallery/tdimagefx.color.channel-mixer.png"
+    },
+    {
+      "id": "tdimagefx.color.color-decision-list",
+      "name": "Color Decision List",
+      "version": "1.0.0",
+      "category": "color",
+      "description": "Applies ASC-CDL-style slope, offset, power, and saturation controls without silently changing color space.",
+      "tags": [
+        "color",
+        "cdl",
+        "grading",
+        "slope-offset-power",
+        "saturation"
+      ],
+      "processing_model": "single_pass",
+      "gpu_cost": "low",
+      "capabilities": [],
+      "inputs": 1,
+      "parameters": [
+        "Enable",
+        "Mix",
+        "Slope",
+        "Offset",
+        "Power",
+        "Saturation"
+      ],
+      "compatibility": {
+        "touchdesigner_min_build": 2025.3,
+        "touchdesigner_max_build": null,
+        "os": [
+          "windows",
+          "macos"
+        ],
+        "architectures": [
+          "x86_64",
+          "arm64"
+        ]
+      },
+      "preview": "gallery/tdimagefx.color.color-decision-list.png"
+    },
+    {
+      "id": "tdimagefx.color.curves",
+      "name": "Curves",
+      "version": "1.0.0",
+      "category": "color",
+      "description": "Applies independent cubic RGB tone curves with shadow and highlight control points.",
+      "tags": [
+        "color",
+        "curves",
+        "grading",
+        "rgb",
+        "tone"
+      ],
+      "processing_model": "single_pass",
+      "gpu_cost": "low",
+      "capabilities": [],
+      "inputs": 1,
+      "parameters": [
+        "Enable",
+        "Mix",
+        "Shadow Control",
+        "Highlight Control",
+        "Preserve Luma"
+      ],
+      "compatibility": {
+        "touchdesigner_min_build": 2025.3,
+        "touchdesigner_max_build": null,
+        "os": [
+          "windows",
+          "macos"
+        ],
+        "architectures": [
+          "x86_64",
+          "arm64"
+        ]
+      },
+      "preview": "gallery/tdimagefx.color.curves.png"
     },
     {
       "id": "tdimagefx.color.duotone",
@@ -507,6 +705,46 @@
       "preview": "gallery/tdimagefx.color.lift-gamma-gain.png"
     },
     {
+      "id": "tdimagefx.color.lut-3d",
+      "name": "3D LUT",
+      "version": "1.0.0",
+      "category": "color",
+      "description": "Applies a trilinearly interpolated 3D color lookup table stored as a horizontal 2D strip.",
+      "tags": [
+        "color",
+        "lut",
+        "3d-lut",
+        "grading",
+        "two-input"
+      ],
+      "processing_model": "single_pass",
+      "gpu_cost": "medium",
+      "capabilities": [
+        "second_input"
+      ],
+      "inputs": 2,
+      "parameters": [
+        "Enable",
+        "Mix",
+        "LUT Size",
+        "Domain Minimum",
+        "Domain Maximum"
+      ],
+      "compatibility": {
+        "touchdesigner_min_build": 2025.3,
+        "touchdesigner_max_build": null,
+        "os": [
+          "windows",
+          "macos"
+        ],
+        "architectures": [
+          "x86_64",
+          "arm64"
+        ]
+      },
+      "preview": "gallery/tdimagefx.color.lut-3d.png"
+    },
+    {
       "id": "tdimagefx.color.posterize",
       "name": "Posterize",
       "version": "1.1.0",
@@ -577,6 +815,237 @@
         ]
       },
       "preview": "gallery/tdimagefx.color.temperature-tint.png"
+    },
+    {
+      "id": "tdimagefx.color.tone-map",
+      "name": "Tone Map",
+      "version": "1.0.0",
+      "category": "color",
+      "description": "Maps scene-linear HDR values with Reinhard, ACES-fitted, or filmic curves in the incoming RGB primaries while preserving source alpha.",
+      "tags": [
+        "color",
+        "tone-map",
+        "hdr",
+        "aces",
+        "filmic"
+      ],
+      "processing_model": "single_pass",
+      "gpu_cost": "low",
+      "capabilities": [],
+      "inputs": 1,
+      "parameters": [
+        "Enable",
+        "Mix",
+        "Curve",
+        "Exposure",
+        "White Point"
+      ],
+      "compatibility": {
+        "touchdesigner_min_build": 2025.3,
+        "touchdesigner_max_build": null,
+        "os": [
+          "windows",
+          "macos"
+        ],
+        "architectures": [
+          "x86_64",
+          "arm64"
+        ]
+      },
+      "preview": "gallery/tdimagefx.color.tone-map.png"
+    },
+    {
+      "id": "tdimagefx.composite.alpha-composite",
+      "name": "Alpha Composite",
+      "version": "1.0.0",
+      "category": "composite",
+      "description": "Composites a foreground over a background with straight or premultiplied foreground handling.",
+      "tags": [
+        "composite",
+        "alpha",
+        "over",
+        "premultiply",
+        "two-input"
+      ],
+      "processing_model": "single_pass",
+      "gpu_cost": "low",
+      "capabilities": [
+        "second_input"
+      ],
+      "inputs": 2,
+      "parameters": [
+        "Enable",
+        "Mix",
+        "Foreground Opacity",
+        "Foreground Premultiplied"
+      ],
+      "compatibility": {
+        "touchdesigner_min_build": 2025.3,
+        "touchdesigner_max_build": null,
+        "os": [
+          "windows",
+          "macos"
+        ],
+        "architectures": [
+          "x86_64",
+          "arm64"
+        ]
+      },
+      "preview": "gallery/tdimagefx.composite.alpha-composite.png"
+    },
+    {
+      "id": "tdimagefx.composite.blend-modes",
+      "name": "Blend Modes",
+      "version": "1.0.0",
+      "category": "composite",
+      "description": "Combines two images with production-oriented normal, add, multiply, screen, overlay, soft-light, difference, and exclusion modes.",
+      "tags": [
+        "composite",
+        "blend",
+        "layer",
+        "two-input",
+        "alpha"
+      ],
+      "processing_model": "single_pass",
+      "gpu_cost": "low",
+      "capabilities": [
+        "second_input"
+      ],
+      "inputs": 2,
+      "parameters": [
+        "Enable",
+        "Mix",
+        "Blend Mode",
+        "Layer Opacity"
+      ],
+      "compatibility": {
+        "touchdesigner_min_build": 2025.3,
+        "touchdesigner_max_build": null,
+        "os": [
+          "windows",
+          "macos"
+        ],
+        "architectures": [
+          "x86_64",
+          "arm64"
+        ]
+      },
+      "preview": "gallery/tdimagefx.composite.blend-modes.png"
+    },
+    {
+      "id": "tdimagefx.composite.channel-shuffle",
+      "name": "Channel Shuffle",
+      "version": "1.0.0",
+      "category": "composite",
+      "description": "Reorders RGB channels and optionally derives alpha from source luminance.",
+      "tags": [
+        "composite",
+        "channels",
+        "shuffle",
+        "alpha",
+        "luminance"
+      ],
+      "processing_model": "single_pass",
+      "gpu_cost": "low",
+      "capabilities": [],
+      "inputs": 1,
+      "parameters": [
+        "Enable",
+        "Mix",
+        "RGB Order",
+        "Alpha From Luma",
+        "Monochrome"
+      ],
+      "compatibility": {
+        "touchdesigner_min_build": 2025.3,
+        "touchdesigner_max_build": null,
+        "os": [
+          "windows",
+          "macos"
+        ],
+        "architectures": [
+          "x86_64",
+          "arm64"
+        ]
+      },
+      "preview": "gallery/tdimagefx.composite.channel-shuffle.png"
+    },
+    {
+      "id": "tdimagefx.composite.edge-extend",
+      "name": "Edge Extend",
+      "version": "1.0.0",
+      "category": "composite",
+      "description": "Extends opaque RGB into transparent pixels to reduce filtering fringes while preserving source alpha.",
+      "tags": [
+        "composite",
+        "alpha",
+        "edge",
+        "extend",
+        "fringe"
+      ],
+      "processing_model": "single_pass",
+      "gpu_cost": "medium",
+      "capabilities": [],
+      "inputs": 1,
+      "parameters": [
+        "Enable",
+        "Mix",
+        "Radius",
+        "Alpha Threshold"
+      ],
+      "compatibility": {
+        "touchdesigner_min_build": 2025.3,
+        "touchdesigner_max_build": null,
+        "os": [
+          "windows",
+          "macos"
+        ],
+        "architectures": [
+          "x86_64",
+          "arm64"
+        ]
+      },
+      "preview": "gallery/tdimagefx.composite.edge-extend.png"
+    },
+    {
+      "id": "tdimagefx.composite.matte-composite",
+      "name": "Matte Composite",
+      "version": "1.0.0",
+      "category": "composite",
+      "description": "Composites foreground and background images through a dedicated matte input.",
+      "tags": [
+        "composite",
+        "matte",
+        "mask",
+        "three-input",
+        "alpha"
+      ],
+      "processing_model": "single_pass",
+      "gpu_cost": "low",
+      "capabilities": [
+        "second_input"
+      ],
+      "inputs": 3,
+      "parameters": [
+        "Enable",
+        "Mix",
+        "Matte Black Point",
+        "Matte White Point",
+        "Invert Matte"
+      ],
+      "compatibility": {
+        "touchdesigner_min_build": 2025.3,
+        "touchdesigner_max_build": null,
+        "os": [
+          "windows",
+          "macos"
+        ],
+        "architectures": [
+          "x86_64",
+          "arm64"
+        ]
+      },
+      "preview": "gallery/tdimagefx.composite.matte-composite.png"
     },
     {
       "id": "tdimagefx.distort.bulge-pinch",
@@ -1160,6 +1629,164 @@
       "preview": "gallery/tdimagefx.glitch.slice-shift.png"
     },
     {
+      "id": "tdimagefx.key.chroma-key",
+      "name": "Chroma Key",
+      "version": "1.0.0",
+      "category": "key",
+      "description": "Builds an alpha matte from chroma distance in a luminance-separated color representation.",
+      "tags": [
+        "key",
+        "chroma",
+        "green-screen",
+        "matte",
+        "alpha"
+      ],
+      "processing_model": "single_pass",
+      "gpu_cost": "low",
+      "capabilities": [],
+      "inputs": 1,
+      "parameters": [
+        "Enable",
+        "Mix",
+        "Key Color",
+        "Similarity",
+        "Softness",
+        "Clip Black",
+        "Clip White"
+      ],
+      "compatibility": {
+        "touchdesigner_min_build": 2025.3,
+        "touchdesigner_max_build": null,
+        "os": [
+          "windows",
+          "macos"
+        ],
+        "architectures": [
+          "x86_64",
+          "arm64"
+        ]
+      },
+      "preview": "gallery/tdimagefx.key.chroma-key.png"
+    },
+    {
+      "id": "tdimagefx.key.despill",
+      "name": "Despill",
+      "version": "1.0.0",
+      "category": "key",
+      "description": "Suppresses a configurable screen-color component while retaining perceived luminance.",
+      "tags": [
+        "key",
+        "despill",
+        "green-screen",
+        "blue-screen",
+        "color"
+      ],
+      "processing_model": "single_pass",
+      "gpu_cost": "low",
+      "capabilities": [],
+      "inputs": 1,
+      "parameters": [
+        "Enable",
+        "Mix",
+        "Spill Color",
+        "Amount",
+        "Neutral Balance",
+        "Restore Luma"
+      ],
+      "compatibility": {
+        "touchdesigner_min_build": 2025.3,
+        "touchdesigner_max_build": null,
+        "os": [
+          "windows",
+          "macos"
+        ],
+        "architectures": [
+          "x86_64",
+          "arm64"
+        ]
+      },
+      "preview": "gallery/tdimagefx.key.despill.png"
+    },
+    {
+      "id": "tdimagefx.key.difference-key",
+      "name": "Difference Key",
+      "version": "1.0.0",
+      "category": "key",
+      "description": "Creates an alpha matte from the color difference between a foreground and a clean reference plate.",
+      "tags": [
+        "key",
+        "difference",
+        "clean-plate",
+        "matte",
+        "two-input"
+      ],
+      "processing_model": "single_pass",
+      "gpu_cost": "low",
+      "capabilities": [
+        "second_input"
+      ],
+      "inputs": 2,
+      "parameters": [
+        "Enable",
+        "Mix",
+        "Difference Threshold",
+        "Softness",
+        "Luma Weight"
+      ],
+      "compatibility": {
+        "touchdesigner_min_build": 2025.3,
+        "touchdesigner_max_build": null,
+        "os": [
+          "windows",
+          "macos"
+        ],
+        "architectures": [
+          "x86_64",
+          "arm64"
+        ]
+      },
+      "preview": "gallery/tdimagefx.key.difference-key.png"
+    },
+    {
+      "id": "tdimagefx.key.luma-key",
+      "name": "Luma Key",
+      "version": "1.0.0",
+      "category": "key",
+      "description": "Creates alpha from luminance with high-key, low-key, softness, and inversion controls.",
+      "tags": [
+        "key",
+        "luma",
+        "matte",
+        "alpha",
+        "threshold"
+      ],
+      "processing_model": "single_pass",
+      "gpu_cost": "low",
+      "capabilities": [],
+      "inputs": 1,
+      "parameters": [
+        "Enable",
+        "Mix",
+        "Threshold",
+        "Softness",
+        "Keep Dark Values",
+        "Invert"
+      ],
+      "compatibility": {
+        "touchdesigner_min_build": 2025.3,
+        "touchdesigner_max_build": null,
+        "os": [
+          "windows",
+          "macos"
+        ],
+        "architectures": [
+          "x86_64",
+          "arm64"
+        ]
+      },
+      "preview": "gallery/tdimagefx.key.luma-key.png"
+    },
+    {
       "id": "tdimagefx.light.bloom",
       "name": "Bloom",
       "version": "1.0.0",
@@ -1326,6 +1953,316 @@
       "preview": "gallery/tdimagefx.lighting.normal-lighting.png"
     },
     {
+      "id": "tdimagefx.mask.gradient-mask",
+      "name": "Gradient Mask",
+      "version": "1.0.0",
+      "category": "mask",
+      "description": "Applies a rotatable linear gradient to source alpha with position, width, softness, and inversion controls.",
+      "tags": [
+        "mask",
+        "gradient",
+        "linear",
+        "alpha",
+        "generator"
+      ],
+      "processing_model": "single_pass",
+      "gpu_cost": "low",
+      "capabilities": [],
+      "inputs": 1,
+      "parameters": [
+        "Enable",
+        "Mix",
+        "Angle",
+        "Position",
+        "Width",
+        "Softness",
+        "Invert"
+      ],
+      "compatibility": {
+        "touchdesigner_min_build": 2025.3,
+        "touchdesigner_max_build": null,
+        "os": [
+          "windows",
+          "macos"
+        ],
+        "architectures": [
+          "x86_64",
+          "arm64"
+        ]
+      },
+      "preview": "gallery/tdimagefx.mask.gradient-mask.png"
+    },
+    {
+      "id": "tdimagefx.mask.noise-mask",
+      "name": "Noise Mask",
+      "version": "1.0.0",
+      "category": "mask",
+      "description": "Applies a deterministic animated fractal-noise mask to source alpha.",
+      "tags": [
+        "mask",
+        "noise",
+        "animated",
+        "alpha",
+        "generator"
+      ],
+      "processing_model": "single_pass",
+      "gpu_cost": "medium",
+      "capabilities": [],
+      "inputs": 1,
+      "parameters": [
+        "Enable",
+        "Mix",
+        "Scale",
+        "Threshold",
+        "Softness",
+        "Seed",
+        "Time",
+        "Speed",
+        "Invert"
+      ],
+      "compatibility": {
+        "touchdesigner_min_build": 2025.3,
+        "touchdesigner_max_build": null,
+        "os": [
+          "windows",
+          "macos"
+        ],
+        "architectures": [
+          "x86_64",
+          "arm64"
+        ]
+      },
+      "preview": "gallery/tdimagefx.mask.noise-mask.png"
+    },
+    {
+      "id": "tdimagefx.mask.radial-mask",
+      "name": "Radial Mask",
+      "version": "1.0.0",
+      "category": "mask",
+      "description": "Applies an elliptical radial mask with independent center, size, feather, rotation, and inversion.",
+      "tags": [
+        "mask",
+        "radial",
+        "ellipse",
+        "alpha",
+        "generator"
+      ],
+      "processing_model": "single_pass",
+      "gpu_cost": "low",
+      "capabilities": [],
+      "inputs": 1,
+      "parameters": [
+        "Enable",
+        "Mix",
+        "Center",
+        "Size",
+        "Rotation",
+        "Feather",
+        "Invert"
+      ],
+      "compatibility": {
+        "touchdesigner_min_build": 2025.3,
+        "touchdesigner_max_build": null,
+        "os": [
+          "windows",
+          "macos"
+        ],
+        "architectures": [
+          "x86_64",
+          "arm64"
+        ]
+      },
+      "preview": "gallery/tdimagefx.mask.radial-mask.png"
+    },
+    {
+      "id": "tdimagefx.mask.shape-mask",
+      "name": "Shape Mask",
+      "version": "1.0.0",
+      "category": "mask",
+      "description": "Applies a signed-distance rectangle-to-ellipse mask with adjustable roundness, rotation, and feather.",
+      "tags": [
+        "mask",
+        "shape",
+        "rectangle",
+        "ellipse",
+        "alpha"
+      ],
+      "processing_model": "single_pass",
+      "gpu_cost": "low",
+      "capabilities": [],
+      "inputs": 1,
+      "parameters": [
+        "Enable",
+        "Mix",
+        "Center",
+        "Size",
+        "Roundness",
+        "Rotation",
+        "Feather",
+        "Invert"
+      ],
+      "compatibility": {
+        "touchdesigner_min_build": 2025.3,
+        "touchdesigner_max_build": null,
+        "os": [
+          "windows",
+          "macos"
+        ],
+        "architectures": [
+          "x86_64",
+          "arm64"
+        ]
+      },
+      "preview": "gallery/tdimagefx.mask.shape-mask.png"
+    },
+    {
+      "id": "tdimagefx.matte.alpha-repair",
+      "name": "Alpha Repair",
+      "version": "1.0.0",
+      "category": "matte",
+      "description": "Cleans hidden RGB, premultiplies, or safely unpremultiplies an RGBA image.",
+      "tags": [
+        "matte",
+        "alpha",
+        "premultiply",
+        "unpremultiply",
+        "repair"
+      ],
+      "processing_model": "single_pass",
+      "gpu_cost": "low",
+      "capabilities": [],
+      "inputs": 1,
+      "parameters": [
+        "Enable",
+        "Mix",
+        "Mode",
+        "Alpha Threshold"
+      ],
+      "compatibility": {
+        "touchdesigner_min_build": 2025.3,
+        "touchdesigner_max_build": null,
+        "os": [
+          "windows",
+          "macos"
+        ],
+        "architectures": [
+          "x86_64",
+          "arm64"
+        ]
+      },
+      "preview": "gallery/tdimagefx.matte.alpha-repair.png"
+    },
+    {
+      "id": "tdimagefx.matte.dilate",
+      "name": "Matte Dilate",
+      "version": "1.0.0",
+      "category": "matte",
+      "description": "Expands alpha while borrowing RGB from the most opaque nearby sample to avoid dark fringes.",
+      "tags": [
+        "matte",
+        "dilate",
+        "grow",
+        "alpha",
+        "morphology"
+      ],
+      "processing_model": "single_pass",
+      "gpu_cost": "medium",
+      "capabilities": [],
+      "inputs": 1,
+      "parameters": [
+        "Enable",
+        "Mix",
+        "Radius"
+      ],
+      "compatibility": {
+        "touchdesigner_min_build": 2025.3,
+        "touchdesigner_max_build": null,
+        "os": [
+          "windows",
+          "macos"
+        ],
+        "architectures": [
+          "x86_64",
+          "arm64"
+        ]
+      },
+      "preview": "gallery/tdimagefx.matte.dilate.png"
+    },
+    {
+      "id": "tdimagefx.matte.erode",
+      "name": "Matte Erode",
+      "version": "1.0.0",
+      "category": "matte",
+      "description": "Contracts alpha with a circular minimum filter while retaining source RGB.",
+      "tags": [
+        "matte",
+        "erode",
+        "shrink",
+        "alpha",
+        "morphology"
+      ],
+      "processing_model": "single_pass",
+      "gpu_cost": "medium",
+      "capabilities": [],
+      "inputs": 1,
+      "parameters": [
+        "Enable",
+        "Mix",
+        "Radius"
+      ],
+      "compatibility": {
+        "touchdesigner_min_build": 2025.3,
+        "touchdesigner_max_build": null,
+        "os": [
+          "windows",
+          "macos"
+        ],
+        "architectures": [
+          "x86_64",
+          "arm64"
+        ]
+      },
+      "preview": "gallery/tdimagefx.matte.erode.png"
+    },
+    {
+      "id": "tdimagefx.matte.feather",
+      "name": "Matte Feather",
+      "version": "1.0.0",
+      "category": "matte",
+      "description": "Softens alpha with a separable two-pass Gaussian filter while preserving source RGB.",
+      "tags": [
+        "matte",
+        "feather",
+        "blur",
+        "alpha",
+        "multi-pass"
+      ],
+      "processing_model": "multi_pass",
+      "gpu_cost": "medium",
+      "capabilities": [
+        "multi_pass"
+      ],
+      "inputs": 1,
+      "parameters": [
+        "Enable",
+        "Mix",
+        "Radius"
+      ],
+      "compatibility": {
+        "touchdesigner_min_build": 2025.3,
+        "touchdesigner_max_build": null,
+        "os": [
+          "windows",
+          "macos"
+        ],
+        "architectures": [
+          "x86_64",
+          "arm64"
+        ]
+      },
+      "preview": "gallery/tdimagefx.matte.feather.png"
+    },
+    {
       "id": "tdimagefx.motion.optical-flow-warp",
       "name": "Optical Flow Warp",
       "version": "1.0.0",
@@ -1445,7 +2382,7 @@
     {
       "id": "tdimagefx.simulation.cellular-automata",
       "name": "Cellular Automata",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "category": "simulation",
       "description": "Evolves a smooth Life-like cellular field with source-driven seeding.",
       "tags": [
@@ -1464,6 +2401,7 @@
       "parameters": [
         "Enable",
         "Mix",
+        "Reset State",
         "Birth",
         "Survival",
         "Seed"
@@ -1485,7 +2423,7 @@
     {
       "id": "tdimagefx.simulation.fluid-ink",
       "name": "Fluid Ink",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "category": "simulation",
       "description": "Advects accumulated color through a procedural curl field with source-driven ink injection.",
       "tags": [
@@ -1504,6 +2442,7 @@
       "parameters": [
         "Enable",
         "Mix",
+        "Reset State",
         "Advection",
         "Decay",
         "Injection",
@@ -1526,7 +2465,7 @@
     {
       "id": "tdimagefx.simulation.particle-advection",
       "name": "Particle Advection",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "category": "simulation",
       "description": "Advects bright source particles through a procedural vector field with persistent trails.",
       "tags": [
@@ -1545,6 +2484,7 @@
       "parameters": [
         "Enable",
         "Mix",
+        "Reset State",
         "Speed",
         "Decay",
         "Threshold",
@@ -1567,7 +2507,7 @@
     {
       "id": "tdimagefx.simulation.reaction-diffusion",
       "name": "Reaction Diffusion",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "category": "simulation",
       "description": "Advances a Gray-Scott reaction-diffusion state seeded by source luminance.",
       "tags": [
@@ -1586,6 +2526,7 @@
       "parameters": [
         "Enable",
         "Mix",
+        "Reset State",
         "Feed",
         "Kill",
         "Diffusion",
@@ -2034,7 +2975,7 @@
     {
       "id": "tdimagefx.temporal.echo",
       "name": "Echo",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "category": "temporal",
       "description": "Layers a displaced, color-tinted echo from the previous frame behind the source.",
       "tags": [
@@ -2052,6 +2993,7 @@
       "parameters": [
         "Enable",
         "Mix",
+        "Reset State",
         "Feedback",
         "Offsetx",
         "Offsety",
@@ -2074,7 +3016,7 @@
     {
       "id": "tdimagefx.temporal.feedback-kaleidoscope",
       "name": "Feedback Kaleidoscope",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "category": "temporal",
       "description": "Folds recursive feedback into mirrored radial segments.",
       "tags": [
@@ -2092,6 +3034,7 @@
       "parameters": [
         "Enable",
         "Mix",
+        "Reset State",
         "Segments",
         "Zoom",
         "Feedback"
@@ -2113,7 +3056,7 @@
     {
       "id": "tdimagefx.temporal.feedback-rotate",
       "name": "Feedback Rotate",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "category": "temporal",
       "description": "Rotates and scales the prior frame before recursively blending it into the source.",
       "tags": [
@@ -2131,6 +3074,7 @@
       "parameters": [
         "Enable",
         "Mix",
+        "Reset State",
         "Angle",
         "Scale",
         "Feedback"
@@ -2152,7 +3096,7 @@
     {
       "id": "tdimagefx.temporal.feedback-trails",
       "name": "Feedback Trails",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "category": "temporal",
       "description": "Accumulates luminous trails from prior frames with controllable drift and decay.",
       "tags": [
@@ -2170,6 +3114,7 @@
       "parameters": [
         "Enable",
         "Mix",
+        "Reset State",
         "Feedback",
         "Decay",
         "Offsetx",
@@ -2192,7 +3137,7 @@
     {
       "id": "tdimagefx.temporal.frame-blend",
       "name": "Frame Blend",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "category": "temporal",
       "description": "Blends the current image with accumulated history for temporal smoothing.",
       "tags": [
@@ -2210,6 +3155,7 @@
       "parameters": [
         "Enable",
         "Mix",
+        "Reset State",
         "History"
       ],
       "compatibility": {
@@ -2229,7 +3175,7 @@
     {
       "id": "tdimagefx.temporal.motion-smear",
       "name": "Motion Smear",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "category": "temporal",
       "description": "Samples feedback along a controllable vector to create directional temporal smearing.",
       "tags": [
@@ -2247,6 +3193,7 @@
       "parameters": [
         "Enable",
         "Mix",
+        "Reset State",
         "Distance",
         "Angle",
         "Feedback"
@@ -2268,7 +3215,7 @@
     {
       "id": "tdimagefx.temporal.recursive-zoom",
       "name": "Recursive Zoom",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "category": "temporal",
       "description": "Recursively zooms feedback around a movable center to form tunnel trails.",
       "tags": [
@@ -2286,6 +3233,7 @@
       "parameters": [
         "Enable",
         "Mix",
+        "Reset State",
         "Zoom",
         "Feedback",
         "Centerx",
@@ -2308,7 +3256,7 @@
     {
       "id": "tdimagefx.temporal.stutter",
       "name": "Stutter",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "category": "temporal",
       "description": "Freezes feedback state on demand for rhythmic frame-hold effects.",
       "tags": [
@@ -2326,6 +3274,7 @@
       "parameters": [
         "Enable",
         "Mix",
+        "Reset State",
         "Hold"
       ],
       "compatibility": {
@@ -2345,7 +3294,7 @@
     {
       "id": "tdimagefx.temporal.temporal-glitch",
       "name": "Temporal Glitch",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "category": "temporal",
       "description": "Replaces randomized image blocks with offset history for controllable digital dropouts.",
       "tags": [
@@ -2363,6 +3312,7 @@
       "parameters": [
         "Enable",
         "Mix",
+        "Reset State",
         "Amount",
         "Blocksize",
         "Phase"
@@ -2384,7 +3334,7 @@
     {
       "id": "tdimagefx.temporal.time-displacement",
       "name": "Time Displacement",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "category": "temporal",
       "description": "Selects current or historical pixels from a luminance-driven temporal mask.",
       "tags": [
@@ -2403,6 +3353,7 @@
       "parameters": [
         "Enable",
         "Mix",
+        "Reset State",
         "Amount",
         "Phase",
         "Softness"
@@ -2420,6 +3371,244 @@
         ]
       },
       "preview": "gallery/tdimagefx.temporal.time-displacement.png"
+    },
+    {
+      "id": "tdimagefx.transform.corner-pin",
+      "name": "Corner Pin",
+      "version": "1.0.0",
+      "category": "transform",
+      "description": "Samples a user-defined source quadrilateral for corner-pin and projection-alignment workflows.",
+      "tags": [
+        "transform",
+        "corner-pin",
+        "quad",
+        "projection",
+        "uv"
+      ],
+      "processing_model": "single_pass",
+      "gpu_cost": "low",
+      "capabilities": [],
+      "inputs": 1,
+      "parameters": [
+        "Enable",
+        "Mix",
+        "Bottom Left",
+        "Bottom Right",
+        "Top Left",
+        "Top Right"
+      ],
+      "compatibility": {
+        "touchdesigner_min_build": 2025.3,
+        "touchdesigner_max_build": null,
+        "os": [
+          "windows",
+          "macos"
+        ],
+        "architectures": [
+          "x86_64",
+          "arm64"
+        ]
+      },
+      "preview": "gallery/tdimagefx.transform.corner-pin.png"
+    },
+    {
+      "id": "tdimagefx.transform.crop-feather",
+      "name": "Crop Feather",
+      "version": "1.0.0",
+      "category": "transform",
+      "description": "Crops each image edge independently and optionally feathers the resulting alpha boundary.",
+      "tags": [
+        "transform",
+        "crop",
+        "feather",
+        "alpha",
+        "framing"
+      ],
+      "processing_model": "single_pass",
+      "gpu_cost": "low",
+      "capabilities": [],
+      "inputs": 1,
+      "parameters": [
+        "Enable",
+        "Mix",
+        "Left",
+        "Right",
+        "Bottom",
+        "Top",
+        "Feather"
+      ],
+      "compatibility": {
+        "touchdesigner_min_build": 2025.3,
+        "touchdesigner_max_build": null,
+        "os": [
+          "windows",
+          "macos"
+        ],
+        "architectures": [
+          "x86_64",
+          "arm64"
+        ]
+      },
+      "preview": "gallery/tdimagefx.transform.crop-feather.png"
+    },
+    {
+      "id": "tdimagefx.transform.fit-fill",
+      "name": "Fit Fill",
+      "version": "1.0.0",
+      "category": "transform",
+      "description": "Fits or fills an image inside a configurable frame aspect with alignment and background color controls.",
+      "tags": [
+        "transform",
+        "fit",
+        "fill",
+        "aspect",
+        "framing"
+      ],
+      "processing_model": "single_pass",
+      "gpu_cost": "low",
+      "capabilities": [],
+      "inputs": 1,
+      "parameters": [
+        "Enable",
+        "Mix",
+        "Frame Aspect",
+        "Mode",
+        "Alignment",
+        "Background"
+      ],
+      "compatibility": {
+        "touchdesigner_min_build": 2025.3,
+        "touchdesigner_max_build": null,
+        "os": [
+          "windows",
+          "macos"
+        ],
+        "architectures": [
+          "x86_64",
+          "arm64"
+        ]
+      },
+      "preview": "gallery/tdimagefx.transform.fit-fill.png"
+    },
+    {
+      "id": "tdimagefx.transform.perspective-warp",
+      "name": "Perspective Warp",
+      "version": "1.0.0",
+      "category": "transform",
+      "description": "Applies a controllable projective tilt around horizontal and vertical axes with center and zoom controls.",
+      "tags": [
+        "transform",
+        "perspective",
+        "projective",
+        "tilt",
+        "uv"
+      ],
+      "processing_model": "single_pass",
+      "gpu_cost": "low",
+      "capabilities": [],
+      "inputs": 1,
+      "parameters": [
+        "Enable",
+        "Mix",
+        "Horizontal Tilt",
+        "Vertical Tilt",
+        "Perspective",
+        "Zoom",
+        "Center"
+      ],
+      "compatibility": {
+        "touchdesigner_min_build": 2025.3,
+        "touchdesigner_max_build": null,
+        "os": [
+          "windows",
+          "macos"
+        ],
+        "architectures": [
+          "x86_64",
+          "arm64"
+        ]
+      },
+      "preview": "gallery/tdimagefx.transform.perspective-warp.png"
+    },
+    {
+      "id": "tdimagefx.transform.tile-repeat",
+      "name": "Tile Repeat",
+      "version": "1.0.0",
+      "category": "transform",
+      "description": "Tiles, offsets, rotates, and optionally mirrors repeated copies of an image.",
+      "tags": [
+        "transform",
+        "tile",
+        "repeat",
+        "mirror",
+        "pattern"
+      ],
+      "processing_model": "single_pass",
+      "gpu_cost": "low",
+      "capabilities": [],
+      "inputs": 1,
+      "parameters": [
+        "Enable",
+        "Mix",
+        "Tiles",
+        "Offset",
+        "Rotation",
+        "Mirror Alternate Tiles"
+      ],
+      "compatibility": {
+        "touchdesigner_min_build": 2025.3,
+        "touchdesigner_max_build": null,
+        "os": [
+          "windows",
+          "macos"
+        ],
+        "architectures": [
+          "x86_64",
+          "arm64"
+        ]
+      },
+      "preview": "gallery/tdimagefx.transform.tile-repeat.png"
+    },
+    {
+      "id": "tdimagefx.transform.transform-2d",
+      "name": "Transform 2D",
+      "version": "1.0.0",
+      "category": "transform",
+      "description": "Applies pivoted translation, rotation, and non-uniform scale with optional repeated edges.",
+      "tags": [
+        "transform",
+        "translate",
+        "rotate",
+        "scale",
+        "pivot",
+        "uv"
+      ],
+      "processing_model": "single_pass",
+      "gpu_cost": "low",
+      "capabilities": [],
+      "inputs": 1,
+      "parameters": [
+        "Enable",
+        "Mix",
+        "Translate",
+        "Scale",
+        "Rotation",
+        "Pivot",
+        "Repeat Outside"
+      ],
+      "compatibility": {
+        "touchdesigner_min_build": 2025.3,
+        "touchdesigner_max_build": null,
+        "os": [
+          "windows",
+          "macos"
+        ],
+        "architectures": [
+          "x86_64",
+          "arm64"
+        ]
+      },
+      "preview": "gallery/tdimagefx.transform.transform-2d.png"
     },
     {
       "id": "tdimagefx.transition.directional-wipe",

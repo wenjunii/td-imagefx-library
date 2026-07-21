@@ -1,0 +1,681 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-07-19T05:02:09.804052+00:00",
+  "library_version": "0.3.0",
+  "touchdesigner": {
+    "version": "099",
+    "build": "2025.32820",
+    "os": "Windows",
+    "architecture": "64"
+  },
+  "builder": {
+    "path": "touchdesigner/scripts/build_project.py",
+    "sha256": "9d8566b8bf4e2c965b3e895eca962293ce22c0d77eab909f75f1befa41b1fd3e"
+  },
+  "catalog": {
+    "current_effects": 96,
+    "package_versions": 122
+  },
+  "results": {
+    "builder_errors": 0,
+    "shader_errors": 0,
+    "preview_errors": 0
+  },
+  "benchmark": {
+    "resolution": "512x288",
+    "frames_per_sample": 12,
+    "gpu": "NVIDIA GeForce RTX 3080 Ti Laptop GPU"
+  },
+  "artifacts": [
+    {
+      "path": "TD_ImageFX_Library.toe",
+      "bytes": 149146,
+      "sha256": "be95d25f42aa0ae8877c4deb3dbf76880b662ff51af38d45d92ceed591ace652"
+    },
+    {
+      "path": "touchdesigner/core/TDImageFXLibrary.tox",
+      "bytes": 97998,
+      "sha256": "af025eceb245871c243d3108f564f3c8358e4461903b85033435242fe5419fc9"
+    },
+    {
+      "path": "touchdesigner/core/FxBrowser.tox",
+      "bytes": 24814,
+      "sha256": "d71a8a360ad9b060352e5dbb99761cd6cd4e8f2bfddb788eb2b97fb2414aeba8"
+    },
+    {
+      "path": "touchdesigner/core/FxRack.tox",
+      "bytes": 25158,
+      "sha256": "f804c34ad48f92d394fce85f7ab4087d1cae47200585eaaa6e772ad01942b58e"
+    },
+    {
+      "path": "touchdesigner/core/ParticleRandomMove.tox",
+      "bytes": 5182,
+      "sha256": "367cc95b240a7ceb3db60caa278d7f48bb1252942a5611665204058f971cc991"
+    },
+    {
+      "path": "touchdesigner/core/InkFlowFusion.tox",
+      "bytes": 8542,
+      "sha256": "7c2ec9f4fa040e7e7edcf0d282deed1a47c31c6215a24495705e945081560062"
+    },
+    {
+      "path": "touchdesigner/core/GlitchFusion.tox",
+      "bytes": 9030,
+      "sha256": "ab83b9c8caef076621bc0e0e20e9ba743b5f1864b278de21983c943619143a21"
+    },
+    {
+      "path": "touchdesigner/core/FxUpdater.tox",
+      "bytes": 13294,
+      "sha256": "03b55b15ebbe5cd7c121c5318d9106cae55c4b0607350e46604475cb5f83a904"
+    },
+    {
+      "path": "packages/tdimagefx.blur.bilateral-blur/1.0.0/tox/tdimagefx_blur_bilateral_blur.tox",
+      "bytes": 3598,
+      "sha256": "948ea4dd26675af47555d443730a3539504371caf90620f2e29e00913e0d7e09"
+    },
+    {
+      "path": "packages/tdimagefx.blur.bokeh-blur/1.0.0/tox/tdimagefx_blur_bokeh_blur.tox",
+      "bytes": 3558,
+      "sha256": "3fcaf7fe4fedfc3c092315a53dfdc47e096cd83662663475a6a8fcce2d83ff57"
+    },
+    {
+      "path": "packages/tdimagefx.blur.box-blur/1.0.0/tox/tdimagefx_blur_box_blur.tox",
+      "bytes": 2174,
+      "sha256": "b3e8f5c6ee0ac4af49162744baecd38125dae7ea113415e9db88d89b485b5433"
+    },
+    {
+      "path": "packages/tdimagefx.blur.chromatic-blur/1.0.0/tox/tdimagefx_blur_chromatic_blur.tox",
+      "bytes": 2358,
+      "sha256": "5d1fbf7954c7ad898741baa7da23941fb34f690a5944847cee64ffe80c7447eb"
+    },
+    {
+      "path": "packages/tdimagefx.blur.depth-aware-blur/1.0.0/tox/tdimagefx_blur_depth_aware_blur.tox",
+      "bytes": 3590,
+      "sha256": "9437374fe5aed97bd2c27369fc49e816b775e4381f30aee846fbdd283fc4444d"
+    },
+    {
+      "path": "packages/tdimagefx.blur.directional-blur/1.0.0/tox/tdimagefx_blur_directional_blur.tox",
+      "bytes": 2254,
+      "sha256": "f4c27104c14a923370ba66375b87246084dbe78ef7ee9b033c82fd949f5b7ce4"
+    },
+    {
+      "path": "packages/tdimagefx.blur.gaussian-blur/1.0.0/tox/tdimagefx_blur_gaussian_blur.tox",
+      "bytes": 2230,
+      "sha256": "e8ca749d20afa3cfb627403ed3878a1aa7a5be611d02570805ab27a0fb3afb21"
+    },
+    {
+      "path": "packages/tdimagefx.blur.radial-blur/1.0.0/tox/tdimagefx_blur_radial_blur.tox",
+      "bytes": 2278,
+      "sha256": "c1d50e8fe2865521d6b9b75d72339fd7703f1437b5943ad42b625bfd127f49a2"
+    },
+    {
+      "path": "packages/tdimagefx.blur.tilt-shift/1.0.0/tox/tdimagefx_blur_tilt_shift.tox",
+      "bytes": 2446,
+      "sha256": "06ea8f4ddaabc8a16f6f115d3d8eded61d6373cbba6883993c360303cfd98a57"
+    },
+    {
+      "path": "packages/tdimagefx.color.channel-mixer/1.0.0/tox/tdimagefx_color_channel_mixer.tox",
+      "bytes": 2206,
+      "sha256": "63920c7349cb874556a8d325e14436cadb8cd272d88f3b98614ecaf249a5f289"
+    },
+    {
+      "path": "packages/tdimagefx.color.color-decision-list/1.0.0/tox/tdimagefx_color_color_decision_list.tox",
+      "bytes": 3142,
+      "sha256": "5940e0867bc29566b3371bab3ffd0e95da67ddf9f01b578d92296dd5b6624447"
+    },
+    {
+      "path": "packages/tdimagefx.color.curves/1.0.0/tox/tdimagefx_color_curves.tox",
+      "bytes": 3198,
+      "sha256": "dbe414b8958bdee8891dd2403a56d77e28eb6230b5d6412a1b7efacbf3c2de8d"
+    },
+    {
+      "path": "packages/tdimagefx.color.duotone/1.0.0/tox/tdimagefx_color_duotone.tox",
+      "bytes": 1758,
+      "sha256": "c0f94a14a4c01f2f6192af5dc919746a9ecaa9d43a34be25374fce01227dd589"
+    },
+    {
+      "path": "packages/tdimagefx.color.duotone/1.1.0/tox/tdimagefx_color_duotone.tox",
+      "bytes": 2054,
+      "sha256": "15def304d95bb610baa9750fec0cbdad53a67ab311c2f7b1b967de2e7017003b"
+    },
+    {
+      "path": "packages/tdimagefx.color.exposure/1.0.0/tox/tdimagefx_color_exposure.tox",
+      "bytes": 2006,
+      "sha256": "c414c3036939080829ba3d548a48eb2a494cd0cab338f5165d5a09fdadc975f9"
+    },
+    {
+      "path": "packages/tdimagefx.color.gradient-map/1.0.0/tox/tdimagefx_color_gradient_map.tox",
+      "bytes": 2302,
+      "sha256": "4a3b82557b390db2a3ba0cd357cfbc8c15e017b3420420571a76560a4ac10e20"
+    },
+    {
+      "path": "packages/tdimagefx.color.hsv-shift/1.0.0/tox/tdimagefx_color_hsv_shift.tox",
+      "bytes": 1678,
+      "sha256": "14583966e9a43bfb40372836d5ef88ae5db3085ba475c2d7ecbb6230615ecfce"
+    },
+    {
+      "path": "packages/tdimagefx.color.hsv-shift/1.1.0/tox/tdimagefx_color_hsv_shift.tox",
+      "bytes": 1974,
+      "sha256": "2bbfea80479ebda436ffccb13dec2d94d3cf762e5a2f0170c97b79fd37895dff"
+    },
+    {
+      "path": "packages/tdimagefx.color.levels/1.0.0/tox/tdimagefx_color_levels.tox",
+      "bytes": 2078,
+      "sha256": "aa70e5205a5ea3a07c2650c003cd0aa0341e24aebd733491ab8f5ee5227294c0"
+    },
+    {
+      "path": "packages/tdimagefx.color.lift-gamma-gain/1.0.0/tox/tdimagefx_color_lift_gamma_gain.tox",
+      "bytes": 2222,
+      "sha256": "8badcb58251246324b31ce95e733cc1b5afea423edf8e69de6d5cc794b825f60"
+    },
+    {
+      "path": "packages/tdimagefx.color.lut-3d/1.0.0/tox/tdimagefx_color_lut_3d.tox",
+      "bytes": 3262,
+      "sha256": "4185fb880dc5d3822aeb04c5b2ef4f963ca316ec60bc3c944546a3904c00070b"
+    },
+    {
+      "path": "packages/tdimagefx.color.posterize/1.0.0/tox/tdimagefx_color_posterize.tox",
+      "bytes": 1678,
+      "sha256": "bc5ad83296feb4f5a9ae654be6eb246dcce10d110b4da9bc539af344867832ee"
+    },
+    {
+      "path": "packages/tdimagefx.color.posterize/1.1.0/tox/tdimagefx_color_posterize.tox",
+      "bytes": 1966,
+      "sha256": "055148b4b05feeebaeec704102a4d9ebab3b318cafa16a5eaff9b48e70840397"
+    },
+    {
+      "path": "packages/tdimagefx.color.temperature-tint/1.0.0/tox/tdimagefx_color_temperature_tint.tox",
+      "bytes": 2062,
+      "sha256": "69299731ca49c6611d151c99c4e4017e4e5e99a63cd15c2ed9ad944d6be7c3b7"
+    },
+    {
+      "path": "packages/tdimagefx.color.tone-map/1.0.0/tox/tdimagefx_color_tone_map.tox",
+      "bytes": 3254,
+      "sha256": "a0777166e153bae06077ec9b8d718e982f48f4fdf1308664cba69a7114c5eb7d"
+    },
+    {
+      "path": "packages/tdimagefx.composite.alpha-composite/1.0.0/tox/tdimagefx_composite_alpha_composite.tox",
+      "bytes": 2998,
+      "sha256": "88f8f9f2c3b98e93a82914692e43412a7f0946624781cbb74979e2c60d15e177"
+    },
+    {
+      "path": "packages/tdimagefx.composite.blend-modes/1.0.0/tox/tdimagefx_composite_blend_modes.tox",
+      "bytes": 3358,
+      "sha256": "4e5b433236663929bd0805c6506862e1f1004614697921c506d61921ed94d75a"
+    },
+    {
+      "path": "packages/tdimagefx.composite.channel-shuffle/1.0.0/tox/tdimagefx_composite_channel_shuffle.tox",
+      "bytes": 3190,
+      "sha256": "bae44b98bf91bb56e6c4649b6cd31c63af781ebeea9716697a24dc878580e008"
+    },
+    {
+      "path": "packages/tdimagefx.composite.edge-extend/1.0.0/tox/tdimagefx_composite_edge_extend.tox",
+      "bytes": 3214,
+      "sha256": "a452d7e416a6e998555ae7a5cf3577e86fb13c83de50c36fb16f51288adf137f"
+    },
+    {
+      "path": "packages/tdimagefx.composite.matte-composite/1.0.0/tox/tdimagefx_composite_matte_composite.tox",
+      "bytes": 3190,
+      "sha256": "30378789586d99a4280bbdb3a6bf58ab8348441eda89968b7f1c34052f7bee8c"
+    },
+    {
+      "path": "packages/tdimagefx.distort.bulge-pinch/1.0.0/tox/tdimagefx_distort_bulge_pinch.tox",
+      "bytes": 2166,
+      "sha256": "de5748fd1fa1bc544525f2a630f0e462034e97f7f8decdcf2e52d794a65d6237"
+    },
+    {
+      "path": "packages/tdimagefx.distort.displacement-map/1.0.0/tox/tdimagefx_distort_displacement_map.tox",
+      "bytes": 2134,
+      "sha256": "0eb637e43622ce0016138a7dd93fd234cb7bd51c41b1e054255b1df81486783c"
+    },
+    {
+      "path": "packages/tdimagefx.distort.flow-field-warp/1.0.0/tox/tdimagefx_distort_flow_field_warp.tox",
+      "bytes": 2062,
+      "sha256": "7c8aabaeb02d73eccc55e7abce035cb5debcff9830aa968de8b7377d04b85cc6"
+    },
+    {
+      "path": "packages/tdimagefx.distort.kaleidoscope/1.0.0/tox/tdimagefx_distort_kaleidoscope.tox",
+      "bytes": 1830,
+      "sha256": "8e44619695bced230a682db7260cdb0fc1c8757d53557d73cfd1ec8249a0ed98"
+    },
+    {
+      "path": "packages/tdimagefx.distort.kaleidoscope/1.1.0/tox/tdimagefx_distort_kaleidoscope.tox",
+      "bytes": 2118,
+      "sha256": "77bdbfdb53adcd8e367315d647e9a51d068440292e2c79012163252018bd7b8e"
+    },
+    {
+      "path": "packages/tdimagefx.distort.lens-distortion/1.0.0/tox/tdimagefx_distort_lens_distortion.tox",
+      "bytes": 2118,
+      "sha256": "8d0bf6580a17d40f8e0cd31b2b32b5c1ece024bfd7ecf8cbb7d5cb38f510300b"
+    },
+    {
+      "path": "packages/tdimagefx.distort.mirror/1.0.0/tox/tdimagefx_distort_mirror.tox",
+      "bytes": 2038,
+      "sha256": "99e14a4cb28f8df0fcb0783a282cc5aa00a21f987ef5b0a610b8611f4ea472a0"
+    },
+    {
+      "path": "packages/tdimagefx.distort.polar-coordinates/1.0.0/tox/tdimagefx_distort_polar_coordinates.tox",
+      "bytes": 2190,
+      "sha256": "6cc0317c104995c82d2b246de8f68c4474dd6570d4c793ebf8d2886595b9a0a9"
+    },
+    {
+      "path": "packages/tdimagefx.distort.ripple/1.0.0/tox/tdimagefx_distort_ripple.tox",
+      "bytes": 2366,
+      "sha256": "f24339008171afa00756d6233597bf2825862f843ac75cc441abf78c27a72a6f"
+    },
+    {
+      "path": "packages/tdimagefx.distort.twirl/1.0.0/tox/tdimagefx_distort_twirl.tox",
+      "bytes": 1862,
+      "sha256": "94a0b639679c2fb9d2c3a75a0b70d076c57790d33df3034482a52c977c9c7e85"
+    },
+    {
+      "path": "packages/tdimagefx.distort.twirl/1.1.0/tox/tdimagefx_distort_twirl.tox",
+      "bytes": 2150,
+      "sha256": "20ce2f9b6a92254f42af43ca4be30af01801cac8113742af23d1c0078f328926"
+    },
+    {
+      "path": "packages/tdimagefx.distort.wave-warp/1.0.0/tox/tdimagefx_distort_wave_warp.tox",
+      "bytes": 1950,
+      "sha256": "086dd9cd8c20ebe25a25daef9178bf4913f30d88f438328ef5df50a4eb1724f1"
+    },
+    {
+      "path": "packages/tdimagefx.distort.wave-warp/1.1.0/tox/tdimagefx_distort_wave_warp.tox",
+      "bytes": 2230,
+      "sha256": "b37683186ded078ab6820b95bcafba53f695a47b1adf8cd2fb2cc9e06b7e42da"
+    },
+    {
+      "path": "packages/tdimagefx.glitch.block-shift/1.0.0/tox/tdimagefx_glitch_block_shift.tox",
+      "bytes": 2742,
+      "sha256": "1dabfc1d7e98b928ff8f949ae8809eee99db94533cf0da4978f4503d89ecd4d7"
+    },
+    {
+      "path": "packages/tdimagefx.glitch.block-shift/1.1.0/tox/tdimagefx_glitch_block_shift.tox",
+      "bytes": 3030,
+      "sha256": "1743485ae473c7c2980952b85bff8f1efebe4fcd76d518dfdd177094dc37f841"
+    },
+    {
+      "path": "packages/tdimagefx.glitch.digital-noise/1.0.0/tox/tdimagefx_glitch_digital_noise.tox",
+      "bytes": 2382,
+      "sha256": "7cd0108a0729926263e3e229249f1734df876094681fec91ef0de1a6e378e47e"
+    },
+    {
+      "path": "packages/tdimagefx.glitch.rgb-split/1.0.0/tox/tdimagefx_glitch_rgb_split.tox",
+      "bytes": 1726,
+      "sha256": "668df24a7da42fd1e3305a92b789e65bee62bca04b1d7752d990aadc4f279c77"
+    },
+    {
+      "path": "packages/tdimagefx.glitch.rgb-split/1.1.0/tox/tdimagefx_glitch_rgb_split.tox",
+      "bytes": 2014,
+      "sha256": "77a552bfac813b12b830a5d9f77f971be0a56e20bd5561a21f817ef0cb0e7a12"
+    },
+    {
+      "path": "packages/tdimagefx.glitch.scan-tear/1.0.0/tox/tdimagefx_glitch_scan_tear.tox",
+      "bytes": 2310,
+      "sha256": "f847b9f4517fff36e25e69e7bd5d1e10ea2b455ec309c7c92db547f2cd2a134c"
+    },
+    {
+      "path": "packages/tdimagefx.glitch.slice-shift/1.0.0/tox/tdimagefx_glitch_slice_shift.tox",
+      "bytes": 2302,
+      "sha256": "b10e3845400ca0fd4deef27b5183944c26c01e626338b844a7b6cbb0fadd53c1"
+    },
+    {
+      "path": "packages/tdimagefx.key.chroma-key/1.0.0/tox/tdimagefx_key_chroma_key.tox",
+      "bytes": 3462,
+      "sha256": "df83189bfe33bc9106c25c784e5c58cbdc7315044963ff5021f529c2108cb527"
+    },
+    {
+      "path": "packages/tdimagefx.key.despill/1.0.0/tox/tdimagefx_key_despill.tox",
+      "bytes": 3238,
+      "sha256": "bb6e4363cdbec074812740536302e3554dd874b801983a9bcdb9229f726015de"
+    },
+    {
+      "path": "packages/tdimagefx.key.difference-key/1.0.0/tox/tdimagefx_key_difference_key.tox",
+      "bytes": 3254,
+      "sha256": "2038a86c7f995e428cc388d65e335228427228689cdc3a7ae0daccd133335461"
+    },
+    {
+      "path": "packages/tdimagefx.key.luma-key/1.0.0/tox/tdimagefx_key_luma_key.tox",
+      "bytes": 3222,
+      "sha256": "e0650da0d3432a2fa9084c98486dc109175c5f9ef5fbc2678d25c83a8319d75b"
+    },
+    {
+      "path": "packages/tdimagefx.light.bloom/1.0.0/tox/tdimagefx_light_bloom.tox",
+      "bytes": 2622,
+      "sha256": "1fffe31c5eeacd5cff73452ddadf6527b0a4c9ec08f117a6f61918c3367d05d4"
+    },
+    {
+      "path": "packages/tdimagefx.light.edge-glow/1.0.0/tox/tdimagefx_light_edge_glow.tox",
+      "bytes": 2782,
+      "sha256": "01c493c94f78178be854f4dc316e59b392b3965dfbe6318608dbb300ff9727fc"
+    },
+    {
+      "path": "packages/tdimagefx.light.glow/1.0.0/tox/tdimagefx_light_glow.tox",
+      "bytes": 2614,
+      "sha256": "2eafcfee9bc233926b15dc909c8f4d51f664294035ef549dc53850ecc2c791de"
+    },
+    {
+      "path": "packages/tdimagefx.lighting.normal-lighting/1.0.0/tox/tdimagefx_lighting_normal_lighting.tox",
+      "bytes": 2150,
+      "sha256": "974807415e1619e20d31a9e1952e2c8ba2d94403d90c27dc6916d3c61da9e804"
+    },
+    {
+      "path": "packages/tdimagefx.mask.gradient-mask/1.0.0/tox/tdimagefx_mask_gradient_mask.tox",
+      "bytes": 3382,
+      "sha256": "d033bab50eb60b3b739fd6679804e10c1791e2a9585b644cd0ecf693334faf35"
+    },
+    {
+      "path": "packages/tdimagefx.mask.noise-mask/1.0.0/tox/tdimagefx_mask_noise_mask.tox",
+      "bytes": 3838,
+      "sha256": "b1762a468aefc7ded3a94d7153c86a3596f8540e0d7abe618bf4b9dd4fd36688"
+    },
+    {
+      "path": "packages/tdimagefx.mask.radial-mask/1.0.0/tox/tdimagefx_mask_radial_mask.tox",
+      "bytes": 3398,
+      "sha256": "d386525c5630fe8c10f864e73a8df901682bf20656e56db8f1aba99c0d5fa273"
+    },
+    {
+      "path": "packages/tdimagefx.mask.shape-mask/1.0.0/tox/tdimagefx_mask_shape_mask.tox",
+      "bytes": 3614,
+      "sha256": "45e36cae597259efda57b43fa24745e717a1f63c853ac41fae3523ad3e46c85d"
+    },
+    {
+      "path": "packages/tdimagefx.matte.alpha-repair/1.0.0/tox/tdimagefx_matte_alpha_repair.tox",
+      "bytes": 2966,
+      "sha256": "402a97de128541247562afc9b9916e4fdf7a7983379ccf5e27cb012f665a0529"
+    },
+    {
+      "path": "packages/tdimagefx.matte.dilate/1.0.0/tox/tdimagefx_matte_dilate.tox",
+      "bytes": 2822,
+      "sha256": "b9606c271069ccbf30eef675bdfde89055dc90ff3162fd6bec93a33632988d1b"
+    },
+    {
+      "path": "packages/tdimagefx.matte.erode/1.0.0/tox/tdimagefx_matte_erode.tox",
+      "bytes": 2830,
+      "sha256": "b13d13b754d02b5e419cbbabb67b7ab70b00114f2714ffc9589f9db3c2b0e94c"
+    },
+    {
+      "path": "packages/tdimagefx.matte.feather/1.0.0/tox/tdimagefx_matte_feather.tox",
+      "bytes": 3014,
+      "sha256": "1b016f8dd087bd345ef975465609f88df968fd9a174def91a249a97bede8d5d9"
+    },
+    {
+      "path": "packages/tdimagefx.motion.optical-flow-warp/1.0.0/tox/tdimagefx_motion_optical_flow_warp.tox",
+      "bytes": 2110,
+      "sha256": "89401a9b749f92dc63368a9e0cb627b0450a191fed117cc01786c0edd7be9cd5"
+    },
+    {
+      "path": "packages/tdimagefx.sharpen.sharpen/1.0.0/tox/tdimagefx_sharpen_sharpen.tox",
+      "bytes": 2174,
+      "sha256": "04abea3170c99cd4ab134909cfffbb449db42cf5fc1e4d4bbeaa73cd270bb9ae"
+    },
+    {
+      "path": "packages/tdimagefx.sharpen.unsharp-mask/1.0.0/tox/tdimagefx_sharpen_unsharp_mask.tox",
+      "bytes": 2478,
+      "sha256": "bbadc5c7b824eba9579c72b5308ced404c2f2ffdccc3a0c21aabf69597ba99d1"
+    },
+    {
+      "path": "packages/tdimagefx.simulation.cellular-automata/1.0.0/tox/tdimagefx_simulation_cellular_automata.tox",
+      "bytes": 2270,
+      "sha256": "b7adfdf47ae6485fe5dfb2964f58d8b91d1c4b7067454d2820ac5ae2dbd33d96"
+    },
+    {
+      "path": "packages/tdimagefx.simulation.cellular-automata/1.1.0/tox/tdimagefx_simulation_cellular_automata.tox",
+      "bytes": 4342,
+      "sha256": "e27778fd85341676020e39e310521d1fc27bf63de3063e57588768b729cd07af"
+    },
+    {
+      "path": "packages/tdimagefx.simulation.fluid-ink/1.0.0/tox/tdimagefx_simulation_fluid_ink.tox",
+      "bytes": 2414,
+      "sha256": "ca7ff0ee23d19befcb552cd64429e1ed6f4164b7cd59d997f2a2c612f6b1c44e"
+    },
+    {
+      "path": "packages/tdimagefx.simulation.fluid-ink/1.1.0/tox/tdimagefx_simulation_fluid_ink.tox",
+      "bytes": 4398,
+      "sha256": "d41341b14e667563b54009fc9c2534c6f7d6b54ed015b0ebbbba379a01709f5c"
+    },
+    {
+      "path": "packages/tdimagefx.simulation.particle-advection/1.0.0/tox/tdimagefx_simulation_particle_advection.tox",
+      "bytes": 2214,
+      "sha256": "d1b5c2e735d47cb9e11dd2661b77b2d8c38d5072be41e8e8192dc8cf62cd8b92"
+    },
+    {
+      "path": "packages/tdimagefx.simulation.particle-advection/1.1.0/tox/tdimagefx_simulation_particle_advection.tox",
+      "bytes": 4190,
+      "sha256": "d74af6d8b16b6313a25018eaea2573c9da7f7be851030d6e91c43f6f3c9c5f2d"
+    },
+    {
+      "path": "packages/tdimagefx.simulation.reaction-diffusion/1.0.0/tox/tdimagefx_simulation_reaction_diffusion.tox",
+      "bytes": 2326,
+      "sha256": "3f97688773c3c5b16e3a07fd018c13f6d6faf620aaa82655d4a72a8e3657e2ac"
+    },
+    {
+      "path": "packages/tdimagefx.simulation.reaction-diffusion/1.1.0/tox/tdimagefx_simulation_reaction_diffusion.tox",
+      "bytes": 4374,
+      "sha256": "4f5a8902ce626f8f46bb826cfa5b05b68894611690f43e473a223fb14e52ff93"
+    },
+    {
+      "path": "packages/tdimagefx.spatial.depth-parallax/1.0.0/tox/tdimagefx_spatial_depth_parallax.tox",
+      "bytes": 2102,
+      "sha256": "e4e175e3ee530f34d4f4cb1ad0c7281078db793e9ea1edbf04002a0ac1d987fe"
+    },
+    {
+      "path": "packages/tdimagefx.stylize.edge-detect/1.0.0/tox/tdimagefx_stylize_edge_detect.tox",
+      "bytes": 2398,
+      "sha256": "e9ff35ea41d79a199eef3edc201802d1d204660a03df25335325b6f9d79d534c"
+    },
+    {
+      "path": "packages/tdimagefx.stylize.emboss/1.0.0/tox/tdimagefx_stylize_emboss.tox",
+      "bytes": 2214,
+      "sha256": "b89ef70dbc7cb2d748b4d0ca0d798550b5896b2835d47e8d40ae7be5d853d138"
+    },
+    {
+      "path": "packages/tdimagefx.stylize.frosted-glass/1.0.0/tox/tdimagefx_stylize_frosted_glass.tox",
+      "bytes": 2478,
+      "sha256": "cb98335b6dadeb7391df1d58937c26021f7ae44a0d546f53d8f870e2c9c9871b"
+    },
+    {
+      "path": "packages/tdimagefx.stylize.halftone/1.0.0/tox/tdimagefx_stylize_halftone.tox",
+      "bytes": 2342,
+      "sha256": "6d54825db2ce6b85dce9bb221646264cc7ece24d39a01e06a9b3a50e9649f531"
+    },
+    {
+      "path": "packages/tdimagefx.stylize.ordered-dither/1.0.0/tox/tdimagefx_stylize_ordered_dither.tox",
+      "bytes": 2182,
+      "sha256": "a2407fcc9a294e45657d86a225745cbd6ce66fded3e51f3b4a04e33a2cd13ac1"
+    },
+    {
+      "path": "packages/tdimagefx.stylize.pixelate/1.0.0/tox/tdimagefx_stylize_pixelate.tox",
+      "bytes": 1606,
+      "sha256": "75525fee13b5baafe5aa27947c991349a43afcbb702ebc01344f14aeb38cf2d8"
+    },
+    {
+      "path": "packages/tdimagefx.stylize.pixelate/1.1.0/tox/tdimagefx_stylize_pixelate.tox",
+      "bytes": 1902,
+      "sha256": "3be1c9abfadcefcff87212c238b070b8a8898000fb8c2badc2c36bec4f882f89"
+    },
+    {
+      "path": "packages/tdimagefx.stylize.scanlines/1.0.0/tox/tdimagefx_stylize_scanlines.tox",
+      "bytes": 1902,
+      "sha256": "ea7916df7daf2a175caf998fbcbc7824cb8fb32c768a872375f1814d6cc9318d"
+    },
+    {
+      "path": "packages/tdimagefx.stylize.scanlines/1.1.0/tox/tdimagefx_stylize_scanlines.tox",
+      "bytes": 2182,
+      "sha256": "8d1ca80369351fcd403650206c1e7ea106a3c8774dac9a76146eb269d5584b34"
+    },
+    {
+      "path": "packages/tdimagefx.stylize.sepia/1.0.0/tox/tdimagefx_stylize_sepia.tox",
+      "bytes": 2102,
+      "sha256": "fd12497257549cea92ebedcb5a8bc4ffc9a58d9cf916fd7e49d6e274e7785eb8"
+    },
+    {
+      "path": "packages/tdimagefx.stylize.vhs/1.0.0/tox/tdimagefx_stylize_vhs.tox",
+      "bytes": 2638,
+      "sha256": "1bca07c253c58e6cf8b049cd35de0642facf287d47e91c014edef3a28cee75ed"
+    },
+    {
+      "path": "packages/tdimagefx.stylize.vignette/1.0.0/tox/tdimagefx_stylize_vignette.tox",
+      "bytes": 1910,
+      "sha256": "c6578d2578352cd9cd877b1bb12aaad399cb03de91bb005a721ae85545cdbfb0"
+    },
+    {
+      "path": "packages/tdimagefx.stylize.vignette/1.1.0/tox/tdimagefx_stylize_vignette.tox",
+      "bytes": 2198,
+      "sha256": "f6a7a4f2e947361bd891c843927c08f7002d584d659e48d8713aa3719d4b3d39"
+    },
+    {
+      "path": "packages/tdimagefx.temporal.echo/1.0.0/tox/tdimagefx_temporal_echo.tox",
+      "bytes": 2142,
+      "sha256": "c4696f96b44017d2522c4b42898e9eeec84aa8682db7076e41e08a22a5f80d8e"
+    },
+    {
+      "path": "packages/tdimagefx.temporal.echo/1.1.0/tox/tdimagefx_temporal_echo.tox",
+      "bytes": 3990,
+      "sha256": "b761393128a32c0dbd368a529a2f3baf13b1620dbcb67a468b6edb00a0276210"
+    },
+    {
+      "path": "packages/tdimagefx.temporal.feedback-kaleidoscope/1.0.0/tox/tdimagefx_temporal_feedback_kaleidoscope.tox",
+      "bytes": 2198,
+      "sha256": "385a36d7c9c05d2f15fa8d483645f6a21a14e13b1d025718d35ee16ef22336a2"
+    },
+    {
+      "path": "packages/tdimagefx.temporal.feedback-kaleidoscope/1.1.0/tox/tdimagefx_temporal_feedback_kaleidoscope.tox",
+      "bytes": 4078,
+      "sha256": "067b971812cfa1ded30b9affcd7e6a2c6241b7a52c9e8fe458186b62735cf124"
+    },
+    {
+      "path": "packages/tdimagefx.temporal.feedback-rotate/1.0.0/tox/tdimagefx_temporal_feedback_rotate.tox",
+      "bytes": 2126,
+      "sha256": "ca5155b415dbcf81ce0ade1928e9794091a2303a06a9231fc8e51ee308848e6e"
+    },
+    {
+      "path": "packages/tdimagefx.temporal.feedback-rotate/1.1.0/tox/tdimagefx_temporal_feedback_rotate.tox",
+      "bytes": 4022,
+      "sha256": "567f2f11a56d1b375a666c9f5ec4cb37e68842d94e1312dc754269539225b7e1"
+    },
+    {
+      "path": "packages/tdimagefx.temporal.feedback-trails/1.0.0/tox/tdimagefx_temporal_feedback_trails.tox",
+      "bytes": 2126,
+      "sha256": "d18dd56d4e17f21b4947de856ea469c6139dfd4de17e1741c53d8e6131f66d67"
+    },
+    {
+      "path": "packages/tdimagefx.temporal.feedback-trails/1.1.0/tox/tdimagefx_temporal_feedback_trails.tox",
+      "bytes": 4006,
+      "sha256": "bcd7885851d20e50f15bfb17066ca56a51f77d863d0ac07bf672d94cc00b6139"
+    },
+    {
+      "path": "packages/tdimagefx.temporal.frame-blend/1.0.0/tox/tdimagefx_temporal_frame_blend.tox",
+      "bytes": 1966,
+      "sha256": "de26add55bc6ca7e061c5c34531662f00f994b55df33740efb6be2bab1a7d5d2"
+    },
+    {
+      "path": "packages/tdimagefx.temporal.frame-blend/1.1.0/tox/tdimagefx_temporal_frame_blend.tox",
+      "bytes": 3726,
+      "sha256": "7ede873112dc623d567502a55daad2552161541a02d3ca8a6439aba5675ce335"
+    },
+    {
+      "path": "packages/tdimagefx.temporal.motion-smear/1.0.0/tox/tdimagefx_temporal_motion_smear.tox",
+      "bytes": 2166,
+      "sha256": "5153692bd939c6fc90ed5b627c8bb54cc997a432942a63c956bf574fa2154544"
+    },
+    {
+      "path": "packages/tdimagefx.temporal.motion-smear/1.1.0/tox/tdimagefx_temporal_motion_smear.tox",
+      "bytes": 4070,
+      "sha256": "1c4bb64d784fcabc224fd23d247793f9837d7f7fd6f095d8397aa5cfab1a6f18"
+    },
+    {
+      "path": "packages/tdimagefx.temporal.recursive-zoom/1.0.0/tox/tdimagefx_temporal_recursive_zoom.tox",
+      "bytes": 2150,
+      "sha256": "a018e948a0b31255b4f6e1b68e3092ec12352482e69a8c11809302d87295cd75"
+    },
+    {
+      "path": "packages/tdimagefx.temporal.recursive-zoom/1.1.0/tox/tdimagefx_temporal_recursive_zoom.tox",
+      "bytes": 4006,
+      "sha256": "59177cfbbf927ef8218114005f1d8d5d28b4dee917d8c73beebb60262cff54cb"
+    },
+    {
+      "path": "packages/tdimagefx.temporal.stutter/1.0.0/tox/tdimagefx_temporal_stutter.tox",
+      "bytes": 1950,
+      "sha256": "7dcb8b321e719fd49ddfe89000422cd3cc5a7678af766cb42cda2e9d73f885cd"
+    },
+    {
+      "path": "packages/tdimagefx.temporal.stutter/1.1.0/tox/tdimagefx_temporal_stutter.tox",
+      "bytes": 3694,
+      "sha256": "ee80729352f7f7e0642db4ce01a5500de32d384f2916e5a8b3e8844ff0c17eff"
+    },
+    {
+      "path": "packages/tdimagefx.temporal.temporal-glitch/1.0.0/tox/tdimagefx_temporal_temporal_glitch.tox",
+      "bytes": 2326,
+      "sha256": "c52ed8694337a98ff338a3fb4f9a9f890fe479b2b6a05b9379770e221e489a96"
+    },
+    {
+      "path": "packages/tdimagefx.temporal.temporal-glitch/1.1.0/tox/tdimagefx_temporal_temporal_glitch.tox",
+      "bytes": 4182,
+      "sha256": "2f12ea61c95a199ba3bdf287d66fadc8caae8e89f7b7c9dcb6bc7e0a901ace36"
+    },
+    {
+      "path": "packages/tdimagefx.temporal.time-displacement/1.0.0/tox/tdimagefx_temporal_time_displacement.tox",
+      "bytes": 2134,
+      "sha256": "883bcc1c91d3f5c7ea4a747451c343dc40b00f08e40945ea54175d6a974c7de4"
+    },
+    {
+      "path": "packages/tdimagefx.temporal.time-displacement/1.1.0/tox/tdimagefx_temporal_time_displacement.tox",
+      "bytes": 3974,
+      "sha256": "fbf0fec09a656af55cac3a5817615f03d40f4b12929468510af113062d9482f9"
+    },
+    {
+      "path": "packages/tdimagefx.transform.corner-pin/1.0.0/tox/tdimagefx_transform_corner_pin.tox",
+      "bytes": 3174,
+      "sha256": "fd1fdab6ad3f5ca159e4c5066bf88758983c2dbd9732be2646008ea7bf9d5561"
+    },
+    {
+      "path": "packages/tdimagefx.transform.crop-feather/1.0.0/tox/tdimagefx_transform_crop_feather.tox",
+      "bytes": 3222,
+      "sha256": "7fe61fd6c63ee1ad14e5c8513fdb5540f844402cda09532d32ffc12de7407880"
+    },
+    {
+      "path": "packages/tdimagefx.transform.fit-fill/1.0.0/tox/tdimagefx_transform_fit_fill.tox",
+      "bytes": 3470,
+      "sha256": "9dc04eb659bd4a8d837de6dbe2369a5d7a38310b9f96ed3054ca34c64e9944f2"
+    },
+    {
+      "path": "packages/tdimagefx.transform.perspective-warp/1.0.0/tox/tdimagefx_transform_perspective_warp.tox",
+      "bytes": 3406,
+      "sha256": "599d4824618e550f455c8336c4869f62b08b190560b69f2d17d79f85f38ceec7"
+    },
+    {
+      "path": "packages/tdimagefx.transform.tile-repeat/1.0.0/tox/tdimagefx_transform_tile_repeat.tox",
+      "bytes": 3366,
+      "sha256": "4fab5ea73631be55ad163104c27fe1490046f8ecfa371d3666d7f661179e386b"
+    },
+    {
+      "path": "packages/tdimagefx.transform.transform-2d/1.0.0/tox/tdimagefx_transform_transform_2d.tox",
+      "bytes": 3598,
+      "sha256": "e9e27b20e2d16b75befc9011a14ee2652b89e768f18b06b54c665f1b37d1bde8"
+    },
+    {
+      "path": "packages/tdimagefx.transition.directional-wipe/1.0.0/tox/tdimagefx_transition_directional_wipe.tox",
+      "bytes": 2246,
+      "sha256": "e5d7d552b76be20a637aa99f28acdd54cbb5b69146a4337a869ded8b55936fec"
+    },
+    {
+      "path": "packages/tdimagefx.transition.luma-wipe/1.0.0/tox/tdimagefx_transition_luma_wipe.tox",
+      "bytes": 2214,
+      "sha256": "18e861828b661a359999c93f59f734a31651a599f6464ad572d41ff7c4de8e90"
+    },
+    {
+      "path": "packages/tdimagefx.transition.noise-dissolve/1.0.0/tox/tdimagefx_transition_noise_dissolve.tox",
+      "bytes": 2006,
+      "sha256": "20d5eaea789cd225f0a8de5feee4dd5f7ae9efcc57eb5adb796620ad6a1ced75"
+    },
+    {
+      "path": "packages/tdimagefx.transition.noise-dissolve/1.1.0/tox/tdimagefx_transition_noise_dissolve.tox",
+      "bytes": 2342,
+      "sha256": "d8371cb18c0c38a5bd53a6afa06a5204d3c2896c680769fe74e5c7e36598f1b4"
+    },
+    {
+      "path": "packages/tdimagefx.transition.radial-wipe/1.0.0/tox/tdimagefx_transition_radial_wipe.tox",
+      "bytes": 2366,
+      "sha256": "525b85ccb23e542b8f74d19824d889df4ed55f19509391acf81fcdf37b461976"
+    }
+  ]
+}

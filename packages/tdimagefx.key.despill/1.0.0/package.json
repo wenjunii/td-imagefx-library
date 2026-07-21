@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "id": "tdimagefx.key.despill",
+  "name": "Despill",
+  "version": "1.0.0",
+  "fx_api": "1.0",
+  "kind": "effect",
+  "category": "key",
+  "channel": "experimental",
+  "description": "Suppresses a configurable screen-color component while retaining perceived luminance.",
+  "publisher": "TD ImageFX Library",
+  "license": "MIT",
+  "entrypoints": {"shader": "shaders/despill.frag", "touchdesigner_component": "tox/tdimagefx_key_despill.tox"},
+  "inputs": [{"id": "image", "family": "TOP", "required": true, "semantic": "source", "description": "Keyed or pre-key foreground containing color spill."}],
+  "outputs": [{"id": "image", "family": "TOP"}],
+  "parameters": [
+    {"id": "enable", "name": "Enable", "label": "Enable", "type": "toggle", "default": true, "description": "Bypass despill when disabled."},
+    {"id": "mix", "name": "Mix", "label": "Mix", "type": "float", "default": 1.0, "min": 0.0, "max": 1.0, "uniform": "uMix", "description": "Blends source and despilled output."},
+    {"id": "key_color", "name": "Keycolor", "label": "Spill Color", "type": "rgba", "default": [0.0, 1.0, 0.0, 1.0], "uniform": "uKeyColor", "description": "Screen color to suppress."},
+    {"id": "amount", "name": "Amount", "label": "Amount", "type": "float", "default": 1.0, "min": 0.0, "max": 2.0, "uniform": "uAmount", "description": "Strength of spill suppression."},
+    {"id": "balance", "name": "Balance", "label": "Neutral Balance", "type": "float", "default": 1.0, "min": 0.0, "max": 2.0, "uniform": "uBalance", "description": "Amount of neutral luminance tolerated before suppression."},
+    {"id": "restore_luma", "name": "Restoreluma", "label": "Restore Luma", "type": "float", "default": 1.0, "min": 0.0, "max": 1.0, "uniform": "uRestoreLuma", "description": "Restores source luminance after color suppression."}
+  ],
+  "compatibility": {"touchdesigner_min_build": 2025.3, "touchdesigner_max_build": null, "os": ["windows", "macos"], "architectures": ["x86_64", "arm64"]},
+  "permissions": {"python": false, "filesystem": false, "network": false, "subprocess": false},
+  "dependencies": [],
+  "alpha_policy": "preserve",
+  "resolution_policy": "input",
+  "stateful": false,
+  "image_contract": {
+    "color": {"input_space": "source", "working_space": "project", "output_space": "source", "reference": "display_referred"},
+    "alpha": {"input": "any", "working": "any", "output": "any"},
+    "pixel_format": {"policy": "inherit"},
+    "sampling": {"filter": "linear", "edge": "clamp", "mipmaps": false}
+  },
+  "determinism": {"mode": "deterministic"},
+  "provenance": {"origin": "original", "source": {"type": "original"}},
+  "tags": ["key", "despill", "green-screen", "blue-screen", "color"],
+  "processing": {"model": "single_pass", "gpu_cost": "low", "capabilities": [], "passes": ["shaders/despill.frag"], "history_frames": 0}
+}

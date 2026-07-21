@@ -1,0 +1,21 @@
+# Copy this file to .codex/config.toml and replace every placeholder with an
+# absolute local path. The local config is ignored because these paths are
+# machine-specific.
+
+[mcp_servers.td-knowledge]
+command = 'C:\ABSOLUTE\PATH\TO\td-ai-assistant\venv\Scripts\python.exe'
+args = [
+  "-u",
+  'C:\ABSOLUTE\PATH\TO\td-knowledge-mcp\td_knowledge_mcp.py',
+  "--port",
+  "9870",
+  "--envoy-config",
+  'C:\ABSOLUTE\PATH\TO\td-imagefx-library\integrations\embody\local\.embody\envoy.json',
+  "--faiss-db",
+  'C:\ABSOLUTE\PATH\TO\td-ai-assistant\faiss_db',
+  "--project-context",
+  'C:\ABSOLUTE\PATH\TO\td-imagefx-library\integrations\embody\project-context.json',
+  "--max-concurrent-queries",
+  "4",
+]
+startup_timeout_sec = 120

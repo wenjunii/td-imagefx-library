@@ -25,6 +25,9 @@ downloads/
 staging/
 quarantine/
 
+# Local Embody/Envoy QA project and generated assistant configuration
+integrations/embody/local/
+
 # Credentials and local secrets
 .env
 .env.*
@@ -33,8 +36,19 @@ quarantine/
 *.key
 *.p12
 *.pfx
+*.jks
+*.kdbx
+*.keystore
+*.ovpn
 *credentials*.json
 *secrets*.json
+.netrc
+.npmrc
+.pypirc
+id_dsa
+id_ecdsa
+id_ed25519
+id_rsa
 
 # TouchDesigner numbered saves, crash recovery, and temporary files
 *.[0-9].toe
@@ -58,3 +72,14 @@ quarantine/
 .DS_Store
 Thumbs.db
 Desktop.ini
+
+# Embody / Envoy (auto-managed)
+Backup/
+logs/
+CrashAutoSave*
+.mcp.json
+.codex/config.toml
+.embody/*
+!.embody/project.json
+.claude/settings.local.json
+.claude/projects/

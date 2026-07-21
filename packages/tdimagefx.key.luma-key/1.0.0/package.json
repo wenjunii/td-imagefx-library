@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "id": "tdimagefx.key.luma-key",
+  "name": "Luma Key",
+  "version": "1.0.0",
+  "fx_api": "1.0",
+  "kind": "effect",
+  "category": "key",
+  "channel": "experimental",
+  "description": "Creates alpha from luminance with high-key, low-key, softness, and inversion controls.",
+  "publisher": "TD ImageFX Library",
+  "license": "MIT",
+  "entrypoints": {"shader": "shaders/luma_key.frag", "touchdesigner_component": "tox/tdimagefx_key_luma_key.tox"},
+  "inputs": [{"id": "image", "family": "TOP", "required": true, "semantic": "source", "description": "Image used to derive luminance and output color."}],
+  "outputs": [{"id": "image", "family": "TOP"}],
+  "parameters": [
+    {"id": "enable", "name": "Enable", "label": "Enable", "type": "toggle", "default": true, "description": "Bypass the key when disabled."},
+    {"id": "mix", "name": "Mix", "label": "Mix", "type": "float", "default": 1.0, "min": 0.0, "max": 1.0, "uniform": "uMix", "description": "Blends source and keyed alpha."},
+    {"id": "threshold", "name": "Threshold", "label": "Threshold", "type": "float", "default": 0.5, "min": -1.0, "max": 4.0, "uniform": "uThreshold", "description": "Luminance around which the matte transitions."},
+    {"id": "softness", "name": "Softness", "label": "Softness", "type": "float", "default": 0.1, "min": 0.0001, "max": 2.0, "uniform": "uSoftness", "description": "Width of the matte transition."},
+    {"id": "low_key", "name": "Lowkey", "label": "Keep Dark Values", "type": "toggle", "default": false, "uniform": "uLowKey", "description": "Keeps pixels below the threshold instead of above it."},
+    {"id": "invert", "name": "Invert", "label": "Invert", "type": "toggle", "default": false, "uniform": "uInvert", "description": "Inverts the resulting matte."}
+  ],
+  "compatibility": {"touchdesigner_min_build": 2025.3, "touchdesigner_max_build": null, "os": ["windows", "macos"], "architectures": ["x86_64", "arm64"]},
+  "permissions": {"python": false, "filesystem": false, "network": false, "subprocess": false},
+  "dependencies": [],
+  "alpha_policy": "process",
+  "resolution_policy": "input",
+  "stateful": false,
+  "image_contract": {
+    "color": {"input_space": "source", "working_space": "project", "output_space": "source", "reference": "display_referred"},
+    "alpha": {"input": "any", "working": "any", "output": "any"},
+    "pixel_format": {"policy": "inherit"},
+    "sampling": {"filter": "linear", "edge": "clamp", "mipmaps": false}
+  },
+  "determinism": {"mode": "deterministic"},
+  "provenance": {"origin": "original", "source": {"type": "original"}},
+  "tags": ["key", "luma", "matte", "alpha", "threshold"],
+  "processing": {"model": "single_pass", "gpu_cost": "low", "capabilities": [], "passes": ["shaders/luma_key.frag"], "history_frames": 0}
+}

@@ -1,0 +1,186 @@
+{
+  "schema_version": 1,
+  "id": "tdimagefx.simulation.fluid-ink",
+  "name": "Fluid Ink",
+  "version": "1.1.0",
+  "fx_api": "1.0",
+  "kind": "effect",
+  "category": "simulation",
+  "channel": "experimental",
+  "description": "Advects accumulated color through a procedural curl field with source-driven ink injection.",
+  "publisher": "TD ImageFX Library",
+  "license": "MIT",
+  "entrypoints": {
+    "shader": "shaders/fluid_ink.frag",
+    "touchdesigner_component": "tox/tdimagefx_simulation_fluid_ink.tox"
+  },
+  "inputs": [
+    {
+      "id": "image",
+      "family": "TOP",
+      "required": true,
+      "semantic": "source",
+      "role": "source_image",
+      "description": "Current source image. Its alpha is preserved by the display pass."
+    }
+  ],
+  "outputs": [
+    {
+      "id": "image",
+      "family": "TOP",
+      "role": "image",
+      "description": "Rendered effect image; private temporal state is never exposed here."
+    }
+  ],
+  "parameters": [
+    {
+      "id": "enable",
+      "name": "Enable",
+      "type": "toggle",
+      "default": true
+    },
+    {
+      "id": "mix",
+      "name": "Mix",
+      "type": "float",
+      "default": 1.0,
+      "min": 0.0,
+      "max": 1.0,
+      "uniform": "uMix"
+    },
+    {
+      "id": "reset",
+      "name": "Reset",
+      "label": "Reset State",
+      "type": "pulse",
+      "default": false,
+      "description": "Clears private state and reseeds it from the current source image.",
+      "animatable": false
+    },
+    {
+      "id": "advection",
+      "name": "Advection",
+      "type": "float",
+      "default": 0.01,
+      "min": 0,
+      "max": 0.1,
+      "uniform": "uAdvection"
+    },
+    {
+      "id": "decay",
+      "name": "Decay",
+      "type": "float",
+      "default": 0.985,
+      "min": 0,
+      "max": 1,
+      "uniform": "uDecay"
+    },
+    {
+      "id": "injection",
+      "name": "Injection",
+      "type": "float",
+      "default": 0.65,
+      "min": 0,
+      "max": 2,
+      "uniform": "uInjection"
+    },
+    {
+      "id": "phase",
+      "name": "Phase",
+      "type": "float",
+      "default": 0,
+      "min": 0,
+      "max": 1000,
+      "uniform": "uPhase"
+    }
+  ],
+  "compatibility": {
+    "touchdesigner_min_build": 2022.2,
+    "touchdesigner_max_build": null,
+    "os": [
+      "windows",
+      "macos"
+    ],
+    "architectures": [
+      "x86_64",
+      "arm64"
+    ]
+  },
+  "permissions": {
+    "python": false,
+    "filesystem": false,
+    "network": false,
+    "subprocess": false
+  },
+  "dependencies": [],
+  "alpha_policy": "preserve",
+  "resolution_policy": "input",
+  "stateful": true,
+  "tags": [
+    "fluid",
+    "ink",
+    "advection",
+    "simulation"
+  ],
+  "processing": {
+    "model": "simulation",
+    "gpu_cost": "high",
+    "capabilities": [
+      "history",
+      "simulation"
+    ],
+    "passes": [
+      "shaders/fluid_ink.frag",
+      "shaders/render.frag"
+    ],
+    "history_frames": 1,
+    "state_pass": "shaders/fluid_ink.frag",
+    "render_pass": "shaders/render.frag"
+  },
+  "image_contract": {
+    "color": {
+      "input_space": "project",
+      "working_space": "project",
+      "output_space": "project",
+      "reference": "scene_referred"
+    },
+    "alpha": {
+      "input": "any",
+      "working": "any",
+      "output": "any"
+    },
+    "pixel_format": {
+      "policy": "inherit"
+    },
+    "sampling": {
+      "filter": "linear",
+      "edge": "clamp",
+      "mipmaps": false
+    }
+  },
+  "determinism": {
+    "mode": "deterministic",
+    "fixed_timestep": 1.0
+  },
+  "temporal": {
+    "reset": {
+      "strategy": "pulse_parameter",
+      "parameter": "reset",
+      "clears": "simulation_state",
+      "on_resolution_change": true,
+      "on_input_change": false
+    },
+    "warmup_frames": 2
+  },
+  "provenance": {
+    "origin": "original",
+    "source": {
+      "type": "original",
+      "author": "TD ImageFX Library",
+      "license": "MIT"
+    },
+    "known_limitations": [
+      "The procedural flow is an artistic advection approximation, not a pressure-projected fluid solver."
+    ]
+  }
+}

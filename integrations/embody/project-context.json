@@ -1,0 +1,157 @@
+{
+  "schema_version": 1,
+  "project_id": "td-imagefx-library",
+  "overview": {
+    "title": "TD ImageFX Library",
+    "library_version": "0.3.0",
+    "touchdesigner_version": "2025",
+    "validated_touchdesigner_build": "2025.32820",
+    "canonical_project_file": "TD_ImageFX_Library.toe",
+    "development_harness_file": "integrations/embody/local/TD_ImageFX_DevHarness.toe",
+    "source_of_truth": [
+      "packages/",
+      "schemas/",
+      "src/tdimagefx/",
+      "touchdesigner/extensions/",
+      "touchdesigner/scripts/build_project.py"
+    ],
+    "catalog": {
+      "current_effect_ids": 96,
+      "immutable_package_versions": 122,
+      "categories": 18
+    }
+  },
+  "network": {
+    "project_container": "/project1",
+    "identity_operators": [
+      "/project1/td_imagefx",
+      "/project1/imagefx_demo"
+    ],
+    "library": "/project1/td_imagefx",
+    "demo": "/project1/imagefx_demo",
+    "browser": "/project1/td_imagefx/core/fx_browser",
+    "rack": "/project1/td_imagefx/core/fx_rack",
+    "particles": "/project1/td_imagefx/core/particle_random_move",
+    "ink_flow": "/project1/td_imagefx/core/ink_flow_fusion",
+    "glitch": "/project1/td_imagefx/core/glitch_fusion",
+    "update_manager": "/project1/td_imagefx/update_manager",
+    "approved_read_scope": [
+      "/project1/td_imagefx",
+      "/project1/imagefx_demo"
+    ],
+    "experimental_write_scope": "/project1/imagefx_sandbox",
+    "builder_owned_top_level_operators": [
+      "td_imagefx",
+      "imagefx_demo"
+    ]
+  },
+  "outputs": {
+    "primary_demo": "/project1/imagefx_demo/out1_image",
+    "resolution_control": {
+      "operator": "/project1/imagefx_demo",
+      "parameter_page": "Output",
+      "default": "1920x1080",
+      "presets": [
+        "1920x1080",
+        "3840x2160",
+        "custom"
+      ],
+      "custom_minimum": 16,
+      "custom_maximum": 8192
+    },
+    "ink_flow": "/project1/imagefx_demo/ink_flow/out1_ink_flow",
+    "particles": "/project1/imagefx_demo/particle_random_move/out1_particles",
+    "glitch": "/project1/imagefx_demo/glitch_fusion/out1_glitch",
+    "rack": "/project1/imagefx_demo/fx_rack/out1_image",
+    "browser_preview": "/project1/td_imagefx/core/fx_browser/selected_preview",
+    "visual_failure_signals": [
+      "black frame",
+      "fully transparent frame",
+      "missing TOP",
+      "resolution smaller than 2 by 2",
+      "GLSL compile error",
+      "operator error or script error"
+    ]
+  },
+  "workflows": {
+    "knowledge_first": [
+      "Call get_td_project_context before live project work.",
+      "Call query_td_knowledge before writing TouchDesigner Python, GLSL, or creating operators.",
+      "Discover the live root with query_network before assuming the configured paths are loaded."
+    ],
+    "canonical_native_build": [
+      "Run touchdesigner/scripts/build_project.py only in a blank disposable TouchDesigner project.",
+      "Inspect build/touchdesigner-build-report.json for builder, shader, and preview errors.",
+      "Run tools/record_native_validation.py only after reviewing the native build.",
+      "Run tools/verify_repository.py after generated files are synchronized."
+    ],
+    "development_harness": [
+      "Save a separate local project as integrations/embody/local/TD_ImageFX_DevHarness.toe.",
+      "Install Embody in that local project and enable Envoy on 127.0.0.1.",
+      "Run touchdesigner/scripts/install_dev_harness.py to load the tracked core components.",
+      "Do not run the canonical native builder in the Embody harness."
+    ],
+    "live_audit": [
+      "Record baseline project performance.",
+      "Run HealthCheck on /project1/td_imagefx.",
+      "Inspect recursive errors and warnings on the library and demo.",
+      "Capture and assess every approved output.",
+      "Record final project performance and investigate regressions."
+    ]
+  },
+  "safety": {
+    "default_live_mode": "read-only inspection",
+    "protected_repository_paths": [
+      "TD_ImageFX_Library.toe",
+      "packages/",
+      "touchdesigner/core/",
+      "docs/native-validation.json",
+      "docs/gallery-baselines.json"
+    ],
+    "prohibited_actions": [
+      "Do not save the Embody harness over TD_ImageFX_Library.toe.",
+      "Do not place Embody inside the canonical builder project.",
+      "Do not externalize or rewrite immutable package .tox versions.",
+      "Do not approve changed visual baselines without human visual review.",
+      "Do not download, install, activate, or execute update candidates during an automatic check."
+    ],
+    "mutation_policy": [
+      "Use Envoy mutations only after explicit authorization.",
+      "Claim the intended scope before a multi-session write.",
+      "Keep experiments under /project1/imagefx_sandbox or in a disposable harness.",
+      "Use one undoable batch for related changes and check errors immediately afterward."
+    ],
+    "local_only_paths": [
+      "integrations/embody/local/",
+      "build/envoy-validation/"
+    ]
+  },
+  "validation": {
+    "required_health": {
+      "ok": true,
+      "package_count": 96,
+      "package_version_count": 122,
+      "missing_entrypoints": []
+    },
+    "order": [
+      "Confirm the live TouchDesigner build and selected Envoy instance.",
+      "Confirm the ImageFX project context is configured.",
+      "Discover and inspect the two managed roots.",
+      "Run the library health check.",
+      "Check recursive operator errors, warnings, and script errors.",
+      "Capture demo, rack, and browser preview TOPs with quality assessment.",
+      "Compare performance with the baseline.",
+      "Run the offline repository verifier."
+    ],
+    "pass_criteria": [
+      "TouchDesigner build is 2025.32820 or a deliberately qualified newer build.",
+      "HealthCheck reports 96 current packages and 122 immutable versions with no missing entrypoints.",
+      "Managed roots report no operator, warning, or script messages.",
+      "All six approved TOPs exist, cook, have usable resolution, and are neither black nor fully transparent.",
+      "The primary demo output matches its selected HD, 4K UHD, or custom resolution.",
+      "No unexplained frame drops, memory spike, or material frame-time regression is introduced.",
+      "python tools/verify_repository.py passes."
+    ],
+    "report_file": "build/envoy-validation/live-project.json"
+  }
+}

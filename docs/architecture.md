@@ -1,148 +1,220 @@
 # Architecture
 
-TD ImageFX Library separates reusable visual content from discovery, installation state, and project decisions. That separation is the main safeguard against an update changing a finished TouchDesigner project.
+TD ImageFX Library separates visual content, runtime adaptation, discovery, installed state, and project decisions. That separation is the primary safeguard against an update changing a finished TouchDesigner show.
 
 ## Design principles
 
 1. **Packages are immutable.** A published `<package-id>/<version>` is never edited in place.
 2. **Identity is stable.** IDs use `tdimagefx.<category>.<effect>` and versions use Semantic Versioning.
-3. **Contracts are explicit.** Manifest schema version, effect API version, inputs, parameters, processing model, capabilities, assets, dependencies, and compatibility are machine-readable.
-4. **Discovery is not execution.** A new feed entry can be displayed without downloading, installing, activating, or evaluating it.
-5. **Projects decide.** The installed registry describes what is available; a project lock describes exactly what that project uses.
-6. **TouchDesigner remains the renderer.** The library organizes effects and builds/integrates components; image cooking and shader compilation remain visible in TouchDesigner.
-7. **Failure is reversible.** Staging, activation records, side-by-side versions, and rollback preserve the last known-good state.
+3. **Contracts are explicit.** Inputs, image behavior, determinism, state, processing, provenance, assets, permissions, and compatibility are machine-readable.
+4. **Discovery is not execution.** A feed entry can be displayed without downloading, installing, activating, or evaluating it.
+5. **Projects decide.** The installed registry describes availability; an exact project lock describes production selection.
+6. **TouchDesigner remains the renderer.** The library builds and connects operators, while shader compilation, image cooking, diagnostics, and GPU behavior remain visible in TouchDesigner.
+7. **Failure is reversible.** Staging, side-by-side versions, activation records, and rollback preserve a last-known-good state.
 
-## Layers
+## System layers
 
 ```mermaid
 flowchart LR
-    A["Curated feeds and local packages"] --> B["Manifest and schema validation"]
+    A["Curated feeds and local packages"] --> B["Manifest/schema validation"]
     B --> C["Compatibility and trust checks"]
     C --> D["Installed registry"]
-    D --> E["Project lock resolver"]
-    E --> F["TouchDesigner package/component adapter"]
-    F --> G["FX instance"]
-    F --> J["Searchable browser"]
-    F --> K["Eight-slot rack"]
-    K --> G
-    H["Updater state"] --> C
-    I["Project lockfile"] --> E
+    D --> E["Exact project lock resolver"]
+    E --> F["TouchDesigner adapter"]
+    F --> G["Lazy effect instance"]
+    F --> H["Searchable browser"]
+    F --> I["Eight-slot rack"]
+    J["Updater status"] --> C
+    K["Project lockfile"] --> E
 ```
 
 ### Package layer
 
-`packages/<package-id>/<version>/` holds one immutable package. `package.json` is its entry point. Assets may include GLSL, Python, component source, presets, previews, examples, license text, or platform-specific plugin payloads, but every shipped asset must be declared by the manifest and covered by the package digest policy.
+`packages/<package-id>/<version>/` holds one immutable package. `package.json` is its entry point. Declared assets may include GLSL, component source, presets, examples, previews, license text, or future platform-specific payloads. Undeclared executable assets do not become trusted merely because they are present in a directory.
 
-The v0.2.0 namespace contains 66 GLSL effect IDs and 78 immutable version directories/manifests. The twelve original v0.1 effects remain at `1.0.0` beside upgraded `1.1.0` versions; the other current effects have one version each. Catalog, browser, rack, native-build, gallery, and benchmark views select the highest version for each ID, but an exact old version remains addressable by a version-aware lookup or project lock.
+The v0.3 source namespace contains **96 current effect IDs and 122 immutable version directories**. The 26 additional historical versions come from the twelve original v0.1 effects and the fourteen stateful effects that retain older packages beside their current `1.1.0` versions. Latest-version views contain:
 
-The current 66-version view contains forty single-pass, twelve multi-pass, ten temporal, and four simulation packages across 13 user-facing categories. Future adapter packages use the same lifecycle but may require stronger activation rules for Python, network access, native plugins, or external runtimes.
+| Processing model | Count |
+| --- | ---: |
+| `single_pass` | 68 |
+| `multi_pass` | 14 |
+| `temporal` | 10 |
+| `simulation` | 4 |
+| `adapter` | 0 |
+
+The 96 current effects span 18 user-facing categories. Category describes the creative result; processing model describes graph shape. Neither is a trust level or performance guarantee.
 
 ### Contract layer
 
-`schemas/` defines the machine-readable boundaries for package manifests, feeds, installed state, and project locks. There are three independent compatibility axes:
+`schemas/` defines package, feed, installed-state, and project-lock boundaries. Three compatibility axes remain independent:
 
-- `schema_version` controls how metadata is parsed. The v0.2.0 value remains integer `1`.
-- `fx_api` controls whether a TouchDesigner adapter can expose and drive the effect. The v0.2.0 value remains `1.0`.
-- Package `version` controls changes to the package itself and follows SemVer.
+- `schema_version` controls metadata parsing and remains integer `1` in v0.3.
+- `fx_api` controls adapter compatibility and remains `1.0`.
+- Package `version` controls changes to one package and follows SemVer.
 
-A parser must reject unsupported schema versions. An adapter must refuse incompatible effect API versions. A resolver may retain several SemVer versions of one package simultaneously.
+Schema-v1 additions are optional so immutable legacy packages remain readable. Absence means **legacy/unasserted**, not an inferred production promise. New v0.3 packages and all 14 stateful upgrades use the richer contracts.
 
-All 66 current v0.2 manifests declare a `processing` object. The twelve immutable `1.0.0` history manifests predate it. For schema-v1 backward compatibility with those and compatible external older packages, the loader treats an omitted object as `single_pass`, `low`, no capabilities, and zero history:
+#### Ports and routing
 
-| Field | Meaning |
+Input roles distinguish `source_image`, `second_image`, `auxiliary_image`, `transition_image`, `mask`, `depth`, `normal`, `flow`, `displacement`, and non-image control/data roles. Output roles distinguish `image`, `mask`, `state`, and `data`. Capabilities must agree with roles: for example, a `depth` input requires the `depth` capability, and a `second_image` requires `second_input`.
+
+The rack maps image inputs to seven runtime paths:
+
+```mermaid
+flowchart LR
+    A["Primary image"] --> S["Selected rack slot"]
+    B["Second image"] --> S
+    C["Displacement"] --> S
+    D["Depth"] --> S
+    E["Normal"] --> S
+    F["Flow"] --> S
+    G["Mask"] --> S
+    S --> O["Canonical image output"]
+```
+
+Unknown or unsupported auxiliary roles fail with a diagnostic instead of being silently wired to the wrong texture.
+
+#### Image contract
+
+`image_contract` can declare:
+
+| Section | Meaning |
 | --- | --- |
-| `model` | `single_pass`, `multi_pass`, `temporal`, `simulation`, or future `adapter` execution |
-| `gpu_cost` | Relative `low`, `medium`, `high`, or `extreme` authoring hint |
-| `capabilities` | Routing/security facts such as history, second input, transition, displacement, depth, normal, flow, simulation, audio, native code, network, or Python |
-| `passes` | Ordered package-relative shader paths; at least two for `multi_pass` |
-| `history_frames` | Retained frame count; at least one for temporal/simulation processing |
+| `color` | Input, working, and output spaces plus scene/display/data reference |
+| `alpha` | Straight, premultiplied, opaque, none, or any representation at each stage |
+| `pixel_format` | Inherit, minimum, preferred, or fixed format policy |
+| `sampling` | Filter, edge behavior, mipmap use, and optional border color |
 
-Models describe graph structure; capabilities describe what the graph needs. Neither replaces runtime compatibility testing or measured performance data.
+The validator cross-checks image metadata with top-level alpha policy. For example, a premultiplying effect must declare a premultiplied output.
+
+#### Processing and state contract
+
+Every current effect declares `processing.model`, relative `gpu_cost`, capabilities, ordered pass paths, and history requirements. v0.3 adds optional `pass_scale`, `iterations`, and exactly-one-default `quality_tiers`. No current v0.3 package publishes quality tiers yet; the contract exists for future implementations and must not be presented as measured performance.
+
+Temporal and simulation packages can additionally declare:
+
+- separate `state_pass` and `render_pass` paths;
+- deterministic/fixed-step, seeded, time-dependent, external, or nondeterministic behavior;
+- a pulse/toggle/automatic/unsupported reset strategy and reset target;
+- reset behavior on resolution/input changes;
+- warmup frames.
+
+All 14 current stateful packages use separate private state and public render passes. The adapter stores the private state target in feedback/history, while only the render pass reaches the canonical display output. Reset clears all declared history nodes and can fall back to legacy private reset controls.
+
+#### Provenance contract
+
+`provenance` records whether content is original, adapted, ported, generated, or third-party; identifies source type, URL/revision/author/license when applicable; and may declare package-contained changelogs, examples, presets, and known limitations. Adapted, ported, and third-party content requires a source URL. Provenance does not replace license review.
 
 ### Core Python layer
 
-`src/tdimagefx/` owns data and lifecycle logic that can be tested independently of a `.toe` project:
+`src/tdimagefx/` owns lifecycle logic that remains testable outside TouchDesigner:
 
 | Module | Responsibility |
 | --- | --- |
 | `semver` | Parse and compare package versions and constraints |
-| `manifest` | Load and validate package metadata |
-| `registry` | Discover installed packages without conflating them with active project choices |
+| `manifest` | Load and validate package metadata and cross-field contracts |
+| `registry` | Discover installed packages without changing project selection |
 | `compatibility` | Evaluate TouchDesigner, OS, architecture, GPU/API, dependency, and effect API requirements |
-| `lockfile` | Resolve and persist exact project versions and digests |
-| `feed` | Read update indexes and select channel-appropriate candidates |
-| `archive` | Verify and safely stage distributable archives |
+| `lockfile` | Resolve and persist exact versions and digests |
+| `feed` | Validate update indexes and select channel-appropriate candidates |
+| `archive` | Verify identity/digests and safely stage archives |
 | `state` | Persist installed, pending, active, and rollback state |
-| `cli` | Expose the same core operations outside TouchDesigner |
+| `cli` | Expose core operations outside TouchDesigner |
 
-Core modules must not import TouchDesigner's `td` module. This keeps schema, feed, archive, and lock behavior testable in ordinary Python and prevents updater logic from being coupled to a live show file.
+Core modules do not import TouchDesigner's `td` module. This keeps schema, feed, archive, release, and lock behavior testable on Windows, macOS, and Linux.
 
 ### TouchDesigner adapter layer
 
-`touchdesigner/` translates a validated package into TouchDesigner operators and parameters. Its responsibilities are deliberately narrow:
+`touchdesigner/` translates validated packages into operators and parameters. It is responsible for:
 
-- create or load a Base COMP for an effect;
-- connect image, mask, and auxiliary TOP inputs according to the manifest;
-- construct declared single-pass/multi-pass shader chains and temporal/simulation feedback paths;
-- create custom parameters from declared parameter metadata;
-- bind parameters to GLSL uniforms or native nodes;
-- expose one canonical TOP output;
-- report shader compile errors and compatibility failures;
-- attach package identity, version, digest, and lock status to the instance;
-- preserve instance parameter values during a compatible, explicitly approved migration.
+- creating or lazily loading a Base COMP for an exact package version;
+- connecting primary and semantic auxiliary TOP inputs;
+- constructing single-pass, multi-pass, temporal, and simulation graphs;
+- allocating retained history, including histories longer than one frame;
+- keeping state and render targets separate;
+- creating parameters and binding shader uniforms;
+- exposing one canonical TOP output and actionable shader diagnostics;
+- attaching identity, version, contract, and compatibility metadata.
 
-It does not decide that an update is trustworthy and does not rewrite a project lock on its own.
+It does not decide that a package is trustworthy, publish an update, or rewrite a project lock.
 
 ### Presentation layer
 
-The shipped browser and eight-slot FX Rack consume the catalog without becoming package truth. The browser provides case-insensitive search, category/tag filters, JSON-backed favorites, compatibility/model/GPU-cost columns, and creation into an explicitly selected target COMP. The rack provides ordered slots, effect selection, enable/mix, shared time, reordering, per-slot and global bypass, reset/reload, validated presets, and sine/triangle/saw mix modulation.
+The browser and rack consume catalog data without becoming package truth.
 
-Browser favorites and rack presets are project/UI state. Both interfaces default to the latest version of each of the 66 effect IDs. A preset records exact package versions and parameters for reconstruction, so a retained historical version can still be requested, but it does not install packages, approve an update, or rewrite the project lock. Both interfaces can be rebuilt from manifests, installed state, and a lock.
+The browser supports text/category/tag/favorite filters plus channel, model, capability, input readiness, available-input, and sort controls. Its selected-effect view reports parameters, image contract, compatibility confidence, quality metadata, required buses, and preview path. Catalog components are loaded lazily.
 
-### Authoring and generated-artifact layer
+The rack provides eight ordered slots; enable/mix/bypass; reset/reload; validated presets; modulation; automatic or manual time; and semantic second-image/displacement/depth/normal/flow/mask routing. Presets are UI/project state. They can retain exact versions but do not install packages, approve updates, or replace the project lock.
 
-The source-first toolchain keeps reviewable inputs separate from generated native and documentation artifacts:
+`InkFlowFusion.tox`, `ParticleRandomMove.tox`, and `GlitchFusion.tox` are
+separate reusable core modules rather than immutable effect packages. Ink Flow
+Fusion combines two single-pass minimal Chinese ink treatments with an
+optional seeded water-current particle composite. Its whole module, visual
+treatment, and particle layer each have explicit bypass controls. Particle
+Random Move converts an image into deterministic seeded random-moving
+particles on the GPU and returns its input unchanged when disabled. Glitch
+Fusion provides 24 bounded single-pass corruption styles with shared timing,
+geometry, signal, color, seed, mix, and master-bypass controls. None of these
+modules retains feedback state.
 
-1. `tools/new_effect.py` creates a non-overwriting manifest/shader scaffold for a declared processing model.
-2. `touchdesigner/scripts/build_project.py` runs inside TouchDesigner, validates all 78 immutable manifests, selects and rebuilds only the latest version of each of 66 effect IDs, preserves historical `.tox` files, writes four core `.tox` files and `TD_ImageFX_Library.toe`, renders latest-version preview PNGs, and captures runtime benchmark data.
-3. `tools/build_gallery.py`, `tools/check_gallery.py`, and `tools/benchmark_report.py` render/check derived documentation for the latest 66 versions.
-4. `tools/verify_repository.py` checks all 78 manifests and native entrypoints, plus latest-version gallery baselines, benchmark coverage, and version consistency.
-5. `tools/package_release.py` validates the stored version set, then stages only the latest 66 versions as deterministic ZIPs and release-feed metadata under `dist/`. Each ZIP includes `LICENSE`, `THIRD_PARTY_NOTICES.md`, the manifest, and declared package assets; feed manifest URLs are pinned to the supplied release tag. Publication and activation remain separate actions.
+The canonical demo routes source -> ink-flow module -> random-particle module
+-> Glitch Fusion -> rack, then uses an explicit final switch for the rack. The
+four demo-level bypasses and the two feature switches inside Ink Flow Fusion
+allow every stage to be used independently or combined without rewiring.
+
+The demo owns a separate delivery-resolution contract. Its Output page selects
+HD 1920 x 1080 by default, 4K UHD 3840 x 2160, or bounded custom dimensions.
+The generated source and final Out TOP bind to that target, while replacement
+source TOPs may retain their native working resolution until the final resize.
+Resolution selection is project state, not package metadata.
+
+### Update and release layer
+
+The TouchDesigner updater is notification-only. It reads explicitly configured HTTPS or local feeds off the cook path, rejects duplicate JSON keys and oversized responses, binds source configuration to the feed ID and optional digest, applies channel hierarchy and runtime compatibility, reconciles cross-feed package collisions by exact project-lock source or configured trust, and reports one candidate per package with installed and locked context. It never downloads or activates a candidate.
+
+`tools/package_release.py` builds a release transaction in a sibling staging directory. It validates all immutable versions, selects the latest 96, confines paths, emits deterministic ZIPs and the mixed-maturity `tdimagefx.github.catalog` feed, can bind the release tag to the source commit, and writes `release-provenance.json` plus `SHA256SUMS`. Only a complete transaction is exposed. Publication remains a separate human-controlled action.
+
+## Source and generated artifacts
+
+The source-first lifecycle is:
+
+1. `tools/new_effect.py` creates a non-overwriting package scaffold with v0.3 contracts.
+2. Authors review manifest, GLSL, provenance, limitations, inputs, and defaults.
+3. `touchdesigner/scripts/build_project.py` runs inside TouchDesigner to validate all 122 manifests, select the latest 96, build native components/project, compile shaders, render previews, and capture benchmark samples.
+4. Authors inspect the native build report and visual output, then record the approved environment and native-artifact hashes with `tools/record_native_validation.py`.
+5. Gallery/baseline/benchmark tools regenerate and check derived documentation.
+6. `tools/verify_repository.py` enforces counts, contracts, assets, native entrypoints, generated coverage, tests, feeds, and version consistency.
+7. Release preparation produces a deterministic, reviewable, tag-pinned transaction.
+
+For reproducibility, stateful gallery previews use a temporary static unroll of the declared state pass from controlled reset/prior-frame fixtures. This preview harness is deleted after capture and does not replace the black reset seed or live Feedback TOP graph stored in each versioned component.
+
+The source catalog may be ahead of generated `.tox`, `.toe`, preview, baseline, and benchmark artifacts during development. That state is intentionally non-releasable: verification must fail until generated outputs are rebuilt and reviewed. The checked-in v0.3 source and generated artifacts are synchronized; the recorded TouchDesigner `2025.32820` build validates all 96 current effects and reports zero shader, preview, or builder errors.
 
 ## State boundaries
 
 | State | Meaning | Mutability |
 | --- | --- | --- |
 | Source package | Published content at an exact version | Immutable |
-| Installed registry | Packages verified and present on this machine | Mutable machine state |
-| Pending activation | Verified candidate awaiting approval or restart | Mutable machine state |
-| Active selection | Package currently selected by the resolver | Mutable, auditable |
-| Project lock | Exact package versions and digests required by one project | Changes only through explicit project migration |
-| Instance state | Effect parameters, modulation links, presets, bypass/mix | Owned by the `.toe` project |
+| Installed registry | Verified packages available on a machine | Mutable machine state |
+| Pending activation | Verified candidate awaiting approval/restart | Mutable machine state |
+| Active selection | Version currently selected by a resolver | Mutable and auditable |
+| Project lock | Exact versions and digests required by one project | Explicit migration only |
+| Instance state | Parameters, modulation, presets, bypass/mix/manual time | Owned by the `.toe` project |
 
-Do not store all six concepts in one JSON file. In particular, discovering or installing a newer package must not alter the project lock.
+Discovery, installation, activation, project migration, and instance state must not collapse into one file or one implicit transition.
 
-## Package resolution
+## Resolution and failure behavior
 
 Resolution follows this order:
 
-1. Read the project lock if one exists.
-2. Require the exact locked version and digest.
-3. If it is installed and compatible, activate it.
-4. If it is missing, report a reproducible missing-package error and offer to retrieve that exact artifact.
-5. If no lock exists, resolve only from an explicitly selected channel and produce a lock before the project is treated as production-ready.
+1. Read and validate the project lock when present.
+2. Require each exact locked version and digest.
+3. Activate only installed, compatible matches.
+4. Report a reproducible missing/incompatible package instead of substituting the latest version.
+5. Without a lock, resolve only from an explicitly selected channel and create a lock before production use.
 
-No “latest wins” fallback is allowed for a locked project.
-
-## Error behavior
-
-- Invalid manifests are excluded from the registry with actionable validation messages.
-- Unsupported `schema_version` or `fx_api` values fail closed.
-- Missing assets or digest mismatches quarantine the package.
-- GLSL compile errors leave the original input available through bypass and surface the GLSL TOP/Info DAT error.
-- A failed activation restores the previous active pointer; it never deletes the previous version.
-- A missing locked dependency is reported rather than silently substituted.
+Invalid manifests are excluded with actionable diagnostics. Unsupported schema/API versions fail closed. Digest or identity mismatches quarantine staging. GLSL failures keep bypass available when safe. Failed activation restores the prior pointer and never deletes the previous package.
 
 ## Extensibility
 
-New content types should implement four interfaces: manifest validation, compatibility evaluation, staging verification, and a TouchDesigner adapter. A new effect category does not require a new package lifecycle. A compiled plugin, however, can add restart, platform, ABI, signing, and license requirements without weakening the rules for simpler GLSL packages.
+New content types implement the same four boundaries: manifest validation, compatibility evaluation, staging verification, and a TouchDesigner adapter. A compiled plugin can add restart, ABI, platform, signature, and license requirements without weakening the lifecycle used for GLSL packages.

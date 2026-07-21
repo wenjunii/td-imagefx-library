@@ -24,6 +24,10 @@ CALLBACKS = _load_module(
     "tdimagefx_touchdesigner_browser_callbacks",
     Path("touchdesigner") / "callbacks" / "browser_parameter_callbacks.py",
 )
+START_CALLBACKS = _load_module(
+    "tdimagefx_touchdesigner_browser_start_callbacks",
+    Path("touchdesigner") / "callbacks" / "browser_start_callbacks.py",
+)
 
 
 class FakeParameter:
@@ -32,6 +36,15 @@ class FakeParameter:
 
     def eval(self):
         return self.val
+
+
+class FakePulseParameter(FakeParameter):
+    def __init__(self):
+        super().__init__(False)
+        self.pulse_count = 0
+
+    def pulse(self):
+        self.pulse_count += 1
 
 
 class FakeParameters:
@@ -66,6 +79,17 @@ class FakeInstance:
     path = "/project1/target/new_effect"
 
 
+class FakePreview:
+    def __init__(self):
+        self.par = FakeParameters()
+        self.par._parameters["reload"] = FakePulseParameter()
+        self.cook_count = 0
+
+    def cook(self, force=False):
+        if force:
+            self.cook_count += 1
+
+
 class FakeLibrary:
     def __init__(self, catalog):
         self.catalog = catalog
@@ -89,10 +113,18 @@ class FakeOwner:
         defaults = {
             "Search": "",
             "Category": "",
+            "Channel": "",
+            "Model": "",
+            "Capability": "",
+            "Inputreadiness": "",
+            "Availableinputs": "image",
+            "Sortby": "name",
             "Tags": "",
             "Favorites": "[]",
             "Favoritesonly": False,
             "Selectedid": "",
+            "Selectedpreview": "",
+            "Selecteddiagnostics": "",
             "Target": None,
             "Status": "",
         }
@@ -112,9 +144,24 @@ class FakeOwner:
 
 
 CATALOG_ROWS = (
-    ("id", "name", "version", "category", "tags", "compatibility", "processing_model", "gpu_cost", "component"),
-    ("tdimagefx.color.grade", "Film Grade", "1.0.0", "color", "grading, warm", "TD 2022.2+", "single_pass", "low", "tox/grade.tox"),
-    ("tdimagefx.stylize.vhs", "VHS Tape", "1.0.0", "stylize", "analog, animated, tape", "TD 2022.2+", "single_pass", "medium", "tox/vhs.tox"),
+    (
+        "id", "name", "version", "category", "channel", "description", "tags", "compatibility",
+        "compatibility_confidence", "processing_model", "gpu_cost", "capabilities", "preview",
+        "input_count", "input_roles", "parameter_count", "parameters", "alpha_policy",
+        "resolution_policy", "image_contract", "component",
+    ),
+    (
+        "tdimagefx.color.grade", "Film Grade", "1.0.0", "color", "stable", "Warm film color grade.",
+        "grading, warm", "TD 2022.2+", "runtime verified", "single_pass", "low", "",
+        "docs/gallery/grade.png", "1", "image", "2", "Mix (float); Warmth (float)", "preserve",
+        "input", "legacy manifest contract", "tox/grade.tox",
+    ),
+    (
+        "tdimagefx.stylize.vhs", "VHS Tape", "1.0.0", "stylize", "experimental", "Analog tape damage.",
+        "analog, animated, tape", "TD 2022.2+", "declared", "temporal", "medium", "history, animated",
+        "docs/gallery/vhs.png", "2", "image, flow", "3", "Mix (float); Time (float); Noise (float)",
+        "preserve", "input", "color source>linear>source", "tox/vhs.tox",
+    ),
 )
 
 
@@ -151,6 +198,39 @@ class BrowserPureFunctionTests(unittest.TestCase):
         self.assertEqual(projected["model"], "multi_pass")
         self.assertEqual(projected["gpu_cost"], "high")
         self.assertEqual(projected["favorite"], "1")
+        self.assertEqual(projected["input_count"], "1")
+        self.assertEqual(projected["compatibility_confidence"], "declared")
+
+    def test_filters_channel_model_capability_and_input_readiness(self):
+        rows = BROWSER.catalog_rows(FakeTable(CATALOG_ROWS))
+        matches = BROWSER.filter_catalog(
+            rows,
+            channel="experimental",
+            model="temporal",
+            capability="history",
+            input_readiness="needs_aux",
+            available_inputs="image",
+        )
+        self.assertEqual([row["id"] for row in matches], ["tdimagefx.stylize.vhs"])
+        self.assertEqual(
+            [row["id"] for row in BROWSER.filter_catalog(rows, input_readiness="ready", available_inputs="image")],
+            ["tdimagefx.color.grade"],
+        )
+        self.assertEqual(
+            [row["id"] for row in BROWSER.filter_catalog(rows, input_readiness="ready", available_inputs="image, flow")],
+            ["tdimagefx.color.grade", "tdimagefx.stylize.vhs"],
+        )
+
+    def test_sorting_and_selected_details_expose_production_diagnostics(self):
+        rows = BROWSER.catalog_rows(FakeTable(CATALOG_ROWS))
+        self.assertEqual(
+            [row["id"] for row in BROWSER.sort_catalog(reversed(rows), "cost")],
+            ["tdimagefx.color.grade", "tdimagefx.stylize.vhs"],
+        )
+        details = dict(BROWSER.selected_details(rows[1], available_inputs="image"))
+        self.assertEqual(details["Input readiness"], "Needs flow")
+        self.assertIn("preserve", details["Image contract"])
+        self.assertIn("declared", details["Compatibility"])
 
 
 class BrowserExtensionTests(unittest.TestCase):
@@ -192,6 +272,20 @@ class BrowserExtensionTests(unittest.TestCase):
         self.assertEqual(library.created, [])
         self.assertIn("Error: Target COMP", owner.par.Status.eval())
 
+    def test_selection_updates_preview_and_structured_diagnostics(self):
+        browser, owner, _ = self.make_browser(Selectedid="tdimagefx.stylize.vhs")
+        preview = FakePreview()
+        owner.named_ops["selected_preview"] = preview
+        browser.LoadCatalog()
+        details = browser.UpdateSelection()
+        self.assertEqual(owner.par.Selectedpreview.eval(), "docs/gallery/vhs.png")
+        self.assertIn("Needs flow", owner.par.Selecteddiagnostics.eval())
+        self.assertEqual(details["Input readiness"], "Needs flow")
+        self.assertEqual(preview.par.reload.pulse_count, 1)
+        self.assertEqual(preview.cook_count, 1)
+        diagnostics = browser.SelectedDiagnostics()
+        self.assertFalse(diagnostics["input_diagnostics"]["ready"])
+
 
 class BrowserCallbackTests(unittest.TestCase):
     def test_callbacks_route_filter_and_pulse_actions(self):
@@ -200,6 +294,9 @@ class BrowserCallbackTests(unittest.TestCase):
         class Browser:
             def ApplyFilters(self):
                 calls.append("ApplyFilters")
+
+            def UpdateSelection(self):
+                calls.append("UpdateSelection")
 
             def Refresh(self):
                 calls.append("Refresh")
@@ -218,6 +315,8 @@ class BrowserCallbackTests(unittest.TestCase):
         CALLBACKS.parent = lambda: Browser()
         try:
             CALLBACKS.onValueChange(Parameter("Search"), None)
+            CALLBACKS.onValueChange(Parameter("Channel"), None)
+            CALLBACKS.onValueChange(Parameter("Selectedid"), None)
             CALLBACKS.onPulse(Parameter("Refresh"))
             CALLBACKS.onPulse(Parameter("Create"))
             CALLBACKS.onPulse(Parameter("ToggleFavorite"))
@@ -226,7 +325,44 @@ class BrowserCallbackTests(unittest.TestCase):
                 del CALLBACKS.parent
             else:
                 CALLBACKS.parent = original_parent
-        self.assertEqual(calls, ["ApplyFilters", "Refresh", "CreateSelected", "ToggleFavorite"])
+        self.assertEqual(
+            calls,
+            ["ApplyFilters", "ApplyFilters", "UpdateSelection", "Refresh", "CreateSelected", "ToggleFavorite"],
+        )
+
+    def test_start_callbacks_defer_preview_reload_until_network_is_ready(self):
+        scheduled = []
+
+        class Browser:
+            path = "/project1/td_imagefx/core/fx_browser"
+
+        original_parent = getattr(START_CALLBACKS, "parent", None)
+        original_run = getattr(START_CALLBACKS, "run", None)
+        START_CALLBACKS.parent = lambda: Browser()
+        START_CALLBACKS.run = lambda code, **kwargs: scheduled.append(
+            (code, kwargs)
+        )
+        try:
+            START_CALLBACKS.onStart()
+            START_CALLBACKS.onCreate()
+        finally:
+            if original_parent is None:
+                del START_CALLBACKS.parent
+            else:
+                START_CALLBACKS.parent = original_parent
+            if original_run is None:
+                del START_CALLBACKS.run
+            else:
+                START_CALLBACKS.run = original_run
+
+        self.assertEqual(len(scheduled), 2)
+        for code, kwargs in scheduled:
+            self.assertIn(
+                "/project1/td_imagefx/core/fx_browser",
+                code,
+            )
+            self.assertIn("UpdateSelection()", code)
+            self.assertEqual(kwargs, {"delayFrames": 1})
 
 
 if __name__ == "__main__":

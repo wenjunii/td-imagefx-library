@@ -38,10 +38,21 @@ def _is_build(value: Any) -> bool:
 
 
 def _is_uri(value: Any) -> bool:
-    if not isinstance(value, str):
+    if not isinstance(value, str) or not value or len(value) > 4096:
         return False
-    parsed = urlsplit(value)
-    return bool(parsed.scheme and (parsed.netloc or parsed.scheme == "file"))
+    try:
+        parsed = urlsplit(value)
+        _ = parsed.port
+    except (TypeError, ValueError):
+        return False
+    if parsed.username or parsed.password or parsed.query or parsed.fragment:
+        return False
+    scheme = parsed.scheme.lower()
+    if scheme == "https":
+        return parsed.hostname is not None
+    if scheme == "file":
+        return parsed.netloc in {"", "localhost"} and bool(parsed.path)
+    return False
 
 
 @dataclass(frozen=True, slots=True)
@@ -145,7 +156,10 @@ def validate_lockfile_data(data: Any) -> list[str]:
         if package.get("channel") not in CHANNELS:
             issues.append(f"{path}.channel is invalid")
         if package.get("source_feed") is not None and not _is_uri(package["source_feed"]):
-            issues.append(f"{path}.source_feed must be null or a URI")
+            issues.append(
+                f"{path}.source_feed must be null or a credential-free HTTPS or local file URI "
+                "without query or fragment data"
+            )
         for key in ("manifest_sha256", "artifact_sha256"):
             if package.get(key) is not None and not is_sha256(package[key]):
                 issues.append(f"{path}.{key} must be null or a SHA-256 digest")

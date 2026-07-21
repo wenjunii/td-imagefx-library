@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "kind": "tdimagefx.rack-preset",
+  "name": "Print Halftone",
+  "autotime": false,
+  "timescale": 1.0,
+  "time": 0.0,
+  "slots": [
+    {
+      "index": 1,
+      "package": {
+        "id": "tdimagefx.color.color-decision-list",
+        "version": "1.0.0"
+      },
+      "enabled": true,
+      "mix": 0.7,
+      "modulation": {
+        "depth": 0.0,
+        "rate": 1.0,
+        "state": "off"
+      },
+      "parameters": {
+        "Slope": [0.98, 0.96, 0.9],
+        "Offset": [0.02, 0.015, 0.0],
+        "Power": [0.94, 0.96, 1.02],
+        "Saturation": 0.75
+      }
+    },
+    {
+      "index": 2,
+      "package": {
+        "id": "tdimagefx.stylize.halftone",
+        "version": "1.0.0"
+      },
+      "enabled": true,
+      "mix": 0.75,
+      "modulation": {
+        "depth": 0.0,
+        "rate": 1.0,
+        "state": "off"
+      },
+      "parameters": {
+        "Cellsize": 8.0,
+        "Angle": 0.45,
+        "Dotsize": 0.86,
+        "Softness": 0.08,
+        "Monochrome": true
+      }
+    },
+    {
+      "index": 3,
+      "package": {
+        "id": "tdimagefx.stylize.ordered-dither",
+        "version": "1.0.0"
+      },
+      "enabled": true,
+      "mix": 0.3,
+      "modulation": {
+        "depth": 0.0,
+        "rate": 1.0,
+        "state": "off"
+      },
+      "parameters": {
+        "Levels": 6.0,
+        "Patternscale": 1.0,
+        "Strength": 0.35
+      }
+    },
+    {
+      "index": 4,
+      "package": {
+        "id": "tdimagefx.stylize.sepia",
+        "version": "1.0.0"
+      },
+      "enabled": true,
+      "mix": 0.4,
+      "modulation": {
+        "depth": 0.0,
+        "rate": 1.0,
+        "state": "off"
+      },
+      "parameters": {
+        "Warmth": 0.65,
+        "Fade": 0.28,
+        "Contrast": 1.05,
+        "Paper": 0.07
+      }
+    }
+  ]
+}

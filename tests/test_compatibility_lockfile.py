@@ -104,6 +104,22 @@ class LockfileTests(unittest.TestCase):
         replaced = lockfile.with_pin(pin("2.0.0"), replace_existing=True)
         self.assertEqual(str(replaced.get("tdimagefx.test.effect").version), "2.0.0")
 
+    def test_source_feed_rejects_credentials_query_and_fragment_data(self) -> None:
+        unsafe_sources = (
+            "https://user:password@example.test/feed.json",
+            "https://example.test/feed.json?token=secret",
+            "https://example.test/feed.json#private",
+            "file:///tmp/feed.json?token=secret",
+        )
+        for source in unsafe_sources:
+            with self.subTest(source=source):
+                data = Lockfile.create(fx_api="1.0", touchdesigner_build=2023.1).to_dict()
+                item = pin().to_dict()
+                item["source_feed"] = source
+                data["packages"] = [item]
+                with self.assertRaisesRegex(ValidationError, "credential-free"):
+                    Lockfile.from_data(data)
+
 
 if __name__ == "__main__":
     unittest.main()

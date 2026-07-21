@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from tdimagefx.errors import FeedError, SecurityError
+from tdimagefx.errors import FeedError, SecurityError, ValidationError
 from tdimagefx.feed import SourcePolicy, download_source, fetch_bytes, load_update_feed
 
 from tests.helpers import feed_data
@@ -56,6 +56,21 @@ class FeedFetchingTests(unittest.TestCase):
                     destination,
                     policy=SourcePolicy(allow_file=True),
                     expected_size=99,
+                )
+            self.assertFalse(destination.exists())
+
+    def test_empty_expected_hash_is_invalid_not_optional(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "payload.bin"
+            destination = root / "destination.bin"
+            source.write_bytes(b"payload")
+            with self.assertRaisesRegex(ValidationError, "digest is invalid"):
+                download_source(
+                    source,
+                    destination,
+                    policy=SourcePolicy(allow_file=True),
+                    expected_sha256="",
                 )
             self.assertFalse(destination.exists())
 

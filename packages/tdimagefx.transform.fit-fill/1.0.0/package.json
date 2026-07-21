@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "id": "tdimagefx.transform.fit-fill",
+  "name": "Fit Fill",
+  "version": "1.0.0",
+  "fx_api": "1.0",
+  "kind": "effect",
+  "category": "transform",
+  "channel": "experimental",
+  "description": "Fits or fills an image inside a configurable frame aspect with alignment and background color controls.",
+  "publisher": "TD ImageFX Library",
+  "license": "MIT",
+  "entrypoints": {"shader": "shaders/fit_fill.frag", "touchdesigner_component": "tox/tdimagefx_transform_fit_fill.tox"},
+  "inputs": [{"id": "image", "family": "TOP", "required": true, "semantic": "source", "role": "source_image", "description": "Image to fit or fill."}],
+  "outputs": [{"id": "image", "family": "TOP", "role": "image"}],
+  "parameters": [
+    {"id": "enable", "name": "Enable", "label": "Enable", "type": "toggle", "default": true, "description": "Bypass framing when disabled."},
+    {"id": "mix", "name": "Mix", "label": "Mix", "type": "float", "default": 1.0, "min": 0.0, "max": 1.0, "uniform": "uMix", "description": "Blends source and framed output."},
+    {"id": "frame_aspect", "name": "Frameaspect", "label": "Frame Aspect", "type": "float", "default": 1.777778, "min": 0.1, "max": 10.0, "uniform": "uFrameAspect", "description": "Width divided by height for the target frame inside the output texture."},
+    {"id": "mode", "name": "Mode", "label": "Mode", "type": "float", "default": 0.0, "min": 0.0, "max": 2.0, "uniform": "uMode", "description": "0 Fit, 1 Fill, 2 Stretch."},
+    {"id": "alignment", "name": "Alignment", "label": "Alignment", "type": "xy", "default": [0.5, 0.5], "min": 0.0, "max": 1.0, "uniform": "uAlignment", "description": "Horizontal and vertical alignment for cropping or letterboxing."},
+    {"id": "background", "name": "Background", "label": "Background", "type": "rgba", "default": [0.0, 0.0, 0.0, 0.0], "uniform": "uBackground", "description": "Color outside a fitted image."}
+  ],
+  "compatibility": {"touchdesigner_min_build": 2025.3, "touchdesigner_max_build": null, "os": ["windows", "macos"], "architectures": ["x86_64", "arm64"]},
+  "permissions": {"python": false, "filesystem": false, "network": false, "subprocess": false},
+  "dependencies": [],
+  "alpha_policy": "process",
+  "resolution_policy": "input",
+  "stateful": false,
+  "image_contract": {
+    "color": {"input_space": "source", "working_space": "project", "output_space": "source", "reference": "display_referred"},
+    "alpha": {"input": "any", "working": "any", "output": "any"},
+    "pixel_format": {"policy": "inherit"},
+    "sampling": {"filter": "linear", "edge": "clamp", "mipmaps": false}
+  },
+  "determinism": {"mode": "deterministic"},
+  "provenance": {"origin": "original", "source": {"type": "original"}},
+  "tags": ["transform", "fit", "fill", "aspect", "framing"],
+  "processing": {"model": "single_pass", "gpu_cost": "low", "capabilities": [], "passes": ["shaders/fit_fill.frag"], "history_frames": 0}
+}

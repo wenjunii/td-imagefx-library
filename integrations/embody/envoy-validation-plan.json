@@ -1,0 +1,163 @@
+{
+  "schema_version": 1,
+  "project_id": "td-imagefx-library",
+  "mode": "read-only",
+  "stages": [
+    {
+      "id": "context",
+      "calls": [
+        {
+          "tool": "get_td_project_context",
+          "arguments": {
+            "section": "all"
+          }
+        },
+        {
+          "tool": "query_td_knowledge",
+          "arguments": {
+            "query": "TouchDesigner operator errors warnings scriptErrors TOP capture and project performance validation"
+          }
+        }
+      ],
+      "expect": "The configured project_id is td-imagefx-library and authoritative TouchDesigner guidance is available."
+    },
+    {
+      "id": "instance",
+      "calls": [
+        {
+          "tool": "get_td_info",
+          "arguments": {}
+        },
+        {
+          "tool": "get_project_performance",
+          "arguments": {
+            "include_hotspots": 10
+          }
+        },
+        {
+          "tool": "query_network",
+          "arguments": {
+            "parent_path": "/",
+            "recursive": false,
+            "include_utility": false
+          }
+        }
+      ],
+      "expect": "The intended TouchDesigner instance is selected, the timeline is responsive, and /project1 is discoverable."
+    },
+    {
+      "id": "structure-and-health",
+      "calls": [
+        {
+          "tool": "query_network",
+          "arguments": {
+            "parent_path": "/project1",
+            "recursive": false,
+            "include_utility": false
+          }
+        },
+        {
+          "tool": "exec_op_method",
+          "arguments": {
+            "op_path": "/project1/td_imagefx",
+            "method": "HealthCheck"
+          }
+        },
+        {
+          "tool": "get_op_errors",
+          "arguments": {
+            "op_path": "/project1/td_imagefx",
+            "recurse": true
+          }
+        },
+        {
+          "tool": "get_op_errors",
+          "arguments": {
+            "op_path": "/project1/imagefx_demo",
+            "recurse": true
+          }
+        },
+        {
+          "tool": "execute_python",
+          "arguments": {
+            "code": "from pathlib import Path\nlibrary = op('/project1/td_imagefx')\nroot_path = Path(str(library.par.Rootfolder.eval())).resolve()\nscript = root_path / 'touchdesigner' / 'scripts' / 'validate_live_project.py'\nnamespace = {'__file__': str(script), '__name__': 'td_imagefx_live_validation'}\nexec(compile(script.read_text(encoding='utf-8'), str(script), 'exec'), namespace)\nresult = namespace['validate'](write_report=False)"
+          }
+        }
+      ],
+      "expect": "HealthCheck is clean with 96 current packages and 122 immutable versions; neither managed root reports errors, warnings, or script errors; the primary output matches its selected HD, 4K UHD, or custom resolution; and the structural validator returns ok."
+    },
+    {
+      "id": "visual-output",
+      "calls": [
+        {
+          "tool": "capture_top",
+          "arguments": {
+            "op_path": "/project1/imagefx_demo/out1_image",
+            "format": "png",
+            "max_resolution": 960,
+            "inline": false
+          }
+        },
+        {
+          "tool": "capture_top",
+          "arguments": {
+            "op_path": "/project1/imagefx_demo/ink_flow/out1_ink_flow",
+            "format": "png",
+            "max_resolution": 960,
+            "inline": false
+          }
+        },
+        {
+          "tool": "capture_top",
+          "arguments": {
+            "op_path": "/project1/imagefx_demo/particle_random_move/out1_particles",
+            "format": "png",
+            "max_resolution": 960,
+            "inline": false
+          }
+        },
+        {
+          "tool": "capture_top",
+          "arguments": {
+            "op_path": "/project1/imagefx_demo/glitch_fusion/out1_glitch",
+            "format": "png",
+            "max_resolution": 960,
+            "inline": false
+          }
+        },
+        {
+          "tool": "capture_top",
+          "arguments": {
+            "op_path": "/project1/imagefx_demo/fx_rack/out1_image",
+            "format": "png",
+            "max_resolution": 960,
+            "inline": false
+          }
+        },
+        {
+          "tool": "capture_top",
+          "arguments": {
+            "op_path": "/project1/td_imagefx/core/fx_browser/selected_preview",
+            "format": "png",
+            "max_resolution": 960,
+            "inline": false
+          }
+        }
+      ],
+      "expect": "Every capture returns a passing quality verdict and visual inspection confirms intentional image content."
+    },
+    {
+      "id": "performance-and-offline-verification",
+      "calls": [
+        {
+          "tool": "get_project_performance",
+          "arguments": {
+            "include_hotspots": 10
+          }
+        }
+      ],
+      "offline_command": "python tools/verify_repository.py",
+      "expect": "No unexplained performance regression is present and repository verification passes."
+    }
+  ]
+}

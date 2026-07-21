@@ -32,6 +32,26 @@ class VersionTests(unittest.TestCase):
             with self.subTest(value=value), self.assertRaises(ValidationError):
                 Version.parse(value)
 
+    def test_parser_rejects_redos_shape_and_invalid_identifiers(self) -> None:
+        adversarial = "0.0.0-0." + "--." * 10_000 + "!"
+        with self.assertRaises(ValidationError) as raised:
+            Version.parse(adversarial)
+        self.assertLess(len(str(raised.exception)), 200)
+
+        for value in (
+            "1.0.0-alpha..1",
+            "1.0.0-alpha+build+second",
+            "1.0.0-α",
+            "1.0.0+build_1",
+        ):
+            with self.subTest(value=value), self.assertRaises(ValidationError):
+                Version.parse(value)
+
+        self.assertEqual(
+            str(Version.parse("1.0.0-alpha--beta.7+build.001")),
+            "1.0.0-alpha--beta.7+build.001",
+        )
+
     def test_constraints(self) -> None:
         self.assertTrue(VersionSpec.parse(">=1.2.0,<2.0.0").matches("1.9.9"))
         self.assertFalse(VersionSpec.parse(">=1.2.0,<2.0.0").matches("2.0.0"))
