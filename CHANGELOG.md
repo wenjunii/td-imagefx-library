@@ -68,10 +68,13 @@ All notable changes to TD ImageFX Library are recorded here. Package versions fo
 - The native `.toe`, seven core `.tox` components, benchmark report, and
   SHA-256-bound native validation record were rebuilt with TouchDesigner
   `2025.32820`.
-- The offline suite now contains 166 tests, including contracts for bounded
+- The offline suite now contains 169 tests, including contracts for bounded
   ink-flow particles, two distinct visual styles, all 24 Glitch Fusion styles,
   HD/4K/custom output resolution, native artifact inventory, and the six-output
   Embody audit.
+- Repository verification now scans tracked files for high-confidence
+  credential formats and forbidden secret-bearing filenames without printing
+  suspected values; a staged-only mode supports pre-commit review.
 
 ### Fixed
 

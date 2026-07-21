@@ -105,9 +105,33 @@ git clone https://github.com/wenjunii/td-imagefx-library.git
 cd td-imagefx-library
 ```
 
-The v0.3 source and generated artifacts are synchronized. The recorded Windows build used TouchDesigner `2025.32820` and validated all 96 current effects with 122 versioned effect `.tox` files, seven core `.tox` files, one library `.toe`, 96 previews, 96 visual baselines, and 96 benchmark samples. The build report contains zero shader, preview, or builder errors. A fresh repository run completed 166 tests successfully, with four expected Windows symlink-permission skips, and two independent 99-file release builds matched byte-for-byte. Read [TouchDesigner setup](docs/touchdesigner-setup.md) to reproduce the native build.
+The v0.3 source and generated artifacts are synchronized. The recorded Windows build used TouchDesigner `2025.32820` and validated all 96 current effects with 122 versioned effect `.tox` files, seven core `.tox` files, one library `.toe`, 96 previews, 96 visual baselines, and 96 benchmark samples. The build report contains zero shader, preview, or builder errors. A fresh repository run completed 169 tests successfully, with four expected Windows symlink-permission skips, and two independent 99-file release builds matched byte-for-byte. Read [TouchDesigner setup](docs/touchdesigner-setup.md) to reproduce the native build.
 
 The generated project targets TouchDesigner 2025. Validate the exact TouchDesigner build, operating system, GPU, driver, resolution, pixel format, and color pipeline used by your production system. Python 3.11 or newer is required for repository tooling; it is not required merely to use already-built native components.
+
+### Credential safety
+
+Never commit API keys, access tokens, passwords, private keys, `.env` files,
+machine-local MCP configuration, the Embody Envoy registry, or licensed/private
+media. Those paths are ignored, and the repository verifier now performs a
+redacted high-confidence scan of every tracked file. Suspected values are never
+printed into local or GitHub Actions logs.
+
+Before staging, scan the complete tracked tree:
+
+```console
+python tools/check_credentials.py
+```
+
+After staging, scan the exact files intended for the next commit:
+
+```console
+python tools/check_credentials.py --staged
+```
+
+This guard complements GitHub secret scanning; it does not replace careful
+review. If a credential is ever committed, revoke it immediately before
+removing it from Git history. See [the security policy](SECURITY.md).
 
 Reusable core components use component-relative callback and feedback-state targets, so slot selection, Parameter Execute actions, and temporal history continue to work after a `.tox` is imported, moved, or renamed.
 

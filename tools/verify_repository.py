@@ -760,6 +760,11 @@ def main() -> int:
             [python, "-m", "compileall", "-q", "src", "tests", "tools", "touchdesigner"],
             env,
         )
+        _run(
+            "Scan tracked files for credentials",
+            [python, "tools/check_credentials.py"],
+            env,
+        )
         _run("Run unit tests", [python, "-m", "unittest", "discover", "-s", "tests", "-v"], env)
         _run(
             "Validate package manifests",

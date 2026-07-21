@@ -36,8 +36,19 @@ integrations/embody/local/
 *.key
 *.p12
 *.pfx
+*.jks
+*.kdbx
+*.keystore
+*.ovpn
 *credentials*.json
 *secrets*.json
+.netrc
+.npmrc
+.pypirc
+id_dsa
+id_ecdsa
+id_ed25519
+id_rsa
 
 # TouchDesigner numbered saves, crash recovery, and temporary files
 *.[0-9].toe
