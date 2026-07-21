@@ -32,6 +32,7 @@ MAX_CHANGELOG_CHARS = 20000
 MAX_URL_CHARS = 4096
 MAX_STATUS_UPDATES = 1024
 MAX_STATUS_CHANGELOG_CHARS = 1000
+MAX_SEMVER_CHARS = 256
 CHANNEL_ORDER = {"stable": 0, "beta": 1, "experimental": 2}
 TRUST_ORDER = {"community": 0, "local": 1, "first_party": 2}
 SUPPORTED_KINDS = {
@@ -40,14 +41,55 @@ SUPPORTED_KINDS = {
 }
 PACKAGE_ID_RE = re.compile(r"^[a-z0-9]+(?:[._-][a-z0-9]+)*$")
 SHA256_RE = re.compile(r"^[0-9a-fA-F]{64}$")
-_SEMVER_RE = re.compile(
-    r"^(?P<major>0|[1-9]\d*)\."
-    r"(?P<minor>0|[1-9]\d*)\."
-    r"(?P<patch>0|[1-9]\d*)"
-    r"(?:-(?P<pre>(?:0|[1-9]\d*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*)"
-    r"(?:\.(?:0|[1-9]\d*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*))*))?"
-    r"(?:\+(?P<build>[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$"
+_SEMVER_DIGITS = frozenset("0123456789")
+_SEMVER_IDENTIFIER_CHARS = frozenset(
+    "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-"
 )
+
+
+def _semver_identifiers(value, reject_numeric_leading_zero):
+    identifiers = tuple(value.split("."))
+    if not identifiers or any(
+        not item or any(character not in _SEMVER_IDENTIFIER_CHARS for character in item)
+        for item in identifiers
+    ):
+        raise ValueError("Invalid semantic-version identifier")
+    if reject_numeric_leading_zero and any(
+        len(item) > 1
+        and item[0] == "0"
+        and all(character in _SEMVER_DIGITS for character in item)
+        for item in identifiers
+    ):
+        raise ValueError("Invalid numeric semantic-version prerelease identifier")
+    return identifiers
+
+
+def _parse_semver(version):
+    """Parse bounded SemVer text without a backtracking regular expression."""
+
+    if not isinstance(version, str):
+        raise ValueError("Invalid semantic version")
+    if not version or len(version) > MAX_SEMVER_CHARS or version.count("+") > 1:
+        raise ValueError("Invalid semantic version")
+    core_and_pre, build_separator, build_text = version.partition("+")
+    if build_separator:
+        _semver_identifiers(build_text, False)
+    core_text, prerelease_separator, prerelease_text = core_and_pre.partition("-")
+    prerelease = (
+        _semver_identifiers(prerelease_text, True)
+        if prerelease_separator
+        else ()
+    )
+    core = tuple(core_text.split("."))
+    if len(core) != 3 or any(
+        not item
+        or any(character not in _SEMVER_DIGITS for character in item)
+        or (len(item) > 1 and item[0] == "0")
+        for item in core
+    ):
+        raise ValueError("Invalid semantic version")
+    major, minor, patch = (int(item) for item in core)
+    return major, minor, patch, prerelease
 
 
 def _unique_object(pairs):
@@ -287,14 +329,14 @@ class UpdaterExt:
 
     @staticmethod
     def _version_key(version):
-        match = _SEMVER_RE.fullmatch(str(version))
-        if match is None:
-            raise ValueError("Invalid semantic version: {!r}".format(version))
-        core = (int(match.group("major")), int(match.group("minor")), int(match.group("patch")))
-        prerelease = match.group("pre")
-        if prerelease is None:
+        major, minor, patch, prerelease = _parse_semver(version)
+        core = (major, minor, patch)
+        if not prerelease:
             return core + (1, ())
-        identifiers = tuple((0, int(item)) if item.isdigit() else (1, item) for item in prerelease.split("."))
+        identifiers = tuple(
+            (0, int(item)) if item.isdigit() else (1, item)
+            for item in prerelease
+        )
         return core + (0, identifiers)
 
     @classmethod

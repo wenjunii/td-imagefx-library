@@ -170,6 +170,25 @@ class TouchDesignerUpdaterTransportTests(unittest.TestCase):
         self.assertLess(key("1.2.3-beta.2"), key("1.2.3-beta.10"))
         self.assertLess(key("1.2.3-beta.10"), key("1.2.3"))
 
+    def test_semver_key_rejects_redos_shape_and_invalid_identifiers(self):
+        key = UPDATER_MODULE.UpdaterExt._version_key
+        adversarial = "0.0.0-0." + "--." * 10_000 + "!"
+        with self.assertRaises(ValueError) as raised:
+            key(adversarial)
+        self.assertLess(len(str(raised.exception)), 200)
+
+        for value in (
+            "1.0.0-alpha..1",
+            "1.0.0-alpha+build+second",
+            "1.0.0-α",
+            "1.0.0+build_1",
+            1,
+        ):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                key(value)
+
+        self.assertLess(key("1.0.0-alpha--beta.7+build.001"), key("1.0.0"))
+
     def test_unknown_touchdesigner_build_is_compatible_but_unverified(self):
         spec = {
             "touchdesigner_min_build": 2022.2,
