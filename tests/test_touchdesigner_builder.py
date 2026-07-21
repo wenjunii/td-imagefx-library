@@ -294,6 +294,75 @@ class TouchDesignerBuilderPathTests(unittest.TestCase):
         self.assertNotIn("for (", shader)
         self.assertNotIn("feedback", shader.lower())
 
+    def test_color_adjustment_exposes_neutral_grading_and_overlay_controls(self) -> None:
+        shader = BUILDER.COLOR_ADJUSTMENT_SHADER
+        uniform_names = {
+            definition["uniform"]
+            for definition in BUILDER.COLOR_ADJUSTMENT_PARAMETER_DEFINITIONS
+            if definition.get("uniform")
+        }
+        self.assertEqual(
+            uniform_names,
+            {
+                "uMix",
+                "uInvert",
+                "uExposure",
+                "uBrightness",
+                "uContrast",
+                "uSaturation",
+                "uVibrance",
+                "uHue",
+                "uTemperature",
+                "uTint",
+                "uGamma",
+                "uBlackPoint",
+                "uWhitePoint",
+                "uLift",
+                "uGain",
+                "uShadows",
+                "uHighlights",
+                "uMonochrome",
+                "uSepia",
+                "uPosterizeAmount",
+                "uPosterizeLevels",
+                "uDuotoneAmount",
+                "uDuotoneShadow",
+                "uDuotoneHighlight",
+                "uOverlayEnabled",
+                "uOverlayColor",
+                "uOverlayAmount",
+                "uOverlayMode",
+            },
+        )
+        for uniform in uniform_names:
+            self.assertIn(uniform, shader)
+        definitions = {
+            definition["name"]: definition
+            for definition in BUILDER.COLOR_ADJUSTMENT_PARAMETER_DEFINITIONS
+        }
+        self.assertEqual(definitions["Mix"]["default"], 1.0)
+        self.assertEqual(definitions["Invert"]["default"], 0.0)
+        self.assertEqual(definitions["Exposure"]["default"], 0.0)
+        self.assertEqual(definitions["Contrast"]["default"], 1.0)
+        self.assertEqual(definitions["Saturation"]["default"], 1.0)
+        self.assertEqual(definitions["Gamma"]["default"], 1.0)
+        self.assertEqual(definitions["Lift"]["default"], [0.0, 0.0, 0.0])
+        self.assertEqual(definitions["Gain"]["default"], [1.0, 1.0, 1.0])
+        self.assertFalse(definitions["Overlayenabled"]["default"])
+        self.assertEqual(
+            tuple(definitions["Overlaymode"]["menu_names"]),
+            BUILDER.COLOR_ADJUSTMENT_OVERLAY_MODE_NAMES,
+        )
+        self.assertEqual(
+            len(BUILDER.COLOR_ADJUSTMENT_OVERLAY_MODE_NAMES),
+            8,
+        )
+        self.assertIn("colorOverlayBlend", shader)
+        self.assertIn("source.a", shader)
+        self.assertIn("TDOutputSwizzle", shader)
+        self.assertNotIn("for (", shader)
+        self.assertNotIn("feedback", shader.lower())
+
     def test_demo_output_supports_hd_4k_and_bounded_custom_resolution(self) -> None:
         self.assertEqual(
             BUILDER.DEMO_OUTPUT_PRESETS,

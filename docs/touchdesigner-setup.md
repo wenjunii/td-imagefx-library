@@ -47,6 +47,7 @@ The repository includes:
 - `touchdesigner/core/InkFlowFusion.tox`;
 - `touchdesigner/core/ParticleRandomMove.tox`;
 - `touchdesigner/core/GlitchFusion.tox`;
+- `touchdesigner/core/ColorAdjustment.tox`;
 - `touchdesigner/core/FxBrowser.tox`;
 - `touchdesigner/core/FxUpdater.tox`.
 
@@ -75,6 +76,14 @@ Textport. It checks whole-module and zero-mix bypass, the exact 24-style menu,
 visible and distinct output from every style, time and seed variation, rack
 routing, output resolution, and shader diagnostics. Its ignored report is
 `build/envoy-validation/glitch-fusion-module.json`.
+
+For Color Adjustment QA, run
+`touchdesigner/scripts/validate_color_adjustment_module.py` from the Python
+Textport. It checks whole-module and zero-mix bypass, neutral-default fidelity,
+all grading families, the exact eight-mode overlay menu, visual distinction,
+source-alpha preservation, rack routing, output resolution, and shader
+diagnostics. Its ignored report is
+`build/envoy-validation/color-adjustment-module.json`.
 
 For output-resolution QA, run
 `touchdesigner/scripts/validate_output_resolution.py` from the Python Textport.
@@ -174,7 +183,7 @@ python tools/build_gallery.py
 python tools/benchmark_report.py
 ```
 
-The native-validation command accepts only a clean build report and writes `docs/native-validation.json`, binding the named TouchDesigner environment to the size and SHA-256 digest of the library `.toe`, all versioned effect `.tox` files, and the seven core `.tox` files.
+The native-validation command accepts only a clean build report and writes `docs/native-validation.json`, binding the named TouchDesigner environment to the size and SHA-256 digest of the library `.toe`, all versioned effect `.tox` files, and the eight core `.tox` files.
 
 Compare every changed preview on representative media. Only after intentional visual approval should you replace the SHA-256 baselines:
 
@@ -214,12 +223,13 @@ Wave Warp -> Exposure -> Gaussian Blur -> RGB Split
 Each of eight slots provides effect selection, enable, dry/wet mix, modulation depth/rate/state, Up, Down, Reset, and Bypass. Six auxiliary buses route second image, displacement, depth, normal, flow, and mask inputs by declared semantic role. Global controls reload/reset the rack and bypass or enable every slot. **Auto Time** and **Time Scale** drive time-aware parameters; disable Auto Time and set **Manual Time** for deterministic inspection.
 
 The generated demo routes source -> `ink_flow` -> `particle_random_move` ->
-`glitch_fusion` -> the eight-slot rack. **Ink Flow Module Enabled** bypasses
-the combined ink and water-particle module, **Random Particles Enabled**
-controls the existing random-move stage, **Glitch Module Enabled** controls
-the 24-style Glitch Fusion stage, and **Apply Video Effects** controls the
-rack. Inside `ink_flow`, **Ink Visual Enabled** and **Water Particles Enabled**
-are independent.
+`glitch_fusion` -> `color_adjustment` -> the eight-slot rack. **Ink Flow Module
+Enabled** bypasses the combined ink and water-particle module, **Random
+Particles Enabled** controls the existing random-move stage, **Glitch Module
+Enabled** controls the 24-style Glitch Fusion stage, **Color Adjustment
+Enabled** controls the grading/overlay stage, and **Apply Video Effects**
+controls the rack. Inside `ink_flow`, **Ink Visual Enabled** and **Water
+Particles Enabled** are independent.
 
 Select `imagefx_demo` and use its **Output** page to choose **HD 1920 x 1080**
 (the default), **4K UHD 3840 x 2160**, or **Custom**. Custom width and height
@@ -238,7 +248,12 @@ separate random-particle stage. That module's default 96-column grid is about
 5,000 particles at 16:9; reduce it first for 4K or multi-output qualification.
 Select `glitch_fusion` to choose one of 24 bounded GPU glitch styles and tune
 its timing, intensity, mix, geometry, signal, color, compression, corruption,
-and seed controls.
+and seed controls. Select `color_adjustment` to tune exposure, brightness,
+contrast, saturation, vibrance, hue, temperature/tint, input levels, gamma,
+RGB lift/gain, shadows/highlights, inversion, monochrome, sepia, posterize,
+duotone, and one of eight adjustable color-overlay blend modes. Its defaults
+are neutral, the module and overlay have independent toggles, and source alpha
+is preserved.
 
 **Particle Columns** accepts 8 through 500. A 500-column 16:9 grid is
 approximately 140,000 particles, so qualify the upper range against the actual

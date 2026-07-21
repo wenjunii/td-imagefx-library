@@ -24,6 +24,7 @@ CORE_ASSETS = (
     "touchdesigner/core/ParticleRandomMove.tox",
     "touchdesigner/core/InkFlowFusion.tox",
     "touchdesigner/core/GlitchFusion.tox",
+    "touchdesigner/core/ColorAdjustment.tox",
     "touchdesigner/core/FxUpdater.tox",
 )
 BUILDER_SOURCE = "touchdesigner/scripts/build_project.py"

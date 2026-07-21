@@ -29,6 +29,7 @@ project.
 | `touchdesigner/scripts/validate_rack_selection.py` | State-restoring live regression test for all eight rack effect menus |
 | `touchdesigner/scripts/validate_ink_flow_module.py` | Pixel checks for both ink styles, water particles, bypass, and deterministic motion |
 | `touchdesigner/scripts/validate_glitch_fusion_module.py` | Pixel checks for 24 glitch styles, bypass, timing, seed, routing, and shader diagnostics |
+| `touchdesigner/scripts/validate_color_adjustment_module.py` | Pixel checks for neutral grading, adjustments, eight overlay modes, alpha preservation, routing, and shader diagnostics |
 | `touchdesigner/scripts/validate_output_resolution.py` | Live checks for default HD, 4K UHD, custom dimensions, bounds, and output propagation |
 
 Detailed setup and commands are in
@@ -46,7 +47,7 @@ TouchDesigner Python or GLSL.
 
 For an audit, follow `envoy-validation-plan.json`: confirm the TD instance,
 record baseline performance, discover the network, run `HealthCheck`, check
-recursive errors and warnings, capture the six approved TOPs, and compare
+recursive errors and warnings, capture the seven approved TOPs, and compare
 final performance. Envoy's `capture_top` quality verdict must pass, and the
 images still require visual inspection. A clean operator graph does not prove
 that a frame is visible or aesthetically correct.

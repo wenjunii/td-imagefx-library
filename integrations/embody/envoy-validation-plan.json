@@ -128,6 +128,15 @@
         {
           "tool": "capture_top",
           "arguments": {
+            "op_path": "/project1/imagefx_demo/color_adjustment/out1_color_adjustment",
+            "format": "png",
+            "max_resolution": 960,
+            "inline": false
+          }
+        },
+        {
+          "tool": "capture_top",
+          "arguments": {
             "op_path": "/project1/imagefx_demo/fx_rack/out1_image",
             "format": "png",
             "max_resolution": 960,

@@ -1684,6 +1684,346 @@ GLITCH_FUSION_PARAMETER_DEFINITIONS = (
     },
 )
 
+COLOR_ADJUSTMENT_OVERLAY_MODE_NAMES = (
+    "normal",
+    "multiply",
+    "screen",
+    "overlay",
+    "soft_light",
+    "hard_light",
+    "color",
+    "difference",
+)
+
+COLOR_ADJUSTMENT_OVERLAY_MODE_LABELS = (
+    "Normal",
+    "Multiply",
+    "Screen",
+    "Overlay",
+    "Soft Light",
+    "Hard Light",
+    "Color",
+    "Difference",
+)
+
+COLOR_ADJUSTMENT_SHADER = r"""
+layout(location = 0) out vec4 fragColor;
+
+uniform float uMix;
+uniform float uInvert;
+uniform float uExposure;
+uniform float uBrightness;
+uniform float uContrast;
+uniform float uSaturation;
+uniform float uVibrance;
+uniform float uHue;
+uniform float uTemperature;
+uniform float uTint;
+uniform float uGamma;
+uniform float uBlackPoint;
+uniform float uWhitePoint;
+uniform vec3 uLift;
+uniform vec3 uGain;
+uniform float uShadows;
+uniform float uHighlights;
+uniform float uMonochrome;
+uniform float uSepia;
+uniform float uPosterizeAmount;
+uniform float uPosterizeLevels;
+uniform float uDuotoneAmount;
+uniform vec4 uDuotoneShadow;
+uniform vec4 uDuotoneHighlight;
+uniform float uOverlayEnabled;
+uniform vec4 uOverlayColor;
+uniform float uOverlayAmount;
+uniform float uOverlayMode;
+
+float colorLuma(vec3 color) {
+    return dot(color, vec3(0.2126, 0.7152, 0.0722));
+}
+
+vec3 colorRgbToHsv(vec3 color) {
+    vec4 K = vec4(0.0, -0.3333333333, 0.6666666667, -1.0);
+    vec4 p = mix(vec4(color.bg, K.wz), vec4(color.gb, K.xy), step(color.b, color.g));
+    vec4 q = mix(vec4(p.xyw, color.r), vec4(color.r, p.yzx), step(p.x, color.r));
+    float d = q.x - min(q.w, q.y);
+    float e = 1.0e-10;
+    return vec3(abs(q.z + (q.w - q.y) / (6.0 * d + e)), d / (q.x + e), q.x);
+}
+
+vec3 colorHsvToRgb(vec3 color) {
+    vec3 p = abs(fract(color.xxx + vec3(0.0, 0.6666666667, 0.3333333333)) * 6.0 - 3.0);
+    return color.z * mix(vec3(1.0), clamp(p - 1.0, 0.0, 1.0), color.y);
+}
+
+vec3 colorOverlayBlend(vec3 base, vec3 layer, float mode) {
+    if (mode < 0.5) {
+        return layer;
+    }
+    if (mode < 1.5) {
+        return base * layer;
+    }
+    if (mode < 2.5) {
+        return 1.0 - (1.0 - base) * (1.0 - layer);
+    }
+    if (mode < 3.5) {
+        return mix(2.0 * base * layer, 1.0 - 2.0 * (1.0 - base) * (1.0 - layer), step(0.5, base));
+    }
+    if (mode < 4.5) {
+        return (1.0 - 2.0 * layer) * base * base + 2.0 * layer * base;
+    }
+    if (mode < 5.5) {
+        return mix(2.0 * base * layer, 1.0 - 2.0 * (1.0 - base) * (1.0 - layer), step(0.5, layer));
+    }
+    if (mode < 6.5) {
+        vec3 baseHsv = colorRgbToHsv(base);
+        vec3 layerHsv = colorRgbToHsv(layer);
+        return colorHsvToRgb(vec3(layerHsv.xy, baseHsv.z));
+    }
+    return abs(base - layer);
+}
+
+void main() {
+    vec4 source = texture(sTD2DInputs[0], vUV.st);
+    vec3 color = max(source.rgb, vec3(0.0));
+
+    float whitePoint = max(uWhitePoint, uBlackPoint + 1.0e-4);
+    color = clamp((color - vec3(uBlackPoint)) / (whitePoint - uBlackPoint), 0.0, 1.0);
+    color *= exp2(uExposure);
+    color = max(color + uLift, vec3(0.0)) * max(uGain, vec3(0.0));
+
+    vec3 balance = vec3(
+        1.0 + 0.18 * uTemperature + 0.08 * uTint,
+        1.0 - 0.12 * uTint,
+        1.0 - 0.18 * uTemperature + 0.08 * uTint
+    );
+    color *= max(balance, vec3(0.05));
+    color = pow(max(color, vec3(0.0)), vec3(1.0 / max(uGamma, 0.05)));
+    color = (color - 0.5) * max(uContrast, 0.0) + 0.5 + uBrightness;
+
+    float luminance = colorLuma(color);
+    float shadowMask = 1.0 - smoothstep(0.0, 0.58, luminance);
+    float highlightMask = smoothstep(0.42, 1.0, luminance);
+    color += vec3(0.35 * uShadows * shadowMask);
+    color += vec3(0.35 * uHighlights * highlightMask);
+
+    vec3 hsv = colorRgbToHsv(max(color, vec3(0.0)));
+    hsv.x = fract(hsv.x + uHue);
+    color = colorHsvToRgb(hsv);
+    luminance = colorLuma(color);
+    color = mix(vec3(luminance), color, max(uSaturation, 0.0));
+    float chroma = max(color.r, max(color.g, color.b)) - min(color.r, min(color.g, color.b));
+    float vibranceScale = 1.0 + clamp(uVibrance, -1.0, 1.0) * (1.0 - clamp(chroma, 0.0, 1.0));
+    color = mix(vec3(colorLuma(color)), color, max(vibranceScale, 0.0));
+
+    color = mix(color, vec3(1.0) - color, clamp(uInvert, 0.0, 1.0));
+    luminance = colorLuma(color);
+    color = mix(color, vec3(luminance), clamp(uMonochrome, 0.0, 1.0));
+    vec3 sepia = vec3(
+        dot(color, vec3(0.393, 0.769, 0.189)),
+        dot(color, vec3(0.349, 0.686, 0.168)),
+        dot(color, vec3(0.272, 0.534, 0.131))
+    );
+    color = mix(color, sepia, clamp(uSepia, 0.0, 1.0));
+
+    float levels = max(floor(uPosterizeLevels + 0.5), 2.0);
+    vec3 posterized = floor(clamp(color, 0.0, 1.0) * (levels - 1.0) + 0.5) / (levels - 1.0);
+    color = mix(color, posterized, clamp(uPosterizeAmount, 0.0, 1.0));
+
+    luminance = clamp(colorLuma(color), 0.0, 1.0);
+    vec3 duotone = mix(uDuotoneShadow.rgb, uDuotoneHighlight.rgb, luminance);
+    color = mix(color, duotone, clamp(uDuotoneAmount, 0.0, 1.0));
+
+    if (uOverlayEnabled > 0.5 && uOverlayAmount > 0.0) {
+        vec3 blended = colorOverlayBlend(clamp(color, 0.0, 1.0), uOverlayColor.rgb, uOverlayMode);
+        float overlayMix = clamp(uOverlayAmount * uOverlayColor.a, 0.0, 1.0);
+        color = mix(color, blended, overlayMix);
+    }
+
+    color = clamp(color, 0.0, 1.0);
+    float mixAmount = clamp(uMix, 0.0, 1.0);
+    fragColor = TDOutputSwizzle(vec4(mix(source.rgb, color, mixAmount), source.a));
+}
+""".strip()
+
+COLOR_ADJUSTMENT_PARAMETER_DEFINITIONS = (
+    {
+        "name": "Enabled", "label": "Module Enabled", "type": "toggle",
+        "page": "Color Adjustment", "default": True,
+        "description": "Return the input unchanged when the entire module is disabled.",
+    },
+    {
+        "name": "Mix", "label": "Adjustment Mix", "type": "float",
+        "page": "Color Adjustment", "default": 1.0,
+        "min": 0.0, "max": 1.0, "uniform": "uMix",
+        "description": "Blend continuously between the source and adjusted color.",
+    },
+    {
+        "name": "Invert", "label": "Invert Amount", "type": "float",
+        "page": "Color Adjustment", "default": 0.0,
+        "min": 0.0, "max": 1.0, "uniform": "uInvert",
+        "description": "Blend toward a full RGB color inversion.",
+    },
+    {
+        "name": "Exposure", "label": "Exposure (Stops)", "type": "float",
+        "page": "Primary", "default": 0.0,
+        "min": -5.0, "max": 5.0, "uniform": "uExposure",
+        "description": "Scale image exposure in photographic stops.",
+    },
+    {
+        "name": "Brightness", "label": "Brightness", "type": "float",
+        "page": "Primary", "default": 0.0,
+        "min": -1.0, "max": 1.0, "uniform": "uBrightness",
+        "description": "Add or subtract overall brightness after gamma correction.",
+    },
+    {
+        "name": "Contrast", "label": "Contrast", "type": "float",
+        "page": "Primary", "default": 1.0,
+        "min": 0.0, "max": 3.0, "uniform": "uContrast",
+        "description": "Expand or compress RGB contrast around middle gray.",
+    },
+    {
+        "name": "Saturation", "label": "Saturation", "type": "float",
+        "page": "Primary", "default": 1.0,
+        "min": 0.0, "max": 3.0, "uniform": "uSaturation",
+        "description": "Scale color saturation while preserving luminance.",
+    },
+    {
+        "name": "Vibrance", "label": "Vibrance", "type": "float",
+        "page": "Primary", "default": 0.0,
+        "min": -1.0, "max": 1.0, "uniform": "uVibrance",
+        "description": "Adjust less-saturated colors more strongly than vivid colors.",
+    },
+    {
+        "name": "Hue", "label": "Hue Rotation", "type": "float",
+        "page": "Primary", "default": 0.0,
+        "min": -1.0, "max": 1.0, "uniform": "uHue",
+        "description": "Rotate hue by normalized turns; 0.5 equals 180 degrees.",
+    },
+    {
+        "name": "Temperature", "label": "Temperature", "type": "float",
+        "page": "White Balance", "default": 0.0,
+        "min": -1.0, "max": 1.0, "uniform": "uTemperature",
+        "description": "Shift the image from cool blue toward warm amber.",
+    },
+    {
+        "name": "Tint", "label": "Tint", "type": "float",
+        "page": "White Balance", "default": 0.0,
+        "min": -1.0, "max": 1.0, "uniform": "uTint",
+        "description": "Shift the image between green and magenta.",
+    },
+    {
+        "name": "Blackpoint", "label": "Input Black", "type": "float",
+        "page": "Tonal Range", "default": 0.0,
+        "min": 0.0, "max": 0.99, "uniform": "uBlackPoint",
+        "description": "Remap this input value to black before other adjustments.",
+    },
+    {
+        "name": "Whitepoint", "label": "Input White", "type": "float",
+        "page": "Tonal Range", "default": 1.0,
+        "min": 0.01, "max": 4.0, "uniform": "uWhitePoint",
+        "description": "Remap this input value to white before other adjustments.",
+    },
+    {
+        "name": "Gamma", "label": "Gamma", "type": "float",
+        "page": "Tonal Range", "default": 1.0,
+        "min": 0.05, "max": 4.0, "uniform": "uGamma",
+        "description": "Adjust midtone gamma without changing the nominal black point.",
+    },
+    {
+        "name": "Lift", "label": "RGB Lift", "type": "xyz",
+        "page": "Tonal Range", "default": [0.0, 0.0, 0.0],
+        "min": -1.0, "max": 1.0, "uniform": "uLift",
+        "description": "Add independent red, green, and blue shadow offsets.",
+    },
+    {
+        "name": "Gain", "label": "RGB Gain", "type": "xyz",
+        "page": "Tonal Range", "default": [1.0, 1.0, 1.0],
+        "min": 0.0, "max": 4.0, "uniform": "uGain",
+        "description": "Multiply independent red, green, and blue channel gains.",
+    },
+    {
+        "name": "Shadows", "label": "Shadows", "type": "float",
+        "page": "Tonal Range", "default": 0.0,
+        "min": -1.0, "max": 1.0, "uniform": "uShadows",
+        "description": "Darken or lift the low-luminance portion of the image.",
+    },
+    {
+        "name": "Highlights", "label": "Highlights", "type": "float",
+        "page": "Tonal Range", "default": 0.0,
+        "min": -1.0, "max": 1.0, "uniform": "uHighlights",
+        "description": "Darken or lift the high-luminance portion of the image.",
+    },
+    {
+        "name": "Monochrome", "label": "Monochrome Amount", "type": "float",
+        "page": "Creative Color", "default": 0.0,
+        "min": 0.0, "max": 1.0, "uniform": "uMonochrome",
+        "description": "Blend smoothly toward luminance-only grayscale.",
+    },
+    {
+        "name": "Sepia", "label": "Sepia Amount", "type": "float",
+        "page": "Creative Color", "default": 0.0,
+        "min": 0.0, "max": 1.0, "uniform": "uSepia",
+        "description": "Blend toward a classic warm sepia color matrix.",
+    },
+    {
+        "name": "Posterizeamount", "label": "Posterize Amount", "type": "float",
+        "page": "Creative Color", "default": 0.0,
+        "min": 0.0, "max": 1.0, "uniform": "uPosterizeAmount",
+        "description": "Blend toward discrete per-channel color levels.",
+    },
+    {
+        "name": "Posterizelevels", "label": "Posterize Levels", "type": "int",
+        "page": "Creative Color", "default": 8,
+        "min": 2, "max": 64, "uniform": "uPosterizeLevels",
+        "description": "Set the number of levels used by the posterize treatment.",
+    },
+    {
+        "name": "Duotoneamount", "label": "Duotone Amount", "type": "float",
+        "page": "Duotone", "default": 0.0,
+        "min": 0.0, "max": 1.0, "uniform": "uDuotoneAmount",
+        "description": "Map luminance between the selected shadow and highlight colors.",
+    },
+    {
+        "name": "Duotoneshadow", "label": "Duotone Shadow", "type": "rgba",
+        "page": "Duotone", "default": [0.04, 0.07, 0.16, 1.0],
+        "uniform": "uDuotoneShadow",
+        "description": "Set the color used for the darkest duotone values.",
+    },
+    {
+        "name": "Duotonehighlight", "label": "Duotone Highlight", "type": "rgba",
+        "page": "Duotone", "default": [0.96, 0.62, 0.24, 1.0],
+        "uniform": "uDuotoneHighlight",
+        "description": "Set the color used for the brightest duotone values.",
+    },
+    {
+        "name": "Overlayenabled", "label": "Color Overlay Enabled", "type": "toggle",
+        "page": "Color Overlay", "default": False,
+        "uniform": "uOverlayEnabled",
+        "description": "Enable the independently adjustable color-overlay layer.",
+    },
+    {
+        "name": "Overlaycolor", "label": "Overlay Color", "type": "rgba",
+        "page": "Color Overlay", "default": [0.15, 0.55, 1.0, 1.0],
+        "uniform": "uOverlayColor",
+        "description": "Set the overlay RGB color and multiply its strength by alpha.",
+    },
+    {
+        "name": "Overlayamount", "label": "Overlay Amount", "type": "float",
+        "page": "Color Overlay", "default": 0.5,
+        "min": 0.0, "max": 1.0, "uniform": "uOverlayAmount",
+        "description": "Blend the selected color-overlay mode into the adjusted image.",
+    },
+    {
+        "name": "Overlaymode", "label": "Overlay Blend Mode", "type": "menu",
+        "page": "Color Overlay", "default": "soft_light",
+        "menu_names": list(COLOR_ADJUSTMENT_OVERLAY_MODE_NAMES),
+        "menu_labels": list(COLOR_ADJUSTMENT_OVERLAY_MODE_LABELS),
+        "uniform": "uOverlayMode",
+        "description": "Choose one of eight color-overlay blend modes.",
+    },
+)
+
 PREVIEW_IDENTITY_LUT_SHADER = r"""
 layout(location = 0) out vec4 fragColor;
 void main() {
@@ -3093,6 +3433,126 @@ def build_glitch_fusion_module(parent_comp):
     return glitch, glitch_path
 
 
+def build_color_adjustment_module(parent_comp):
+    """Build the reusable single-pass color-adjustment and overlay module."""
+
+    color_adjustment = parent_comp.create(baseCOMP, "color_adjustment")
+    color_adjustment.color = (0.48, 0.28, 0.08)
+    color_adjustment.comment = (
+        "Single-pass GPU color correction, inversion, creative treatments, "
+        "duotone, and eight color-overlay blend modes with alpha preservation."
+    )
+    pages = {}
+    parameter_bindings = []
+    for definition in COLOR_ADJUSTMENT_PARAMETER_DEFINITIONS:
+        page_name = definition.get("page", "Color Adjustment")
+        page = pages.get(page_name)
+        if page is None:
+            page = color_adjustment.appendCustomPage(page_name)
+            pages[page_name] = page
+        custom_pars = _append_parameter(color_adjustment, page, definition)
+        parameter_bindings.append((definition, custom_pars))
+    color_adjustment.store(
+        "tdimagefx_color_adjustment_module",
+        {
+            "schema_version": 1,
+            "id": "tdimagefx.core.color-adjustment",
+            "renderer": "bounded_glsl_top",
+            "alpha_policy": "preserve_source",
+            "overlay_modes": list(COLOR_ADJUSTMENT_OVERLAY_MODE_NAMES),
+            "overlay_mode_count": len(COLOR_ADJUSTMENT_OVERLAY_MODE_NAMES),
+            "video_fx_routing": "before_optional_rack",
+        },
+    )
+
+    source = color_adjustment.create(inTOP, "in1_image")
+    source.par.label = "source image"
+    source.nodeX = -400
+    source.nodeY = 0
+
+    shader_dat = color_adjustment.create(textDAT, "pixel_shader_color_adjustment")
+    shader_dat.text = COLOR_ADJUSTMENT_SHADER
+    shader_dat.nodeX = -200
+    shader_dat.nodeY = -220
+
+    color_glsl = color_adjustment.create(glslTOP, "effect_glsl_color_adjustment")
+    source.outputConnectors[0].connect(color_glsl.inputConnectors[0])
+    color_glsl.nodeX = 0
+    color_glsl.nodeY = 0
+    color_glsl.par.pixeldat = color_glsl.relativePath(shader_dat)
+    if color_glsl.par["glslversion"] is not None:
+        color_glsl.par.glslversion = "glsl460"
+    if color_glsl.par["compilebehavior"] is not None:
+        color_glsl.par.compilebehavior = "stalluntildone"
+    if color_glsl.par["errorbehavior"] is not None:
+        color_glsl.par.errorbehavior = "showerror"
+    if color_glsl.par["outputresolution"] is not None:
+        color_glsl.par.outputresolution = "useinput"
+
+    active_bindings = [
+        (definition, custom_pars)
+        for definition, custom_pars in parameter_bindings
+        if definition.get("uniform")
+    ]
+    color_glsl.seq.vec.numBlocks = max(
+        1,
+        sum(
+            1
+            for definition, _custom_pars in active_bindings
+            if definition.get("type") not in {"rgb", "rgba"}
+        ),
+    )
+    color_glsl.seq.color.numBlocks = max(
+        1,
+        sum(
+            1
+            for definition, _custom_pars in active_bindings
+            if definition.get("type") in {"rgb", "rgba"}
+        ),
+    )
+    vector_index = 0
+    color_index = 0
+    for definition, custom_pars in active_bindings:
+        current_vector_index = vector_index
+        vector_index, color_index = _configure_glsl_uniform(
+            color_glsl,
+            definition,
+            custom_pars,
+            vector_index,
+            color_index,
+        )
+        if definition["name"] == "Overlaymode":
+            color_glsl.par[
+                "vec{}valuex".format(current_vector_index)
+            ].expr = "parent().par.Overlaymode.menuIndex"
+
+    enable_switch = color_adjustment.create(switchTOP, "enable_switch")
+    source.outputConnectors[0].connect(enable_switch.inputConnectors[0])
+    color_glsl.outputConnectors[0].connect(enable_switch.inputConnectors[1])
+    enable_switch.par.index.expr = "1 if parent().par.Enabled else 0"
+    enable_switch.nodeX = 200
+    enable_switch.nodeY = 0
+
+    output = color_adjustment.create(outTOP, "out1_color_adjustment")
+    enable_switch.outputConnectors[0].connect(output.inputConnectors[0])
+    output.nodeX = 400
+    output.nodeY = 0
+    output.display = True
+    output.render = True
+    color_adjustment.par.opviewer = output.path
+
+    color_glsl.cook(force=True)
+    errors = list(color_glsl.errors())
+    if errors:
+        raise RuntimeError(
+            "Color Adjustment shader failed: {}".format("; ".join(errors))
+        )
+
+    color_adjustment_path = CORE_ROOT / "ColorAdjustment.tox"
+    color_adjustment.save(str(color_adjustment_path), createFolders=True)
+    return color_adjustment, color_adjustment_path
+
+
 def build_browser(parent_comp, manifests, compatibility_confidence="declared"):
     browser = parent_comp.create(baseCOMP, "fx_browser")
     browser.color = (0.14, 0.38, 0.30)
@@ -3728,6 +4188,7 @@ def build_library(project_comp, manifests, report):
         "Use core/particle_random_move for GPU image particles with deterministic random motion.\n"
         "Use core/ink_flow_fusion for minimal ink work, ink wash, and water-current particles.\n"
         "Use core/glitch_fusion for 24 selectable digital and analog glitch treatments.\n"
+        "Use core/color_adjustment for grading, inversion, duotone, and color overlays.\n"
         "Use core/fx_browser to search, filter, favorite, and create effects.\n"
         "Use the promoted Find(), CreateEffect(), CheckUpdates(), and HealthCheck() methods.\n"
         "All effect versions are immutable and stored under packages/<id>/<version>.\n"
@@ -3823,8 +4284,13 @@ def build_library(project_comp, manifests, report):
     glitch, glitch_path = build_glitch_fusion_module(core_parent)
     glitch.nodeX = 780
     glitch.nodeY = 0
+    color_adjustment, color_adjustment_path = build_color_adjustment_module(
+        core_parent
+    )
+    color_adjustment.nodeX = 1040
+    color_adjustment.nodeY = 0
     browser, browser_path = build_browser(core_parent, manifests, compatibility_confidence)
-    browser.nodeX = 1040
+    browser.nodeX = 1300
     browser.nodeY = 0
 
     library.par.Status = "Ready: {} packages".format(len(manifests))
@@ -3836,10 +4302,18 @@ def build_library(project_comp, manifests, report):
         "particles": str(particle_path),
         "ink_flow": str(ink_flow_path),
         "glitch": str(glitch_path),
+        "color_adjustment": str(color_adjustment_path),
         "browser": str(browser_path),
         "updater": str(CORE_ROOT / "FxUpdater.tox"),
     }
-    return library, rack_path, particle_path, ink_flow_path, glitch_path
+    return (
+        library,
+        rack_path,
+        particle_path,
+        ink_flow_path,
+        glitch_path,
+        color_adjustment_path,
+    )
 
 
 def build_demo(
@@ -3848,6 +4322,7 @@ def build_demo(
     particle_path,
     ink_flow_path,
     glitch_path,
+    color_adjustment_path,
 ):
     demo = project_comp.create(baseCOMP, "imagefx_demo")
     demo.nodeX = 100
@@ -3855,7 +4330,8 @@ def build_demo(
     demo.color = (0.32, 0.18, 0.36)
     demo.comment = (
         "Animated source -> optional ink flow -> optional random particles -> "
-        "optional Glitch Fusion -> optional eight-slot video FX. "
+        "optional Glitch Fusion -> optional color adjustment -> optional "
+        "eight-slot video FX. "
         "Output defaults to 1920 x 1080 with 4K UHD and custom presets. "
         "Replace source_image with any TOP."
     )
@@ -3891,6 +4367,17 @@ def build_demo(
             "type": "toggle",
             "default": False,
             "description": "Apply the selected Glitch Fusion treatment after both particle stages.",
+        },
+    )
+    _append_parameter(
+        demo,
+        demo_page,
+        {
+            "name": "Coloradjustmentenabled",
+            "label": "Color Adjustment Enabled",
+            "type": "toggle",
+            "default": False,
+            "description": "Apply the independently adjustable color module after Glitch Fusion.",
         },
     )
     _append_parameter(
@@ -3973,10 +4460,20 @@ def build_demo(
     glitch.par.Enabled.expr = "parent().par.Glitchenabled"
     particles.outputConnectors[0].connect(glitch.inputConnectors[0])
 
+    color_adjustment = load_tox_component(
+        demo,
+        color_adjustment_path,
+        "color_adjustment",
+    )
+    color_adjustment.nodeX = 740
+    color_adjustment.nodeY = 0
+    color_adjustment.par.Enabled.expr = "parent().par.Coloradjustmentenabled"
+    glitch.outputConnectors[0].connect(color_adjustment.inputConnectors[0])
+
     rack = load_tox_component(demo, rack_path, "fx_rack")
-    rack.nodeX = 740
+    rack.nodeX = 1000
     rack.nodeY = 0
-    glitch.outputConnectors[0].connect(rack.inputConnectors[0])
+    color_adjustment.outputConnectors[0].connect(rack.inputConnectors[0])
 
     # Supply visible, deterministic fixtures for every semantic auxiliary bus.
     # The reusable rack still exposes these as normal inputs; this only makes
@@ -4023,15 +4520,15 @@ def build_demo(
         fixture.outputConnectors[0].connect(rack.inputConnectors[input_index])
 
     video_fx_router = demo.create(switchTOP, "video_fx_router")
-    glitch.outputConnectors[0].connect(video_fx_router.inputConnectors[0])
+    color_adjustment.outputConnectors[0].connect(video_fx_router.inputConnectors[0])
     rack.outputConnectors[0].connect(video_fx_router.inputConnectors[1])
     video_fx_router.par.index.expr = "1 if parent().par.Applyvideofx else 0"
-    video_fx_router.nodeX = 990
+    video_fx_router.nodeX = 1250
     video_fx_router.nodeY = 0
 
     output = demo.create(outTOP, "out1_image")
     video_fx_router.outputConnectors[0].connect(output.inputConnectors[0])
-    output.nodeX = 1200
+    output.nodeX = 1460
     output.nodeY = 0
     if output.par["outputresolution"] is not None:
         output.par.outputresolution = "custom"
@@ -4219,6 +4716,7 @@ def build():
             particle_path,
             ink_flow_path,
             glitch_path,
+            color_adjustment_path,
         ) = build_library(
             project_comp,
             manifests,
@@ -4230,6 +4728,7 @@ def build():
             particle_path,
             ink_flow_path,
             glitch_path,
+            color_adjustment_path,
         )
         report["benchmark_data"] = str(_write_benchmark_data(report))
         if report["shader_errors"]:
