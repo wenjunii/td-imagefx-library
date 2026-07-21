@@ -32,7 +32,8 @@ top-level operators.
    ```
 
 The installer loads the tracked `TDImageFXLibrary.tox`, `InkFlowFusion.tox`,
-`ParticleRandomMove.tox`, `GlitchFusion.tox`, and `FxRack.tox`,
+`ParticleRandomMove.tox`, `GlitchFusion.tox`, `ColorAdjustment.tox`, and
+`FxRack.tox`,
 synchronizes their extension DATs from `touchdesigner/extensions/`, repairs
 legacy absolute Pixel Shader DAT paths inside loaded effects, points every
 library root at the checkout, creates the same managed paths used by the
@@ -133,8 +134,9 @@ project-scoped MCP process.
 2. confirms the selected TD/Envoy instance and records baseline performance;
 3. checks the managed network and calls `HealthCheck`;
 4. checks recursive operator errors and warnings;
-5. captures the demo, ink-flow, random-particle, Glitch Fusion, rack, and
-   browser preview TOPs with Envoy's pixel-quality verdict; and
+5. captures the demo, ink-flow, random-particle, Glitch Fusion, Color
+   Adjustment, rack, and browser preview TOPs with Envoy's pixel-quality
+   verdict; and
 6. compares final performance before running the offline repository verifier.
 
 For a local JSON diagnostic from TouchDesigner, run:
@@ -168,6 +170,12 @@ It exercises the effect-selection callback in all eight slots, verifies the
 newly loaded package, and restores the exact preset snapshot in a `finally`
 block. It changes live rack state temporarily, so run it only in the ignored
 development harness. It never saves the project.
+
+For a state-restoring pixel regression of the dedicated grading stage, run
+`touchdesigner/scripts/validate_color_adjustment_module.py` with the same
+Textport pattern. It verifies neutral output, independent module/mix bypass,
+the adjustment families, all eight overlay blend modes, alpha preservation,
+rack routing, and shader diagnostics, then restores every artist-facing value.
 
 If opening `TD_ImageFX_DevHarness.toe` leaves a numbered project name such as
 `TD_ImageFX_DevHarness.1.toe` or `.2.toe` in TouchDesigner's title, the file was

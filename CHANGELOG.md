@@ -29,6 +29,13 @@ All notable changes to TD ImageFX Library are recorded here. Package versions fo
 - A dedicated live Glitch Fusion validator covering the exact style menu,
   every style's visible and distinct output, bypass fidelity, time and seed
   variation, rack routing, resolution, and GLSL diagnostics.
+- `ColorAdjustment.tox`, a reusable neutral-by-default single-pass GPU module
+  for inversion, exposure, brightness, contrast, saturation, vibrance, hue,
+  white balance, levels, gamma, RGB lift/gain, shadows/highlights, monochrome,
+  sepia, posterize, duotone, and eight adjustable color-overlay blend modes.
+- A dedicated live Color Adjustment validator covering master and zero-mix
+  bypass, neutral fidelity, every adjustment family and overlay mode, visual
+  distinction, source-alpha preservation, rack routing, and GLSL diagnostics.
 - Demo output-resolution controls with a default 1920 x 1080 preset, a 4K UHD
   3840 x 2160 preset, and adjustable 16-through-8192 custom width and height.
 - A dedicated live output-resolution validator covering default values, the
@@ -61,17 +68,17 @@ All notable changes to TD ImageFX Library are recorded here. Package versions fo
   selection changes; the native builder also initializes and validates the
   first 512x288 preview before exporting the component.
 - The canonical demo now routes source through ink flow, optional random
-  particles, optional Glitch Fusion, and the eight-slot rack with explicit
-  stage-level bypass controls.
+  particles, optional Glitch Fusion, optional Color Adjustment, and the
+  eight-slot rack with explicit stage-level bypass controls.
 - The generated demo source and final Out TOP now follow the selected delivery
   resolution automatically.
-- The native `.toe`, seven core `.tox` components, benchmark report, and
+- The native `.toe`, eight core `.tox` components, benchmark report, and
   SHA-256-bound native validation record were rebuilt with TouchDesigner
   `2025.32820`.
-- The offline suite now contains 169 tests, including contracts for bounded
+- The offline suite now contains 170 tests, including contracts for bounded
   ink-flow particles, two distinct visual styles, all 24 Glitch Fusion styles,
-  HD/4K/custom output resolution, native artifact inventory, and the six-output
-  Embody audit.
+  neutral color adjustment, eight overlay modes, HD/4K/custom output
+  resolution, native artifact inventory, and the seven-output Embody audit.
 - Repository verification now scans tracked files for high-confidence
   credential formats and forbidden secret-bearing filenames without printing
   suspected values; a staged-only mode supports pre-commit review.

@@ -132,6 +132,7 @@ def validate(write_report=True):
         "particles_enabled": demo.par.Particlesenabled.eval(),
         "ink_flow_enabled": demo.par.Inkflowenabled.eval(),
         "glitch_enabled": demo.par.Glitchenabled.eval(),
+        "color_enabled": demo.par.Coloradjustmentenabled.eval(),
         "apply_video_fx": demo.par.Applyvideofx.eval(),
         "auto_time": particles.par.Autotime.eval(),
         "manual_time": particles.par.Manualtime.eval(),
@@ -148,6 +149,7 @@ def validate(write_report=True):
         source.par.vec0valuex = 0.0
         demo.par.Inkflowenabled = False
         demo.par.Glitchenabled = False
+        demo.par.Coloradjustmentenabled = False
         particles.par.Autotime = False
         particles.par.Manualtime = 0.0
 
@@ -275,6 +277,7 @@ def validate(write_report=True):
         demo.par.Particlesenabled = saved["particles_enabled"]
         demo.par.Inkflowenabled = saved["ink_flow_enabled"]
         demo.par.Glitchenabled = saved["glitch_enabled"]
+        demo.par.Coloradjustmentenabled = saved["color_enabled"]
         demo.par.Applyvideofx = saved["apply_video_fx"]
         particles.par.Autotime = saved["auto_time"]
         particles.par.Manualtime = saved["manual_time"]

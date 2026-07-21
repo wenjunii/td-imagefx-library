@@ -105,7 +105,7 @@ git clone https://github.com/wenjunii/td-imagefx-library.git
 cd td-imagefx-library
 ```
 
-The v0.3 source and generated artifacts are synchronized. The recorded Windows build used TouchDesigner `2025.32820` and validated all 96 current effects with 122 versioned effect `.tox` files, seven core `.tox` files, one library `.toe`, 96 previews, 96 visual baselines, and 96 benchmark samples. The build report contains zero shader, preview, or builder errors. A fresh repository run completed 169 tests successfully, with four expected Windows symlink-permission skips, and two independent 99-file release builds matched byte-for-byte. Read [TouchDesigner setup](docs/touchdesigner-setup.md) to reproduce the native build.
+The v0.3 source and generated artifacts are synchronized. The recorded Windows build used TouchDesigner `2025.32820` and validated all 96 current effects with 122 versioned effect `.tox` files, eight core `.tox` files, one library `.toe`, 96 previews, 96 visual baselines, and 96 benchmark samples. The build report contains zero shader, preview, or builder errors. A fresh repository run completed 170 tests successfully, with four expected Windows symlink-permission skips, and two independent 99-file release builds matched byte-for-byte. Read [TouchDesigner setup](docs/touchdesigner-setup.md) to reproduce the native build.
 
 The generated project targets TouchDesigner 2025. Validate the exact TouchDesigner build, operating system, GPU, driver, resolution, pixel format, and color pipeline used by your production system. Python 3.11 or newer is required for repository tooling; it is not required merely to use already-built native components.
 
@@ -203,7 +203,8 @@ its own processing resolution through the effect chain, while the final output
 is resized to the selected delivery resolution.
 
 4K and large custom sizes increase GPU memory and cook time substantially,
-especially with eight rack slots, particles, ink, and Glitch Fusion enabled.
+especially with eight rack slots, particles, ink, Glitch Fusion, and Color
+Adjustment enabled.
 Qualify the chosen combination on the target machine before using it in a
 performance.
 
@@ -227,14 +228,14 @@ The visual and particle switches are independent:
 | Off | On | Original input plus water-current particles |
 | On | On | Water-current particles composited with the selected ink treatment |
 
-The demo-level **Ink Flow Module Enabled** switch bypasses the entire module. The separate **Random Particles Enabled** switch controls the existing `ParticleRandomMove.tox` stage after ink flow, **Glitch Module Enabled** controls `GlitchFusion.tox` after both particle stages, and **Apply Video Effects** controls the eight-slot rack after the glitch stage.
+The demo-level **Ink Flow Module Enabled** switch bypasses the entire module. The separate **Random Particles Enabled** switch controls the existing `ParticleRandomMove.tox` stage after ink flow, **Glitch Module Enabled** controls `GlitchFusion.tox` after both particle stages, **Color Adjustment Enabled** controls the dedicated grading stage, and **Apply Video Effects** controls the eight-slot rack after color adjustment.
 
 ### Random-move particles
 
 The reusable `ParticleRandomMove.tox` module turns any image TOP into a GPU particle field. Every particle samples the source image and follows deterministic seeded random motion. Controls cover particle count, size, speed, move amount, jitter, directional drift, seed, circle/square/diamond shape, source blend, opacity, background, and automatic or manual time.
 
-With **Ink Flow Module Enabled** and **Glitch Module Enabled** off, the random
-particle and rack switches produce:
+With **Ink Flow Module Enabled**, **Glitch Module Enabled**, and **Color
+Adjustment Enabled** off, the random-particle and rack switches produce:
 
 | Random Particles Enabled | Apply Video Effects | Result |
 | --- | --- | --- |
@@ -267,10 +268,33 @@ and seed. **Auto Time**, **Time Scale**, and **Manual Time** support live or
 deterministic animation. The module preserves source alpha and returns the
 original input when disabled or when Effect Mix is zero.
 
-Glitch Fusion sits after Ink Flow and Random Particles, but before the
-eight-slot rack. This lets it corrupt the original image, either particle
-render, or their combined result; **Apply Video Effects** then determines
-whether the rack also processes that glitch output.
+Glitch Fusion sits after Ink Flow and Random Particles, but before Color
+Adjustment and the eight-slot rack. This lets it corrupt the original image,
+either particle render, or their combined result; the color module can grade
+that result before **Apply Video Effects** determines whether the rack also
+processes it.
+
+### Color adjustment
+
+The reusable `ColorAdjustment.tox` module provides one bounded GPU pass for
+technical correction and creative color styling. Select
+`/project1/imagefx_demo/color_adjustment`, then use:
+
+- **Color Adjustment** for whole-module bypass, dry/wet mix, and RGB inversion;
+- **Primary** for exposure, brightness, contrast, saturation, vibrance, and hue;
+- **White Balance** for temperature and green/magenta tint;
+- **Tonal Range** for input black/white, gamma, per-channel RGB lift and gain,
+  shadows, and highlights;
+- **Creative Color** for monochrome, sepia, and adjustable posterization;
+- **Duotone** for independent shadow/highlight colors and blend amount; and
+- **Color Overlay** for an RGBA overlay with Normal, Multiply, Screen, Overlay,
+  Soft Light, Hard Light, Color, and Difference blend modes.
+
+All controls load neutral except the stored overlay color/amount, which are
+inactive until **Color Overlay Enabled** is on. Source alpha is preserved. Use
+the demo-level **Color Adjustment Enabled** toggle to bypass the whole module;
+**Adjustment Mix** at zero is also an exact dry path. The module remains active
+whether or not the separate eight-slot rack is enabled.
 
 ### Eight-slot rack
 
@@ -278,8 +302,8 @@ whether the rack also processes that glitch output.
 2. Choose **HD 1920 x 1080**, **4K UHD 3840 x 2160**, or **Custom** on the **Output** page.
 3. Drag a still or movie into the demo to create a **Movie File In TOP**. Disconnect the generated `source_image` from input 0 of `ink_flow`, then connect your Movie File In TOP there.
 4. Keep your source connected to `fixture_image_b` if you want its derived clean/alternate image, or replace rack input 1 with a different TOP for transitions, composites, and Difference Key.
-5. On `imagefx_demo`, choose whether **Ink Flow Module Enabled**, **Random Particles Enabled**, **Glitch Module Enabled**, and **Apply Video Effects** are on.
-6. Select `ink_flow` to tune ink visuals and water particles, `particle_random_move` for the separate random-particle stage, `glitch_fusion` for its 24 glitch styles, or `fx_rack` and open its **Rack** custom parameter page to choose up to eight effects.
+5. On `imagefx_demo`, choose whether **Ink Flow Module Enabled**, **Random Particles Enabled**, **Glitch Module Enabled**, **Color Adjustment Enabled**, and **Apply Video Effects** are on.
+6. Select `ink_flow` to tune ink visuals and water particles, `particle_random_move` for the separate random-particle stage, `glitch_fusion` for its 24 glitch styles, `color_adjustment` for grading and overlays, or `fx_rack` and open its **Rack** custom parameter page to choose up to eight effects.
 7. Adjust slot enable, mix, order, bypass, reset, and modulation. Leave **Auto Time** enabled for timeline-driven, particle, and feedback motion.
 8. View `out1_image`, then export/import validated JSON rack presets if needed.
 
@@ -304,7 +328,7 @@ Open `/project1/td_imagefx/core/fx_browser`. Search is case-insensitive across c
 
 ### Individual components
 
-Versioned effect components live under `packages/<package-id>/<version>/tox/`. Reusable core components, including `InkFlowFusion.tox`, `ParticleRandomMove.tox`, and `GlitchFusion.tox`, are generated under `touchdesigner/core/`. When importing one into another show, set **Library Root** to this checkout or a verified installed-package root.
+Versioned effect components live under `packages/<package-id>/<version>/tox/`. Reusable core components, including `InkFlowFusion.tox`, `ParticleRandomMove.tox`, `GlitchFusion.tox`, and `ColorAdjustment.tox`, are generated under `touchdesigner/core/`. When importing one into another show, set **Library Root** to this checkout or a verified installed-package root.
 
 ## Author and validate effects
 
@@ -361,7 +385,7 @@ Run the dependency-free repository check with Python 3.11 or newer:
 python tools/verify_repository.py
 ```
 
-The verifier expects exactly 96 current IDs and 122 immutable manifests. It compiles Python, runs tests, validates manifests and feeds, verifies the recorded hashes of the library `.toe`, all 122 effect `.tox` files, and seven core `.tox` files, compares generated gallery/baseline/benchmark coverage with the latest catalog, and prevents version drift. It also cross-checks this README's test and catalog claims, the ImageFX project context, and the live validator's package/build constants against checked source and native records. A failure caused by stale native or generated artifacts is intentional: rebuild and review them rather than weakening the invariant.
+The verifier expects exactly 96 current IDs and 122 immutable manifests. It compiles Python, runs tests, validates manifests and feeds, verifies the recorded hashes of the library `.toe`, all 122 effect `.tox` files, and eight core `.tox` files, compares generated gallery/baseline/benchmark coverage with the latest catalog, and prevents version drift. It also cross-checks this README's test and catalog claims, the ImageFX project context, and the live validator's package/build constants against checked source and native records. A failure caused by stale native or generated artifacts is intentional: rebuild and review them rather than weakening the invariant.
 
 GitHub Actions runs verification on Windows, macOS, and Linux with Python 3.11 and 3.13, and separately rejects modifications to package versions already present in repository history.
 

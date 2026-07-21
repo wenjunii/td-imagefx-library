@@ -63,6 +63,14 @@ class EmbodyIntegrationTests(unittest.TestCase):
             context["outputs"]["primary_demo"],
             "/project1/imagefx_demo/out1_image",
         )
+        self.assertEqual(
+            context["network"]["color_adjustment"],
+            "/project1/td_imagefx/core/color_adjustment",
+        )
+        self.assertEqual(
+            context["outputs"]["color_adjustment"],
+            "/project1/imagefx_demo/color_adjustment/out1_color_adjustment",
+        )
         self.assertFalse(
             [key for key in _walk_keys(context) if SECRET_KEY.search(key)]
         )
@@ -124,6 +132,7 @@ class EmbodyIntegrationTests(unittest.TestCase):
                 "/project1/imagefx_demo/ink_flow/out1_ink_flow",
                 "/project1/imagefx_demo/particle_random_move/out1_particles",
                 "/project1/imagefx_demo/glitch_fusion/out1_glitch",
+                "/project1/imagefx_demo/color_adjustment/out1_color_adjustment",
                 "/project1/imagefx_demo/fx_rack/out1_image",
                 "/project1/td_imagefx/core/fx_browser/selected_preview",
             ],
@@ -160,10 +169,11 @@ class EmbodyIntegrationTests(unittest.TestCase):
         self.assertIn('parameter.val = ""', installer)
         self.assertIn('parameter.expr = "me.op(\'../../effects\')"', installer)
         self.assertIn("browser.cook(force=True)", installer)
-        self.assertEqual(installer.count("_repair_effect_shader_paths("), 6)
+        self.assertEqual(installer.count("_repair_effect_shader_paths("), 7)
         self.assertIn("ParticleRandomMove.tox", installer)
         self.assertIn("InkFlowFusion.tox", installer)
         self.assertIn("GlitchFusion.tox", installer)
+        self.assertIn("ColorAdjustment.tox", installer)
         self.assertIn("HD 1920 x 1080", installer)
         self.assertIn("4K UHD 3840 x 2160", installer)
         self.assertIn("Customwidth", installer)

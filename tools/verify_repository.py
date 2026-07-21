@@ -260,6 +260,7 @@ def _check_manifests() -> tuple[int, set[str], dict[str, str]]:
         ROOT / "touchdesigner" / "core" / "ParticleRandomMove.tox",
         ROOT / "touchdesigner" / "core" / "InkFlowFusion.tox",
         ROOT / "touchdesigner" / "core" / "GlitchFusion.tox",
+        ROOT / "touchdesigner" / "core" / "ColorAdjustment.tox",
         ROOT / "touchdesigner" / "core" / "FxUpdater.tox",
     )
     missing = [path.relative_to(ROOT) for path in required_native_assets if not path.is_file()]
@@ -441,6 +442,7 @@ def _check_native_validation(library_version: str) -> None:
         "touchdesigner/core/ParticleRandomMove.tox",
         "touchdesigner/core/InkFlowFusion.tox",
         "touchdesigner/core/GlitchFusion.tox",
+        "touchdesigner/core/ColorAdjustment.tox",
         "touchdesigner/core/FxUpdater.tox",
         *(
             path.relative_to(ROOT).as_posix()
@@ -538,6 +540,12 @@ def _check_embody_integration() -> None:
     glitch_validator_path = (
         ROOT / "touchdesigner" / "scripts" / "validate_glitch_fusion_module.py"
     )
+    color_adjustment_validator_path = (
+        ROOT
+        / "touchdesigner"
+        / "scripts"
+        / "validate_color_adjustment_module.py"
+    )
     output_resolution_validator_path = (
         ROOT / "touchdesigner" / "scripts" / "validate_output_resolution.py"
     )
@@ -558,6 +566,7 @@ def _check_embody_integration() -> None:
         particle_validator_path,
         ink_flow_validator_path,
         glitch_validator_path,
+        color_adjustment_validator_path,
         output_resolution_validator_path,
         browser_start_callbacks_path,
         bridge_checker_path,
@@ -591,8 +600,12 @@ def _check_embody_integration() -> None:
         network.get("library") != "/project1/td_imagefx"
         or network.get("identity_operators")
         != ["/project1/td_imagefx", "/project1/imagefx_demo"]
+        or network.get("color_adjustment")
+        != "/project1/td_imagefx/core/color_adjustment"
         or outputs.get("primary_demo")
         != "/project1/imagefx_demo/out1_image"
+        or outputs.get("color_adjustment")
+        != "/project1/imagefx_demo/color_adjustment/out1_color_adjustment"
     ):
         raise VerificationError("Embody project context has unexpected managed paths")
 
@@ -700,6 +713,18 @@ def _check_embody_integration() -> None:
     ):
         raise VerificationError(
             "Rack selection validator must test eight slots, restore state, and never save"
+        )
+
+    color_validator = color_adjustment_validator_path.read_text(encoding="utf-8")
+    if (
+        "EXPECTED_OVERLAY_MODES" not in color_validator
+        or "neutral_controls_match_source" not in color_validator
+        or "adjustments_preserve_source_alpha" not in color_validator
+        or "overlay_modes_are_visually_distinct" not in color_validator
+        or "project.save(" in color_validator
+    ):
+        raise VerificationError(
+            "Color Adjustment validator must test neutral grading, overlays, alpha, and never save"
         )
 
     bridge_checker = bridge_checker_path.read_text(encoding="utf-8")

@@ -10,7 +10,7 @@ from tools import record_native_validation
 
 
 class NativeValidationRecordTests(unittest.TestCase):
-    def test_visual_particle_modules_are_required_core_assets(self) -> None:
+    def test_visual_modules_are_required_core_assets(self) -> None:
         self.assertIn(
             "touchdesigner/core/ParticleRandomMove.tox",
             record_native_validation.CORE_ASSETS,
@@ -21,6 +21,10 @@ class NativeValidationRecordTests(unittest.TestCase):
         )
         self.assertIn(
             "touchdesigner/core/GlitchFusion.tox",
+            record_native_validation.CORE_ASSETS,
+        )
+        self.assertIn(
+            "touchdesigner/core/ColorAdjustment.tox",
             record_native_validation.CORE_ASSETS,
         )
 
@@ -83,7 +87,7 @@ class NativeValidationRecordTests(unittest.TestCase):
             self.assertEqual(record["catalog"], {"current_effects": 1, "package_versions": 1})
             self.assertEqual(record["touchdesigner"]["build"], "12345")
             self.assertEqual(record["builder"]["path"], record_native_validation.BUILDER_SOURCE)
-            self.assertEqual(len(record["artifacts"]), 9)
+            self.assertEqual(len(record["artifacts"]), 10)
             self.assertTrue(all(len(item["sha256"]) == 64 for item in record["artifacts"]))
 
     def test_record_rejects_a_build_with_errors(self) -> None:

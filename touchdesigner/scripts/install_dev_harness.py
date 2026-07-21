@@ -29,6 +29,9 @@ RACK_TOX = PROJECT_ROOT / "touchdesigner" / "core" / "FxRack.tox"
 PARTICLE_TOX = PROJECT_ROOT / "touchdesigner" / "core" / "ParticleRandomMove.tox"
 INK_FLOW_TOX = PROJECT_ROOT / "touchdesigner" / "core" / "InkFlowFusion.tox"
 GLITCH_TOX = PROJECT_ROOT / "touchdesigner" / "core" / "GlitchFusion.tox"
+COLOR_ADJUSTMENT_TOX = (
+    PROJECT_ROOT / "touchdesigner" / "core" / "ColorAdjustment.tox"
+)
 EXTENSION_ROOT = PROJECT_ROOT / "touchdesigner" / "extensions"
 MANAGED_NAMES = ("td_imagefx", "imagefx_demo")
 OUTPUT_PRESETS = (
@@ -289,7 +292,7 @@ def install():
         demo.color = (0.32, 0.18, 0.36)
         demo.comment = (
             "Disposable Embody/Envoy QA harness with optional ink flow, "
-            "random particles, Glitch Fusion, and video effects"
+            "random particles, Glitch Fusion, color adjustment, and video effects"
         )
         demo_page = demo.appendCustomPage("Demo")
         demo_page.appendToggle("Inkflowenabled", label="Ink Flow Module Enabled")
@@ -301,6 +304,12 @@ def install():
         demo_page.appendToggle("Glitchenabled", label="Glitch Module Enabled")
         demo.par.Glitchenabled.default = False
         demo.par.Glitchenabled = False
+        demo_page.appendToggle(
+            "Coloradjustmentenabled",
+            label="Color Adjustment Enabled",
+        )
+        demo.par.Coloradjustmentenabled.default = False
+        demo.par.Coloradjustmentenabled = False
         demo_page.appendToggle("Applyvideofx", label="Apply Video Effects")
         demo.par.Applyvideofx.default = True
         demo.par.Applyvideofx = True
@@ -384,15 +393,27 @@ def install():
         _repair_effect_shader_paths(glitch)
         particles.outputConnectors[0].connect(glitch.inputConnectors[0])
 
+        color_adjustment = _load_single_tox(demo, COLOR_ADJUSTMENT_TOX)
+        color_adjustment.name = "color_adjustment"
+        color_adjustment.nodeX = 740
+        color_adjustment.nodeY = 0
+        color_adjustment.par.Enabled.expr = (
+            "parent().par.Coloradjustmentenabled"
+        )
+        _repair_effect_shader_paths(color_adjustment)
+        glitch.outputConnectors[0].connect(
+            color_adjustment.inputConnectors[0]
+        )
+
         rack = _load_single_tox(demo, RACK_TOX)
         rack.name = "fx_rack"
-        rack.nodeX = 740
+        rack.nodeX = 1000
         rack.nodeY = 0
         _set_library_root(rack, "demo rack")
         _sync_extension(rack, "FxRackExt")
         _repair_effect_shader_paths(rack)
         _repair_effect_state_paths(rack)
-        glitch.outputConnectors[0].connect(rack.inputConnectors[0])
+        color_adjustment.outputConnectors[0].connect(rack.inputConnectors[0])
         fixture_values = {
             "displacement": (0.72, 0.28, 0.50, 1.0),
             "depth": (0.68, 0.68, 0.68, 1.0),
@@ -434,16 +455,18 @@ def install():
             fixture.outputConnectors[0].connect(rack.inputConnectors[input_index])
 
         video_fx_router = demo.create(switchTOP, "video_fx_router")
-        glitch.outputConnectors[0].connect(video_fx_router.inputConnectors[0])
+        color_adjustment.outputConnectors[0].connect(
+            video_fx_router.inputConnectors[0]
+        )
         rack.outputConnectors[0].connect(video_fx_router.inputConnectors[1])
         video_fx_router.par.index.expr = (
             "1 if parent().par.Applyvideofx else 0"
         )
-        video_fx_router.nodeX = 990
+        video_fx_router.nodeX = 1250
         video_fx_router.nodeY = 0
 
         output = demo.create(outTOP, "out1_image")
-        output.nodeX = 1200
+        output.nodeX = 1460
         output.nodeY = 0
         video_fx_router.outputConnectors[0].connect(output.inputConnectors[0])
         if output.par["outputresolution"] is not None:
@@ -462,6 +485,7 @@ def install():
             "ink_flow": ink_flow.path,
             "particles": particles.path,
             "glitch": glitch.path,
+            "color_adjustment": color_adjustment.path,
             "output": output.path,
             "resolution_preset": str(demo.par.Resolutionpreset.eval()),
             "output_width": int(output.width),
