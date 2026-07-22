@@ -468,6 +468,9 @@ def validate(write_report=True):
         "glitch_enabled": demo.par.Glitchenabled.eval(),
         "color_enabled": demo.par.Coloradjustmentenabled.eval(),
         "motion_enabled": demo.par.Motionenabled.eval(),
+        "reference_particle_field_enabled": demo.par.Referenceparticlefieldenabled.eval(),
+        "calligraphic_shadow_enabled": demo.par.Calligraphicshadowenabled.eval(),
+        "ink_orbit_enabled": demo.par.Inkorbitenabled.eval(),
         "apply_video_fx": demo.par.Applyvideofx.eval(),
         "controls": {
             name: color.par[name].eval()
@@ -484,6 +487,9 @@ def validate(write_report=True):
         demo.par.Particlesenabled = False
         demo.par.Glitchenabled = False
         demo.par.Motionenabled = False
+        demo.par.Referenceparticlefieldenabled = False
+        demo.par.Calligraphicshadowenabled = False
+        demo.par.Inkorbitenabled = False
         demo.par.Applyvideofx = False
         _set_values(color, NEUTRAL_VALUES)
 
@@ -740,6 +746,9 @@ def validate(write_report=True):
         demo.par.Glitchenabled = saved["glitch_enabled"]
         demo.par.Coloradjustmentenabled = saved["color_enabled"]
         demo.par.Motionenabled = saved["motion_enabled"]
+        demo.par.Referenceparticlefieldenabled = saved["reference_particle_field_enabled"]
+        demo.par.Calligraphicshadowenabled = saved["calligraphic_shadow_enabled"]
+        demo.par.Inkorbitenabled = saved["ink_orbit_enabled"]
         demo.par.Applyvideofx = saved["apply_video_fx"]
         _set_values(color, saved["controls"])
         if saved["source_time_expression"]:

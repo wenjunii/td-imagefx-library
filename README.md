@@ -105,7 +105,7 @@ git clone https://github.com/wenjunii/td-imagefx-library.git
 cd td-imagefx-library
 ```
 
-The current source and generated artifacts are synchronized. The recorded Windows build used TouchDesigner `2025.32820` and validated all 96 current effects with 124 versioned effect `.tox` files, nine core `.tox` files, one library `.toe`, 96 previews, 96 visual baselines, and 96 benchmark samples. The build report contains zero shader, preview, or builder errors. A fresh repository run completed 172 tests successfully, with four expected Windows symlink-permission skips, and two independent 99-file release builds matched byte-for-byte. Read [TouchDesigner setup](docs/touchdesigner-setup.md) to reproduce the native build.
+The current source and generated artifacts are synchronized. The recorded Windows build used TouchDesigner `2025.32820` and validated all 96 current effects with 124 versioned effect `.tox` files, twelve core `.tox` files, one library `.toe`, 96 previews, 96 visual baselines, and 96 benchmark samples. The build report contains zero shader, preview, or builder errors. A fresh repository run completed 173 tests successfully, with four expected Windows symlink-permission skips, and two independent 99-file release builds matched byte-for-byte. Read [TouchDesigner setup](docs/touchdesigner-setup.md) to reproduce the native build.
 
 The generated project targets TouchDesigner 2025. Validate the exact TouchDesigner build, operating system, GPU, driver, resolution, pixel format, and color pipeline used by your production system. Python 3.11 or newer is required for repository tooling; it is not required merely to use already-built native components.
 
@@ -204,7 +204,8 @@ is resized to the selected delivery resolution.
 
 4K and large custom sizes increase GPU memory and cook time substantially,
 especially with eight rack slots, particles, ink, Glitch Fusion, Color
-Adjustment, and Motion Studio trails enabled. On a laptop RTX 3080 Ti, start
+Adjustment, Motion Studio trails, or the three reference-video modules enabled.
+On a laptop RTX 3080 Ti, start
 Motion Studio at one trail sample and raise it only after checking frame time.
 Qualify the chosen combination on the target machine before using it in a
 performance.
@@ -229,7 +230,13 @@ The visual and particle switches are independent:
 | Off | On | Original input plus water-current particles |
 | On | On | Water-current particles composited with the selected ink treatment |
 
-The demo-level **Ink Flow Module Enabled** switch bypasses the entire module. The separate **Random Particles Enabled** switch controls the existing `ParticleRandomMove.tox` stage after ink flow, **Glitch Module Enabled** controls `GlitchFusion.tox` after both particle stages, **Color Adjustment Enabled** controls the dedicated grading stage, **Motion Module Enabled** controls `MotionStudio.tox`, and **Apply Video Effects** controls the eight-slot rack after Motion Studio.
+The three reference-video stages run before Ink Flow and have separate demo
+toggles. **Ink Flow Module Enabled** bypasses the entire ink-flow module. The
+separate **Random Particles Enabled** switch controls `ParticleRandomMove.tox`
+after ink flow, **Glitch Module Enabled** controls `GlitchFusion.tox`, **Color
+Adjustment Enabled** controls the dedicated grading stage, **Motion Module
+Enabled** controls `MotionStudio.tox`, and **Apply Video Effects** controls the
+eight-slot rack after Motion Studio.
 
 ### Random-move particles
 
@@ -353,14 +360,47 @@ cost; increase them only when the target resolution, GPU, and frame-time budget
 have been qualified. Disabled, zero mix, and zero amount return the upstream
 RGBA image unchanged.
 
+### Reference-video recreations
+
+Three independent GPU modules recreate the supplied July 22 reference videos.
+They are disabled by default, preserve input resolution, support automatic or
+deterministic manual time, and provide both master bypass and dry/wet mix:
+
+- `ReferenceParticleField.tox` recreates
+  `ScreenRecording_07-22-2026 16-57-40_1.mov` as a luminous chromatic
+  point-cloud field. Adjust up to 500 particle columns, point size and shape,
+  luminance distribution, flow, turbulence, depth, shimmer, scatter, opacity,
+  background replacement, four palettes, custom gradient colors, and seed.
+  Enable **Chromatic Particle Field Enabled**, then select
+  `/project1/imagefx_demo/reference_particle_field`.
+- `CalligraphicShadow.tox` recreates
+  `ScreenRecording_07-22-2026 16-56-53_1.mov` as a moving subject with a long
+  minimal black-ink gesture behind it. Adjust dark/light/alpha extraction,
+  threshold, paper replacement, source visibility, shadow direction, stretch,
+  curl, turbulence, up to eight trail samples, diffusion, dry brush, splatter,
+  palette, and seed. Enable **Calligraphic Shadow Enabled**, then select
+  `/project1/imagefx_demo/calligraphic_shadow`.
+- `InkOrbitCanvas.tox` recreates
+  `ScreenRecording_07-22-2026 15-38-39_1.mov` as a generative monochrome wet-ink
+  floor canvas. Adjust one to twelve rings, zero to twenty-four droplets, orbit
+  and flow speed, scale, center, perspective, irregularity, swirl, stretch,
+  diffusion, dry brush, splatter, wet shadow, source influence/visibility,
+  paper and ink colors, and seed. Enable **Ink Orbit Canvas Enabled**, then
+  select `/project1/imagefx_demo/ink_orbit_canvas`.
+
+The demo chains these modules in the order listed before Ink Flow Fusion. Turn
+on only one for its closest reference look, or combine them intentionally. At
+4K, reduce particle density, calligraphic trail samples, and ink ring/droplet
+counts first if frame time exceeds the show budget.
+
 ### Eight-slot rack
 
 1. Open `/project1/imagefx_demo` after a successful native build.
 2. Choose **HD 1920 x 1080**, **4K UHD 3840 x 2160**, or **Custom** on the **Output** page.
-3. Drag a still or movie into the demo to create a **Movie File In TOP**. Disconnect the generated `source_image` from input 0 of `ink_flow`, then connect your Movie File In TOP there.
+3. Drag a still or movie into the demo to create a **Movie File In TOP**. Disconnect the generated `source_image` from input 0 of `reference_particle_field`, then connect your Movie File In TOP there. On an older build without the reference modules, connect it to `ink_flow`.
 4. Keep your source connected to `fixture_image_b` if you want its derived clean/alternate image, or replace rack input 1 with a different TOP for transitions, composites, and Difference Key.
-5. On `imagefx_demo`, choose whether **Ink Flow Module Enabled**, **Random Particles Enabled**, **Glitch Module Enabled**, **Color Adjustment Enabled**, **Motion Module Enabled**, and **Apply Video Effects** are on.
-6. Select `ink_flow` to tune ink visuals and water particles, `particle_random_move` for the separate random-particle stage, `glitch_fusion` for its 24 glitch styles, `color_adjustment` for grading and overlays, `motion_studio` for its 40 motion styles, or `fx_rack` and open its **Rack** custom parameter page to choose up to eight effects.
+5. On `imagefx_demo`, choose whether the three reference modules, **Ink Flow Module Enabled**, **Random Particles Enabled**, **Glitch Module Enabled**, **Color Adjustment Enabled**, **Motion Module Enabled**, and **Apply Video Effects** are on.
+6. Select a reference module to tune its recreation, `ink_flow` for ink visuals and water particles, `particle_random_move` for the separate random-particle stage, `glitch_fusion` for its 24 glitch styles, `color_adjustment` for grading and overlays, `motion_studio` for its 40 motion styles, or `fx_rack` and open its **Rack** custom parameter page to choose up to eight effects.
 7. Adjust slot enable, mix, order, bypass, reset, and modulation. Leave **Auto Time** enabled for timeline-driven, particle, and feedback motion.
 8. View `out1_image`, then export/import validated JSON rack presets if needed.
 
@@ -382,7 +422,7 @@ exec(compile(open(script, encoding="utf-8").read(), script, "exec"), scope)
 
 Copying `globals()` is required because rendered-pixel QA uses
 TouchDesigner-provided objects including `op`, `app`, `root`, `textDAT`, and
-`glslTOP`. The runner executes all nine tracked validators, continues long
+`glslTOP`. The runner executes all ten tracked validators, continues long
 enough to report every failure, writes the ignored
 `build/envoy-validation/live-suite.json` summary plus each validator's normal
 report, and never saves the project. A complete run can take several minutes.
@@ -424,7 +464,7 @@ Open `/project1/td_imagefx/core/fx_browser`. Search is case-insensitive across c
 
 ### Individual components
 
-Versioned effect components live under `packages/<package-id>/<version>/tox/`. Reusable core components, including `InkFlowFusion.tox`, `ParticleRandomMove.tox`, `GlitchFusion.tox`, `ColorAdjustment.tox`, and `MotionStudio.tox`, are generated under `touchdesigner/core/`. When importing one into another show, set **Library Root** to this checkout or a verified installed-package root.
+Versioned effect components live under `packages/<package-id>/<version>/tox/`. Reusable core components, including `InkFlowFusion.tox`, `ParticleRandomMove.tox`, `GlitchFusion.tox`, `ColorAdjustment.tox`, `MotionStudio.tox`, `ReferenceParticleField.tox`, `CalligraphicShadow.tox`, and `InkOrbitCanvas.tox`, are generated under `touchdesigner/core/`. When importing one into another show, set **Library Root** to this checkout or a verified installed-package root.
 
 ## Author and validate effects
 
@@ -481,7 +521,7 @@ Run the dependency-free repository check with Python 3.11 or newer:
 python tools/verify_repository.py
 ```
 
-The verifier expects exactly 96 current IDs and 124 immutable manifests. It compiles Python, runs tests, validates manifests and feeds, verifies the recorded hashes of the library `.toe`, all 124 effect `.tox` files, and nine core `.tox` files, compares generated gallery/baseline/benchmark coverage with the latest catalog, and prevents version drift. It also cross-checks this README's test and catalog claims, the ImageFX project context, and the live validator's package/build constants against checked source and native records. A failure caused by stale native or generated artifacts is intentional: rebuild and review them rather than weakening the invariant.
+The verifier expects exactly 96 current IDs and 124 immutable manifests. It compiles Python, runs tests, validates manifests and feeds, verifies the recorded hashes of the library `.toe`, all 124 effect `.tox` files, and twelve core `.tox` files, compares generated gallery/baseline/benchmark coverage with the latest catalog, and prevents version drift. It also cross-checks this README's test and catalog claims, the ImageFX project context, and the live validator's package/build constants against checked source and native records. A failure caused by stale native or generated artifacts is intentional: rebuild and review them rather than weakening the invariant.
 
 GitHub Actions runs verification on Windows, macOS, and Linux with Python 3.11 and 3.13, and separately rejects modifications to package versions already present in repository history.
 

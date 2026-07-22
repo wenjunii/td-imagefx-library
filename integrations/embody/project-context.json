@@ -36,6 +36,9 @@
     "glitch": "/project1/td_imagefx/core/glitch_fusion",
     "color_adjustment": "/project1/td_imagefx/core/color_adjustment",
     "motion_studio": "/project1/td_imagefx/core/motion_studio",
+    "reference_particle_field": "/project1/td_imagefx/core/reference_particle_field",
+    "calligraphic_shadow": "/project1/td_imagefx/core/calligraphic_shadow",
+    "ink_orbit_canvas": "/project1/td_imagefx/core/ink_orbit_canvas",
     "update_manager": "/project1/td_imagefx/update_manager",
     "approved_read_scope": [
       "/project1/td_imagefx",
@@ -66,6 +69,9 @@
     "glitch": "/project1/imagefx_demo/glitch_fusion/out1_glitch",
     "color_adjustment": "/project1/imagefx_demo/color_adjustment/out1_color_adjustment",
     "motion": "/project1/imagefx_demo/motion_studio/out1_motion",
+    "reference_particle_field": "/project1/imagefx_demo/reference_particle_field/out1_image",
+    "calligraphic_shadow": "/project1/imagefx_demo/calligraphic_shadow/out1_image",
+    "ink_orbit_canvas": "/project1/imagefx_demo/ink_orbit_canvas/out1_image",
     "rack": "/project1/imagefx_demo/fx_rack/out1_image",
     "browser_preview": "/project1/td_imagefx/core/fx_browser/selected_preview",
     "visual_failure_signals": [
@@ -151,7 +157,7 @@
       "TouchDesigner build is 2025.32820 or a deliberately qualified newer build.",
       "HealthCheck reports 96 current packages and 124 immutable versions with no missing entrypoints.",
       "Managed roots report no operator, warning, or script messages.",
-      "All eight approved TOPs exist, cook, have usable resolution, and are neither black nor fully transparent.",
+      "All eleven approved TOPs exist, cook, have usable resolution, and are neither black nor fully transparent.",
       "The primary demo output matches its selected HD, 4K UHD, or custom resolution.",
       "No unexplained frame drops, memory spike, or material frame-time regression is introduced.",
       "python tools/verify_repository.py passes."
@@ -165,6 +171,7 @@
       "glitch_fusion": "build/envoy-validation/glitch-fusion-module.json",
       "color_adjustment": "build/envoy-validation/color-adjustment-module.json",
       "motion_studio": "build/envoy-validation/motion-studio-module.json",
+      "reference_video_modules": "build/envoy-validation/reference-video-modules.json",
       "output_resolution": "build/envoy-validation/output-resolution.json"
     }
   }

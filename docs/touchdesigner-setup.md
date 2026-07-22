@@ -49,6 +49,9 @@ The repository includes:
 - `touchdesigner/core/GlitchFusion.tox`;
 - `touchdesigner/core/ColorAdjustment.tox`;
 - `touchdesigner/core/MotionStudio.tox`;
+- `touchdesigner/core/ReferenceParticleField.tox`;
+- `touchdesigner/core/CalligraphicShadow.tox`;
+- `touchdesigner/core/InkOrbitCanvas.tox`;
 - `touchdesigner/core/FxBrowser.tox`;
 - `touchdesigner/core/FxUpdater.tox`.
 
@@ -67,7 +70,7 @@ scope.update({"__file__": script, "__name__": "__main__"})
 exec(compile(open(script, encoding="utf-8").read(), script, "exec"), scope)
 ```
 
-The runner executes all nine tracked validators, writes
+The runner executes all ten tracked validators, writes
 `build/envoy-validation/live-suite.json` and the individual ignored reports,
 and never saves the project. A complete run can take several minutes. Do not
 run the mutating suite in a production show.
@@ -130,6 +133,15 @@ rack routing, output resolution, and shader
 diagnostics. Its ignored report is
 `build/envoy-validation/motion-studio-module.json`.
 
+For the three reference-video recreations, run
+`touchdesigner/scripts/validate_reference_video_modules.py` from the Python
+Textport. It isolates Chromatic Particle Field, Calligraphic Shadow, and Ink
+Orbit Canvas at 320 x 180; checks master and zero-mix bypass, every menu and
+writable numeric control, deterministic time, range/clamp metadata, finite
+pixels, resolution, and shader diagnostics; then restores the complete demo
+state. Its ignored report is
+`build/envoy-validation/reference-video-modules.json`.
+
 For output-resolution QA, run
 `touchdesigner/scripts/validate_output_resolution.py` from the Python Textport.
 It verifies the default HD 1920 x 1080 output, the 4K UHD 3840 x 2160 preset,
@@ -156,7 +168,7 @@ operators, and replaces its generated project atomically.
 For AI-assisted live inspection, create an ignored project at
 `integrations/embody/local/TD_ImageFX_DevHarness.toe`, install Embody there, and
 run `touchdesigner/scripts/install_dev_harness.py`. The script loads the compiled
-library, ink, particle, glitch, color, motion, and rack components, synchronizes their tracked
+library, three reference recreations, ink, particle, glitch, color, motion, and rack components, synchronizes their tracked
 extension sources, repairs portable shader references, points them at this
 checkout, requires the exact unnumbered harness identity, refuses the canonical
 project, refuses existing managed roots, and never saves. If TouchDesigner's
@@ -228,7 +240,7 @@ python tools/build_gallery.py
 python tools/benchmark_report.py
 ```
 
-The native-validation command accepts only a clean build report and writes `docs/native-validation.json`, binding the named TouchDesigner environment to the size and SHA-256 digest of the library `.toe`, all versioned effect `.tox` files, and the nine core `.tox` files.
+The native-validation command accepts only a clean build report and writes `docs/native-validation.json`, binding the named TouchDesigner environment to the size and SHA-256 digest of the library `.toe`, all versioned effect `.tox` files, and the twelve core `.tox` files.
 
 Compare every changed preview on representative media. Only after intentional visual approval should you replace the SHA-256 baselines:
 
@@ -267,8 +279,11 @@ Wave Warp -> Exposure -> Gaussian Blur -> RGB Split
 
 Each of eight slots provides effect selection, enable, dry/wet mix, modulation depth/rate/state, Up, Down, Reset, and Bypass. Six auxiliary buses route second image, displacement, depth, normal, flow, and mask inputs by declared semantic role. Global controls reload/reset the rack and bypass or enable every slot. **Auto Time** and **Time Scale** drive time-aware parameters; disable Auto Time and set **Manual Time** for deterministic inspection.
 
-The generated demo routes source -> `ink_flow` -> `particle_random_move` ->
-`glitch_fusion` -> `color_adjustment` -> `motion_studio` -> the eight-slot rack. **Ink Flow Module
+The generated demo routes source -> `reference_particle_field` ->
+`calligraphic_shadow` -> `ink_orbit_canvas` -> `ink_flow` ->
+`particle_random_move` -> `glitch_fusion` -> `color_adjustment` ->
+`motion_studio` -> the eight-slot rack. The first three stages have independent
+demo toggles and are disabled by default. **Ink Flow Module
 Enabled** bypasses the combined ink and water-particle module, **Random
 Particles Enabled** controls the existing random-move stage, **Glitch Module
 Enabled** controls the 24-style Glitch Fusion stage, **Color Adjustment

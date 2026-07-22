@@ -564,6 +564,92 @@ class TouchDesignerBuilderPathTests(unittest.TestCase):
         self.assertIn("mix(source, moved", shader)
         self.assertNotIn("feedback", shader.lower())
 
+    def test_reference_video_modules_are_independent_bounded_gpu_effects(self) -> None:
+        modules = (
+            (
+                BUILDER.REFERENCE_PARTICLE_FIELD_SHADER,
+                BUILDER.REFERENCE_PARTICLE_FIELD_PARAMETER_DEFINITIONS,
+                "uDensity",
+                "for (int offsetY = -2; offsetY <= 2; ++offsetY)",
+            ),
+            (
+                BUILDER.CALLIGRAPHIC_SHADOW_SHADER,
+                BUILDER.CALLIGRAPHIC_SHADOW_PARAMETER_DEFINITIONS,
+                "uTrailSamples",
+                "for (int sampleIndex = 0; sampleIndex < 8; ++sampleIndex)",
+            ),
+            (
+                BUILDER.INK_ORBIT_CANVAS_SHADER,
+                BUILDER.INK_ORBIT_CANVAS_PARAMETER_DEFINITIONS,
+                "uRingCount",
+                "for (int index = 0; index < 24; ++index)",
+            ),
+        )
+        for shader, definitions, signature_uniform, bounded_loop in modules:
+            with self.subTest(signature_uniform=signature_uniform):
+                names = [definition["name"] for definition in definitions]
+                self.assertEqual(len(names), len(set(names)))
+                self.assertIn("Enabled", names)
+                self.assertIn("Mix", names)
+                self.assertIn("Autotime", names)
+                self.assertIn("Timescale", names)
+                self.assertIn("Manualtime", names)
+                self.assertIn("Time", names)
+                uniforms = {
+                    definition["uniform"]
+                    for definition in definitions
+                    if definition.get("uniform")
+                }
+                self.assertIn(signature_uniform, uniforms)
+                for uniform in uniforms:
+                    self.assertGreaterEqual(
+                        shader.count(uniform),
+                        2,
+                        "{} must be declared and used".format(uniform),
+                    )
+                self.assertIn("textureSize(sTD2DInputs[0], 0)", shader)
+                self.assertIn("TDOutputSwizzle", shader)
+                self.assertIn(bounded_loop, shader)
+                time = next(item for item in definitions if item["name"] == "Time")
+                self.assertTrue(time["read_only"])
+                for definition in definitions:
+                    if definition.get("type", "float") not in {
+                        "float", "int", "xy", "xyz", "uv", "rgb", "rgba"
+                    }:
+                        continue
+                    if definition.get("type") in {"rgb", "rgba"}:
+                        continue
+                    self.assertIn("min", definition)
+                    self.assertIn("max", definition)
+                    self.assertLess(definition["min"], definition["max"])
+                    defaults = definition.get("default", 0)
+                    if not isinstance(defaults, (list, tuple)):
+                        defaults = [defaults]
+                    for default in defaults:
+                        self.assertGreaterEqual(default, definition["min"])
+                        self.assertLessEqual(default, definition["max"])
+
+        particle_definitions = {
+            item["name"]: item
+            for item in BUILDER.REFERENCE_PARTICLE_FIELD_PARAMETER_DEFINITIONS
+        }
+        self.assertEqual(particle_definitions["Density"]["max"], 500)
+        self.assertEqual(
+            particle_definitions["Palette"]["default"],
+            "electric_blue",
+        )
+        shadow_definitions = {
+            item["name"]: item
+            for item in BUILDER.CALLIGRAPHIC_SHADOW_PARAMETER_DEFINITIONS
+        }
+        self.assertEqual(shadow_definitions["Trailsamples"]["max"], 8)
+        orbit_definitions = {
+            item["name"]: item
+            for item in BUILDER.INK_ORBIT_CANVAS_PARAMETER_DEFINITIONS
+        }
+        self.assertEqual(orbit_definitions["Ringcount"]["max"], 12)
+        self.assertEqual(orbit_definitions["Dropletcount"]["max"], 24)
+
     def test_demo_output_supports_hd_4k_and_bounded_custom_resolution(self) -> None:
         self.assertEqual(
             BUILDER.DEMO_OUTPUT_PRESETS,

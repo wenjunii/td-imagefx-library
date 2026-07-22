@@ -387,7 +387,7 @@ class PackageReleaseToolTests(unittest.TestCase):
 
 class VerifyRepositoryToolTests(unittest.TestCase):
     def test_public_documentation_matches_checked_source_counts(self) -> None:
-        self.assertEqual(verify_repository._source_test_count(), 172)
+        self.assertEqual(verify_repository._source_test_count(), 173)
         verify_repository._check_public_documentation()
 
     def test_native_artifact_rejects_symlink_before_resolution(self) -> None:

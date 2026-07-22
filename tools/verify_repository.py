@@ -262,6 +262,9 @@ def _check_manifests() -> tuple[int, set[str], dict[str, str]]:
         ROOT / "touchdesigner" / "core" / "GlitchFusion.tox",
         ROOT / "touchdesigner" / "core" / "ColorAdjustment.tox",
         ROOT / "touchdesigner" / "core" / "MotionStudio.tox",
+        ROOT / "touchdesigner" / "core" / "ReferenceParticleField.tox",
+        ROOT / "touchdesigner" / "core" / "CalligraphicShadow.tox",
+        ROOT / "touchdesigner" / "core" / "InkOrbitCanvas.tox",
         ROOT / "touchdesigner" / "core" / "FxUpdater.tox",
     )
     missing = [path.relative_to(ROOT) for path in required_native_assets if not path.is_file()]
@@ -445,6 +448,9 @@ def _check_native_validation(library_version: str) -> None:
         "touchdesigner/core/GlitchFusion.tox",
         "touchdesigner/core/ColorAdjustment.tox",
         "touchdesigner/core/MotionStudio.tox",
+        "touchdesigner/core/ReferenceParticleField.tox",
+        "touchdesigner/core/CalligraphicShadow.tox",
+        "touchdesigner/core/InkOrbitCanvas.tox",
         "touchdesigner/core/FxUpdater.tox",
         *(
             path.relative_to(ROOT).as_posix()
@@ -560,6 +566,12 @@ def _check_embody_integration() -> None:
     motion_validator_path = (
         ROOT / "touchdesigner" / "scripts" / "validate_motion_studio_module.py"
     )
+    reference_video_validator_path = (
+        ROOT
+        / "touchdesigner"
+        / "scripts"
+        / "validate_reference_video_modules.py"
+    )
     output_resolution_validator_path = (
         ROOT / "touchdesigner" / "scripts" / "validate_output_resolution.py"
     )
@@ -584,6 +596,7 @@ def _check_embody_integration() -> None:
         glitch_validator_path,
         color_adjustment_validator_path,
         motion_validator_path,
+        reference_video_validator_path,
         output_resolution_validator_path,
         browser_start_callbacks_path,
         bridge_checker_path,
@@ -627,6 +640,18 @@ def _check_embody_integration() -> None:
         != "/project1/td_imagefx/core/motion_studio"
         or outputs.get("motion")
         != "/project1/imagefx_demo/motion_studio/out1_motion"
+        or network.get("reference_particle_field")
+        != "/project1/td_imagefx/core/reference_particle_field"
+        or network.get("calligraphic_shadow")
+        != "/project1/td_imagefx/core/calligraphic_shadow"
+        or network.get("ink_orbit_canvas")
+        != "/project1/td_imagefx/core/ink_orbit_canvas"
+        or outputs.get("reference_particle_field")
+        != "/project1/imagefx_demo/reference_particle_field/out1_image"
+        or outputs.get("calligraphic_shadow")
+        != "/project1/imagefx_demo/calligraphic_shadow/out1_image"
+        or outputs.get("ink_orbit_canvas")
+        != "/project1/imagefx_demo/ink_orbit_canvas/out1_image"
     ):
         raise VerificationError("Embody project context has unexpected managed paths")
 
@@ -749,6 +774,7 @@ def _check_embody_integration() -> None:
         "validate_glitch_fusion_module.py",
         "validate_color_adjustment_module.py",
         "validate_motion_studio_module.py",
+        "validate_reference_video_modules.py",
         "validate_all_effect_parameters.py",
     )
     if (
@@ -855,6 +881,23 @@ def _check_embody_integration() -> None:
     ):
         raise VerificationError(
             "Motion Studio validator must test styles, timing, edges, trails, and never save"
+        )
+
+    reference_video_validator = reference_video_validator_path.read_text(
+        encoding="utf-8"
+    )
+    if (
+        "tdimagefx.core.reference-particle-field" not in reference_video_validator
+        or "tdimagefx.core.calligraphic-shadow" not in reference_video_validator
+        or "tdimagefx.core.ink-orbit-canvas" not in reference_video_validator
+        or "every_numeric_control_changes_output" not in reference_video_validator
+        or "menu_options_are_visually_distinct" not in reference_video_validator
+        or "effective_time_is_read_only_and_resolved" not in reference_video_validator
+        or "finally:" not in reference_video_validator
+        or "project.save(" in reference_video_validator
+    ):
+        raise VerificationError(
+            "Reference-video validator must test all three modules, every numeric control, menus, resolved time, restoration, and never save"
         )
 
     bridge_checker = bridge_checker_path.read_text(encoding="utf-8")
