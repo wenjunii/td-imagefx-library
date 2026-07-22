@@ -37,6 +37,7 @@ VALIDATORS = (
     ("glitch_fusion", "validate_glitch_fusion_module.py"),
     ("color_adjustment", "validate_color_adjustment_module.py"),
     ("motion_studio", "validate_motion_studio_module.py"),
+    ("reference_video_modules", "validate_reference_video_modules.py"),
     ("all_effect_parameters", "validate_all_effect_parameters.py"),
 )
 

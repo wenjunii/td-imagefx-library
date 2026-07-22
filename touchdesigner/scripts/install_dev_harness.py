@@ -33,6 +33,15 @@ COLOR_ADJUSTMENT_TOX = (
     PROJECT_ROOT / "touchdesigner" / "core" / "ColorAdjustment.tox"
 )
 MOTION_STUDIO_TOX = PROJECT_ROOT / "touchdesigner" / "core" / "MotionStudio.tox"
+REFERENCE_PARTICLE_FIELD_TOX = (
+    PROJECT_ROOT / "touchdesigner" / "core" / "ReferenceParticleField.tox"
+)
+CALLIGRAPHIC_SHADOW_TOX = (
+    PROJECT_ROOT / "touchdesigner" / "core" / "CalligraphicShadow.tox"
+)
+INK_ORBIT_CANVAS_TOX = (
+    PROJECT_ROOT / "touchdesigner" / "core" / "InkOrbitCanvas.tox"
+)
 EXTENSION_ROOT = PROJECT_ROOT / "touchdesigner" / "extensions"
 MANAGED_NAMES = ("td_imagefx", "imagefx_demo")
 OUTPUT_PRESETS = (
@@ -292,11 +301,29 @@ def install():
         demo.nodeY = 100
         demo.color = (0.32, 0.18, 0.36)
         demo.comment = (
-            "Disposable Embody/Envoy QA harness with optional ink flow, "
-            "random particles, Glitch Fusion, color adjustment, Motion Studio, "
-            "and video effects"
+            "Disposable Embody/Envoy QA harness with three reference-video "
+            "recreations, optional ink flow, random particles, Glitch Fusion, "
+            "color adjustment, Motion Studio, and video effects"
         )
         demo_page = demo.appendCustomPage("Demo")
+        demo_page.appendToggle(
+            "Referenceparticlefieldenabled",
+            label="Chromatic Particle Field Enabled",
+        )
+        demo.par.Referenceparticlefieldenabled.default = False
+        demo.par.Referenceparticlefieldenabled = False
+        demo_page.appendToggle(
+            "Calligraphicshadowenabled",
+            label="Calligraphic Shadow Enabled",
+        )
+        demo.par.Calligraphicshadowenabled.default = False
+        demo.par.Calligraphicshadowenabled = False
+        demo_page.appendToggle(
+            "Inkorbitenabled",
+            label="Ink Orbit Canvas Enabled",
+        )
+        demo.par.Inkorbitenabled.default = False
+        demo.par.Inkorbitenabled = False
         demo_page.appendToggle("Inkflowenabled", label="Ink Flow Module Enabled")
         demo.par.Inkflowenabled.default = True
         demo.par.Inkflowenabled = True
@@ -377,17 +404,57 @@ def install():
                 "QA demo source shader failed: {}".format("; ".join(source_errors))
             )
 
+        reference_particle_field = _load_single_tox(
+            demo,
+            REFERENCE_PARTICLE_FIELD_TOX,
+        )
+        reference_particle_field.name = "reference_particle_field"
+        reference_particle_field.nodeX = -40
+        reference_particle_field.nodeY = 0
+        reference_particle_field.par.Enabled.expr = (
+            "parent().par.Referenceparticlefieldenabled"
+        )
+        _repair_effect_shader_paths(reference_particle_field)
+        source.outputConnectors[0].connect(
+            reference_particle_field.inputConnectors[0]
+        )
+
+        calligraphic_shadow = _load_single_tox(
+            demo,
+            CALLIGRAPHIC_SHADOW_TOX,
+        )
+        calligraphic_shadow.name = "calligraphic_shadow"
+        calligraphic_shadow.nodeX = 220
+        calligraphic_shadow.nodeY = 0
+        calligraphic_shadow.par.Enabled.expr = (
+            "parent().par.Calligraphicshadowenabled"
+        )
+        _repair_effect_shader_paths(calligraphic_shadow)
+        reference_particle_field.outputConnectors[0].connect(
+            calligraphic_shadow.inputConnectors[0]
+        )
+
+        ink_orbit_canvas = _load_single_tox(demo, INK_ORBIT_CANVAS_TOX)
+        ink_orbit_canvas.name = "ink_orbit_canvas"
+        ink_orbit_canvas.nodeX = 480
+        ink_orbit_canvas.nodeY = 0
+        ink_orbit_canvas.par.Enabled.expr = "parent().par.Inkorbitenabled"
+        _repair_effect_shader_paths(ink_orbit_canvas)
+        calligraphic_shadow.outputConnectors[0].connect(
+            ink_orbit_canvas.inputConnectors[0]
+        )
+
         ink_flow = _load_single_tox(demo, INK_FLOW_TOX)
         ink_flow.name = "ink_flow"
-        ink_flow.nodeX = -40
+        ink_flow.nodeX = 740
         ink_flow.nodeY = 0
         ink_flow.par.Enabled.expr = "parent().par.Inkflowenabled"
         _repair_effect_shader_paths(ink_flow)
-        source.outputConnectors[0].connect(ink_flow.inputConnectors[0])
+        ink_orbit_canvas.outputConnectors[0].connect(ink_flow.inputConnectors[0])
 
         particles = _load_single_tox(demo, PARTICLE_TOX)
         particles.name = "particle_random_move"
-        particles.nodeX = 220
+        particles.nodeX = 1000
         particles.nodeY = 0
         particles.par.Enabled.expr = "parent().par.Particlesenabled"
         _repair_effect_shader_paths(particles)
@@ -395,7 +462,7 @@ def install():
 
         glitch = _load_single_tox(demo, GLITCH_TOX)
         glitch.name = "glitch_fusion"
-        glitch.nodeX = 480
+        glitch.nodeX = 1260
         glitch.nodeY = 0
         glitch.par.Enabled.expr = "parent().par.Glitchenabled"
         _repair_effect_shader_paths(glitch)
@@ -403,7 +470,7 @@ def install():
 
         color_adjustment = _load_single_tox(demo, COLOR_ADJUSTMENT_TOX)
         color_adjustment.name = "color_adjustment"
-        color_adjustment.nodeX = 740
+        color_adjustment.nodeX = 1520
         color_adjustment.nodeY = 0
         color_adjustment.par.Enabled.expr = (
             "parent().par.Coloradjustmentenabled"
@@ -415,7 +482,7 @@ def install():
 
         motion = _load_single_tox(demo, MOTION_STUDIO_TOX)
         motion.name = "motion_studio"
-        motion.nodeX = 1000
+        motion.nodeX = 1780
         motion.nodeY = 0
         motion.par.Enabled.expr = "parent().par.Motionenabled"
         _repair_effect_shader_paths(motion)
@@ -425,7 +492,7 @@ def install():
 
         rack = _load_single_tox(demo, RACK_TOX)
         rack.name = "fx_rack"
-        rack.nodeX = 1260
+        rack.nodeX = 2040
         rack.nodeY = 0
         _set_library_root(rack, "demo rack")
         _sync_extension(rack, "FxRackExt")
@@ -480,11 +547,11 @@ def install():
         video_fx_router.par.index.expr = (
             "1 if parent().par.Applyvideofx else 0"
         )
-        video_fx_router.nodeX = 1510
+        video_fx_router.nodeX = 2290
         video_fx_router.nodeY = 0
 
         output = demo.create(outTOP, "out1_image")
-        output.nodeX = 1720
+        output.nodeX = 2500
         output.nodeY = 0
         video_fx_router.outputConnectors[0].connect(output.inputConnectors[0])
         if output.par["outputresolution"] is not None:
@@ -500,6 +567,9 @@ def install():
             "ok": bool(health.get("ok")),
             "library": library.path,
             "demo": demo.path,
+            "reference_particle_field": reference_particle_field.path,
+            "calligraphic_shadow": calligraphic_shadow.path,
+            "ink_orbit_canvas": ink_orbit_canvas.path,
             "ink_flow": ink_flow.path,
             "particles": particles.path,
             "glitch": glitch.path,

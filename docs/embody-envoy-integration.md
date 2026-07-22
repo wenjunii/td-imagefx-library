@@ -25,7 +25,8 @@ project.
 | `integrations/embody/check_td_bridge.py` | Official-client smoke test for the contract, knowledge index, and optional Envoy session |
 | `integrations/embody/envoy-validation-plan.json` | Ordered read-only live audit |
 | `touchdesigner/scripts/install_dev_harness.py` | Non-saving compiled-core installer for a disposable project |
-| `touchdesigner/scripts/validate_live_suite.py` | One-command Textport runner for all nine tracked live validators with a consolidated ignored report |
+| `touchdesigner/scripts/validate_live_suite.py` | One-command Textport runner for all ten tracked live validators with a consolidated ignored report |
+| `touchdesigner/scripts/validate_reference_video_modules.py` | State-restoring rendered-pixel sweep for the three independently adjustable reference-video recreations |
 | `touchdesigner/scripts/validate_live_project.py` | Read-only health, error, and TOP structural report |
 | `touchdesigner/scripts/validate_rack_selection.py` | State-restoring live regression test for all eight rack effect menus |
 | `touchdesigner/scripts/validate_all_effect_parameters.py` | State-restoring rendered-pixel sweep for every numeric component, toggle, rack mix, time, and per-effect time scale in all 96 latest packages |
@@ -51,7 +52,7 @@ TouchDesigner Python or GLSL.
 
 For an audit, follow `envoy-validation-plan.json`: confirm the TD instance,
 record baseline performance, discover the network, run `HealthCheck`, check
-recursive errors and warnings, capture the eight approved TOPs, and compare
+recursive errors and warnings, capture the eleven approved TOPs, and compare
 final performance. Envoy's `capture_top` quality verdict must pass, and the
 images still require visual inspection. A clean operator graph does not prove
 that a frame is visible or aesthetically correct.

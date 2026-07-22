@@ -79,6 +79,18 @@ class EmbodyIntegrationTests(unittest.TestCase):
             context["outputs"]["motion"],
             "/project1/imagefx_demo/motion_studio/out1_motion",
         )
+        self.assertEqual(
+            context["network"]["reference_particle_field"],
+            "/project1/td_imagefx/core/reference_particle_field",
+        )
+        self.assertEqual(
+            context["outputs"]["calligraphic_shadow"],
+            "/project1/imagefx_demo/calligraphic_shadow/out1_image",
+        )
+        self.assertEqual(
+            context["outputs"]["ink_orbit_canvas"],
+            "/project1/imagefx_demo/ink_orbit_canvas/out1_image",
+        )
         self.assertFalse(
             [key for key in _walk_keys(context) if SECRET_KEY.search(key)]
         )
@@ -144,6 +156,9 @@ class EmbodyIntegrationTests(unittest.TestCase):
             captures,
             [
                 "/project1/imagefx_demo/out1_image",
+                "/project1/imagefx_demo/reference_particle_field/out1_image",
+                "/project1/imagefx_demo/calligraphic_shadow/out1_image",
+                "/project1/imagefx_demo/ink_orbit_canvas/out1_image",
                 "/project1/imagefx_demo/ink_flow/out1_ink_flow",
                 "/project1/imagefx_demo/particle_random_move/out1_particles",
                 "/project1/imagefx_demo/glitch_fusion/out1_glitch",
@@ -194,12 +209,15 @@ class EmbodyIntegrationTests(unittest.TestCase):
         self.assertIn('parameter.val = ""', installer)
         self.assertIn('parameter.expr = "me.op(\'../../effects\')"', installer)
         self.assertIn("browser.cook(force=True)", installer)
-        self.assertEqual(installer.count("_repair_effect_shader_paths("), 8)
+        self.assertEqual(installer.count("_repair_effect_shader_paths("), 11)
         self.assertIn("ParticleRandomMove.tox", installer)
         self.assertIn("InkFlowFusion.tox", installer)
         self.assertIn("GlitchFusion.tox", installer)
         self.assertIn("ColorAdjustment.tox", installer)
         self.assertIn("MotionStudio.tox", installer)
+        self.assertIn("ReferenceParticleField.tox", installer)
+        self.assertIn("CalligraphicShadow.tox", installer)
+        self.assertIn("InkOrbitCanvas.tox", installer)
         self.assertIn("HD 1920 x 1080", installer)
         self.assertIn("4K UHD 3840 x 2160", installer)
         self.assertIn("Customwidth", installer)
@@ -230,6 +248,7 @@ class EmbodyIntegrationTests(unittest.TestCase):
             "validate_glitch_fusion_module.py",
             "validate_color_adjustment_module.py",
             "validate_motion_studio_module.py",
+            "validate_reference_video_modules.py",
             "validate_all_effect_parameters.py",
         ):
             self.assertIn(script_name, live_suite_validator)

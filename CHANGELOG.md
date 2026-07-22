@@ -45,6 +45,15 @@ All notable changes to TD ImageFX Library are recorded here. Package versions fo
   and edge menus; bypass fidelity; every style's visible and distinct output;
   manual time; bounded trail sampling; routing; resolution; and GLSL
   diagnostics.
+- Three independent reference-video recreation modules:
+  `ReferenceParticleField.tox` for turbulent chromatic point clouds,
+  `CalligraphicShadow.tox` for extracted-subject ink gestures, and
+  `InkOrbitCanvas.tox` for generative wet-ink rings, droplets, diffusion, and
+  floor perspective. Each provides master bypass, dry/wet mix,
+  automatic/manual time, deterministic seed, and bounded GPU controls.
+- A state-restoring reference-module validator covering all three recreations,
+  every menu and writable numeric control, bypass fidelity, time response,
+  range/clamp metadata, finite output, resolution, and GLSL diagnostics.
 - Demo output-resolution controls with a default 1920 x 1080 preset, a 4K UHD
   3840 x 2160 preset, and adjustable 16-through-8192 custom width and height.
 - A dedicated live output-resolution validator covering default values, the
@@ -66,7 +75,7 @@ All notable changes to TD ImageFX Library are recorded here. Package versions fo
   per-effect time scale, range/clamp contract, finite output, diagnostics, and
   320 x 180 cook resolution without saving the project.
 - A one-command `validate_live_suite.py` Textport runner that preserves
-  TouchDesigner globals, executes all nine live validators, keeps running to
+  TouchDesigner globals, executes all ten live validators, keeps running to
   report every failure, writes an ignored summary, and never saves the project.
 - Compatible `tdimagefx.key.despill@1.1.0` and
   `tdimagefx.stylize.vignette@1.2.0` packages whose color-alpha sliders now
@@ -104,15 +113,15 @@ All notable changes to TD ImageFX Library are recorded here. Package versions fo
   controls.
 - The generated demo source and final Out TOP now follow the selected delivery
   resolution automatically.
-- The native `.toe`, nine core `.tox` components, benchmark report, and
+- The native `.toe`, twelve core `.tox` components, benchmark report, and
   SHA-256-bound native validation record were rebuilt with TouchDesigner
   `2025.32820`.
-- The offline suite now contains 172 tests, including contracts for every
+- The offline suite now contains 173 tests, including contracts for every
   latest manifest uniform being both declared and referenced, bounded
   ink-flow particles, two distinct visual styles, all 24 Glitch Fusion styles,
   neutral color adjustment, sixteen overlay modes, all 40 Motion Studio styles,
   HD/4K/custom output resolution, native artifact inventory, and the
-  eight-output Embody audit.
+  eleven-output Embody audit.
 - Repository verification now scans tracked files for high-confidence
   credential formats and forbidden secret-bearing filenames without printing
   suspected values; a staged-only mode supports pre-commit review.

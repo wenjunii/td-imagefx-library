@@ -33,7 +33,7 @@ top-level operators.
 
 The installer loads the tracked `TDImageFXLibrary.tox`, `InkFlowFusion.tox`,
 `ParticleRandomMove.tox`, `GlitchFusion.tox`, `ColorAdjustment.tox`, and
-`MotionStudio.tox`, and `FxRack.tox`,
+`MotionStudio.tox`, the three reference-video modules, and `FxRack.tox`,
 synchronizes their extension DATs from `touchdesigner/extensions/`, repairs
 legacy absolute Pixel Shader DAT paths inside loaded effects, points every
 library root at the checkout, creates the same managed paths used by the
@@ -56,7 +56,7 @@ rebuilds require a separate blank TouchDesigner project.
 
 ## Run the complete live suite
 
-After installing the harness, run all nine tracked live validators with one
+After installing the harness, run all ten tracked live validators with one
 Textport command:
 
 ```python

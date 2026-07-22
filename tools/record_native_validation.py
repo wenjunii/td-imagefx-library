@@ -26,6 +26,9 @@ CORE_ASSETS = (
     "touchdesigner/core/GlitchFusion.tox",
     "touchdesigner/core/ColorAdjustment.tox",
     "touchdesigner/core/MotionStudio.tox",
+    "touchdesigner/core/ReferenceParticleField.tox",
+    "touchdesigner/core/CalligraphicShadow.tox",
+    "touchdesigner/core/InkOrbitCanvas.tox",
     "touchdesigner/core/FxUpdater.tox",
 )
 BUILDER_SOURCE = "touchdesigner/scripts/build_project.py"

@@ -154,7 +154,8 @@ validator loads every latest package and verifies rendered response for all
 manifest numeric components, toggles, rack mix, time, and local time scale.
 
 `InkFlowFusion.tox`, `ParticleRandomMove.tox`, `GlitchFusion.tox`,
-`ColorAdjustment.tox`, and `MotionStudio.tox` are separate reusable core
+`ColorAdjustment.tox`, `MotionStudio.tox`, `ReferenceParticleField.tox`,
+`CalligraphicShadow.tox`, and `InkOrbitCanvas.tox` are separate reusable core
 modules rather than immutable effect packages. Ink Flow Fusion combines two single-pass minimal Chinese ink
 treatments with an optional seeded water-current particle composite. Its whole
 module, visual treatment, and particle layer each have explicit bypass
@@ -172,9 +173,18 @@ styles with master/mix bypass, six easing modes, four edge modes, deterministic
 manual time, and bounded one-through-five-sample trails. None of these modules
 retains feedback state.
 
-The canonical demo routes source -> ink-flow module -> random-particle module
+The three reference-video modules are independently bypassable, bounded
+single-pass GPU recreations. Chromatic Particle Field converts the source into
+a palette-mapped turbulent point cloud; Calligraphic Shadow extracts a subject
+mask and spatially accumulates up to eight flowing ink gestures; Ink Orbit
+Canvas generates seeded rings and droplets with source modulation, paper
+fibers, wet diffusion, and floor-perspective compression. Each exposes
+automatic/manual time, dry/wet mix, palette controls, and deterministic seed.
+
+The canonical demo routes source -> Chromatic Particle Field -> Calligraphic
+Shadow -> Ink Orbit Canvas -> ink-flow module -> random-particle module
 -> Glitch Fusion -> Color Adjustment -> Motion Studio -> rack, then uses an explicit final
-switch for the rack. The six demo-level bypasses and the two feature switches
+switch for the rack. The nine demo-level bypasses and the two feature switches
 inside Ink Flow Fusion allow every stage to be used independently or combined
 without rewiring.
 

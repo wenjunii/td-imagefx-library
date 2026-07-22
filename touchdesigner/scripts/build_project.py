@@ -3315,6 +3315,573 @@ MOTION_STUDIO_PARAMETER_DEFINITIONS = (
     },
 )
 
+REFERENCE_PARTICLE_FIELD_SHADER = r"""
+layout(location = 0) out vec4 fragColor;
+
+uniform float uTime;
+uniform float uMix;
+uniform float uDensity;
+uniform float uPointSize;
+uniform float uThreshold;
+uniform float uThresholdSoftness;
+uniform float uSourceInfluence;
+uniform float uFlowAmount;
+uniform float uTurbulence;
+uniform float uNoiseScale;
+uniform float uSpeed;
+uniform float uDepth;
+uniform float uShimmer;
+uniform float uSpread;
+uniform float uOpacity;
+uniform float uShape;
+uniform float uPalette;
+uniform float uSeed;
+uniform float uBackgroundMix;
+uniform vec4 uBackgroundColor;
+uniform vec4 uLowColor;
+uniform vec4 uMidColor;
+uniform vec4 uHighColor;
+
+const float TAU = 6.28318530718;
+
+float particleFieldHash(vec2 value) {
+    vec3 p3 = fract(vec3(value.xyx) * 0.1031);
+    p3 += dot(p3, p3.yzx + 33.33);
+    return fract((p3.x + p3.y) * p3.z);
+}
+
+float particleFieldNoise(vec2 position) {
+    vec2 cell = floor(position);
+    vec2 local = fract(position);
+    local = local * local * (3.0 - 2.0 * local);
+    float a = particleFieldHash(cell);
+    float b = particleFieldHash(cell + vec2(1.0, 0.0));
+    float c = particleFieldHash(cell + vec2(0.0, 1.0));
+    float d = particleFieldHash(cell + vec2(1.0, 1.0));
+    return mix(mix(a, b, local.x), mix(c, d, local.x), local.y);
+}
+
+float particleFieldFbm(vec2 position) {
+    float value = 0.0;
+    float weight = 0.55;
+    for (int octave = 0; octave < 4; ++octave) {
+        value += particleFieldNoise(position) * weight;
+        position = position * 2.03 + vec2(17.1, 9.2);
+        weight *= 0.48;
+    }
+    return value;
+}
+
+vec3 particleFieldPalette(float value, vec3 sourceColor, float palette) {
+    vec3 gradient = value < 0.5
+        ? mix(uLowColor.rgb, uMidColor.rgb, value * 2.0)
+        : mix(uMidColor.rgb, uHighColor.rgb, (value - 0.5) * 2.0);
+    if (palette < 0.5) {
+        return sourceColor;
+    }
+    if (palette < 1.5) {
+        return gradient;
+    }
+    if (palette < 2.5) {
+        vec3 electric = vec3(
+            0.16 + 0.18 * value,
+            0.35 + 0.65 * value,
+            0.78 + 0.22 * value
+        );
+        return mix(electric, uHighColor.rgb, smoothstep(0.72, 1.0, value));
+    }
+    vec3 phase = vec3(0.0, 0.33, 0.67);
+    return 0.55 + 0.45 * cos(TAU * (value + phase));
+}
+
+float particleFieldShape(vec2 delta, float shape, float variation) {
+    if (shape < 0.5) {
+        return length(delta);
+    }
+    if (shape < 1.5) {
+        return max(abs(delta.x), abs(delta.y));
+    }
+    vec2 spark = vec2(
+        delta.x * mix(0.42, 0.72, variation),
+        delta.y * mix(1.45, 2.10, variation)
+    );
+    return min(length(spark), length(spark.yx) * 1.18);
+}
+
+void main() {
+    vec2 uv = vUV.st;
+    vec4 source = texture(sTD2DInputs[0], uv);
+    ivec2 sourceSize = textureSize(sTD2DInputs[0], 0);
+    float aspect = float(max(sourceSize.x, 1)) / float(max(sourceSize.y, 1));
+    float columns = clamp(floor(uDensity + 0.5), 8.0, 500.0);
+    vec2 grid = vec2(columns, max(4.0, columns / max(aspect, 0.01)));
+    vec2 gridPosition = uv * grid;
+    vec2 baseCell = floor(gridPosition);
+    vec3 premultiplied = vec3(0.0);
+    float accumulatedAlpha = 0.0;
+    float animatedTime = uTime * max(uSpeed, 0.0);
+
+    for (int offsetY = -2; offsetY <= 2; ++offsetY) {
+        for (int offsetX = -2; offsetX <= 2; ++offsetX) {
+            vec2 cell = baseCell + vec2(float(offsetX), float(offsetY));
+            if (cell.x < 0.0 || cell.y < 0.0 || cell.x >= grid.x || cell.y >= grid.y) {
+                continue;
+            }
+            float variation = particleFieldHash(cell + uSeed * vec2(3.17, 7.31));
+            vec2 sourceUV = (cell + vec2(0.5)) / grid;
+            vec4 particleSource = texture(sTD2DInputs[0], clamp(sourceUV, 0.0, 1.0));
+            float luma = dot(particleSource.rgb, vec3(0.2126, 0.7152, 0.0722));
+            float sourceSignal = mix(particleSource.a, luma, clamp(uSourceInfluence, 0.0, 1.0));
+            float gate = smoothstep(
+                uThreshold - max(uThresholdSoftness, 0.001),
+                uThreshold + max(uThresholdSoftness, 0.001),
+                sourceSignal
+            );
+
+            vec2 noisePosition = sourceUV * max(uNoiseScale, 0.01) + vec2(
+                animatedTime * 0.19,
+                -animatedTime * 0.13
+            );
+            float depthNoise = particleFieldFbm(noisePosition + uSeed * 0.071);
+            float angle = TAU * particleFieldNoise(
+                noisePosition * 1.37 + vec2(animatedTime * 0.11, uSeed)
+            );
+            vec2 flow = vec2(cos(angle), sin(angle));
+            vec2 center = cell + vec2(0.5);
+            center += flow * uFlowAmount * mix(0.35, 1.0, depthNoise);
+            center += vec2(
+                sin(animatedTime + variation * TAU),
+                cos(animatedTime * 0.83 + variation * TAU)
+            ) * uTurbulence;
+            center += (vec2(
+                particleFieldHash(cell + 13.7),
+                particleFieldHash(cell + 41.3)
+            ) - 0.5) * uSpread;
+
+            vec2 delta = gridPosition - center;
+            float size = max(0.025, uPointSize) * mix(0.62, 1.42, depthNoise * uDepth);
+            float metric = particleFieldShape(delta, floor(uShape + 0.5), variation);
+            float antialias = max(fwidth(metric), 0.008);
+            float coverage = 1.0 - smoothstep(size - antialias, size + antialias, metric);
+            if (coverage <= 0.0 || gate <= 0.0) {
+                continue;
+            }
+
+            float shimmer = mix(
+                1.0,
+                0.58 + 0.72 * sin(animatedTime * 3.1 + variation * TAU),
+                clamp(uShimmer, 0.0, 1.0)
+            );
+            float palettePosition = clamp(
+                0.58 * luma + 0.42 * depthNoise + 0.12 * sin(animatedTime + variation * TAU),
+                0.0,
+                1.0
+            );
+            vec3 particleColor = particleFieldPalette(
+                palettePosition,
+                particleSource.rgb,
+                floor(uPalette + 0.5)
+            );
+            float paletteAlpha = palettePosition < 0.5
+                ? mix(uLowColor.a, uMidColor.a, palettePosition * 2.0)
+                : mix(uMidColor.a, uHighColor.a, (palettePosition - 0.5) * 2.0);
+            float layerAlpha = clamp(
+                coverage * gate * particleSource.a * uOpacity * shimmer * paletteAlpha,
+                0.0,
+                1.0
+            );
+            premultiplied = particleColor * layerAlpha + premultiplied * (1.0 - layerAlpha);
+            accumulatedAlpha = layerAlpha + accumulatedAlpha * (1.0 - layerAlpha);
+        }
+    }
+
+    vec3 particleColor = accumulatedAlpha > 0.00001
+        ? premultiplied / accumulatedAlpha
+        : vec3(0.0);
+    vec3 background = mix(source.rgb, uBackgroundColor.rgb, clamp(uBackgroundMix, 0.0, 1.0));
+    vec3 effected = particleColor * accumulatedAlpha + background * (1.0 - accumulatedAlpha);
+    float effectAlpha = max(source.a * (1.0 - uBackgroundMix), accumulatedAlpha);
+    vec4 result = vec4(effected, max(effectAlpha, uBackgroundColor.a * uBackgroundMix));
+    fragColor = TDOutputSwizzle(mix(source, result, clamp(uMix, 0.0, 1.0)));
+}
+""".strip()
+
+REFERENCE_PARTICLE_FIELD_PARAMETER_DEFINITIONS = (
+    {"name": "Enabled", "label": "Module Enabled", "type": "toggle", "page": "Particle Field", "default": True, "description": "Bypass the complete chromatic particle-field treatment."},
+    {"name": "Mix", "label": "Effect Mix", "type": "float", "page": "Particle Field", "default": 1.0, "min": 0.0, "max": 1.0, "uniform": "uMix", "description": "Blend between the source and particle-field result."},
+    {"name": "Autotime", "label": "Auto Time", "type": "toggle", "page": "Timing", "default": True, "description": "Animate from TouchDesigner's absolute time."},
+    {"name": "Timescale", "label": "Time Scale", "type": "float", "page": "Timing", "default": 1.0, "min": -10.0, "max": 10.0, "description": "Scale or reverse automatic animation time."},
+    {"name": "Manualtime", "label": "Manual Time", "type": "float", "page": "Timing", "default": 0.0, "min": -100000.0, "max": 100000.0, "description": "Set deterministic time when Auto Time is disabled."},
+    {"name": "Time", "label": "Effective Time", "type": "float", "page": "Timing", "default": 0.0, "min": -100000.0, "max": 100000.0, "uniform": "uTime", "animatable": False, "read_only": True, "description": "Resolved shader time."},
+    {"name": "Speed", "label": "Flow Speed", "type": "float", "page": "Timing", "default": 0.42, "min": 0.0, "max": 5.0, "uniform": "uSpeed", "description": "Set particle-field animation speed."},
+    {"name": "Density", "label": "Particle Columns", "type": "int", "page": "Particles", "default": 180, "min": 8, "max": 500, "uniform": "uDensity", "description": "Set particle columns; rows follow source aspect ratio."},
+    {"name": "Pointsize", "label": "Point Size", "type": "float", "page": "Particles", "default": 0.38, "min": 0.03, "max": 1.25, "uniform": "uPointSize", "description": "Set point radius relative to a grid cell."},
+    {"name": "Threshold", "label": "Source Threshold", "type": "float", "page": "Particles", "default": 0.10, "min": 0.0, "max": 1.0, "uniform": "uThreshold", "description": "Suppress particles below the selected source signal."},
+    {"name": "Thresholdsoftness", "label": "Threshold Softness", "type": "float", "page": "Particles", "default": 0.16, "min": 0.001, "max": 0.5, "uniform": "uThresholdSoftness", "description": "Soften particle appearance around the threshold."},
+    {"name": "Sourceinfluence", "label": "Luminance Influence", "type": "float", "page": "Particles", "default": 0.72, "min": 0.0, "max": 1.0, "uniform": "uSourceInfluence", "description": "Blend alpha and luminance when distributing points."},
+    {"name": "Shape", "label": "Point Shape", "type": "menu", "page": "Particles", "default": "round", "menu_names": ["round", "square", "spark"], "menu_labels": ["Round Point", "Square Pixel", "Vertical Spark"], "uniform": "uShape", "description": "Choose round, square, or luminous spark points."},
+    {"name": "Flowamount", "label": "Flow Amount", "type": "float", "page": "Flow", "default": 0.62, "min": 0.0, "max": 1.25, "uniform": "uFlowAmount", "description": "Move points through the procedural vector field."},
+    {"name": "Turbulence", "label": "Turbulence", "type": "float", "page": "Flow", "default": 0.20, "min": 0.0, "max": 0.75, "uniform": "uTurbulence", "description": "Add local oscillation to particle movement."},
+    {"name": "Noisescale", "label": "Noise Scale", "type": "float", "page": "Flow", "default": 4.6, "min": 0.1, "max": 24.0, "uniform": "uNoiseScale", "description": "Set the scale of the turbulent flow field."},
+    {"name": "Depth", "label": "Depth Variation", "type": "float", "page": "Flow", "default": 0.78, "min": 0.0, "max": 1.0, "uniform": "uDepth", "description": "Vary point size to suggest volumetric depth."},
+    {"name": "Shimmer", "label": "Shimmer", "type": "float", "page": "Flow", "default": 0.48, "min": 0.0, "max": 1.0, "uniform": "uShimmer", "description": "Animate point brightness independently."},
+    {"name": "Spread", "label": "Random Spread", "type": "float", "page": "Flow", "default": 0.32, "min": 0.0, "max": 1.25, "uniform": "uSpread", "description": "Scatter point centers with a deterministic seed."},
+    {"name": "Opacity", "label": "Particle Opacity", "type": "float", "page": "Color", "default": 0.94, "min": 0.0, "max": 1.0, "uniform": "uOpacity", "description": "Control total point-field opacity."},
+    {"name": "Palette", "label": "Color Palette", "type": "menu", "page": "Color", "default": "electric_blue", "menu_names": ["source", "custom_gradient", "electric_blue", "prismatic"], "menu_labels": ["Source Color", "Custom Gradient", "Electric Blue", "Prismatic"], "uniform": "uPalette", "description": "Choose source, custom, electric-blue, or prismatic color."},
+    {"name": "Backgroundmix", "label": "Background Replacement", "type": "float", "page": "Color", "default": 0.92, "min": 0.0, "max": 1.0, "uniform": "uBackgroundMix", "description": "Blend the source background toward Background Color."},
+    {"name": "Backgroundcolor", "label": "Background Color", "type": "rgba", "page": "Color", "default": [0.002, 0.006, 0.018, 1.0], "uniform": "uBackgroundColor", "description": "Set the field background and alpha."},
+    {"name": "Lowcolor", "label": "Low Color", "type": "rgba", "page": "Color", "default": [0.015, 0.05, 0.22, 1.0], "uniform": "uLowColor", "description": "Set the custom-gradient shadow color."},
+    {"name": "Midcolor", "label": "Middle Color", "type": "rgba", "page": "Color", "default": [0.02, 0.42, 1.0, 1.0], "uniform": "uMidColor", "description": "Set the custom-gradient middle color."},
+    {"name": "Highcolor", "label": "Highlight Color", "type": "rgba", "page": "Color", "default": [0.80, 0.96, 1.0, 1.0], "uniform": "uHighColor", "description": "Set the custom-gradient highlight color."},
+    {"name": "Seed", "label": "Random Seed", "type": "int", "page": "Flow", "default": 41, "min": 0, "max": 100000, "uniform": "uSeed", "description": "Choose deterministic particle placement and flow."},
+)
+
+CALLIGRAPHIC_SHADOW_SHADER = r"""
+layout(location = 0) out vec4 fragColor;
+
+uniform float uTime;
+uniform float uMix;
+uniform float uMaskMode;
+uniform float uThreshold;
+uniform float uSoftness;
+uniform float uSourceOpacity;
+uniform float uPaperAmount;
+uniform float uShadowOpacity;
+uniform vec2 uOffset;
+uniform float uStretch;
+uniform float uCurl;
+uniform float uTurbulence;
+uniform float uNoiseScale;
+uniform float uSpeed;
+uniform float uStrokeWeight;
+uniform float uTrailLength;
+uniform float uTrailSamples;
+uniform float uDiffusion;
+uniform float uDryBrush;
+uniform float uSplatter;
+uniform float uSeed;
+uniform vec4 uInkColor;
+uniform vec4 uPaperColor;
+
+float calligraphyHash(vec2 value) {
+    vec3 p3 = fract(vec3(value.xyx) * 0.1031);
+    p3 += dot(p3, p3.yzx + 33.33);
+    return fract((p3.x + p3.y) * p3.z);
+}
+
+float calligraphyNoise(vec2 position) {
+    vec2 cell = floor(position);
+    vec2 local = fract(position);
+    local = local * local * (3.0 - 2.0 * local);
+    float a = calligraphyHash(cell);
+    float b = calligraphyHash(cell + vec2(1.0, 0.0));
+    float c = calligraphyHash(cell + vec2(0.0, 1.0));
+    float d = calligraphyHash(cell + vec2(1.0, 1.0));
+    return mix(mix(a, b, local.x), mix(c, d, local.x), local.y);
+}
+
+float calligraphyRawMask(vec2 uv) {
+    vec4 sampleColor = texture(sTD2DInputs[0], clamp(uv, 0.0, 1.0));
+    float luma = dot(sampleColor.rgb, vec3(0.2126, 0.7152, 0.0722));
+    float signal = uMaskMode < 0.5
+        ? 1.0 - luma
+        : (uMaskMode < 1.5 ? luma : sampleColor.a);
+    return smoothstep(
+        uThreshold - max(uSoftness, 0.001),
+        uThreshold + max(uSoftness, 0.001),
+        signal
+    );
+}
+
+float calligraphyExpandedMask(vec2 uv, vec2 texel, float radius) {
+    vec2 offsetX = vec2(texel.x * radius, 0.0);
+    vec2 offsetY = vec2(0.0, texel.y * radius);
+    float mask = calligraphyRawMask(uv);
+    mask = max(mask, calligraphyRawMask(uv + offsetX));
+    mask = max(mask, calligraphyRawMask(uv - offsetX));
+    mask = max(mask, calligraphyRawMask(uv + offsetY));
+    mask = max(mask, calligraphyRawMask(uv - offsetY));
+    return mask;
+}
+
+void main() {
+    vec2 uv = vUV.st;
+    vec4 source = texture(sTD2DInputs[0], uv);
+    ivec2 sourceSize = textureSize(sTD2DInputs[0], 0);
+    vec2 resolution = vec2(max(sourceSize.x, 1), max(sourceSize.y, 1));
+    vec2 texel = 1.0 / resolution;
+    float animatedTime = uTime * max(uSpeed, 0.0);
+    int requestedSamples = int(clamp(floor(uTrailSamples + 0.5), 1.0, 8.0));
+    float trailMask = 0.0;
+
+    for (int sampleIndex = 0; sampleIndex < 8; ++sampleIndex) {
+        if (sampleIndex >= requestedSamples) {
+            break;
+        }
+        float ratio = requestedSamples > 1
+            ? float(sampleIndex) / float(requestedSamples - 1)
+            : 0.0;
+        float trailRatio = 0.10 + ratio * max(uTrailLength, 0.0);
+        vec2 noisePosition = uv * max(uNoiseScale, 0.01)
+            + vec2(animatedTime * 0.17, -animatedTime * 0.11)
+            + uSeed * 0.013;
+        float flowNoise = calligraphyNoise(noisePosition + ratio * 7.3) - 0.5;
+        float curlPhase = animatedTime + ratio * 5.0 + uv.y * 6.28318530718;
+        vec2 curlOffset = vec2(
+            sin(curlPhase + flowNoise * 4.0),
+            cos(curlPhase * 0.73 - flowNoise * 3.0)
+        ) * uCurl * trailRatio;
+        vec2 displacement = uOffset * trailRatio * uStretch;
+        displacement += curlOffset;
+        displacement += vec2(flowNoise, -flowNoise * 0.55) * uTurbulence * trailRatio;
+        float radius = uStrokeWeight * mix(0.45, 1.25, ratio);
+        float mask = calligraphyExpandedMask(uv - displacement, texel, radius);
+        float weight = (1.0 - ratio * 0.62) * uShadowOpacity;
+        trailMask = max(trailMask, mask * weight);
+    }
+
+    float currentMask = calligraphyExpandedMask(uv, texel, uStrokeWeight * 0.45);
+    float wetNoise = calligraphyNoise(
+        uv * max(uNoiseScale, 0.01) * mix(4.0, 16.0, uDryBrush)
+        + vec2(uSeed, animatedTime * 0.07)
+    );
+    float diffusion = smoothstep(
+        0.0,
+        max(0.001, 1.0 - uDiffusion * 0.72),
+        trailMask
+    );
+    float dryPattern = mix(1.0, smoothstep(0.18, 0.82, wetNoise), uDryBrush);
+    float splatterGate = step(
+        1.0 - clamp(uSplatter, 0.0, 1.0) * trailMask * 0.32,
+        calligraphyHash(floor(uv * resolution * 0.55) + floor(animatedTime * 3.0))
+    );
+    float inkMask = clamp(diffusion * dryPattern + splatterGate * 0.72, 0.0, 1.0);
+
+    vec3 paper = mix(source.rgb, uPaperColor.rgb, clamp(uPaperAmount * uPaperColor.a, 0.0, 1.0));
+    vec3 inked = mix(paper, uInkColor.rgb, inkMask * uInkColor.a);
+    vec3 subject = mix(inked, source.rgb, clamp(currentMask * uSourceOpacity, 0.0, 1.0));
+    float resultAlpha = max(source.a * (1.0 - uPaperAmount), uPaperColor.a * uPaperAmount);
+    vec4 result = vec4(subject, resultAlpha);
+    fragColor = TDOutputSwizzle(mix(source, result, clamp(uMix, 0.0, 1.0)));
+}
+""".strip()
+
+CALLIGRAPHIC_SHADOW_PARAMETER_DEFINITIONS = (
+    {"name": "Enabled", "label": "Module Enabled", "type": "toggle", "page": "Calligraphic Shadow", "default": True, "description": "Bypass the complete calligraphic shadow treatment."},
+    {"name": "Mix", "label": "Effect Mix", "type": "float", "page": "Calligraphic Shadow", "default": 1.0, "min": 0.0, "max": 1.0, "uniform": "uMix", "description": "Blend between the source and calligraphic result."},
+    {"name": "Autotime", "label": "Auto Time", "type": "toggle", "page": "Timing", "default": True, "description": "Animate the flowing brush deformation automatically."},
+    {"name": "Timescale", "label": "Time Scale", "type": "float", "page": "Timing", "default": 1.0, "min": -10.0, "max": 10.0, "description": "Scale or reverse automatic animation time."},
+    {"name": "Manualtime", "label": "Manual Time", "type": "float", "page": "Timing", "default": 0.0, "min": -100000.0, "max": 100000.0, "description": "Set deterministic time when Auto Time is disabled."},
+    {"name": "Time", "label": "Effective Time", "type": "float", "page": "Timing", "default": 0.0, "min": -100000.0, "max": 100000.0, "uniform": "uTime", "animatable": False, "read_only": True, "description": "Resolved shader time."},
+    {"name": "Speed", "label": "Ink Motion Speed", "type": "float", "page": "Timing", "default": 0.36, "min": 0.0, "max": 5.0, "uniform": "uSpeed", "description": "Set the temporal rate of ink deformation."},
+    {"name": "Maskmode", "label": "Subject Mask", "type": "menu", "page": "Subject", "default": "dark", "menu_names": ["dark", "light", "alpha"], "menu_labels": ["Dark Luminance", "Light Luminance", "Source Alpha"], "uniform": "uMaskMode", "description": "Extract a dark, light, or alpha-defined subject."},
+    {"name": "Threshold", "label": "Mask Threshold", "type": "float", "page": "Subject", "default": 0.38, "min": 0.0, "max": 1.0, "uniform": "uThreshold", "description": "Set the subject extraction threshold."},
+    {"name": "Softness", "label": "Mask Softness", "type": "float", "page": "Subject", "default": 0.12, "min": 0.001, "max": 0.5, "uniform": "uSoftness", "description": "Soften the extracted subject edge."},
+    {"name": "Sourceopacity", "label": "Subject Visibility", "type": "float", "page": "Subject", "default": 1.0, "min": 0.0, "max": 1.0, "uniform": "uSourceOpacity", "description": "Composite the original subject above its ink shadow."},
+    {"name": "Paperamount", "label": "Paper Replacement", "type": "float", "page": "Subject", "default": 0.86, "min": 0.0, "max": 1.0, "uniform": "uPaperAmount", "description": "Replace the source background with the paper color."},
+    {"name": "Shadowopacity", "label": "Ink Shadow Opacity", "type": "float", "page": "Shadow Flow", "default": 0.96, "min": 0.0, "max": 1.0, "uniform": "uShadowOpacity", "description": "Set the calligraphic shadow density."},
+    {"name": "Offset", "label": "Shadow Direction", "type": "xy", "page": "Shadow Flow", "default": [-0.18, 0.04], "min": -1.0, "max": 1.0, "uniform": "uOffset", "description": "Set the principal ink-shadow direction."},
+    {"name": "Stretch", "label": "Shadow Stretch", "type": "float", "page": "Shadow Flow", "default": 1.35, "min": 0.0, "max": 4.0, "uniform": "uStretch", "description": "Stretch the subject into long calligraphic gestures."},
+    {"name": "Curl", "label": "Brush Curl", "type": "float", "page": "Shadow Flow", "default": 0.055, "min": 0.0, "max": 0.35, "uniform": "uCurl", "description": "Curl the shadow path into brush-like arcs."},
+    {"name": "Turbulence", "label": "Flow Turbulence", "type": "float", "page": "Shadow Flow", "default": 0.11, "min": 0.0, "max": 0.5, "uniform": "uTurbulence", "description": "Add seeded fluid irregularity to the shadow."},
+    {"name": "Noisescale", "label": "Flow Scale", "type": "float", "page": "Shadow Flow", "default": 3.8, "min": 0.1, "max": 24.0, "uniform": "uNoiseScale", "description": "Set the spatial scale of shadow deformation."},
+    {"name": "Strokeweight", "label": "Stroke Weight", "type": "float", "page": "Ink Surface", "default": 2.4, "min": 0.0, "max": 12.0, "uniform": "uStrokeWeight", "description": "Expand the source silhouette into heavier brush marks."},
+    {"name": "Traillength", "label": "Trail Length", "type": "float", "page": "Ink Surface", "default": 1.0, "min": 0.0, "max": 2.0, "uniform": "uTrailLength", "description": "Scale the total calligraphic shadow extent."},
+    {"name": "Trailsamples", "label": "Trail Samples", "type": "int", "page": "Ink Surface", "default": 7, "min": 1, "max": 8, "uniform": "uTrailSamples", "description": "Use one to eight bounded silhouette samples."},
+    {"name": "Diffusion", "label": "Wet Diffusion", "type": "float", "page": "Ink Surface", "default": 0.34, "min": 0.0, "max": 1.0, "uniform": "uDiffusion", "description": "Soften and pool the calligraphic pigment."},
+    {"name": "Drybrush", "label": "Dry Brush", "type": "float", "page": "Ink Surface", "default": 0.24, "min": 0.0, "max": 1.0, "uniform": "uDryBrush", "description": "Break the ink into dry-brush fibers."},
+    {"name": "Splatter", "label": "Ink Splatter", "type": "float", "page": "Ink Surface", "default": 0.16, "min": 0.0, "max": 1.0, "uniform": "uSplatter", "description": "Add sparse deterministic ink droplets near the shadow."},
+    {"name": "Inkcolor", "label": "Ink Color", "type": "rgba", "page": "Palette", "default": [0.008, 0.012, 0.010, 1.0], "uniform": "uInkColor", "description": "Set shadow pigment color and alpha."},
+    {"name": "Papercolor", "label": "Paper Color", "type": "rgba", "page": "Palette", "default": [0.78, 0.88, 0.82, 1.0], "uniform": "uPaperColor", "description": "Set the minimal background color and alpha."},
+    {"name": "Seed", "label": "Random Seed", "type": "int", "page": "Ink Surface", "default": 53, "min": 0, "max": 100000, "uniform": "uSeed", "description": "Choose deterministic brush fibers and splatter."},
+)
+
+INK_ORBIT_CANVAS_SHADER = r"""
+layout(location = 0) out vec4 fragColor;
+
+uniform float uTime;
+uniform float uMix;
+uniform float uSourceMix;
+uniform float uSourceInfluence;
+uniform float uRingCount;
+uniform float uDropletCount;
+uniform float uRadius;
+uniform float uStrokeWidth;
+uniform float uScale;
+uniform vec2 uCenter;
+uniform float uPerspective;
+uniform float uOrbitSpeed;
+uniform float uFlowSpeed;
+uniform float uIrregularity;
+uniform float uSwirl;
+uniform float uStretch;
+uniform float uDiffusion;
+uniform float uDryBrush;
+uniform float uSplatter;
+uniform float uShadowAmount;
+uniform vec2 uShadowOffset;
+uniform float uShadowSoftness;
+uniform float uSeed;
+uniform vec4 uInkColor;
+uniform vec4 uPaperColor;
+
+const float TAU = 6.28318530718;
+
+float inkOrbitHash(vec2 value) {
+    vec3 p3 = fract(vec3(value.xyx) * 0.1031);
+    p3 += dot(p3, p3.yzx + 33.33);
+    return fract((p3.x + p3.y) * p3.z);
+}
+
+float inkOrbitNoise(vec2 position) {
+    vec2 cell = floor(position);
+    vec2 local = fract(position);
+    local = local * local * (3.0 - 2.0 * local);
+    float a = inkOrbitHash(cell);
+    float b = inkOrbitHash(cell + vec2(1.0, 0.0));
+    float c = inkOrbitHash(cell + vec2(0.0, 1.0));
+    float d = inkOrbitHash(cell + vec2(1.0, 1.0));
+    return mix(mix(a, b, local.x), mix(c, d, local.x), local.y);
+}
+
+vec2 inkOrbitSpace(vec2 uv, float aspect) {
+    vec2 p = uv - uCenter;
+    p.x *= aspect;
+    p.y /= mix(1.0, 0.42, clamp(uPerspective, 0.0, 1.0));
+    p /= max(uScale, 0.05);
+    return p;
+}
+
+vec2 inkOrbitCenter(float index, float timeValue) {
+    float randomPhase = inkOrbitHash(vec2(index, uSeed)) * TAU;
+    float orbit = timeValue * uOrbitSpeed * mix(-1.0, 1.0, step(0.5, inkOrbitHash(vec2(index + 8.0, uSeed))));
+    float radial = uRadius * mix(0.12, 0.92, inkOrbitHash(vec2(index + 21.0, uSeed)));
+    return vec2(cos(randomPhase + orbit), sin(randomPhase + orbit)) * radial;
+}
+
+float inkOrbitRing(vec2 p, float index, float timeValue, float softness) {
+    vec2 center = inkOrbitCenter(index, timeValue);
+    vec2 q = p - center;
+    float phase = inkOrbitHash(vec2(index + 31.0, uSeed)) * TAU;
+    float angle = atan(q.y, q.x);
+    float irregular = sin(angle * mix(2.0, 7.0, inkOrbitHash(vec2(index, 17.0))) + phase + timeValue * uFlowSpeed);
+    irregular += (inkOrbitNoise(q * 8.0 + vec2(timeValue * 0.19, index)) - 0.5) * 1.4;
+    float localRadius = uRadius * mix(0.16, 0.48, inkOrbitHash(vec2(index + 43.0, uSeed)));
+    localRadius *= 1.0 + irregular * uIrregularity * 0.32;
+    q.x *= mix(1.0, 1.85, uStretch * inkOrbitHash(vec2(index + 5.0, uSeed)));
+    q += vec2(-q.y, q.x) * uSwirl * 0.12 * sin(timeValue + phase);
+    float distanceToStroke = abs(length(q) - localRadius);
+    float width = max(0.001, uStrokeWidth * mix(0.52, 1.45, inkOrbitHash(vec2(index + 71.0, uSeed))));
+    return 1.0 - smoothstep(width, width + softness, distanceToStroke);
+}
+
+float inkOrbitDroplet(vec2 p, float index, float timeValue, float softness) {
+    float phase = inkOrbitHash(vec2(index + 91.0, uSeed)) * TAU;
+    float travel = fract(timeValue * uFlowSpeed * 0.035 + inkOrbitHash(vec2(index, uSeed)));
+    vec2 position = vec2(
+        mix(-0.72, 0.72, inkOrbitHash(vec2(index + 11.0, uSeed))),
+        mix(-0.46, 0.46, travel)
+    );
+    position += vec2(cos(phase + timeValue * 0.23), sin(phase * 1.7 + timeValue * 0.31)) * uSwirl * 0.18;
+    vec2 q = p - position;
+    q.x *= mix(0.62, 1.55, inkOrbitHash(vec2(index + 37.0, uSeed)));
+    float radius = uStrokeWidth * mix(0.35, 2.4, inkOrbitHash(vec2(index + 57.0, uSeed)));
+    return 1.0 - smoothstep(radius, radius + softness, length(q));
+}
+
+void main() {
+    vec2 uv = vUV.st;
+    vec4 source = texture(sTD2DInputs[0], uv);
+    ivec2 sourceSize = textureSize(sTD2DInputs[0], 0);
+    float aspect = float(max(sourceSize.x, 1)) / float(max(sourceSize.y, 1));
+    vec2 p = inkOrbitSpace(uv, aspect);
+    float timeValue = uTime;
+    int ringCount = int(clamp(floor(uRingCount + 0.5), 1.0, 12.0));
+    int dropletCount = int(clamp(floor(uDropletCount + 0.5), 0.0, 24.0));
+    float softness = mix(0.0008, 0.035, clamp(uDiffusion, 0.0, 1.0));
+    float ink = 0.0;
+    float shadow = 0.0;
+
+    for (int index = 0; index < 12; ++index) {
+        if (index >= ringCount) {
+            break;
+        }
+        float ring = inkOrbitRing(p, float(index), timeValue, softness);
+        float shadowRing = inkOrbitRing(
+            p - uShadowOffset,
+            float(index),
+            timeValue,
+            softness + uShadowSoftness * 0.05
+        );
+        ink = max(ink, ring);
+        shadow = max(shadow, shadowRing);
+    }
+    for (int index = 0; index < 24; ++index) {
+        if (index >= dropletCount) {
+            break;
+        }
+        float droplet = inkOrbitDroplet(p, float(index), timeValue, softness);
+        float shadowDroplet = inkOrbitDroplet(
+            p - uShadowOffset,
+            float(index),
+            timeValue,
+            softness + uShadowSoftness * 0.05
+        );
+        ink = max(ink, droplet);
+        shadow = max(shadow, shadowDroplet);
+    }
+
+    float sourceLuma = dot(source.rgb, vec3(0.2126, 0.7152, 0.0722));
+    float sourceModulation = mix(1.0, 0.35 + 0.95 * (1.0 - sourceLuma), uSourceInfluence);
+    float fibers = inkOrbitNoise(uv * mix(160.0, 920.0, uDryBrush) + uSeed);
+    ink *= mix(1.0, smoothstep(0.16, 0.84, fibers), uDryBrush);
+    float splatter = step(
+        1.0 - clamp(uSplatter, 0.0, 1.0) * ink * 0.28,
+        inkOrbitHash(floor(uv * vec2(sourceSize)) + floor(timeValue * 2.0))
+    );
+    ink = clamp(ink * sourceModulation + splatter * 0.68, 0.0, 1.0);
+    shadow = clamp(shadow * uShadowAmount * (1.0 - ink), 0.0, 1.0);
+
+    vec3 canvas = mix(uPaperColor.rgb, vec3(0.0), shadow * 0.30);
+    canvas = mix(canvas, uInkColor.rgb, ink * uInkColor.a);
+    canvas = mix(canvas, source.rgb, clamp(uSourceMix * source.a, 0.0, 1.0));
+    vec4 result = vec4(canvas, max(uPaperColor.a, source.a * uSourceMix));
+    fragColor = TDOutputSwizzle(mix(source, result, clamp(uMix, 0.0, 1.0)));
+}
+""".strip()
+
+INK_ORBIT_CANVAS_PARAMETER_DEFINITIONS = (
+    {"name": "Enabled", "label": "Module Enabled", "type": "toggle", "page": "Ink Orbit Canvas", "default": True, "description": "Bypass the complete procedural ink-orbit canvas."},
+    {"name": "Mix", "label": "Effect Mix", "type": "float", "page": "Ink Orbit Canvas", "default": 1.0, "min": 0.0, "max": 1.0, "uniform": "uMix", "description": "Blend between the source and ink-orbit canvas."},
+    {"name": "Sourcemix", "label": "Source Visibility", "type": "float", "page": "Ink Orbit Canvas", "default": 0.0, "min": 0.0, "max": 1.0, "uniform": "uSourceMix", "description": "Composite the original image over the generated canvas."},
+    {"name": "Sourceinfluence", "label": "Source Influence", "type": "float", "page": "Ink Orbit Canvas", "default": 0.22, "min": 0.0, "max": 1.0, "uniform": "uSourceInfluence", "description": "Use source luminance to vary pigment density."},
+    {"name": "Autotime", "label": "Auto Time", "type": "toggle", "page": "Timing", "default": True, "description": "Animate rings and droplets automatically."},
+    {"name": "Timescale", "label": "Time Scale", "type": "float", "page": "Timing", "default": 1.0, "min": -10.0, "max": 10.0, "description": "Scale or reverse automatic animation time."},
+    {"name": "Manualtime", "label": "Manual Time", "type": "float", "page": "Timing", "default": 0.0, "min": -100000.0, "max": 100000.0, "description": "Set deterministic time when Auto Time is disabled."},
+    {"name": "Time", "label": "Effective Time", "type": "float", "page": "Timing", "default": 0.0, "min": -100000.0, "max": 100000.0, "uniform": "uTime", "animatable": False, "read_only": True, "description": "Resolved shader time."},
+    {"name": "Orbitspeed", "label": "Orbit Speed", "type": "float", "page": "Timing", "default": 0.24, "min": -5.0, "max": 5.0, "uniform": "uOrbitSpeed", "description": "Set ring-center orbital movement."},
+    {"name": "Flowspeed", "label": "Ink Flow Speed", "type": "float", "page": "Timing", "default": 0.48, "min": -5.0, "max": 5.0, "uniform": "uFlowSpeed", "description": "Set brush undulation and droplet travel speed."},
+    {"name": "Ringcount", "label": "Ring Count", "type": "int", "page": "Geometry", "default": 7, "min": 1, "max": 12, "uniform": "uRingCount", "description": "Draw one to twelve flowing calligraphic rings."},
+    {"name": "Dropletcount", "label": "Droplet Count", "type": "int", "page": "Geometry", "default": 12, "min": 0, "max": 24, "uniform": "uDropletCount", "description": "Draw zero to twenty-four animated pigment droplets."},
+    {"name": "Radius", "label": "Orbit Radius", "type": "float", "page": "Geometry", "default": 0.34, "min": 0.03, "max": 1.0, "uniform": "uRadius", "description": "Set ring size and orbit extent."},
+    {"name": "Strokewidth", "label": "Stroke Width", "type": "float", "page": "Geometry", "default": 0.022, "min": 0.001, "max": 0.18, "uniform": "uStrokeWidth", "description": "Set wet calligraphic stroke width."},
+    {"name": "Scale", "label": "Canvas Scale", "type": "float", "page": "Geometry", "default": 1.0, "min": 0.1, "max": 4.0, "uniform": "uScale", "description": "Scale the complete orbit composition."},
+    {"name": "Center", "label": "Canvas Center", "type": "uv", "page": "Geometry", "default": [0.5, 0.48], "min": 0.0, "max": 1.0, "uniform": "uCenter", "description": "Position the ink composition in the frame."},
+    {"name": "Perspective", "label": "Floor Perspective", "type": "float", "page": "Geometry", "default": 0.54, "min": 0.0, "max": 1.0, "uniform": "uPerspective", "description": "Compress the composition vertically like a stage floor."},
+    {"name": "Irregularity", "label": "Ring Irregularity", "type": "float", "page": "Flow", "default": 0.72, "min": 0.0, "max": 1.0, "uniform": "uIrregularity", "description": "Break perfect circles into hand-drawn ink contours."},
+    {"name": "Swirl", "label": "Swirl", "type": "float", "page": "Flow", "default": 0.62, "min": 0.0, "max": 2.0, "uniform": "uSwirl", "description": "Curl ring centers and flowing droplets."},
+    {"name": "Stretch", "label": "Stroke Stretch", "type": "float", "page": "Flow", "default": 0.58, "min": 0.0, "max": 1.0, "uniform": "uStretch", "description": "Stretch selected rings into brush loops."},
+    {"name": "Diffusion", "label": "Wet Diffusion", "type": "float", "page": "Surface", "default": 0.36, "min": 0.0, "max": 1.0, "uniform": "uDiffusion", "description": "Soften ink edges like pigment spreading through paper."},
+    {"name": "Drybrush", "label": "Dry Brush", "type": "float", "page": "Surface", "default": 0.20, "min": 0.0, "max": 1.0, "uniform": "uDryBrush", "description": "Reveal paper fibers through broken strokes."},
+    {"name": "Splatter", "label": "Splatter", "type": "float", "page": "Surface", "default": 0.18, "min": 0.0, "max": 1.0, "uniform": "uSplatter", "description": "Add sparse animated ink droplets along strokes."},
+    {"name": "Shadowamount", "label": "Wet Shadow", "type": "float", "page": "Surface", "default": 0.38, "min": 0.0, "max": 1.0, "uniform": "uShadowAmount", "description": "Add a soft offset shadow beneath wet pigment."},
+    {"name": "Shadowoffset", "label": "Shadow Offset", "type": "xy", "page": "Surface", "default": [0.018, -0.025], "min": -0.2, "max": 0.2, "uniform": "uShadowOffset", "description": "Set the wet-pigment shadow direction."},
+    {"name": "Shadowsoftness", "label": "Shadow Softness", "type": "float", "page": "Surface", "default": 0.42, "min": 0.0, "max": 1.0, "uniform": "uShadowSoftness", "description": "Diffuse the wet-pigment shadow."},
+    {"name": "Inkcolor", "label": "Ink Color", "type": "rgba", "page": "Palette", "default": [0.006, 0.008, 0.007, 1.0], "uniform": "uInkColor", "description": "Set the calligraphic pigment color and alpha."},
+    {"name": "Papercolor", "label": "Paper Color", "type": "rgba", "page": "Palette", "default": [0.94, 0.95, 0.92, 1.0], "uniform": "uPaperColor", "description": "Set the canvas color and alpha."},
+    {"name": "Seed", "label": "Random Seed", "type": "int", "page": "Flow", "default": 67, "min": 0, "max": 100000, "uniform": "uSeed", "description": "Choose deterministic ring layout, fibers, and droplets."},
+)
+
 PREVIEW_IDENTITY_LUT_SHADER = r"""
 layout(location = 0) out vec4 fragColor;
 void main() {
@@ -4984,6 +5551,188 @@ def build_motion_studio_module(parent_comp):
     return motion, motion_path
 
 
+def _build_reference_video_module(
+    parent_comp,
+    *,
+    component_name,
+    component_label,
+    shader_source,
+    parameter_definitions,
+    storage_key,
+    module_id,
+    tox_name,
+    color,
+    reference_video,
+):
+    """Build one bounded, single-input GPU module derived from a reference video."""
+
+    module = parent_comp.create(baseCOMP, component_name)
+    module.color = color
+    module.comment = (
+        "{}: adjustable GPU recreation of {} with master bypass, dry/wet mix, "
+        "deterministic manual time, and automatic animation."
+    ).format(component_label, reference_video)
+    pages = {}
+    parameter_bindings = []
+    for definition in parameter_definitions:
+        page_name = definition.get("page", component_label)
+        page = pages.get(page_name)
+        if page is None:
+            page = module.appendCustomPage(page_name)
+            pages[page_name] = page
+        custom_pars = _append_parameter(module, page, definition)
+        parameter_bindings.append((definition, custom_pars))
+    if module.par["Time"] is not None:
+        module.par.Time.expr = (
+            "absTime.seconds * me.par.Timescale "
+            "if me.par.Autotime else me.par.Manualtime"
+        )
+    module.store(
+        storage_key,
+        {
+            "schema_version": 1,
+            "id": module_id,
+            "renderer": "bounded_single_pass_glsl_top",
+            "reference_video": reference_video,
+            "alpha_policy": "module_defined_with_bypass",
+            "video_fx_routing": "before_optional_rack",
+        },
+    )
+
+    source = module.create(inTOP, "in1_image")
+    source.par.label = "source image"
+    source.nodeX = -400
+    source.nodeY = 0
+
+    shader_suffix = component_name
+    shader_dat = module.create(textDAT, "pixel_shader_{}".format(shader_suffix))
+    shader_dat.text = shader_source
+    shader_dat.nodeX = -200
+    shader_dat.nodeY = -220
+
+    glsl = module.create(glslTOP, "effect_glsl_{}".format(shader_suffix))
+    source.outputConnectors[0].connect(glsl.inputConnectors[0])
+    glsl.nodeX = 0
+    glsl.nodeY = 0
+    glsl.par.pixeldat = glsl.relativePath(shader_dat)
+    if glsl.par["glslversion"] is not None:
+        glsl.par.glslversion = "glsl460"
+    if glsl.par["compilebehavior"] is not None:
+        glsl.par.compilebehavior = "stalluntildone"
+    if glsl.par["errorbehavior"] is not None:
+        glsl.par.errorbehavior = "showerror"
+    if glsl.par["outputresolution"] is not None:
+        glsl.par.outputresolution = "useinput"
+
+    active_bindings = [
+        (definition, custom_pars)
+        for definition, custom_pars in parameter_bindings
+        if definition.get("uniform")
+    ]
+    glsl.seq.vec.numBlocks = max(
+        1,
+        sum(
+            1
+            for definition, _custom_pars in active_bindings
+            if definition.get("type") not in {"rgb", "rgba"}
+        ),
+    )
+    glsl.seq.color.numBlocks = max(
+        1,
+        sum(
+            1
+            for definition, _custom_pars in active_bindings
+            if definition.get("type") in {"rgb", "rgba"}
+        ),
+    )
+    vector_index = 0
+    color_index = 0
+    for definition, custom_pars in active_bindings:
+        current_vector_index = vector_index
+        vector_index, color_index = _configure_glsl_uniform(
+            glsl,
+            definition,
+            custom_pars,
+            vector_index,
+            color_index,
+        )
+        if definition.get("type") == "menu":
+            glsl.par[
+                "vec{}valuex".format(current_vector_index)
+            ].expr = "parent().par.{}.menuIndex".format(definition["name"])
+
+    enable_switch = module.create(switchTOP, "enable_switch")
+    source.outputConnectors[0].connect(enable_switch.inputConnectors[0])
+    glsl.outputConnectors[0].connect(enable_switch.inputConnectors[1])
+    enable_switch.par.index.expr = "1 if parent().par.Enabled else 0"
+    enable_switch.nodeX = 200
+    enable_switch.nodeY = 0
+
+    output = module.create(outTOP, "out1_image")
+    enable_switch.outputConnectors[0].connect(output.inputConnectors[0])
+    output.nodeX = 400
+    output.nodeY = 0
+    output.display = True
+    output.render = True
+    module.par.opviewer = output.path
+
+    glsl.cook(force=True)
+    errors = list(glsl.errors())
+    if errors:
+        raise RuntimeError(
+            "{} shader failed: {}".format(component_label, "; ".join(errors))
+        )
+
+    tox_path = CORE_ROOT / tox_name
+    module.save(str(tox_path), createFolders=True)
+    return module, tox_path
+
+
+def build_reference_particle_field_module(parent_comp):
+    return _build_reference_video_module(
+        parent_comp,
+        component_name="reference_particle_field",
+        component_label="Chromatic Particle Field",
+        shader_source=REFERENCE_PARTICLE_FIELD_SHADER,
+        parameter_definitions=REFERENCE_PARTICLE_FIELD_PARAMETER_DEFINITIONS,
+        storage_key="tdimagefx_reference_particle_field_module",
+        module_id="tdimagefx.core.reference-particle-field",
+        tox_name="ReferenceParticleField.tox",
+        color=(0.12, 0.24, 0.56),
+        reference_video="ScreenRecording_07-22-2026 16-57-40_1.mov",
+    )
+
+
+def build_calligraphic_shadow_module(parent_comp):
+    return _build_reference_video_module(
+        parent_comp,
+        component_name="calligraphic_shadow",
+        component_label="Calligraphic Shadow",
+        shader_source=CALLIGRAPHIC_SHADOW_SHADER,
+        parameter_definitions=CALLIGRAPHIC_SHADOW_PARAMETER_DEFINITIONS,
+        storage_key="tdimagefx_calligraphic_shadow_module",
+        module_id="tdimagefx.core.calligraphic-shadow",
+        tox_name="CalligraphicShadow.tox",
+        color=(0.10, 0.12, 0.10),
+        reference_video="ScreenRecording_07-22-2026 16-56-53_1.mov",
+    )
+
+
+def build_ink_orbit_canvas_module(parent_comp):
+    return _build_reference_video_module(
+        parent_comp,
+        component_name="ink_orbit_canvas",
+        component_label="Ink Orbit Canvas",
+        shader_source=INK_ORBIT_CANVAS_SHADER,
+        parameter_definitions=INK_ORBIT_CANVAS_PARAMETER_DEFINITIONS,
+        storage_key="tdimagefx_ink_orbit_canvas_module",
+        module_id="tdimagefx.core.ink-orbit-canvas",
+        tox_name="InkOrbitCanvas.tox",
+        color=(0.28, 0.24, 0.16),
+        reference_video="ScreenRecording_07-22-2026 15-38-39_1.mov",
+    )
+
+
 def build_browser(parent_comp, manifests, compatibility_confidence="declared"):
     browser = parent_comp.create(baseCOMP, "fx_browser")
     browser.color = (0.14, 0.38, 0.30)
@@ -5621,6 +6370,9 @@ def build_library(project_comp, manifests, report):
         "Use core/glitch_fusion for 24 selectable digital and analog glitch treatments.\n"
         "Use core/color_adjustment for grading, inversion, duotone, and color overlays.\n"
         "Use core/motion_studio for 40 selectable movement and animation styles.\n"
+        "Use core/reference_particle_field for the chromatic point-cloud reference effect.\n"
+        "Use core/calligraphic_shadow for the dancer-like flowing ink shadow reference effect.\n"
+        "Use core/ink_orbit_canvas for procedural wet-ink rings, droplets, and floor perspective.\n"
         "Use core/fx_browser to search, filter, favorite, and create effects.\n"
         "Use the promoted Find(), CreateEffect(), CheckUpdates(), and HealthCheck() methods.\n"
         "All effect versions are immutable and stored under packages/<id>/<version>.\n"
@@ -5724,8 +6476,23 @@ def build_library(project_comp, manifests, report):
     motion, motion_path = build_motion_studio_module(core_parent)
     motion.nodeX = 1300
     motion.nodeY = 0
+    reference_particle_field, reference_particle_field_path = (
+        build_reference_particle_field_module(core_parent)
+    )
+    reference_particle_field.nodeX = 1560
+    reference_particle_field.nodeY = 0
+    calligraphic_shadow, calligraphic_shadow_path = (
+        build_calligraphic_shadow_module(core_parent)
+    )
+    calligraphic_shadow.nodeX = 1820
+    calligraphic_shadow.nodeY = 0
+    ink_orbit_canvas, ink_orbit_canvas_path = build_ink_orbit_canvas_module(
+        core_parent
+    )
+    ink_orbit_canvas.nodeX = 2080
+    ink_orbit_canvas.nodeY = 0
     browser, browser_path = build_browser(core_parent, manifests, compatibility_confidence)
-    browser.nodeX = 1560
+    browser.nodeX = 2340
     browser.nodeY = 0
 
     library.par.Status = "Ready: {} packages".format(len(manifests))
@@ -5739,6 +6506,9 @@ def build_library(project_comp, manifests, report):
         "glitch": str(glitch_path),
         "color_adjustment": str(color_adjustment_path),
         "motion": str(motion_path),
+        "reference_particle_field": str(reference_particle_field_path),
+        "calligraphic_shadow": str(calligraphic_shadow_path),
+        "ink_orbit_canvas": str(ink_orbit_canvas_path),
         "browser": str(browser_path),
         "updater": str(CORE_ROOT / "FxUpdater.tox"),
     }
@@ -5750,6 +6520,9 @@ def build_library(project_comp, manifests, report):
         glitch_path,
         color_adjustment_path,
         motion_path,
+        reference_particle_field_path,
+        calligraphic_shadow_path,
+        ink_orbit_canvas_path,
     )
 
 
@@ -5761,19 +6534,55 @@ def build_demo(
     glitch_path,
     color_adjustment_path,
     motion_path,
+    reference_particle_field_path,
+    calligraphic_shadow_path,
+    ink_orbit_canvas_path,
 ):
     demo = project_comp.create(baseCOMP, "imagefx_demo")
     demo.nodeX = 100
     demo.nodeY = 100
     demo.color = (0.32, 0.18, 0.36)
     demo.comment = (
-        "Animated source -> optional ink flow -> optional random particles -> "
+        "Animated source -> three optional reference recreations -> optional ink flow -> optional random particles -> "
         "optional Glitch Fusion -> optional color adjustment -> optional "
         "Motion Studio -> optional eight-slot video FX. "
         "Output defaults to 1920 x 1080 with 4K UHD and custom presets. "
         "Replace source_image with any TOP."
     )
     demo_page = demo.appendCustomPage("Demo")
+    _append_parameter(
+        demo,
+        demo_page,
+        {
+            "name": "Referenceparticlefieldenabled",
+            "label": "Chromatic Particle Field Enabled",
+            "type": "toggle",
+            "default": False,
+            "description": "Apply the 16:57:40 reference recreation before the existing modules.",
+        },
+    )
+    _append_parameter(
+        demo,
+        demo_page,
+        {
+            "name": "Calligraphicshadowenabled",
+            "label": "Calligraphic Shadow Enabled",
+            "type": "toggle",
+            "default": False,
+            "description": "Apply the 16:56:53 dancer-shadow reference recreation.",
+        },
+    )
+    _append_parameter(
+        demo,
+        demo_page,
+        {
+            "name": "Inkorbitenabled",
+            "label": "Ink Orbit Canvas Enabled",
+            "type": "toggle",
+            "default": False,
+            "description": "Apply the 15:38:39 procedural ink-canvas reference recreation.",
+        },
+    )
     _append_parameter(
         demo,
         demo_page,
@@ -5879,22 +6688,62 @@ def build_demo(
             "Demo source shader failed: {}".format("; ".join(source_errors))
         )
 
+    reference_particle_field = load_tox_component(
+        demo,
+        reference_particle_field_path,
+        "reference_particle_field",
+    )
+    reference_particle_field.nodeX = -40
+    reference_particle_field.nodeY = 0
+    reference_particle_field.par.Enabled.expr = (
+        "parent().par.Referenceparticlefieldenabled"
+    )
+    source.outputConnectors[0].connect(
+        reference_particle_field.inputConnectors[0]
+    )
+
+    calligraphic_shadow = load_tox_component(
+        demo,
+        calligraphic_shadow_path,
+        "calligraphic_shadow",
+    )
+    calligraphic_shadow.nodeX = 220
+    calligraphic_shadow.nodeY = 0
+    calligraphic_shadow.par.Enabled.expr = (
+        "parent().par.Calligraphicshadowenabled"
+    )
+    reference_particle_field.outputConnectors[0].connect(
+        calligraphic_shadow.inputConnectors[0]
+    )
+
+    ink_orbit_canvas = load_tox_component(
+        demo,
+        ink_orbit_canvas_path,
+        "ink_orbit_canvas",
+    )
+    ink_orbit_canvas.nodeX = 480
+    ink_orbit_canvas.nodeY = 0
+    ink_orbit_canvas.par.Enabled.expr = "parent().par.Inkorbitenabled"
+    calligraphic_shadow.outputConnectors[0].connect(
+        ink_orbit_canvas.inputConnectors[0]
+    )
+
     ink_flow = load_tox_component(
         demo,
         ink_flow_path,
         "ink_flow",
     )
-    ink_flow.nodeX = -40
+    ink_flow.nodeX = 740
     ink_flow.nodeY = 0
     ink_flow.par.Enabled.expr = "parent().par.Inkflowenabled"
-    source.outputConnectors[0].connect(ink_flow.inputConnectors[0])
+    ink_orbit_canvas.outputConnectors[0].connect(ink_flow.inputConnectors[0])
 
     particles = load_tox_component(
         demo,
         particle_path,
         "particle_random_move",
     )
-    particles.nodeX = 220
+    particles.nodeX = 1000
     particles.nodeY = 0
     particles.par.Enabled.expr = "parent().par.Particlesenabled"
     ink_flow.outputConnectors[0].connect(particles.inputConnectors[0])
@@ -5904,7 +6753,7 @@ def build_demo(
         glitch_path,
         "glitch_fusion",
     )
-    glitch.nodeX = 480
+    glitch.nodeX = 1260
     glitch.nodeY = 0
     glitch.par.Enabled.expr = "parent().par.Glitchenabled"
     particles.outputConnectors[0].connect(glitch.inputConnectors[0])
@@ -5914,7 +6763,7 @@ def build_demo(
         color_adjustment_path,
         "color_adjustment",
     )
-    color_adjustment.nodeX = 740
+    color_adjustment.nodeX = 1520
     color_adjustment.nodeY = 0
     color_adjustment.par.Enabled.expr = "parent().par.Coloradjustmentenabled"
     glitch.outputConnectors[0].connect(color_adjustment.inputConnectors[0])
@@ -5924,13 +6773,13 @@ def build_demo(
         motion_path,
         "motion_studio",
     )
-    motion.nodeX = 1000
+    motion.nodeX = 1780
     motion.nodeY = 0
     motion.par.Enabled.expr = "parent().par.Motionenabled"
     color_adjustment.outputConnectors[0].connect(motion.inputConnectors[0])
 
     rack = load_tox_component(demo, rack_path, "fx_rack")
-    rack.nodeX = 1260
+    rack.nodeX = 2040
     rack.nodeY = 0
     motion.outputConnectors[0].connect(rack.inputConnectors[0])
 
@@ -5982,12 +6831,12 @@ def build_demo(
     motion.outputConnectors[0].connect(video_fx_router.inputConnectors[0])
     rack.outputConnectors[0].connect(video_fx_router.inputConnectors[1])
     video_fx_router.par.index.expr = "1 if parent().par.Applyvideofx else 0"
-    video_fx_router.nodeX = 1510
+    video_fx_router.nodeX = 2290
     video_fx_router.nodeY = 0
 
     output = demo.create(outTOP, "out1_image")
     video_fx_router.outputConnectors[0].connect(output.inputConnectors[0])
-    output.nodeX = 1720
+    output.nodeX = 2500
     output.nodeY = 0
     if output.par["outputresolution"] is not None:
         output.par.outputresolution = "custom"
@@ -6177,6 +7026,9 @@ def build():
             glitch_path,
             color_adjustment_path,
             motion_path,
+            reference_particle_field_path,
+            calligraphic_shadow_path,
+            ink_orbit_canvas_path,
         ) = build_library(
             project_comp,
             manifests,
@@ -6190,6 +7042,9 @@ def build():
             glitch_path,
             color_adjustment_path,
             motion_path,
+            reference_particle_field_path,
+            calligraphic_shadow_path,
+            ink_orbit_canvas_path,
         )
         report["benchmark_data"] = str(_write_benchmark_data(report))
         if report["shader_errors"]:
