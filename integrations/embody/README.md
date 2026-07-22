@@ -54,6 +54,24 @@ remain local.
 Do not run `touchdesigner/scripts/build_project.py` in this harness. Native
 rebuilds require a separate blank TouchDesigner project.
 
+## Run the complete live suite
+
+After installing the harness, run all nine tracked live validators with one
+Textport command:
+
+```python
+script = r"C:/absolute/path/to/td-imagefx-library/touchdesigner/scripts/validate_live_suite.py"
+scope = dict(globals())
+scope.update({"__file__": script, "__name__": "__main__"})
+exec(compile(open(script, encoding="utf-8").read(), script, "exec"), scope)
+```
+
+The copied Textport globals are required by rendered-pixel checks that create
+temporary TouchDesigner operators. The suite writes the ignored
+`build/envoy-validation/live-suite.json` summary and all individual reports,
+restores each validator's temporary state, and never saves the harness. A full
+run can take several minutes.
+
 Opening the harness does not by itself prove that Envoy is online. Confirm
 Embody's Envoy switch is enabled after every launch and that the active
 instance in `integrations/embody/local/.embody/envoy.json` is listening before
@@ -143,7 +161,8 @@ For a local JSON diagnostic from TouchDesigner, run:
 
 ```python
 script = r"C:/absolute/path/to/td-imagefx-library/touchdesigner/scripts/validate_live_project.py"
-namespace = {"__file__": script, "__name__": "td_imagefx_live_validation"}
+namespace = dict(globals())
+namespace.update({"__file__": script, "__name__": "td_imagefx_live_validation"})
 exec(compile(open(script, encoding="utf-8").read(), script, "exec"), namespace)
 result = namespace["validate"]()
 print(result)
@@ -160,7 +179,8 @@ For the reported rack-menu regression, run the state-restoring validator:
 
 ```python
 script = r"C:/absolute/path/to/td-imagefx-library/touchdesigner/scripts/validate_rack_selection.py"
-namespace = {"__file__": script, "__name__": "td_imagefx_rack_validation"}
+namespace = dict(globals())
+namespace.update({"__file__": script, "__name__": "td_imagefx_rack_validation"})
 exec(compile(open(script, encoding="utf-8").read(), script, "exec"), namespace)
 result = namespace["validate"]()
 print(result)

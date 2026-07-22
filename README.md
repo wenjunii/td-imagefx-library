@@ -368,6 +368,27 @@ The canonical demo supplies deterministic fixtures to all six auxiliary rack inp
 
 Presets capture exact package versions, slot order, enable/mix state, modulation, manual time, and eligible effect parameters. They do not install packages, approve updates, or replace a production project lock.
 
+### Complete live validation suite
+
+Run every live project, resolution, rack, module, and all-effect check from one
+TouchDesigner Textport command. Use only a disposable development harness:
+
+```python
+script = r"C:/absolute/path/to/td-imagefx-library/touchdesigner/scripts/validate_live_suite.py"
+scope = dict(globals())
+scope.update({"__file__": script, "__name__": "__main__"})
+exec(compile(open(script, encoding="utf-8").read(), script, "exec"), scope)
+```
+
+Copying `globals()` is required because rendered-pixel QA uses
+TouchDesigner-provided objects including `op`, `app`, `root`, `textDAT`, and
+`glslTOP`. The runner executes all nine tracked validators, continues long
+enough to report every failure, writes the ignored
+`build/envoy-validation/live-suite.json` summary plus each validator's normal
+report, and never saves the project. A complete run can take several minutes.
+Each mutating validator restores its parameters, rack preset, routing,
+resolution, source time, and timeline state in its own `finally` block.
+
 For the exact selection-callback regression check, run
 `touchdesigner/scripts/validate_rack_selection.py` in the development harness.
 It snapshots the complete rack preset, changes every `Slot1effect` through
@@ -382,9 +403,10 @@ Execute DAT targets its owning rack.
 For the complete effect-control regression check, run
 `touchdesigner/scripts/validate_all_effect_parameters.py` in a disposable
 development harness. It loads every latest package into rack slot 1, sweeps
-all 502 manifest numeric components, every toggle, rack mix, effective time,
-and per-effect **Time Scale** against rendered pixels at 320 x 180, validates
-range/clamp metadata and finite output, and writes the ignored
+all 511 numeric controls (502 manifest components plus nine per-effect **Time
+Scale** controls), all 116 toggles, rack mix, and effective time against
+rendered pixels at 320 x 180, validates range/clamp metadata and finite output,
+and writes the ignored
 `build/envoy-validation/all-effect-parameters.json` report. It restores the
 full rack preset, demo routing, resolution, source time, and timeline state in
 a `finally` block and never saves the project.

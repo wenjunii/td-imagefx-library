@@ -80,7 +80,7 @@
         {
           "tool": "execute_python",
           "arguments": {
-            "code": "from pathlib import Path\nlibrary = op('/project1/td_imagefx')\nroot_path = Path(str(library.par.Rootfolder.eval())).resolve()\nscript = root_path / 'touchdesigner' / 'scripts' / 'validate_live_project.py'\nnamespace = {'__file__': str(script), '__name__': 'td_imagefx_live_validation'}\nexec(compile(script.read_text(encoding='utf-8'), str(script), 'exec'), namespace)\nresult = namespace['validate'](write_report=False)"
+            "code": "from pathlib import Path\nlibrary = op('/project1/td_imagefx')\nroot_path = Path(str(library.par.Rootfolder.eval())).resolve()\nscript = root_path / 'touchdesigner' / 'scripts' / 'validate_live_project.py'\nnamespace = dict(globals())\nnamespace.update({'__file__': str(script), '__name__': 'td_imagefx_live_validation'})\nexec(compile(script.read_text(encoding='utf-8'), str(script), 'exec'), namespace)\nresult = namespace['validate'](write_report=False)"
           }
         }
       ],

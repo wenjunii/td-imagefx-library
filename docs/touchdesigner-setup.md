@@ -56,6 +56,22 @@ Open the `.toe` directly for the fastest start. Its browser, rack, demo, gallery
 
 For a quick inventory check in the Textport, `op('/project1/td_imagefx').HealthCheck()` should return `ok=True`, `package_count=96`, and `package_version_count=124`, with an empty `missing_entrypoints` list.
 
+To run the complete live QA suite in a disposable development harness, use the
+exact Textport pattern below. Copying the Textport globals supplies `op`,
+`app`, `root`, `textDAT`, and `glslTOP` to the rendered-pixel validators:
+
+```python
+script = r"C:/absolute/path/to/td-imagefx-library/touchdesigner/scripts/validate_live_suite.py"
+scope = dict(globals())
+scope.update({"__file__": script, "__name__": "__main__"})
+exec(compile(open(script, encoding="utf-8").read(), script, "exec"), scope)
+```
+
+The runner executes all nine tracked validators, writes
+`build/envoy-validation/live-suite.json` and the individual ignored reports,
+and never saves the project. A complete run can take several minutes. Do not
+run the mutating suite in a production show.
+
 For exhaustive package-control QA, run
 `touchdesigner/scripts/validate_all_effect_parameters.py` from the Python
 Textport in a disposable development harness. It loads all 96 latest packages
