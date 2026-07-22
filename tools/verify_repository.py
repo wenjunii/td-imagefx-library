@@ -530,6 +530,9 @@ def _check_embody_integration() -> None:
 
     installer_path = ROOT / "touchdesigner" / "scripts" / "install_dev_harness.py"
     validator_path = ROOT / "touchdesigner" / "scripts" / "validate_live_project.py"
+    live_suite_validator_path = (
+        ROOT / "touchdesigner" / "scripts" / "validate_live_suite.py"
+    )
     rack_selection_validator_path = (
         ROOT / "touchdesigner" / "scripts" / "validate_rack_selection.py"
     )
@@ -573,6 +576,7 @@ def _check_embody_integration() -> None:
         EMBODY_INTEGRATION / "envoy-validation-plan.json",
         installer_path,
         validator_path,
+        live_suite_validator_path,
         rack_selection_validator_path,
         all_effect_parameter_validator_path,
         particle_validator_path,
@@ -689,6 +693,20 @@ def _check_embody_integration() -> None:
     }
     if not required_tools.issubset(tools):
         raise VerificationError("Envoy validation plan is missing required audit tools")
+    execute_python_code = [
+        call.get("arguments", {}).get("code", "")
+        for stage in plan.get("stages", [])
+        if isinstance(stage, dict)
+        for call in stage.get("calls", [])
+        if isinstance(call, dict) and call.get("tool") == "execute_python"
+    ]
+    if (
+        len(execute_python_code) != 1
+        or "namespace = dict(globals())" not in execute_python_code[0]
+    ):
+        raise VerificationError(
+            "Envoy Python audit must preserve TouchDesigner Textport globals"
+        )
 
     installer = installer_path.read_text(encoding="utf-8")
     if "project.save(" in installer or "_save_project_atomically" in installer:
@@ -719,6 +737,30 @@ def _check_embody_integration() -> None:
     ):
         raise VerificationError(
             "Live validator is missing the rack or browser startup audit"
+        )
+
+    live_suite_validator = live_suite_validator_path.read_text(encoding="utf-8")
+    required_suite_scripts = (
+        "validate_live_project.py",
+        "validate_output_resolution.py",
+        "validate_rack_selection.py",
+        "validate_ink_flow_module.py",
+        "validate_particle_module.py",
+        "validate_glitch_fusion_module.py",
+        "validate_color_adjustment_module.py",
+        "validate_motion_studio_module.py",
+        "validate_all_effect_parameters.py",
+    )
+    if (
+        any(name not in live_suite_validator for name in required_suite_scripts)
+        or "scope = dict(globals())" not in live_suite_validator
+        or '"__file__": str(script_path)' not in live_suite_validator
+        or "validator(write_report=True)" not in live_suite_validator
+        or "live-suite.json" not in live_suite_validator
+        or "project.save(" in live_suite_validator
+    ):
+        raise VerificationError(
+            "Live-suite runner must preserve TouchDesigner globals, run every validator, report results, and never save"
         )
 
     rack_validator = rack_selection_validator_path.read_text(encoding="utf-8")

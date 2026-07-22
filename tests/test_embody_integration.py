@@ -125,12 +125,19 @@ class EmbodyIntegrationTests(unittest.TestCase):
             for call in calls
             if call["tool"] == "capture_top"
         ]
+        python_calls = [
+            call["arguments"]["code"]
+            for call in calls
+            if call["tool"] == "execute_python"
+        ]
 
         self.assertEqual(plan["mode"], "read-only")
         self.assertIn("get_td_project_context", tools)
         self.assertIn("query_td_knowledge", tools)
         self.assertIn("exec_op_method", tools)
         self.assertIn("execute_python", tools)
+        self.assertEqual(len(python_calls), 1)
+        self.assertIn("namespace = dict(globals())", python_calls[0])
         self.assertEqual(tools.count("get_op_errors"), 2)
         self.assertEqual(tools.count("get_project_performance"), 2)
         self.assertEqual(
@@ -153,6 +160,9 @@ class EmbodyIntegrationTests(unittest.TestCase):
         ).read_text(encoding="utf-8")
         validator = (
             ROOT / "touchdesigner" / "scripts" / "validate_live_project.py"
+        ).read_text(encoding="utf-8")
+        live_suite_validator = (
+            ROOT / "touchdesigner" / "scripts" / "validate_live_suite.py"
         ).read_text(encoding="utf-8")
         output_validator = (
             ROOT / "touchdesigner" / "scripts" / "validate_output_resolution.py"
@@ -211,6 +221,23 @@ class EmbodyIntegrationTests(unittest.TestCase):
         self.assertIn("selection_matches_loaded_package", validator)
         self.assertIn("browser_startup", validator)
         self.assertIn("reloads_selected_preview", validator)
+        for script_name in (
+            "validate_live_project.py",
+            "validate_output_resolution.py",
+            "validate_rack_selection.py",
+            "validate_ink_flow_module.py",
+            "validate_particle_module.py",
+            "validate_glitch_fusion_module.py",
+            "validate_color_adjustment_module.py",
+            "validate_motion_studio_module.py",
+            "validate_all_effect_parameters.py",
+        ):
+            self.assertIn(script_name, live_suite_validator)
+        self.assertIn("scope = dict(globals())", live_suite_validator)
+        self.assertIn('"__file__": str(script_path)', live_suite_validator)
+        self.assertIn("validator(write_report=True)", live_suite_validator)
+        self.assertIn("live-suite.json", live_suite_validator)
+        self.assertNotIn("project.save(", live_suite_validator)
         self.assertIn("EXPECTED_PRESETS", output_validator)
         self.assertIn("3840", output_validator)
         self.assertIn("2160", output_validator)

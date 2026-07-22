@@ -65,6 +65,9 @@ All notable changes to TD ImageFX Library are recorded here. Package versions fo
   checks every manifest numeric component, toggle, rack mix, effective time,
   per-effect time scale, range/clamp contract, finite output, diagnostics, and
   320 x 180 cook resolution without saving the project.
+- A one-command `validate_live_suite.py` Textport runner that preserves
+  TouchDesigner globals, executes all nine live validators, keeps running to
+  report every failure, writes an ignored summary, and never saves the project.
 - Compatible `tdimagefx.key.despill@1.1.0` and
   `tdimagefx.stylize.vignette@1.2.0` packages whose color-alpha sliders now
   scale suppression and vignette strength; prior immutable versions remain
