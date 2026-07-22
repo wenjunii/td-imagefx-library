@@ -27,6 +27,10 @@ class NativeValidationRecordTests(unittest.TestCase):
             "touchdesigner/core/ColorAdjustment.tox",
             record_native_validation.CORE_ASSETS,
         )
+        self.assertIn(
+            "touchdesigner/core/MotionStudio.tox",
+            record_native_validation.CORE_ASSETS,
+        )
 
     def _fixture(self, root: Path) -> Path:
         package = root / "packages" / "tdimagefx.test.effect" / "1.0.0"
@@ -87,7 +91,7 @@ class NativeValidationRecordTests(unittest.TestCase):
             self.assertEqual(record["catalog"], {"current_effects": 1, "package_versions": 1})
             self.assertEqual(record["touchdesigner"]["build"], "12345")
             self.assertEqual(record["builder"]["path"], record_native_validation.BUILDER_SOURCE)
-            self.assertEqual(len(record["artifacts"]), 10)
+            self.assertEqual(len(record["artifacts"]), 11)
             self.assertTrue(all(len(item["sha256"]) == 64 for item in record["artifacts"]))
 
     def test_record_rejects_a_build_with_errors(self) -> None:

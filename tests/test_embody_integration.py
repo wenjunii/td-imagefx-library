@@ -53,7 +53,7 @@ class EmbodyIntegrationTests(unittest.TestCase):
             native["touchdesigner"]["build"],
         )
         self.assertEqual(context["overview"]["catalog"]["current_effect_ids"], 96)
-        self.assertEqual(context["overview"]["catalog"]["immutable_package_versions"], 122)
+        self.assertEqual(context["overview"]["catalog"]["immutable_package_versions"], 124)
         self.assertEqual(context["network"]["library"], "/project1/td_imagefx")
         self.assertEqual(
             context["network"]["identity_operators"],
@@ -70,6 +70,14 @@ class EmbodyIntegrationTests(unittest.TestCase):
         self.assertEqual(
             context["outputs"]["color_adjustment"],
             "/project1/imagefx_demo/color_adjustment/out1_color_adjustment",
+        )
+        self.assertEqual(
+            context["network"]["motion_studio"],
+            "/project1/td_imagefx/core/motion_studio",
+        )
+        self.assertEqual(
+            context["outputs"]["motion"],
+            "/project1/imagefx_demo/motion_studio/out1_motion",
         )
         self.assertFalse(
             [key for key in _walk_keys(context) if SECRET_KEY.search(key)]
@@ -133,6 +141,7 @@ class EmbodyIntegrationTests(unittest.TestCase):
                 "/project1/imagefx_demo/particle_random_move/out1_particles",
                 "/project1/imagefx_demo/glitch_fusion/out1_glitch",
                 "/project1/imagefx_demo/color_adjustment/out1_color_adjustment",
+                "/project1/imagefx_demo/motion_studio/out1_motion",
                 "/project1/imagefx_demo/fx_rack/out1_image",
                 "/project1/td_imagefx/core/fx_browser/selected_preview",
             ],
@@ -150,6 +159,12 @@ class EmbodyIntegrationTests(unittest.TestCase):
         ).read_text(encoding="utf-8")
         rack_validator = (
             ROOT / "touchdesigner" / "scripts" / "validate_rack_selection.py"
+        ).read_text(encoding="utf-8")
+        all_effect_validator = (
+            ROOT
+            / "touchdesigner"
+            / "scripts"
+            / "validate_all_effect_parameters.py"
         ).read_text(encoding="utf-8")
         bridge_checker = (
             ROOT / "integrations" / "embody" / "check_td_bridge.py"
@@ -169,11 +184,12 @@ class EmbodyIntegrationTests(unittest.TestCase):
         self.assertIn('parameter.val = ""', installer)
         self.assertIn('parameter.expr = "me.op(\'../../effects\')"', installer)
         self.assertIn("browser.cook(force=True)", installer)
-        self.assertEqual(installer.count("_repair_effect_shader_paths("), 7)
+        self.assertEqual(installer.count("_repair_effect_shader_paths("), 8)
         self.assertIn("ParticleRandomMove.tox", installer)
         self.assertIn("InkFlowFusion.tox", installer)
         self.assertIn("GlitchFusion.tox", installer)
         self.assertIn("ColorAdjustment.tox", installer)
+        self.assertIn("MotionStudio.tox", installer)
         self.assertIn("HD 1920 x 1080", installer)
         self.assertIn("4K UHD 3840 x 2160", installer)
         self.assertIn("Customwidth", installer)
@@ -189,7 +205,7 @@ class EmbodyIntegrationTests(unittest.TestCase):
         self.assertIn('"script_errors"', validator)
         self.assertIn("pixel_validation_required", validator)
         self.assertIn("EXPECTED_PACKAGES = 96", validator)
-        self.assertIn("EXPECTED_VERSIONS = 122", validator)
+        self.assertIn("EXPECTED_VERSIONS = 124", validator)
         self.assertIn("EXPECTED_RESOLUTION_PRESETS", validator)
         self.assertIn("rack_selection", validator)
         self.assertIn("selection_matches_loaded_package", validator)
@@ -205,6 +221,13 @@ class EmbodyIntegrationTests(unittest.TestCase):
         self.assertIn("ImportPreset", rack_validator)
         self.assertIn("finally:", rack_validator)
         self.assertNotIn("project.save(", rack_validator)
+        self.assertIn("contains_exactly_96_latest_packages", all_effect_validator)
+        self.assertIn("every_numeric_control_responds", all_effect_validator)
+        self.assertIn("every_toggle_responds", all_effect_validator)
+        self.assertIn("ExportPreset", all_effect_validator)
+        self.assertIn("ImportPreset", all_effect_validator)
+        self.assertIn("finally:", all_effect_validator)
+        self.assertNotIn("project.save(", all_effect_validator)
         self.assertIn(
             'EXPECTED_PROJECT_ID = "td-imagefx-library"',
             bridge_checker,

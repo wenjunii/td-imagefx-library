@@ -16,7 +16,7 @@ Counting shader files is not meaningful coverage. A healthy category needs usefu
 
 ## v0.3.0 source catalog
 
-Version 0.3.0 contains **96 current effects across 18 manifest categories**, backed by **122 immutable package versions**. Twenty-six older versions remain beside their successors: the twelve original v0.1 packages and the fourteen temporal/simulation `1.0.0` packages now upgraded to `1.1.0`.
+The current source contains **96 current effects across 18 manifest categories**, backed by **124 immutable package versions**. Twenty-eight older versions remain beside their successors, including the twelve original v0.1 packages, fourteen temporal/simulation `1.0.0` packages, and retained Despill/Vignette versions superseded by compatible slider-response fixes.
 
 | Category | Count | Current packages |
 | --- | ---: | --- |
@@ -90,6 +90,7 @@ Updater and release work adds source/feed binding, duplicate-key and size defens
 | Glitch and corruption | Five immutable effects plus a reusable 24-style Glitch Fusion core covering sorting, datamosh-like smear, VHS/CRT, hold, dropout, compression, channel, and data corruption | True inter-frame datamosh, motion-aware corruption, codec/container adapters |
 | Light and relighting | Bloom/glow, edge glow, normal lighting | Lens flare, volumetric light, environment/depth-aware relighting |
 | Transitions | Four wipe/dissolve families | Burn/liquid/pixel/geometric and motion-aware transitions |
+| Motion and animation | Reusable 40-style Motion Studio core covering transform, camera, wave, warp, stepped, procedural, and trailed movement | Motion tracking, curve-editor integration, path import, audio/control adapters |
 | Temporal and feedback | Ten upgraded stateful packages | Long-delay buffers, slit scan, timeline/cache adapters, dropped-frame policies |
 | Motion analysis | Optical-flow warp and flow-assisted effects | Vector estimation/export, tracking, stabilization, quality/fallback tiers |
 | Simulation | Four upgraded reference systems | Robust pressure/fluid solver, substeps/quality tiers, validation at varied resolution/frame rate |

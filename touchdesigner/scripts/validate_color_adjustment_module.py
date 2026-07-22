@@ -36,6 +36,14 @@ EXPECTED_OVERLAY_MODES = (
     "hard_light",
     "color",
     "difference",
+    "darken",
+    "lighten",
+    "color_dodge",
+    "color_burn",
+    "linear_dodge",
+    "linear_burn",
+    "exclusion",
+    "luminosity",
 )
 
 CONTROL_NAMES = (
@@ -43,7 +51,9 @@ CONTROL_NAMES = (
     "Invert",
     "Exposure",
     "Brightness",
+    "Offset",
     "Contrast",
+    "Pivot",
     "Saturation",
     "Vibrance",
     "Hue",
@@ -59,9 +69,32 @@ CONTROL_NAMES = (
     "Gainy",
     "Gainz",
     "Shadows",
+    "Midtones",
     "Highlights",
+    "Blacks",
+    "Whites",
+    "Toe",
+    "Shoulder",
+    "Shadowbalancex",
+    "Shadowbalancey",
+    "Shadowbalancez",
+    "Midtonebalancex",
+    "Midtonebalancey",
+    "Midtonebalancez",
+    "Highlightbalancex",
+    "Highlightbalancey",
+    "Highlightbalancez",
+    "Balancepreserveluma",
+    "Clarity",
+    "Dehaze",
     "Monochrome",
     "Sepia",
+    "Fade",
+    "Solarizeamount",
+    "Solarizepoint",
+    "Thresholdamount",
+    "Thresholdlevel",
+    "Thresholdsoftness",
     "Posterizeamount",
     "Posterizelevels",
     "Duotoneamount",
@@ -73,6 +106,14 @@ CONTROL_NAMES = (
     "Duotonehighlightg",
     "Duotonehighlightb",
     "Duotonehighlighta",
+    "Grainamount",
+    "Grainsize",
+    "Graincolored",
+    "Grainseed",
+    "Vignetteamount",
+    "Vignettemidpoint",
+    "Vignettefeather",
+    "Vignetteroundness",
     "Overlayenabled",
     "Overlaycolorr",
     "Overlaycolorg",
@@ -87,7 +128,9 @@ NEUTRAL_VALUES = {
     "Invert": 0.0,
     "Exposure": 0.0,
     "Brightness": 0.0,
+    "Offset": 0.0,
     "Contrast": 1.0,
+    "Pivot": 0.5,
     "Saturation": 1.0,
     "Vibrance": 0.0,
     "Hue": 0.0,
@@ -103,15 +146,160 @@ NEUTRAL_VALUES = {
     "Gainy": 1.0,
     "Gainz": 1.0,
     "Shadows": 0.0,
+    "Midtones": 0.0,
     "Highlights": 0.0,
+    "Blacks": 0.0,
+    "Whites": 0.0,
+    "Toe": 0.0,
+    "Shoulder": 0.0,
+    "Shadowbalancex": 0.0,
+    "Shadowbalancey": 0.0,
+    "Shadowbalancez": 0.0,
+    "Midtonebalancex": 0.0,
+    "Midtonebalancey": 0.0,
+    "Midtonebalancez": 0.0,
+    "Highlightbalancex": 0.0,
+    "Highlightbalancey": 0.0,
+    "Highlightbalancez": 0.0,
+    "Balancepreserveluma": 1.0,
+    "Clarity": 0.0,
+    "Dehaze": 0.0,
     "Monochrome": 0.0,
     "Sepia": 0.0,
+    "Fade": 0.0,
+    "Solarizeamount": 0.0,
+    "Solarizepoint": 0.5,
+    "Thresholdamount": 0.0,
+    "Thresholdlevel": 0.5,
+    "Thresholdsoftness": 0.02,
     "Posterizeamount": 0.0,
     "Posterizelevels": 8,
     "Duotoneamount": 0.0,
+    "Duotoneshadowr": 0.04,
+    "Duotoneshadowg": 0.07,
+    "Duotoneshadowb": 0.16,
+    "Duotoneshadowa": 1.0,
+    "Duotonehighlightr": 0.96,
+    "Duotonehighlightg": 0.62,
+    "Duotonehighlightb": 0.24,
+    "Duotonehighlighta": 1.0,
+    "Grainamount": 0.0,
+    "Grainsize": 0.35,
+    "Graincolored": 0.0,
+    "Grainseed": 17,
+    "Vignetteamount": 0.0,
+    "Vignettemidpoint": 0.45,
+    "Vignettefeather": 0.35,
+    "Vignetteroundness": 0.0,
     "Overlayenabled": False,
+    "Overlaycolorr": 0.15,
+    "Overlaycolorg": 0.55,
+    "Overlaycolorb": 1.0,
+    "Overlaycolora": 1.0,
     "Overlayamount": 0.5,
     "Overlaymode": "soft_light",
+}
+
+# Each numeric control is swept between two valid values. Dependent controls
+# are activated explicitly so a slider is never mistaken for broken merely
+# because its parent treatment is disabled.
+SLIDER_CASES = {
+    "Mix": ({"Invert": 1.0}, 0.1, 0.9),
+    "Invert": ({}, 0.0, 1.0),
+    "Exposure": ({}, -1.0, 1.0),
+    "Brightness": ({}, -0.25, 0.25),
+    "Offset": ({}, -0.18, 0.18),
+    "Contrast": ({}, 0.55, 1.75),
+    "Pivot": ({"Contrast": 1.8}, 0.25, 0.75),
+    "Saturation": ({}, 0.25, 1.8),
+    "Vibrance": ({}, -0.8, 0.9),
+    "Hue": ({}, -0.18, 0.28),
+    "Temperature": ({}, -0.8, 0.8),
+    "Tint": ({}, -0.8, 0.8),
+    "Blackpoint": ({}, 0.0, 0.22),
+    "Whitepoint": ({}, 0.68, 1.35),
+    "Gamma": ({}, 0.55, 1.65),
+    "Liftx": ({}, -0.15, 0.18),
+    "Lifty": ({}, -0.15, 0.18),
+    "Liftz": ({}, -0.15, 0.18),
+    "Gainx": ({}, 0.65, 1.45),
+    "Gainy": ({}, 0.65, 1.45),
+    "Gainz": ({}, 0.65, 1.45),
+    "Shadows": ({}, -0.75, 0.75),
+    "Midtones": ({}, -0.75, 0.75),
+    "Highlights": ({}, -0.75, 0.75),
+    "Blacks": ({}, -0.75, 0.75),
+    "Whites": ({}, -0.75, 0.75),
+    "Toe": ({}, -0.75, 0.75),
+    "Shoulder": ({}, -0.75, 0.75),
+    "Shadowbalancex": ({}, -0.6, 0.6),
+    "Shadowbalancey": ({}, -0.6, 0.6),
+    "Shadowbalancez": ({}, -0.6, 0.6),
+    "Midtonebalancex": ({}, -0.6, 0.6),
+    "Midtonebalancey": ({}, -0.6, 0.6),
+    "Midtonebalancez": ({}, -0.6, 0.6),
+    "Highlightbalancex": ({}, -0.6, 0.6),
+    "Highlightbalancey": ({}, -0.6, 0.6),
+    "Highlightbalancez": ({}, -0.6, 0.6),
+    "Balancepreserveluma": (
+        {"Shadowbalancex": 0.55, "Shadowbalancey": -0.35},
+        0.0,
+        1.0,
+    ),
+    "Clarity": ({}, -0.75, 1.35),
+    "Dehaze": ({}, -0.75, 0.85),
+    "Monochrome": ({}, 0.0, 1.0),
+    "Sepia": ({}, 0.0, 1.0),
+    "Fade": ({}, 0.0, 1.0),
+    "Solarizeamount": ({"Solarizepoint": 0.42}, 0.0, 1.0),
+    "Solarizepoint": ({"Solarizeamount": 1.0}, 0.25, 0.75),
+    "Thresholdamount": ({"Thresholdlevel": 0.45}, 0.0, 1.0),
+    "Thresholdlevel": ({"Thresholdamount": 1.0}, 0.25, 0.75),
+    "Thresholdsoftness": (
+        {"Thresholdamount": 1.0, "Thresholdlevel": 0.5},
+        0.01,
+        0.35,
+    ),
+    "Posterizeamount": ({"Posterizelevels": 4}, 0.0, 1.0),
+    "Posterizelevels": ({"Posterizeamount": 1.0}, 3, 17),
+    "Duotoneamount": ({}, 0.0, 1.0),
+    "Duotoneshadowr": ({"Duotoneamount": 1.0}, 0.0, 1.0),
+    "Duotoneshadowg": ({"Duotoneamount": 1.0}, 0.0, 1.0),
+    "Duotoneshadowb": ({"Duotoneamount": 1.0}, 0.0, 1.0),
+    "Duotoneshadowa": ({"Duotoneamount": 1.0}, 0.0, 1.0),
+    "Duotonehighlightr": ({"Duotoneamount": 1.0}, 0.0, 1.0),
+    "Duotonehighlightg": ({"Duotoneamount": 1.0}, 0.0, 1.0),
+    "Duotonehighlightb": ({"Duotoneamount": 1.0}, 0.0, 1.0),
+    "Duotonehighlighta": ({"Duotoneamount": 1.0}, 0.0, 1.0),
+    "Grainamount": ({"Grainsize": 0.35}, 0.0, 0.9),
+    "Grainsize": ({"Grainamount": 0.9}, 0.05, 0.9),
+    "Graincolored": ({"Grainamount": 0.9}, 0.0, 1.0),
+    "Grainseed": ({"Grainamount": 0.9}, 3, 31),
+    "Vignetteamount": ({}, -0.8, 0.8),
+    "Vignettemidpoint": ({"Vignetteamount": 0.85}, 0.15, 0.7),
+    "Vignettefeather": ({"Vignetteamount": 0.85}, 0.05, 0.75),
+    "Vignetteroundness": ({"Vignetteamount": 0.85}, 0.0, 1.0),
+    "Overlaycolorr": (
+        {"Overlayenabled": True, "Overlayamount": 0.9},
+        0.0,
+        1.0,
+    ),
+    "Overlaycolorg": (
+        {"Overlayenabled": True, "Overlayamount": 0.9},
+        0.0,
+        1.0,
+    ),
+    "Overlaycolorb": (
+        {"Overlayenabled": True, "Overlayamount": 0.9},
+        0.0,
+        1.0,
+    ),
+    "Overlaycolora": (
+        {"Overlayenabled": True, "Overlayamount": 1.0},
+        0.1,
+        1.0,
+    ),
+    "Overlayamount": ({"Overlayenabled": True}, 0.0, 1.0),
 }
 
 
@@ -182,6 +370,49 @@ def _capture_adjustment(component, output, source_image, values):
     return image, _mean_absolute_difference(image, source_image)
 
 
+def _sweep_sliders(component, output, source_image):
+    differences = {}
+    finite = {}
+    alpha_differences = {}
+    ranges = {}
+    endpoint_values = {}
+    for name, (activators, low_value, high_value) in SLIDER_CASES.items():
+        _set_values(component, NEUTRAL_VALUES)
+        _set_values(component, activators)
+        parameter = component.par[name]
+        if parameter is None:
+            raise RuntimeError("Missing Color Adjustment slider {}".format(name))
+        parameter.val = low_value
+        low_evaluated = parameter.eval()
+        low_image = _capture(output)
+        parameter.val = high_value
+        high_evaluated = parameter.eval()
+        high_image = _capture(output)
+        differences[name] = _mean_absolute_difference(low_image, high_image)
+        finite[name] = bool(
+            np.isfinite(low_image).all() and np.isfinite(high_image).all()
+        )
+        alpha_differences[name] = max(
+            _alpha_difference(low_image, source_image) or 0.0,
+            _alpha_difference(high_image, source_image) or 0.0,
+        )
+        ranges[name] = {
+            "min": float(parameter.min),
+            "max": float(parameter.max),
+            "norm_min": float(parameter.normMin),
+            "norm_max": float(parameter.normMax),
+            "clamp_min": bool(parameter.clampMin),
+            "clamp_max": bool(parameter.clampMax),
+        }
+        endpoint_values[name] = {
+            "low_requested": low_value,
+            "low_evaluated": float(low_evaluated),
+            "high_requested": high_value,
+            "high_evaluated": float(high_evaluated),
+        }
+    return differences, finite, alpha_differences, ranges, endpoint_values
+
+
 def validate(write_report=True):
     """Exercise neutral behavior, adjustments, overlays, alpha, and routing."""
 
@@ -236,6 +467,7 @@ def validate(write_report=True):
         "random_particles_enabled": demo.par.Particlesenabled.eval(),
         "glitch_enabled": demo.par.Glitchenabled.eval(),
         "color_enabled": demo.par.Coloradjustmentenabled.eval(),
+        "motion_enabled": demo.par.Motionenabled.eval(),
         "apply_video_fx": demo.par.Applyvideofx.eval(),
         "controls": {
             name: color.par[name].eval()
@@ -251,6 +483,7 @@ def validate(write_report=True):
         demo.par.Inkflowenabled = False
         demo.par.Particlesenabled = False
         demo.par.Glitchenabled = False
+        demo.par.Motionenabled = False
         demo.par.Applyvideofx = False
         _set_values(color, NEUTRAL_VALUES)
 
@@ -326,6 +559,21 @@ def validate(write_report=True):
             )
             overlay_signatures[mode] = _signature(image)
 
+        (
+            slider_differences,
+            slider_finite,
+            slider_alpha_differences,
+            slider_ranges,
+            slider_endpoint_values,
+        ) = _sweep_sliders(color, color_output, source_image)
+
+        _set_values(color, NEUTRAL_VALUES)
+        color.par.Overlayenabled = True
+        color.par.Overlayamount = 0.78
+        color.par.Overlaycolorr = 0.88
+        color.par.Overlaycolorg = 0.16
+        color.par.Overlaycolorb = 0.72
+        color.par.Overlaycolora = 1.0
         color.par.Overlaymode = "soft_light"
         color_only = _capture(color_output)
         router_without_rack = _capture(router)
@@ -385,7 +633,7 @@ def validate(write_report=True):
                 len(set(adjustment_signatures.values()))
                 == len(adjustment_signatures)
             ),
-            "overlay_menu_contains_exactly_eight_modes": (
+            "overlay_menu_contains_exactly_sixteen_modes": (
                 menu_names == EXPECTED_OVERLAY_MODES
             ),
             "every_overlay_mode_changes_source": all(
@@ -402,6 +650,34 @@ def validate(write_report=True):
             "overlays_preserve_source_alpha": all(
                 value is not None and value <= 1.0e-6
                 for value in overlay_alpha_differences.values()
+            ),
+            "every_numeric_slider_is_covered": (
+                set(SLIDER_CASES)
+                == set(CONTROL_NAMES) - {"Overlayenabled", "Overlaymode"}
+            ),
+            "every_numeric_slider_changes_output": all(
+                value is not None and value > 1.0e-6
+                for value in slider_differences.values()
+            ),
+            "every_numeric_slider_stays_finite": all(slider_finite.values()),
+            "every_numeric_slider_preserves_source_alpha": all(
+                value <= 1.0e-6
+                for value in slider_alpha_differences.values()
+            ),
+            "every_numeric_slider_has_valid_range": all(
+                values["min"] < values["max"]
+                and abs(values["norm_min"] - values["min"]) <= 1.0e-9
+                and abs(values["norm_max"] - values["max"]) <= 1.0e-9
+                and values["clamp_min"]
+                and values["clamp_max"]
+                for values in slider_ranges.values()
+            ),
+            "every_numeric_slider_accepts_test_endpoints": all(
+                abs(values["low_requested"] - values["low_evaluated"])
+                <= 1.0e-6
+                and abs(values["high_requested"] - values["high_evaluated"])
+                <= 1.0e-6
+                for values in slider_endpoint_values.values()
             ),
             "router_without_rack_matches_color_output": (
                 differences["router_without_rack_vs_color_output"] is not None
@@ -446,6 +722,11 @@ def validate(write_report=True):
                 "overlay_differences": overlay_differences,
                 "overlay_signatures": overlay_signatures,
                 "overlay_alpha_differences": overlay_alpha_differences,
+                "slider_differences": slider_differences,
+                "slider_finite": slider_finite,
+                "slider_alpha_differences": slider_alpha_differences,
+                "slider_ranges": slider_ranges,
+                "slider_endpoint_values": slider_endpoint_values,
                 "shader_errors": shader_errors,
                 "shader_warnings": shader_warnings,
                 "ok": all(checks.values()),
@@ -458,6 +739,7 @@ def validate(write_report=True):
         demo.par.Particlesenabled = saved["random_particles_enabled"]
         demo.par.Glitchenabled = saved["glitch_enabled"]
         demo.par.Coloradjustmentenabled = saved["color_enabled"]
+        demo.par.Motionenabled = saved["motion_enabled"]
         demo.par.Applyvideofx = saved["apply_video_fx"]
         _set_values(color, saved["controls"])
         if saved["source_time_expression"]:

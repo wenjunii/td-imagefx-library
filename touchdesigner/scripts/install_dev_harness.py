@@ -32,6 +32,7 @@ GLITCH_TOX = PROJECT_ROOT / "touchdesigner" / "core" / "GlitchFusion.tox"
 COLOR_ADJUSTMENT_TOX = (
     PROJECT_ROOT / "touchdesigner" / "core" / "ColorAdjustment.tox"
 )
+MOTION_STUDIO_TOX = PROJECT_ROOT / "touchdesigner" / "core" / "MotionStudio.tox"
 EXTENSION_ROOT = PROJECT_ROOT / "touchdesigner" / "extensions"
 MANAGED_NAMES = ("td_imagefx", "imagefx_demo")
 OUTPUT_PRESETS = (
@@ -292,7 +293,8 @@ def install():
         demo.color = (0.32, 0.18, 0.36)
         demo.comment = (
             "Disposable Embody/Envoy QA harness with optional ink flow, "
-            "random particles, Glitch Fusion, color adjustment, and video effects"
+            "random particles, Glitch Fusion, color adjustment, Motion Studio, "
+            "and video effects"
         )
         demo_page = demo.appendCustomPage("Demo")
         demo_page.appendToggle("Inkflowenabled", label="Ink Flow Module Enabled")
@@ -310,6 +312,12 @@ def install():
         )
         demo.par.Coloradjustmentenabled.default = False
         demo.par.Coloradjustmentenabled = False
+        demo_page.appendToggle(
+            "Motionenabled",
+            label="Motion Module Enabled",
+        )
+        demo.par.Motionenabled.default = False
+        demo.par.Motionenabled = False
         demo_page.appendToggle("Applyvideofx", label="Apply Video Effects")
         demo.par.Applyvideofx.default = True
         demo.par.Applyvideofx = True
@@ -405,15 +413,25 @@ def install():
             color_adjustment.inputConnectors[0]
         )
 
+        motion = _load_single_tox(demo, MOTION_STUDIO_TOX)
+        motion.name = "motion_studio"
+        motion.nodeX = 1000
+        motion.nodeY = 0
+        motion.par.Enabled.expr = "parent().par.Motionenabled"
+        _repair_effect_shader_paths(motion)
+        color_adjustment.outputConnectors[0].connect(
+            motion.inputConnectors[0]
+        )
+
         rack = _load_single_tox(demo, RACK_TOX)
         rack.name = "fx_rack"
-        rack.nodeX = 1000
+        rack.nodeX = 1260
         rack.nodeY = 0
         _set_library_root(rack, "demo rack")
         _sync_extension(rack, "FxRackExt")
         _repair_effect_shader_paths(rack)
         _repair_effect_state_paths(rack)
-        color_adjustment.outputConnectors[0].connect(rack.inputConnectors[0])
+        motion.outputConnectors[0].connect(rack.inputConnectors[0])
         fixture_values = {
             "displacement": (0.72, 0.28, 0.50, 1.0),
             "depth": (0.68, 0.68, 0.68, 1.0),
@@ -455,18 +473,18 @@ def install():
             fixture.outputConnectors[0].connect(rack.inputConnectors[input_index])
 
         video_fx_router = demo.create(switchTOP, "video_fx_router")
-        color_adjustment.outputConnectors[0].connect(
+        motion.outputConnectors[0].connect(
             video_fx_router.inputConnectors[0]
         )
         rack.outputConnectors[0].connect(video_fx_router.inputConnectors[1])
         video_fx_router.par.index.expr = (
             "1 if parent().par.Applyvideofx else 0"
         )
-        video_fx_router.nodeX = 1250
+        video_fx_router.nodeX = 1510
         video_fx_router.nodeY = 0
 
         output = demo.create(outTOP, "out1_image")
-        output.nodeX = 1460
+        output.nodeX = 1720
         output.nodeY = 0
         video_fx_router.outputConnectors[0].connect(output.inputConnectors[0])
         if output.par["outputresolution"] is not None:
@@ -486,6 +504,7 @@ def install():
             "particles": particles.path,
             "glitch": glitch.path,
             "color_adjustment": color_adjustment.path,
+            "motion": motion.path,
             "output": output.path,
             "resolution_preset": str(demo.par.Resolutionpreset.eval()),
             "output_width": int(output.width),

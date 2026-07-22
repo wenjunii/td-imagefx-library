@@ -1671,7 +1671,7 @@
     {
       "id": "tdimagefx.key.despill",
       "name": "Despill",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "category": "key",
       "description": "Suppresses a configurable screen-color component while retaining perceived luminance.",
       "tags": [
@@ -2938,7 +2938,7 @@
     {
       "id": "tdimagefx.stylize.vignette",
       "name": "Vignette",
-      "version": "1.1.0",
+      "version": "1.2.0",
       "category": "stylize",
       "description": "Darkens or colors image edges with adjustable roundness and softness.",
       "tags": [

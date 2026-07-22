@@ -30,7 +30,7 @@ PUBLIC_FEED = ROOT / "registry" / "update-feed.json"
 LOCAL_FEED = ROOT / "registry" / "update-feed.local.json"
 EMBODY_INTEGRATION = ROOT / "integrations" / "embody"
 EXPECTED_EFFECT_ID_COUNT = 96
-EXPECTED_PACKAGE_VERSION_COUNT = 122
+EXPECTED_PACKAGE_VERSION_COUNT = 124
 PUBLIC_FEED_URL = (
     "https://raw.githubusercontent.com/wenjunii/td-imagefx-library/"
     "main/registry/update-feed.json"
@@ -261,6 +261,7 @@ def _check_manifests() -> tuple[int, set[str], dict[str, str]]:
         ROOT / "touchdesigner" / "core" / "InkFlowFusion.tox",
         ROOT / "touchdesigner" / "core" / "GlitchFusion.tox",
         ROOT / "touchdesigner" / "core" / "ColorAdjustment.tox",
+        ROOT / "touchdesigner" / "core" / "MotionStudio.tox",
         ROOT / "touchdesigner" / "core" / "FxUpdater.tox",
     )
     missing = [path.relative_to(ROOT) for path in required_native_assets if not path.is_file()]
@@ -443,6 +444,7 @@ def _check_native_validation(library_version: str) -> None:
         "touchdesigner/core/InkFlowFusion.tox",
         "touchdesigner/core/GlitchFusion.tox",
         "touchdesigner/core/ColorAdjustment.tox",
+        "touchdesigner/core/MotionStudio.tox",
         "touchdesigner/core/FxUpdater.tox",
         *(
             path.relative_to(ROOT).as_posix()
@@ -531,6 +533,12 @@ def _check_embody_integration() -> None:
     rack_selection_validator_path = (
         ROOT / "touchdesigner" / "scripts" / "validate_rack_selection.py"
     )
+    all_effect_parameter_validator_path = (
+        ROOT
+        / "touchdesigner"
+        / "scripts"
+        / "validate_all_effect_parameters.py"
+    )
     particle_validator_path = (
         ROOT / "touchdesigner" / "scripts" / "validate_particle_module.py"
     )
@@ -545,6 +553,9 @@ def _check_embody_integration() -> None:
         / "touchdesigner"
         / "scripts"
         / "validate_color_adjustment_module.py"
+    )
+    motion_validator_path = (
+        ROOT / "touchdesigner" / "scripts" / "validate_motion_studio_module.py"
     )
     output_resolution_validator_path = (
         ROOT / "touchdesigner" / "scripts" / "validate_output_resolution.py"
@@ -563,10 +574,12 @@ def _check_embody_integration() -> None:
         installer_path,
         validator_path,
         rack_selection_validator_path,
+        all_effect_parameter_validator_path,
         particle_validator_path,
         ink_flow_validator_path,
         glitch_validator_path,
         color_adjustment_validator_path,
+        motion_validator_path,
         output_resolution_validator_path,
         browser_start_callbacks_path,
         bridge_checker_path,
@@ -606,6 +619,10 @@ def _check_embody_integration() -> None:
         != "/project1/imagefx_demo/out1_image"
         or outputs.get("color_adjustment")
         != "/project1/imagefx_demo/color_adjustment/out1_color_adjustment"
+        or network.get("motion_studio")
+        != "/project1/td_imagefx/core/motion_studio"
+        or outputs.get("motion")
+        != "/project1/imagefx_demo/motion_studio/out1_motion"
     ):
         raise VerificationError("Embody project context has unexpected managed paths")
 
@@ -715,16 +732,87 @@ def _check_embody_integration() -> None:
             "Rack selection validator must test eight slots, restore state, and never save"
         )
 
+    all_effect_validator = all_effect_parameter_validator_path.read_text(
+        encoding="utf-8"
+    )
+    if (
+        "QA_WIDTH = 320" not in all_effect_validator
+        or "contains_exactly_96_latest_packages" not in all_effect_validator
+        or "every_numeric_control_responds" not in all_effect_validator
+        or "every_toggle_responds" not in all_effect_validator
+        or "rack_driven_and_metadata_fields_are_read_only" not in all_effect_validator
+        or "Timescale" not in all_effect_validator
+        or "ExportPreset" not in all_effect_validator
+        or "ImportPreset" not in all_effect_validator
+        or "finally:" not in all_effect_validator
+        or "project.save(" in all_effect_validator
+    ):
+        raise VerificationError(
+            "All-effect validator must test every latest package control, restore state, and never save"
+        )
+
+    particle_validator = particle_validator_path.read_text(encoding="utf-8")
+    if (
+        "EXPECTED_SHAPES" not in particle_validator
+        or "EXPECTED_MOTION_MODES" not in particle_validator
+        or "every_numeric_slider_changes_output" not in particle_validator
+        or "effective_time_is_read_only_and_resolved" not in particle_validator
+        or "all_motion_modes_are_visually_distinct" not in particle_validator
+        or "project.save(" in particle_validator
+    ):
+        raise VerificationError(
+            "Particle validator must test shapes, motion modes, every numeric slider, resolved time, and never save"
+        )
+
+    ink_validator = ink_flow_validator_path.read_text(encoding="utf-8")
+    if (
+        "every_numeric_slider_changes_output" not in ink_validator
+        or "effective_time_is_read_only_and_resolved" not in ink_validator
+        or "Inkcolora" not in ink_validator
+        or "Papercolora" not in ink_validator
+        or "project.save(" in ink_validator
+    ):
+        raise VerificationError(
+            "Ink Flow validator must test every numeric slider, palette alpha, resolved time, and never save"
+        )
+
+    glitch_validator = glitch_validator_path.read_text(encoding="utf-8")
+    if (
+        "every_numeric_slider_changes_output" not in glitch_validator
+        or "effective_time_is_read_only_and_resolved" not in glitch_validator
+        or "project.save(" in glitch_validator
+    ):
+        raise VerificationError(
+            "Glitch Fusion validator must test every numeric slider, resolved time, and never save"
+        )
+
     color_validator = color_adjustment_validator_path.read_text(encoding="utf-8")
     if (
         "EXPECTED_OVERLAY_MODES" not in color_validator
         or "neutral_controls_match_source" not in color_validator
         or "adjustments_preserve_source_alpha" not in color_validator
         or "overlay_modes_are_visually_distinct" not in color_validator
+        or "every_numeric_slider_changes_output" not in color_validator
+        or "every_numeric_slider_has_valid_range" not in color_validator
         or "project.save(" in color_validator
     ):
         raise VerificationError(
-            "Color Adjustment validator must test neutral grading, overlays, alpha, and never save"
+            "Color Adjustment validator must test neutral grading, overlays, alpha, every numeric slider, and never save"
+        )
+
+    motion_validator = motion_validator_path.read_text(encoding="utf-8")
+    if (
+        "EXPECTED_MOTION_STYLES" not in motion_validator
+        or "every_motion_style_changes_source" not in motion_validator
+        or "manual_time_changes_motion" not in motion_validator
+        or "edge_menu_contains_exactly_four_modes" not in motion_validator
+        or "trail_sampling_changes_output" not in motion_validator
+        or "every_numeric_slider_changes_output" not in motion_validator
+        or "effective_time_is_read_only_and_resolved" not in motion_validator
+        or "project.save(" in motion_validator
+    ):
+        raise VerificationError(
+            "Motion Studio validator must test styles, timing, edges, trails, and never save"
         )
 
     bridge_checker = bridge_checker_path.read_text(encoding="utf-8")

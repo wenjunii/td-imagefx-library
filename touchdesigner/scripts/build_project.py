@@ -310,14 +310,34 @@ layout(location = 0) out vec4 fragColor;
 uniform float uTime;
 uniform float uDensity;
 uniform float uSize;
+uniform float uSizeVariation;
+uniform vec2 uAspect;
+uniform float uRotation;
+uniform float uSpin;
+uniform float uSoftness;
+uniform float uHollow;
 uniform float uSpeed;
+uniform float uSpeedVariation;
 uniform float uMoveAmount;
 uniform float uJitter;
+uniform float uTurbulence;
+uniform float uScatter;
+uniform float uPulseAmount;
+uniform float uPulseRate;
 uniform float uSeed;
 uniform float uShape;
+uniform float uMotionMode;
 uniform float uSourceBlend;
 uniform float uOpacity;
+uniform float uOpacityVariation;
 uniform vec2 uDrift;
+uniform vec2 uSampleOffset;
+uniform vec4 uTintColor;
+uniform float uTintAmount;
+uniform float uHue;
+uniform float uHueVariation;
+uniform float uSaturation;
+uniform float uBrightness;
 uniform vec4 uBackground;
 
 const float TAU = 6.28318530718;
@@ -331,32 +351,131 @@ float particleHash(vec2 value) {
 vec2 particleMotion(vec2 cell) {
     vec2 seededCell = cell + vec2(uSeed * 17.17, uSeed * 43.71);
     float phase = TAU * particleHash(seededCell);
-    float rate = mix(0.55, 1.45, particleHash(seededCell + 19.31));
+    float variation = clamp(uSpeedVariation, 0.0, 1.0);
+    float rate = mix(
+        1.0 - variation,
+        1.0 + variation,
+        particleHash(seededCell + 19.31)
+    );
     float time = uTime * uSpeed * rate;
-    vec2 orbit = vec2(
-        cos(time + phase),
-        sin(time * 1.137 + phase * 0.73)
-    ) * uMoveAmount;
+    vec2 motion;
+    if (uMotionMode < 0.5) {
+        motion = vec2(
+            cos(time + phase),
+            sin(time * 1.137 + phase * 0.73)
+        );
+    } else if (uMotionMode < 1.5) {
+        motion = vec2(
+            sin(time * 0.83 + phase * 2.17),
+            cos(time * 1.31 + phase * 0.61)
+        );
+    } else if (uMotionMode < 2.5) {
+        motion = vec2(
+            sin(time + phase),
+            sin(time * 1.7 + cell.x * 0.37 + phase)
+        );
+    } else if (uMotionMode < 3.5) {
+        float angle = phase + time + 0.35 * sin(time * 0.7 + phase);
+        motion = vec2(cos(angle), sin(angle));
+    } else if (uMotionMode < 4.5) {
+        motion = vec2(
+            0.55 * sin(time * 0.9 + phase),
+            sin(time * 1.4 + phase) - 0.25
+        );
+    } else if (uMotionMode < 5.5) {
+        motion = vec2(
+            0.28 * sin(time * 0.6 + phase),
+            -sin(time + phase)
+        );
+    } else if (uMotionMode < 6.5) {
+        vec2 radial = normalize(
+            vec2(
+                particleHash(seededCell + 5.7) - 0.5,
+                particleHash(seededCell + 9.1) - 0.5
+            ) + vec2(1.0e-4)
+        );
+        motion = radial * sin(time + phase);
+    } else {
+        float angle = TAU * particleHash(floor(cell * 0.17) + uSeed);
+        motion = vec2(cos(angle), sin(angle))
+            * sin(time * 0.73 + phase);
+    }
+    motion *= uMoveAmount;
     vec2 jitter = vec2(
         sin(time * 3.11 + phase * 2.07),
         cos(time * 2.73 + phase * 1.61)
     ) * uJitter;
     vec2 drift = uDrift * sin(time * 0.43 + phase);
-    return orbit + jitter + drift;
+    vec2 turbulent = vec2(
+        sin(time * 2.37 + cell.y * 1.71 + phase),
+        cos(time * 2.11 + cell.x * 1.53 + phase)
+    ) * uTurbulence;
+    vec2 scatter = vec2(
+        particleHash(seededCell + 71.3) - 0.5,
+        particleHash(seededCell + 93.7) - 0.5
+    ) * (2.0 * uScatter);
+    vec2 displacement = motion + jitter + drift + turbulent + scatter;
+    float displacementLength = length(displacement);
+    return displacementLength > 1.30
+        ? displacement * (1.30 / displacementLength)
+        : displacement;
 }
 
-float particleMetric(vec2 delta) {
+mat2 particleRotation(float angle) {
+    float sine = sin(angle);
+    float cosine = cos(angle);
+    return mat2(cosine, -sine, sine, cosine);
+}
+
+float particleMetric(vec2 delta, float shape) {
     vec2 absoluteDelta = abs(delta);
     float circle = length(delta);
     float square = max(absoluteDelta.x, absoluteDelta.y);
     float diamond = (absoluteDelta.x + absoluteDelta.y) * 0.70710678118;
-    if (uShape < 0.5) {
+    if (shape < 0.5) {
         return circle;
     }
-    if (uShape < 1.5) {
+    if (shape < 1.5) {
         return square;
     }
-    return diamond;
+    if (shape < 2.5) {
+        return diamond;
+    }
+    if (shape < 3.5) {
+        return max(
+            absoluteDelta.x * 0.8660254 + delta.y * 0.5,
+            -delta.y
+        );
+    }
+    if (shape < 4.5) {
+        return max(
+            absoluteDelta.x * 0.8660254 + absoluteDelta.y * 0.5,
+            absoluteDelta.y
+        );
+    }
+    if (shape < 5.5) {
+        return circle;
+    }
+    if (shape < 6.5) {
+        float angle = atan(delta.y, delta.x);
+        float star = mix(0.48, 1.0, 0.5 + 0.5 * cos(angle * 5.0));
+        return circle / max(star, 0.2);
+    }
+    return max(absoluteDelta.x, absoluteDelta.y * 4.0);
+}
+
+vec3 particleRgbToHsv(vec3 color) {
+    vec4 K = vec4(0.0, -0.3333333333, 0.6666666667, -1.0);
+    vec4 p = mix(vec4(color.bg, K.wz), vec4(color.gb, K.xy), step(color.b, color.g));
+    vec4 q = mix(vec4(p.xyw, color.r), vec4(color.r, p.yzx), step(p.x, color.r));
+    float d = q.x - min(q.w, q.y);
+    float e = 1.0e-10;
+    return vec3(abs(q.z + (q.w - q.y) / (6.0 * d + e)), d / (q.x + e), q.x);
+}
+
+vec3 particleHsvToRgb(vec3 color) {
+    vec3 p = abs(fract(color.xxx + vec3(0.0, 0.6666666667, 0.3333333333)) * 6.0 - 3.0);
+    return color.z * mix(vec3(1.0), clamp(p - 1.0, 0.0, 1.0), color.y);
 }
 
 void main() {
@@ -388,20 +507,71 @@ void main() {
             }
             vec2 center = cell + vec2(0.5) + particleMotion(cell);
             vec2 delta = gridPosition - center;
-            float metric = particleMetric(delta);
-            float antialias = max(fwidth(metric), 0.006);
-            float coverage = 1.0 - smoothstep(
-                radius - antialias,
-                radius + antialias,
+            vec2 seededCell = cell + vec2(uSeed * 17.17, uSeed * 43.71);
+            float phase = TAU * particleHash(seededCell);
+            float sizeRandom = mix(
+                1.0 - clamp(uSizeVariation, 0.0, 0.95),
+                1.0 + clamp(uSizeVariation, 0.0, 1.0),
+                particleHash(seededCell + 27.31)
+            );
+            float pulse = 1.0 + uPulseAmount * sin(
+                uTime * uPulseRate * TAU + phase
+            );
+            float localRadius = radius * max(0.05, sizeRandom * pulse);
+            float angle = radians(uRotation) + uTime * uSpin * TAU;
+            vec2 shapedDelta = particleRotation(-angle) * delta;
+            shapedDelta /= max(uAspect, vec2(0.10));
+            float metric = particleMetric(shapedDelta, uShape);
+            float antialias = max(
+                fwidth(metric),
+                0.006 + clamp(uSoftness, 0.0, 1.0) * localRadius * 0.32
+            );
+            float outerCoverage = 1.0 - smoothstep(
+                localRadius - antialias,
+                localRadius + antialias,
                 metric
             );
+            float hollow = max(
+                clamp(uHollow, 0.0, 0.92),
+                uShape >= 5.0 && uShape < 6.0 ? 0.58 : 0.0
+            );
+            float innerRadius = localRadius * hollow;
+            float innerCoverage = 1.0 - smoothstep(
+                innerRadius - antialias,
+                innerRadius + antialias,
+                metric
+            );
+            float coverage = outerCoverage * (1.0 - innerCoverage * step(0.001, hollow));
+            coverage = clamp(coverage, 0.0, 1.0);
             if (coverage <= 0.0) {
                 continue;
             }
-            vec2 sourceUV = (cell + vec2(0.5)) / grid;
+            vec2 sourceUV = clamp(
+                (cell + vec2(0.5)) / grid + uSampleOffset,
+                0.0,
+                1.0
+            );
             vec4 source = texture(sTD2DInputs[0], sourceUV);
+            vec3 hsv = particleRgbToHsv(max(source.rgb, vec3(0.0)));
+            hsv.x = fract(
+                hsv.x + uHue
+                + (particleHash(seededCell + 53.19) - 0.5) * uHueVariation
+            );
+            hsv.y = max(0.0, hsv.y * uSaturation);
+            hsv.z = max(0.0, hsv.z + uBrightness);
+            source.rgb = particleHsvToRgb(hsv);
+            source.rgb = mix(
+                source.rgb,
+                uTintColor.rgb,
+                clamp(uTintAmount * uTintColor.a, 0.0, 1.0)
+            );
+            float opacityRandom = mix(
+                1.0 - clamp(uOpacityVariation, 0.0, 1.0),
+                1.0,
+                particleHash(seededCell + 81.07)
+            );
             float layerAlpha = clamp(
-                coverage * source.a * uOpacity,
+                coverage * source.a * uOpacity * opacityRandom,
                 0.0,
                 1.0
             );
@@ -422,95 +592,217 @@ void main() {
 PARTICLE_PARAMETER_DEFINITIONS = (
     {
         "name": "Enabled", "label": "Particles Enabled", "type": "toggle",
-        "default": True,
+        "page": "Particles", "default": True,
         "description": "Return the source unchanged when disabled.",
     },
     {
         "name": "Autotime", "label": "Auto Time", "type": "toggle",
-        "default": True,
+        "page": "Animation", "default": True,
         "description": "Animate from TouchDesigner's absolute time.",
     },
     {
         "name": "Timescale", "label": "Time Scale", "type": "float",
-        "default": 1.0, "min": -10.0, "max": 10.0,
+        "page": "Animation", "default": 1.0, "min": -10.0, "max": 10.0,
         "description": "Scale or reverse automatic particle time.",
     },
     {
         "name": "Manualtime", "label": "Manual Time", "type": "float",
-        "default": 0.0, "min": -100000.0, "max": 100000.0,
+        "page": "Animation", "default": 0.0, "min": -100000.0, "max": 100000.0,
         "description": "Deterministic time used when Auto Time is disabled.",
     },
     {
         "name": "Time", "label": "Effective Time", "type": "float",
-        "default": 0.0, "min": -100000.0, "max": 100000.0,
-        "uniform": "uTime", "animatable": False,
+        "page": "Animation", "default": 0.0, "min": -100000.0, "max": 100000.0,
+        "uniform": "uTime", "animatable": False, "read_only": True,
         "description": "Resolved animation time sent to the particle shader.",
     },
     {
         "name": "Density", "label": "Particle Columns", "type": "int",
-        "default": 96, "min": 8, "max": 500,
+        "page": "Appearance", "default": 96, "min": 8, "max": 500,
         "uniform": "uDensity",
         "description": "Particle columns; rows follow the source aspect ratio.",
     },
     {
         "name": "Size", "label": "Particle Size", "type": "float",
-        "default": 0.72, "min": 0.08, "max": 1.25,
+        "page": "Appearance", "default": 0.72, "min": 0.08, "max": 1.25,
         "uniform": "uSize",
         "description": "Particle radius relative to one grid cell.",
     },
     {
+        "name": "Sizevariation", "label": "Size Variation", "type": "float",
+        "page": "Appearance", "default": 0.0, "min": 0.0, "max": 0.95,
+        "uniform": "uSizeVariation",
+        "description": "Vary particle size deterministically across the field.",
+    },
+    {
+        "name": "Aspect", "label": "Particle Aspect", "type": "xy",
+        "page": "Appearance", "default": [1.0, 1.0], "min": 0.1, "max": 4.0,
+        "uniform": "uAspect",
+        "description": "Stretch particle silhouettes independently on X and Y.",
+    },
+    {
+        "name": "Rotation", "label": "Rotation (Degrees)", "type": "float",
+        "page": "Appearance", "default": 0.0, "min": -180.0, "max": 180.0,
+        "uniform": "uRotation",
+        "description": "Rotate non-circular particle silhouettes.",
+    },
+    {
+        "name": "Spin", "label": "Spin (Turns/Second)", "type": "float",
+        "page": "Appearance", "default": 0.0, "min": -4.0, "max": 4.0,
+        "uniform": "uSpin",
+        "description": "Continuously rotate non-circular particles.",
+    },
+    {
+        "name": "Softness", "label": "Edge Softness", "type": "float",
+        "page": "Appearance", "default": 0.0, "min": 0.0, "max": 1.0,
+        "uniform": "uSoftness",
+        "description": "Soften particle edges beyond normal antialiasing.",
+    },
+    {
+        "name": "Hollow", "label": "Hollow Amount", "type": "float",
+        "page": "Appearance", "default": 0.0, "min": 0.0, "max": 0.92,
+        "uniform": "uHollow",
+        "description": "Cut out particle centers to form outlined silhouettes.",
+    },
+    {
         "name": "Speed", "label": "Move Speed", "type": "float",
-        "default": 0.8, "min": 0.0, "max": 8.0,
+        "page": "Motion", "default": 0.8, "min": 0.0, "max": 8.0,
         "uniform": "uSpeed",
         "description": "Speed of the deterministic random motion.",
     },
     {
+        "name": "Speedvariation", "label": "Speed Variation", "type": "float",
+        "page": "Motion", "default": 0.0, "min": 0.0, "max": 1.0,
+        "uniform": "uSpeedVariation",
+        "description": "Give each particle a deterministic speed variation.",
+    },
+    {
         "name": "Moveamount", "label": "Move Amount", "type": "float",
-        "default": 0.55, "min": 0.0, "max": 0.65,
+        "page": "Motion", "default": 0.55, "min": 0.0, "max": 1.2,
         "uniform": "uMoveAmount",
         "description": "Random orbit distance in particle-cell units.",
     },
     {
         "name": "Jitter", "label": "Jitter", "type": "float",
-        "default": 0.12, "min": 0.0, "max": 0.15,
+        "page": "Motion", "default": 0.12, "min": 0.0, "max": 0.6,
         "uniform": "uJitter",
         "description": "Adds faster secondary random movement.",
     },
     {
         "name": "Drift", "label": "Directional Drift", "type": "xy",
-        "default": [0.08, 0.03], "min": -0.2, "max": 0.2,
+        "page": "Motion", "default": [0.08, 0.03], "min": -1.0, "max": 1.0,
         "uniform": "uDrift",
         "description": "Adds bounded directional motion in cell units.",
     },
     {
+        "name": "Turbulence", "label": "Turbulence", "type": "float",
+        "page": "Motion", "default": 0.0, "min": 0.0, "max": 1.0,
+        "uniform": "uTurbulence",
+        "description": "Add a faster spatially varying current.",
+    },
+    {
+        "name": "Scatter", "label": "Static Scatter", "type": "float",
+        "page": "Motion", "default": 0.0, "min": 0.0, "max": 1.0,
+        "uniform": "uScatter",
+        "description": "Offset particles from their regular grid positions.",
+    },
+    {
+        "name": "Pulseamount", "label": "Size Pulse Amount", "type": "float",
+        "page": "Motion", "default": 0.0, "min": 0.0, "max": 0.9,
+        "uniform": "uPulseAmount",
+        "description": "Animate particle size with per-particle phase offsets.",
+    },
+    {
+        "name": "Pulserate", "label": "Size Pulse Rate", "type": "float",
+        "page": "Motion", "default": 1.0, "min": 0.0, "max": 8.0,
+        "uniform": "uPulseRate",
+        "description": "Set the speed of size pulsing when pulse amount is active.",
+    },
+    {
         "name": "Seed", "label": "Random Seed", "type": "int",
-        "default": 1, "min": 0, "max": 100000,
+        "page": "Motion", "default": 1, "min": 0, "max": 100000,
         "uniform": "uSeed",
         "description": "Changes the deterministic motion pattern.",
     },
     {
         "name": "Shape", "label": "Particle Shape", "type": "menu",
-        "default": "circle",
-        "menu_names": ["circle", "square", "diamond"],
-        "menu_labels": ["Circle", "Square", "Diamond"],
+        "page": "Appearance", "default": "circle",
+        "menu_names": ["circle", "square", "diamond", "triangle", "hexagon", "ring", "star", "line"],
+        "menu_labels": ["Circle", "Square", "Diamond", "Triangle", "Hexagon", "Ring", "Star", "Line"],
         "uniform": "uShape",
         "description": "Choose the particle silhouette.",
     },
     {
+        "name": "Motionmode", "label": "Motion Style", "type": "menu",
+        "page": "Motion", "default": "orbit",
+        "menu_names": ["orbit", "wander", "wave", "swirl", "fountain", "rain", "explosion", "flow"],
+        "menu_labels": ["Orbit", "Wander", "Wave", "Swirl", "Fountain", "Rain", "Explosion", "Flow Field"],
+        "uniform": "uMotionMode",
+        "description": "Choose one of eight bounded procedural movement fields.",
+    },
+    {
         "name": "Sourceblend", "label": "Source Blend", "type": "float",
-        "default": 0.0, "min": 0.0, "max": 1.0,
+        "page": "Compositing", "default": 0.0, "min": 0.0, "max": 1.0,
         "uniform": "uSourceBlend",
         "description": "Blend the original source behind the particles.",
     },
     {
         "name": "Opacity", "label": "Particle Opacity", "type": "float",
-        "default": 1.0, "min": 0.0, "max": 1.0,
+        "page": "Compositing", "default": 1.0, "min": 0.0, "max": 1.0,
         "uniform": "uOpacity",
         "description": "Multiply particle alpha.",
     },
     {
+        "name": "Opacityvariation", "label": "Opacity Variation", "type": "float",
+        "page": "Compositing", "default": 0.0, "min": 0.0, "max": 1.0,
+        "uniform": "uOpacityVariation",
+        "description": "Vary opacity deterministically across particles.",
+    },
+    {
+        "name": "Sampleoffset", "label": "Source Sample Offset", "type": "xy",
+        "page": "Particle Color", "default": [0.0, 0.0], "min": -1.0, "max": 1.0,
+        "uniform": "uSampleOffset",
+        "description": "Offset where each particle samples its source color.",
+    },
+    {
+        "name": "Tintcolor", "label": "Particle Tint", "type": "rgba",
+        "page": "Particle Color", "default": [1.0, 1.0, 1.0, 1.0],
+        "uniform": "uTintColor",
+        "description": "Choose a tint color; alpha scales the tint amount.",
+    },
+    {
+        "name": "Tintamount", "label": "Tint Amount", "type": "float",
+        "page": "Particle Color", "default": 0.0, "min": 0.0, "max": 1.0,
+        "uniform": "uTintAmount",
+        "description": "Blend sampled particle colors toward the selected tint.",
+    },
+    {
+        "name": "Hue", "label": "Hue Rotation", "type": "float",
+        "page": "Particle Color", "default": 0.0, "min": -1.0, "max": 1.0,
+        "uniform": "uHue",
+        "description": "Rotate every particle hue by normalized turns.",
+    },
+    {
+        "name": "Huevariation", "label": "Hue Variation", "type": "float",
+        "page": "Particle Color", "default": 0.0, "min": 0.0, "max": 1.0,
+        "uniform": "uHueVariation",
+        "description": "Add deterministic per-particle hue variation.",
+    },
+    {
+        "name": "Saturation", "label": "Particle Saturation", "type": "float",
+        "page": "Particle Color", "default": 1.0, "min": 0.0, "max": 3.0,
+        "uniform": "uSaturation",
+        "description": "Scale the saturation of sampled particle colors.",
+    },
+    {
+        "name": "Brightness", "label": "Particle Brightness", "type": "float",
+        "page": "Particle Color", "default": 0.0, "min": -1.0, "max": 1.0,
+        "uniform": "uBrightness",
+        "description": "Add or subtract sampled particle value.",
+    },
+    {
         "name": "Background", "label": "Background", "type": "rgba",
-        "default": [0.0, 0.0, 0.0, 0.0],
+        "page": "Compositing", "default": [0.0, 0.0, 0.0, 0.0],
         "uniform": "uBackground",
         "description": "Color and alpha behind the particle field.",
     },
@@ -588,8 +880,9 @@ vec3 paperSurface(vec2 uv) {
     );
     float textureAmount = (fiber - 0.48) * 0.10
         + (verticalFiber - 0.5) * 0.025;
+    vec3 paperColor = mix(vec3(1.0), uPaperColor.rgb, clamp(uPaperColor.a, 0.0, 1.0));
     return clamp(
-        uPaperColor.rgb * (1.0 + textureAmount * uPaperTexture),
+        paperColor * (1.0 + textureAmount * uPaperTexture),
         0.0,
         1.0
     );
@@ -620,7 +913,11 @@ vec3 minimalInkWork(vec2 uv, vec2 texel, vec4 source) {
         0.0,
         1.0
     );
-    return mix(paperSurface(uv), uInkColor.rgb, pigment);
+    return mix(
+        paperSurface(uv),
+        uInkColor.rgb,
+        pigment * clamp(uInkColor.a, 0.0, 1.0)
+    );
 }
 
 vec3 minimalInkWash(vec2 uv, vec2 texel, vec4 source) {
@@ -661,7 +958,11 @@ vec3 minimalInkWash(vec2 uv, vec2 texel, vec4 source) {
         0.0,
         1.0
     );
-    return mix(paperSurface(uv), uInkColor.rgb, pigment);
+    return mix(
+        paperSurface(uv),
+        uInkColor.rgb,
+        pigment * clamp(uInkColor.a, 0.0, 1.0)
+    );
 }
 
 vec3 visualLayer(vec2 uv, vec2 texel, vec4 source) {
@@ -802,7 +1103,11 @@ void main() {
                 vec3 particleColor = mix(
                     particleSource.rgb,
                     uInkColor.rgb,
-                    clamp(uParticleInkMix * pigmentBias, 0.0, 1.0)
+                    clamp(
+                        uParticleInkMix * pigmentBias * uInkColor.a,
+                        0.0,
+                        1.0
+                    )
                 );
                 float layerAlpha = clamp(
                     coverage
@@ -853,7 +1158,7 @@ INK_FLOW_PARAMETER_DEFINITIONS = (
         "name": "Time", "label": "Effective Time", "type": "float",
         "page": "Ink Flow", "default": 0.0,
         "min": -100000.0, "max": 100000.0,
-        "uniform": "uTime", "animatable": False,
+        "uniform": "uTime", "animatable": False, "read_only": True,
         "description": "Resolved animation time sent to the ink-flow shader.",
     },
     {
@@ -1563,7 +1868,7 @@ GLITCH_FUSION_PARAMETER_DEFINITIONS = (
         "name": "Time", "label": "Effective Time", "type": "float",
         "page": "Glitch", "default": 0.0,
         "min": -100000.0, "max": 100000.0,
-        "uniform": "uTime", "animatable": False,
+        "uniform": "uTime", "animatable": False, "read_only": True,
         "description": "Resolved animation time sent to the glitch shader.",
     },
     {
@@ -1693,6 +1998,14 @@ COLOR_ADJUSTMENT_OVERLAY_MODE_NAMES = (
     "hard_light",
     "color",
     "difference",
+    "darken",
+    "lighten",
+    "color_dodge",
+    "color_burn",
+    "linear_dodge",
+    "linear_burn",
+    "exclusion",
+    "luminosity",
 )
 
 COLOR_ADJUSTMENT_OVERLAY_MODE_LABELS = (
@@ -1704,6 +2017,14 @@ COLOR_ADJUSTMENT_OVERLAY_MODE_LABELS = (
     "Hard Light",
     "Color",
     "Difference",
+    "Darken",
+    "Lighten",
+    "Color Dodge",
+    "Color Burn",
+    "Linear Dodge",
+    "Linear Burn",
+    "Exclusion",
+    "Luminosity",
 )
 
 COLOR_ADJUSTMENT_SHADER = r"""
@@ -1713,7 +2034,9 @@ uniform float uMix;
 uniform float uInvert;
 uniform float uExposure;
 uniform float uBrightness;
+uniform float uOffset;
 uniform float uContrast;
+uniform float uPivot;
 uniform float uSaturation;
 uniform float uVibrance;
 uniform float uHue;
@@ -1725,9 +2048,26 @@ uniform float uWhitePoint;
 uniform vec3 uLift;
 uniform vec3 uGain;
 uniform float uShadows;
+uniform float uMidtones;
 uniform float uHighlights;
+uniform float uBlacks;
+uniform float uWhites;
+uniform float uToe;
+uniform float uShoulder;
+uniform vec3 uShadowBalance;
+uniform vec3 uMidtoneBalance;
+uniform vec3 uHighlightBalance;
+uniform float uBalancePreserveLuma;
+uniform float uClarity;
+uniform float uDehaze;
 uniform float uMonochrome;
 uniform float uSepia;
+uniform float uFade;
+uniform float uSolarizeAmount;
+uniform float uSolarizePoint;
+uniform float uThresholdAmount;
+uniform float uThresholdLevel;
+uniform float uThresholdSoftness;
 uniform float uPosterizeAmount;
 uniform float uPosterizeLevels;
 uniform float uDuotoneAmount;
@@ -1737,9 +2077,23 @@ uniform float uOverlayEnabled;
 uniform vec4 uOverlayColor;
 uniform float uOverlayAmount;
 uniform float uOverlayMode;
+uniform float uGrainAmount;
+uniform float uGrainSize;
+uniform float uGrainColored;
+uniform float uGrainSeed;
+uniform float uVignetteAmount;
+uniform float uVignetteMidpoint;
+uniform float uVignetteFeather;
+uniform float uVignetteRoundness;
 
 float colorLuma(vec3 color) {
     return dot(color, vec3(0.2126, 0.7152, 0.0722));
+}
+
+float colorHash(vec2 value) {
+    vec3 p3 = fract(vec3(value.xyx) * 0.1031);
+    p3 += dot(p3, p3.yzx + 33.33);
+    return fract((p3.x + p3.y) * p3.z);
 }
 
 vec3 colorRgbToHsv(vec3 color) {
@@ -1780,7 +2134,33 @@ vec3 colorOverlayBlend(vec3 base, vec3 layer, float mode) {
         vec3 layerHsv = colorRgbToHsv(layer);
         return colorHsvToRgb(vec3(layerHsv.xy, baseHsv.z));
     }
-    return abs(base - layer);
+    if (mode < 7.5) {
+        return abs(base - layer);
+    }
+    if (mode < 8.5) {
+        return min(base, layer);
+    }
+    if (mode < 9.5) {
+        return max(base, layer);
+    }
+    if (mode < 10.5) {
+        return min(base / max(vec3(1.0) - layer, vec3(1.0e-4)), vec3(1.0));
+    }
+    if (mode < 11.5) {
+        return max(vec3(1.0) - (vec3(1.0) - base) / max(layer, vec3(1.0e-4)), vec3(0.0));
+    }
+    if (mode < 12.5) {
+        return min(base + layer, vec3(1.0));
+    }
+    if (mode < 13.5) {
+        return max(base + layer - vec3(1.0), vec3(0.0));
+    }
+    if (mode < 14.5) {
+        return base + layer - 2.0 * base * layer;
+    }
+    vec3 baseHsv = colorRgbToHsv(base);
+    vec3 layerHsv = colorRgbToHsv(layer);
+    return colorHsvToRgb(vec3(baseHsv.xy, layerHsv.z));
 }
 
 void main() {
@@ -1790,7 +2170,8 @@ void main() {
     float whitePoint = max(uWhitePoint, uBlackPoint + 1.0e-4);
     color = clamp((color - vec3(uBlackPoint)) / (whitePoint - uBlackPoint), 0.0, 1.0);
     color *= exp2(uExposure);
-    color = max(color + uLift, vec3(0.0)) * max(uGain, vec3(0.0));
+    color = max(color + uLift + vec3(uOffset), vec3(0.0))
+        * max(uGain, vec3(0.0));
 
     vec3 balance = vec3(
         1.0 + 0.18 * uTemperature + 0.08 * uTint,
@@ -1799,13 +2180,47 @@ void main() {
     );
     color *= max(balance, vec3(0.05));
     color = pow(max(color, vec3(0.0)), vec3(1.0 / max(uGamma, 0.05)));
-    color = (color - 0.5) * max(uContrast, 0.0) + 0.5 + uBrightness;
+    float pivot = clamp(uPivot, 0.0, 1.0);
+    color = (color - pivot) * max(uContrast, 0.0) + pivot + uBrightness;
 
     float luminance = colorLuma(color);
     float shadowMask = 1.0 - smoothstep(0.0, 0.58, luminance);
+    float midtoneMask = 1.0 - smoothstep(0.18, 0.52, abs(luminance - 0.5));
     float highlightMask = smoothstep(0.42, 1.0, luminance);
+    float blackMask = 1.0 - smoothstep(0.02, 0.30, luminance);
+    float whiteMask = smoothstep(0.70, 0.98, luminance);
     color += vec3(0.35 * uShadows * shadowMask);
+    color += vec3(0.30 * uMidtones * midtoneMask);
     color += vec3(0.35 * uHighlights * highlightMask);
+    color += vec3(0.25 * uBlacks * blackMask);
+    color += vec3(0.25 * uWhites * whiteMask);
+    color += vec3(0.22 * uToe * shadowMask * (1.0 - clamp(color, 0.0, 1.0)));
+    color -= vec3(0.22 * uShoulder * highlightMask * clamp(color, 0.0, 1.0));
+
+    float balanceLumaBefore = colorLuma(color);
+    color += 0.30 * (
+        uShadowBalance * shadowMask
+        + uMidtoneBalance * midtoneMask
+        + uHighlightBalance * highlightMask
+    );
+    float balanceLumaAfter = colorLuma(color);
+    color -= vec3(
+        (balanceLumaAfter - balanceLumaBefore)
+        * clamp(uBalancePreserveLuma, 0.0, 1.0)
+    );
+
+    ivec2 sourceSize = textureSize(sTD2DInputs[0], 0);
+    vec2 texel = 1.0 / vec2(max(sourceSize, ivec2(1)));
+    vec3 localAverage = 0.25 * (
+        texture(sTD2DInputs[0], clamp(vUV.st + vec2(texel.x, 0.0), 0.0, 1.0)).rgb
+        + texture(sTD2DInputs[0], clamp(vUV.st - vec2(texel.x, 0.0), 0.0, 1.0)).rgb
+        + texture(sTD2DInputs[0], clamp(vUV.st + vec2(0.0, texel.y), 0.0, 1.0)).rgb
+        + texture(sTD2DInputs[0], clamp(vUV.st - vec2(0.0, texel.y), 0.0, 1.0)).rgb
+    );
+    color += (color - localAverage) * uClarity;
+    float dehazeContrast = 1.0 + 0.65 * uDehaze;
+    color = (color - 0.5) * dehazeContrast + 0.5;
+    color += vec3(0.08 * uDehaze);
 
     vec3 hsv = colorRgbToHsv(max(color, vec3(0.0)));
     hsv.x = fract(hsv.x + uHue);
@@ -1826,13 +2241,68 @@ void main() {
     );
     color = mix(color, sepia, clamp(uSepia, 0.0, 1.0));
 
+    vec3 faded = color * 0.78 + vec3(0.11);
+    color = mix(color, faded, clamp(uFade, 0.0, 1.0));
+    vec3 solarizeMask = smoothstep(
+        vec3(clamp(uSolarizePoint, 0.0, 1.0) - 0.04),
+        vec3(clamp(uSolarizePoint, 0.0, 1.0) + 0.04),
+        color
+    );
+    vec3 solarized = mix(color, vec3(1.0) - color, solarizeMask);
+    color = mix(color, solarized, clamp(uSolarizeAmount, 0.0, 1.0));
+    luminance = colorLuma(color);
+    float thresholdSoftness = max(uThresholdSoftness, 0.001);
+    float thresholdValue = smoothstep(
+        uThresholdLevel - thresholdSoftness,
+        uThresholdLevel + thresholdSoftness,
+        luminance
+    );
+    color = mix(
+        color,
+        vec3(thresholdValue),
+        clamp(uThresholdAmount, 0.0, 1.0)
+    );
+
     float levels = max(floor(uPosterizeLevels + 0.5), 2.0);
     vec3 posterized = floor(clamp(color, 0.0, 1.0) * (levels - 1.0) + 0.5) / (levels - 1.0);
     color = mix(color, posterized, clamp(uPosterizeAmount, 0.0, 1.0));
 
     luminance = clamp(colorLuma(color), 0.0, 1.0);
     vec3 duotone = mix(uDuotoneShadow.rgb, uDuotoneHighlight.rgb, luminance);
-    color = mix(color, duotone, clamp(uDuotoneAmount, 0.0, 1.0));
+    float duotoneAlpha = mix(
+        uDuotoneShadow.a,
+        uDuotoneHighlight.a,
+        luminance
+    );
+    color = mix(
+        color,
+        duotone,
+        clamp(uDuotoneAmount * duotoneAlpha, 0.0, 1.0)
+    );
+
+    if (uGrainAmount > 0.0) {
+        float grainScale = mix(180.0, 2160.0, clamp(uGrainSize, 0.0, 1.0));
+        vec2 grainCell = floor(vUV.st * grainScale) + vec2(uGrainSeed * 13.17);
+        float grainMono = colorHash(grainCell) - 0.5;
+        vec3 grainColor = vec3(
+            colorHash(grainCell + 17.0),
+            colorHash(grainCell + 37.0),
+            colorHash(grainCell + 71.0)
+        ) - 0.5;
+        vec3 grain = mix(vec3(grainMono), grainColor, clamp(uGrainColored, 0.0, 1.0));
+        color += grain * (0.35 * clamp(uGrainAmount, 0.0, 1.0));
+    }
+
+    float aspect = float(max(sourceSize.x, 1)) / float(max(sourceSize.y, 1));
+    vec2 vignetteUv = vUV.st - 0.5;
+    vignetteUv.x *= mix(1.0, aspect, clamp(uVignetteRoundness, 0.0, 1.0));
+    float vignetteDistance = length(vignetteUv) * 1.41421356237;
+    float vignetteMask = smoothstep(
+        clamp(uVignetteMidpoint, 0.0, 1.0),
+        clamp(uVignetteMidpoint + max(uVignetteFeather, 0.001), 0.001, 1.5),
+        vignetteDistance
+    );
+    color *= max(0.0, 1.0 - uVignetteAmount * vignetteMask);
 
     if (uOverlayEnabled > 0.5 && uOverlayAmount > 0.0) {
         vec3 blended = colorOverlayBlend(clamp(color, 0.0, 1.0), uOverlayColor.rgb, uOverlayMode);
@@ -1877,10 +2347,22 @@ COLOR_ADJUSTMENT_PARAMETER_DEFINITIONS = (
         "description": "Add or subtract overall brightness after gamma correction.",
     },
     {
+        "name": "Offset", "label": "Global Offset", "type": "float",
+        "page": "Primary", "default": 0.0,
+        "min": -1.0, "max": 1.0, "uniform": "uOffset",
+        "description": "Add a uniform RGB offset before gamma and contrast.",
+    },
+    {
         "name": "Contrast", "label": "Contrast", "type": "float",
         "page": "Primary", "default": 1.0,
         "min": 0.0, "max": 3.0, "uniform": "uContrast",
         "description": "Expand or compress RGB contrast around middle gray.",
+    },
+    {
+        "name": "Pivot", "label": "Contrast Pivot", "type": "float",
+        "page": "Primary", "default": 0.5,
+        "min": 0.0, "max": 1.0, "uniform": "uPivot",
+        "description": "Set the tonal pivot used by the contrast control.",
     },
     {
         "name": "Saturation", "label": "Saturation", "type": "float",
@@ -1949,10 +2431,76 @@ COLOR_ADJUSTMENT_PARAMETER_DEFINITIONS = (
         "description": "Darken or lift the low-luminance portion of the image.",
     },
     {
+        "name": "Midtones", "label": "Midtones", "type": "float",
+        "page": "Tonal Range", "default": 0.0,
+        "min": -1.0, "max": 1.0, "uniform": "uMidtones",
+        "description": "Darken or lift the middle-luminance portion of the image.",
+    },
+    {
         "name": "Highlights", "label": "Highlights", "type": "float",
         "page": "Tonal Range", "default": 0.0,
         "min": -1.0, "max": 1.0, "uniform": "uHighlights",
         "description": "Darken or lift the high-luminance portion of the image.",
+    },
+    {
+        "name": "Blacks", "label": "Blacks", "type": "float",
+        "page": "Tonal Range", "default": 0.0,
+        "min": -1.0, "max": 1.0, "uniform": "uBlacks",
+        "description": "Adjust the deepest tonal region independently.",
+    },
+    {
+        "name": "Whites", "label": "Whites", "type": "float",
+        "page": "Tonal Range", "default": 0.0,
+        "min": -1.0, "max": 1.0, "uniform": "uWhites",
+        "description": "Adjust the brightest tonal region independently.",
+    },
+    {
+        "name": "Toe", "label": "Shadow Toe", "type": "float",
+        "page": "Tonal Range", "default": 0.0,
+        "min": -1.0, "max": 1.0, "uniform": "uToe",
+        "description": "Lift or deepen the shadow roll-in curve.",
+    },
+    {
+        "name": "Shoulder", "label": "Highlight Shoulder", "type": "float",
+        "page": "Tonal Range", "default": 0.0,
+        "min": -1.0, "max": 1.0, "uniform": "uShoulder",
+        "description": "Compress or expand the highlight roll-off curve.",
+    },
+    {
+        "name": "Shadowbalance", "label": "Shadow Balance", "type": "xyz",
+        "page": "Color Balance", "default": [0.0, 0.0, 0.0],
+        "min": -1.0, "max": 1.0, "uniform": "uShadowBalance",
+        "description": "Add independent RGB color balance to shadows.",
+    },
+    {
+        "name": "Midtonebalance", "label": "Midtone Balance", "type": "xyz",
+        "page": "Color Balance", "default": [0.0, 0.0, 0.0],
+        "min": -1.0, "max": 1.0, "uniform": "uMidtoneBalance",
+        "description": "Add independent RGB color balance to midtones.",
+    },
+    {
+        "name": "Highlightbalance", "label": "Highlight Balance", "type": "xyz",
+        "page": "Color Balance", "default": [0.0, 0.0, 0.0],
+        "min": -1.0, "max": 1.0, "uniform": "uHighlightBalance",
+        "description": "Add independent RGB color balance to highlights.",
+    },
+    {
+        "name": "Balancepreserveluma", "label": "Preserve Balance Luma", "type": "float",
+        "page": "Color Balance", "default": 1.0,
+        "min": 0.0, "max": 1.0, "uniform": "uBalancePreserveLuma",
+        "description": "Preserve luminance while applying RGB tonal balance.",
+    },
+    {
+        "name": "Clarity", "label": "Clarity", "type": "float",
+        "page": "Detail", "default": 0.0,
+        "min": -1.0, "max": 2.0, "uniform": "uClarity",
+        "description": "Reduce or enhance local image contrast.",
+    },
+    {
+        "name": "Dehaze", "label": "Dehaze", "type": "float",
+        "page": "Detail", "default": 0.0,
+        "min": -1.0, "max": 1.0, "uniform": "uDehaze",
+        "description": "Reduce haze or add a softer atmospheric wash.",
     },
     {
         "name": "Monochrome", "label": "Monochrome Amount", "type": "float",
@@ -1965,6 +2513,42 @@ COLOR_ADJUSTMENT_PARAMETER_DEFINITIONS = (
         "page": "Creative Color", "default": 0.0,
         "min": 0.0, "max": 1.0, "uniform": "uSepia",
         "description": "Blend toward a classic warm sepia color matrix.",
+    },
+    {
+        "name": "Fade", "label": "Fade", "type": "float",
+        "page": "Creative Color", "default": 0.0,
+        "min": 0.0, "max": 1.0, "uniform": "uFade",
+        "description": "Lift blacks and soften contrast for a faded print look.",
+    },
+    {
+        "name": "Solarizeamount", "label": "Solarize Amount", "type": "float",
+        "page": "Creative Color", "default": 0.0,
+        "min": 0.0, "max": 1.0, "uniform": "uSolarizeAmount",
+        "description": "Invert channel values above the solarize point.",
+    },
+    {
+        "name": "Solarizepoint", "label": "Solarize Point", "type": "float",
+        "page": "Creative Color", "default": 0.5,
+        "min": 0.0, "max": 1.0, "uniform": "uSolarizePoint",
+        "description": "Set the crossover point used by Solarize Amount.",
+    },
+    {
+        "name": "Thresholdamount", "label": "Threshold Amount", "type": "float",
+        "page": "Creative Color", "default": 0.0,
+        "min": 0.0, "max": 1.0, "uniform": "uThresholdAmount",
+        "description": "Blend toward an adjustable luminance threshold image.",
+    },
+    {
+        "name": "Thresholdlevel", "label": "Threshold Level", "type": "float",
+        "page": "Creative Color", "default": 0.5,
+        "min": 0.0, "max": 1.0, "uniform": "uThresholdLevel",
+        "description": "Set the luminance transition point for thresholding.",
+    },
+    {
+        "name": "Thresholdsoftness", "label": "Threshold Softness", "type": "float",
+        "page": "Creative Color", "default": 0.02,
+        "min": 0.001, "max": 0.5, "uniform": "uThresholdSoftness",
+        "description": "Control the width of the threshold transition.",
     },
     {
         "name": "Posterizeamount", "label": "Posterize Amount", "type": "float",
@@ -1997,6 +2581,54 @@ COLOR_ADJUSTMENT_PARAMETER_DEFINITIONS = (
         "description": "Set the color used for the brightest duotone values.",
     },
     {
+        "name": "Grainamount", "label": "Grain Amount", "type": "float",
+        "page": "Film", "default": 0.0,
+        "min": 0.0, "max": 1.0, "uniform": "uGrainAmount",
+        "description": "Add deterministic monochrome or colored film grain.",
+    },
+    {
+        "name": "Grainsize", "label": "Grain Size", "type": "float",
+        "page": "Film", "default": 0.35,
+        "min": 0.0, "max": 1.0, "uniform": "uGrainSize",
+        "description": "Set the spatial scale of the deterministic grain pattern.",
+    },
+    {
+        "name": "Graincolored", "label": "Colored Grain", "type": "float",
+        "page": "Film", "default": 0.0,
+        "min": 0.0, "max": 1.0, "uniform": "uGrainColored",
+        "description": "Blend the grain pattern from monochrome to independent RGB noise.",
+    },
+    {
+        "name": "Grainseed", "label": "Grain Seed", "type": "int",
+        "page": "Film", "default": 17,
+        "min": 0, "max": 100000, "uniform": "uGrainSeed",
+        "description": "Choose a repeatable film-grain pattern.",
+    },
+    {
+        "name": "Vignetteamount", "label": "Vignette Amount", "type": "float",
+        "page": "Film", "default": 0.0,
+        "min": -1.0, "max": 1.0, "uniform": "uVignetteAmount",
+        "description": "Darken positive values or lift negative values toward the edges.",
+    },
+    {
+        "name": "Vignettemidpoint", "label": "Vignette Midpoint", "type": "float",
+        "page": "Film", "default": 0.45,
+        "min": 0.0, "max": 1.0, "uniform": "uVignetteMidpoint",
+        "description": "Set where the vignette begins.",
+    },
+    {
+        "name": "Vignettefeather", "label": "Vignette Feather", "type": "float",
+        "page": "Film", "default": 0.35,
+        "min": 0.001, "max": 1.0, "uniform": "uVignetteFeather",
+        "description": "Set the softness of the vignette transition.",
+    },
+    {
+        "name": "Vignetteroundness", "label": "Vignette Roundness", "type": "float",
+        "page": "Film", "default": 0.0,
+        "min": 0.0, "max": 1.0, "uniform": "uVignetteRoundness",
+        "description": "Blend between image-relative and circular vignette geometry.",
+    },
+    {
         "name": "Overlayenabled", "label": "Color Overlay Enabled", "type": "toggle",
         "page": "Color Overlay", "default": False,
         "uniform": "uOverlayEnabled",
@@ -2020,7 +2652,666 @@ COLOR_ADJUSTMENT_PARAMETER_DEFINITIONS = (
         "menu_names": list(COLOR_ADJUSTMENT_OVERLAY_MODE_NAMES),
         "menu_labels": list(COLOR_ADJUSTMENT_OVERLAY_MODE_LABELS),
         "uniform": "uOverlayMode",
-        "description": "Choose one of eight color-overlay blend modes.",
+        "description": "Choose one of sixteen color-overlay blend modes.",
+    },
+)
+
+MOTION_STUDIO_STYLE_NAMES = (
+    "pan",
+    "diagonal_pan",
+    "drift",
+    "orbit",
+    "figure_eight",
+    "bounce",
+    "pendulum",
+    "swing",
+    "shake",
+    "handheld",
+    "jitter",
+    "float",
+    "breathe",
+    "zoom_pulse",
+    "infinite_zoom",
+    "dolly_zoom",
+    "rotate",
+    "spin_pulse",
+    "spiral",
+    "vortex",
+    "twist",
+    "horizontal_wave",
+    "vertical_wave",
+    "radial_wave",
+    "ripple",
+    "liquid",
+    "wobble",
+    "slither",
+    "flow_field",
+    "heat_haze",
+    "parallax",
+    "perspective_sway",
+    "rolling_shutter",
+    "whip_pan",
+    "stop_motion",
+    "step_jump",
+    "conveyor",
+    "tunnel",
+    "kaleidoscope_motion",
+    "elastic",
+)
+
+MOTION_STUDIO_STYLE_LABELS = (
+    "Pan",
+    "Diagonal Pan",
+    "Drift",
+    "Orbit",
+    "Figure Eight",
+    "Bounce",
+    "Pendulum",
+    "Swing",
+    "Shake",
+    "Handheld Camera",
+    "Jitter",
+    "Float",
+    "Breathe",
+    "Zoom Pulse",
+    "Infinite Zoom",
+    "Dolly Zoom",
+    "Rotate",
+    "Spin Pulse",
+    "Spiral",
+    "Vortex",
+    "Twist",
+    "Horizontal Wave",
+    "Vertical Wave",
+    "Radial Wave",
+    "Ripple",
+    "Liquid",
+    "Wobble",
+    "Slither",
+    "Flow Field",
+    "Heat Haze",
+    "Parallax",
+    "Perspective Sway",
+    "Rolling Shutter",
+    "Whip Pan",
+    "Stop Motion",
+    "Step Jump",
+    "Conveyor",
+    "Tunnel",
+    "Kaleidoscope Motion",
+    "Elastic",
+)
+
+MOTION_STUDIO_EDGE_MODE_NAMES = (
+    "hold",
+    "repeat",
+    "mirror",
+    "transparent",
+)
+
+MOTION_STUDIO_EDGE_MODE_LABELS = (
+    "Hold",
+    "Repeat",
+    "Mirror",
+    "Transparent",
+)
+
+MOTION_STUDIO_EASING_NAMES = (
+    "linear",
+    "sine",
+    "smooth",
+    "smoother",
+    "bounce",
+    "elastic",
+)
+
+MOTION_STUDIO_EASING_LABELS = (
+    "Linear",
+    "Sine",
+    "Smooth",
+    "Smoother",
+    "Bounce",
+    "Elastic",
+)
+
+MOTION_STUDIO_SHADER = r"""
+layout(location = 0) out vec4 fragColor;
+
+uniform float uStyle;
+uniform float uMix;
+uniform float uTime;
+uniform float uAmount;
+uniform float uSpeed;
+uniform float uFrequency;
+uniform float uPhase;
+uniform vec2 uDirection;
+uniform vec2 uCenter;
+uniform float uZoom;
+uniform float uRotation;
+uniform float uWarp;
+uniform float uRandomness;
+uniform float uSeed;
+uniform float uSteps;
+uniform float uSegments;
+uniform float uEdgeMode;
+uniform float uEasing;
+uniform float uTrailAmount;
+uniform float uTrailSamples;
+
+const float MOTION_PI = 3.14159265358979323846;
+const float MOTION_TAU = 6.28318530717958647692;
+
+float motionHash(float value) {
+    return fract(sin(value * 127.1 + uSeed * 19.19) * 43758.5453123);
+}
+
+float motionHash2(vec2 value) {
+    return fract(sin(dot(value, vec2(127.1, 311.7)) + uSeed * 7.17) * 43758.5453123);
+}
+
+float motionEase01(float value) {
+    float x = clamp(value, 0.0, 1.0);
+    if (uEasing < 0.5) {
+        return x;
+    }
+    if (uEasing < 1.5) {
+        return 0.5 - 0.5 * cos(MOTION_PI * x);
+    }
+    if (uEasing < 2.5) {
+        return x * x * (3.0 - 2.0 * x);
+    }
+    if (uEasing < 3.5) {
+        return x * x * x * (x * (x * 6.0 - 15.0) + 10.0);
+    }
+    if (uEasing < 4.5) {
+        float bounce = abs(sin(MOTION_PI * (x + 0.12))) * (1.0 - x);
+        return clamp(x + bounce * 0.32, 0.0, 1.0);
+    }
+    return clamp(x + sin(x * MOTION_PI * 6.0) * (1.0 - x) * 0.18, 0.0, 1.0);
+}
+
+float motionOsc(float phase) {
+    float x = fract(phase);
+    if (uEasing < 0.5) {
+        return 1.0 - 4.0 * abs(x - 0.5);
+    }
+    if (uEasing < 1.5) {
+        return sin(MOTION_TAU * x);
+    }
+    float triangle = 1.0 - 4.0 * abs(x - 0.5);
+    float magnitude = motionEase01(abs(triangle));
+    return sign(triangle) * magnitude;
+}
+
+mat2 motionRotate(float angle) {
+    float sineValue = sin(angle);
+    float cosineValue = cos(angle);
+    return mat2(cosineValue, -sineValue, sineValue, cosineValue);
+}
+
+vec2 motionDirection(float aspect) {
+    vec2 direction = vec2(uDirection.x * aspect, uDirection.y);
+    if (dot(direction, direction) < 1.0e-6) {
+        direction = vec2(aspect, 0.0);
+    }
+    return normalize(direction);
+}
+
+vec2 motionSmoothRandom(float value) {
+    float baseValue = floor(value);
+    float blendValue = motionEase01(fract(value));
+    vec2 firstValue = vec2(
+        motionHash(baseValue * 2.0 + 3.0),
+        motionHash(baseValue * 2.0 + 11.0)
+    );
+    vec2 secondValue = vec2(
+        motionHash((baseValue + 1.0) * 2.0 + 3.0),
+        motionHash((baseValue + 1.0) * 2.0 + 11.0)
+    );
+    return mix(firstValue, secondValue, blendValue) * 2.0 - 1.0;
+}
+
+vec2 motionUV(float style, vec2 uv, vec2 resolution, float timeValue) {
+    float aspect = resolution.x / max(resolution.y, 1.0);
+    vec2 center = clamp(uCenter, vec2(0.0), vec2(1.0));
+    vec2 point = uv - center;
+    point.x *= aspect;
+    point = motionRotate(-radians(uRotation)) * point;
+    point /= max(uZoom, 0.05);
+
+    vec2 direction = motionDirection(aspect);
+    vec2 perpendicular = vec2(-direction.y, direction.x);
+    float phaseTime = timeValue * uSpeed + uPhase;
+    float angle = MOTION_TAU * phaseTime;
+    float oscillation = motionOsc(phaseTime);
+    float amount = clamp(uAmount, 0.0, 1.0);
+    float warp = clamp(uWarp, 0.0, 2.0);
+    float frequency = max(uFrequency, 0.01);
+    float steps = max(floor(uSteps + 0.5), 2.0);
+    float radius = length(point);
+    vec2 moved = point;
+
+    if (style < 0.5) {
+        // Pan
+        moved -= direction * phaseTime * amount * 0.32;
+    } else if (style < 1.5) {
+        // Diagonal Pan
+        vec2 diagonal = normalize(direction + perpendicular * 0.72);
+        moved -= diagonal * phaseTime * amount * 0.34;
+    } else if (style < 2.5) {
+        // Drift
+        moved -= vec2(sin(angle * 0.73), cos(angle * 0.49 + 0.8))
+            * amount * 0.16;
+    } else if (style < 3.5) {
+        // Orbit
+        moved -= vec2(cos(angle), sin(angle)) * amount * 0.19;
+    } else if (style < 4.5) {
+        // Figure Eight
+        moved -= vec2(sin(angle), sin(angle * 2.0) * 0.55)
+            * amount * 0.20;
+    } else if (style < 5.5) {
+        // Bounce
+        moved -= direction * oscillation * amount * 0.26;
+    } else if (style < 6.5) {
+        // Pendulum
+        moved = motionRotate(-oscillation * amount * 0.78) * point;
+    } else if (style < 7.5) {
+        // Swing
+        float swing = oscillation * amount;
+        moved.x += point.y * swing * 0.95;
+        moved.y -= direction.y * swing * 0.05;
+    } else if (style < 8.5) {
+        // Shake
+        vec2 randomMove = motionSmoothRandom(phaseTime * frequency * 2.5);
+        moved -= randomMove * amount * mix(0.035, 0.14, uRandomness);
+    } else if (style < 9.5) {
+        // Handheld Camera
+        vec2 randomMove = motionSmoothRandom(phaseTime * frequency * 0.85);
+        float randomAngle = motionSmoothRandom(
+            phaseTime * frequency * 0.47 + 17.0
+        ).x;
+        moved = motionRotate(randomAngle * amount * 0.065) * point;
+        moved -= randomMove * amount * mix(0.025, 0.09, uRandomness);
+    } else if (style < 10.5) {
+        // Jitter
+        float frameValue = floor(phaseTime * steps);
+        vec2 randomMove = vec2(
+            motionHash(frameValue * 2.0 + 5.0),
+            motionHash(frameValue * 2.0 + 13.0)
+        ) * 2.0 - 1.0;
+        moved -= randomMove * amount * mix(0.03, 0.16, uRandomness);
+    } else if (style < 11.5) {
+        // Float
+        moved.y -= sin(angle) * amount * 0.18;
+        moved = motionRotate(cos(angle * 0.57) * amount * 0.055) * moved;
+    } else if (style < 12.5) {
+        // Breathe
+        float scaleValue = 1.0 + oscillation * amount * 0.16;
+        moved = point / max(scaleValue, 0.1);
+    } else if (style < 13.5) {
+        // Zoom Pulse
+        float scaleValue = exp2(oscillation * amount * 0.42);
+        moved = point / scaleValue;
+    } else if (style < 14.5) {
+        // Infinite Zoom
+        float scaleValue = exp2(fract(phaseTime * 0.5) * (0.65 + amount));
+        moved = point / scaleValue;
+    } else if (style < 15.5) {
+        // Dolly Zoom
+        float scaleValue = 1.0 + oscillation * amount * 0.44;
+        float radialBend = 1.0 + oscillation * warp * radius * radius * 0.8;
+        moved = point * radialBend / max(scaleValue, 0.12);
+    } else if (style < 16.5) {
+        // Rotate
+        moved = motionRotate(-angle * amount) * point;
+    } else if (style < 17.5) {
+        // Spin Pulse
+        float scaleValue = 1.0 + sin(angle * 0.5) * amount * 0.24;
+        moved = motionRotate(-angle * amount * 1.35) * point;
+        moved /= max(scaleValue, 0.1);
+    } else if (style < 18.5) {
+        // Spiral
+        moved = motionRotate(-angle * amount * 0.35 - radius * warp * 3.5)
+            * point;
+        moved *= 1.0 + oscillation * amount * 0.12;
+    } else if (style < 19.5) {
+        // Vortex
+        float vortexAngle = angle * amount * 0.18
+            + (1.0 - smoothstep(0.0, 0.9, radius)) * warp * 4.5;
+        moved = motionRotate(-vortexAngle) * point;
+    } else if (style < 20.5) {
+        // Twist
+        float twistAngle = sin(radius * frequency * MOTION_TAU - angle)
+            * amount * warp * 1.4;
+        moved = motionRotate(twistAngle) * point;
+    } else if (style < 21.5) {
+        // Horizontal Wave
+        moved.x += sin(point.y * frequency * MOTION_TAU + angle)
+            * amount * (0.045 + 0.10 * warp);
+    } else if (style < 22.5) {
+        // Vertical Wave
+        moved.y += sin(point.x * frequency * MOTION_TAU + angle)
+            * amount * (0.045 + 0.10 * warp);
+    } else if (style < 23.5) {
+        // Radial Wave
+        float scaleValue = 1.0 + sin(radius * frequency * MOTION_TAU - angle)
+            * amount * warp * 0.22;
+        moved = point * scaleValue;
+    } else if (style < 24.5) {
+        // Ripple
+        vec2 radialDirection = point / max(radius, 1.0e-4);
+        moved += radialDirection
+            * sin(radius * frequency * MOTION_TAU - angle * 1.6)
+            * amount * (0.025 + warp * 0.075);
+    } else if (style < 25.5) {
+        // Liquid
+        moved.x += sin(point.y * frequency * MOTION_TAU + angle)
+            * amount * warp * 0.075;
+        moved.y += cos(point.x * frequency * MOTION_TAU * 0.83 - angle * 0.71)
+            * amount * warp * 0.075;
+        moved += vec2(
+            sin((point.x + point.y) * frequency * 3.2 + angle * 0.43),
+            cos((point.x - point.y) * frequency * 3.6 - angle * 0.37)
+        ) * amount * warp * 0.028;
+    } else if (style < 26.5) {
+        // Wobble
+        moved += vec2(
+            sin(point.y * frequency * MOTION_TAU + angle),
+            sin(point.x * frequency * MOTION_TAU - angle * 1.17)
+        ) * amount * (0.035 + warp * 0.065);
+    } else if (style < 27.5) {
+        // Slither
+        moved.x += sin(point.y * frequency * MOTION_TAU - angle * 1.4)
+            * amount * (0.05 + warp * 0.08);
+        moved.y -= direction.y * phaseTime * amount * 0.07;
+    } else if (style < 28.5) {
+        // Flow Field
+        vec2 cell = floor((point + vec2(2.0)) * frequency * 3.0);
+        float fieldAngle = motionHash2(cell) * MOTION_TAU
+            + angle * (0.25 + uRandomness);
+        moved += vec2(cos(fieldAngle), sin(fieldAngle))
+            * amount * (0.025 + warp * 0.075);
+    } else if (style < 29.5) {
+        // Heat Haze
+        float haze = sin(point.y * frequency * MOTION_TAU * 2.7 + angle * 2.1);
+        haze += sin(point.y * frequency * MOTION_TAU * 5.3 - angle * 1.4) * 0.45;
+        moved.x += haze * amount * (0.008 + warp * 0.028);
+    } else if (style < 30.5) {
+        // Parallax
+        float layerValue = 1.0 + floor(clamp(radius * 5.0, 0.0, 3.0));
+        moved -= direction * oscillation * amount * 0.055 * layerValue;
+    } else if (style < 31.5) {
+        // Perspective Sway
+        float sway = oscillation * amount;
+        float denominator = max(0.35, 1.0 + point.y * sway * 1.15);
+        moved.x = (point.x + point.y * sway * 0.18) / denominator;
+        moved.y = point.y / denominator;
+    } else if (style < 32.5) {
+        // Rolling Shutter
+        float scanTime = phaseTime + point.y * (0.35 + warp * 0.8);
+        moved.x += sin(scanTime * MOTION_TAU) * amount * 0.14;
+    } else if (style < 33.5) {
+        // Whip Pan
+        float cycle = fract(phaseTime);
+        float pulse = pow(max(sin(MOTION_PI * cycle), 0.0), 7.0);
+        float signValue = motionHash(floor(phaseTime) + 91.0) > 0.5 ? 1.0 : -1.0;
+        moved.x -= pulse * signValue * amount * (0.32 + warp * 0.26);
+        moved.y += pulse * perpendicular.y * amount * 0.04;
+    } else if (style < 34.5) {
+        // Stop Motion
+        float steppedTime = floor(phaseTime * steps) / steps;
+        float steppedAngle = steppedTime * MOTION_TAU;
+        moved -= vec2(sin(steppedAngle), cos(steppedAngle * 0.73))
+            * amount * 0.17;
+    } else if (style < 35.5) {
+        // Step Jump
+        float frameValue = floor(phaseTime * steps);
+        vec2 jumpValue = vec2(
+            motionHash(frameValue + 131.0),
+            motionHash(frameValue + 271.0)
+        ) * 2.0 - 1.0;
+        moved -= jumpValue * amount * (0.08 + uRandomness * 0.18);
+    } else if (style < 36.5) {
+        // Conveyor
+        moved -= direction * phaseTime * amount * 0.42;
+        moved += perpendicular
+            * sin(dot(point, perpendicular) * frequency * MOTION_TAU + angle)
+            * amount * warp * 0.035;
+    } else if (style < 37.5) {
+        // Tunnel
+        float tunnelAngle = atan(point.y, point.x) / MOTION_TAU;
+        float tunnelDepth = 0.16 / max(radius, 0.025);
+        vec2 tunnel = vec2(
+            tunnelAngle + phaseTime * amount * 0.16,
+            tunnelDepth + phaseTime * amount * 0.28
+        );
+        tunnel.x *= aspect;
+        moved = tunnel - vec2(0.5 * aspect, 0.5);
+    } else if (style < 38.5) {
+        // Kaleidoscope Motion
+        float segments = max(floor(uSegments + 0.5), 3.0);
+        float segmentAngle = MOTION_TAU / segments;
+        float polarAngle = atan(point.y, point.x) + angle * amount * 0.32;
+        polarAngle = abs(mod(polarAngle + segmentAngle * 0.5, segmentAngle)
+            - segmentAngle * 0.5);
+        moved = vec2(cos(polarAngle), sin(polarAngle)) * radius;
+    } else {
+        // Elastic
+        float cycle = fract(phaseTime);
+        float elasticValue = sin(cycle * MOTION_TAU * 2.0)
+            * exp(-cycle * 3.4);
+        float scaleValue = 1.0 + elasticValue * amount * 0.55;
+        moved = point / max(scaleValue, 0.12);
+        moved -= direction * elasticValue * amount * 0.08;
+    }
+
+    moved.x /= aspect;
+    return center + moved;
+}
+
+vec2 motionEdgeUV(vec2 uv, float edgeMode, out float coverage) {
+    coverage = 1.0;
+    if (edgeMode < 0.5) {
+        return clamp(uv, 0.0, 1.0);
+    }
+    if (edgeMode < 1.5) {
+        return fract(uv);
+    }
+    if (edgeMode < 2.5) {
+        return vec2(1.0) - abs(mod(uv, vec2(2.0)) - vec2(1.0));
+    }
+    vec2 inside = step(vec2(0.0), uv) * step(uv, vec2(1.0));
+    coverage = inside.x * inside.y;
+    return clamp(uv, 0.0, 1.0);
+}
+
+vec4 motionSample(vec2 uv) {
+    float coverage = 1.0;
+    vec2 sampleUV = motionEdgeUV(uv, floor(uEdgeMode + 0.5), coverage);
+    return texture(sTD2DInputs[0], sampleUV) * coverage;
+}
+
+void main() {
+    vec2 uv = vUV.st;
+    ivec2 sourceSize = textureSize(sTD2DInputs[0], 0);
+    vec2 resolution = vec2(max(sourceSize.x, 1), max(sourceSize.y, 1));
+    vec4 source = texture(sTD2DInputs[0], uv);
+    int requestedSamples = int(clamp(floor(uTrailSamples + 0.5), 1.0, 5.0));
+    int sampleCount = uTrailAmount > 1.0e-5 ? requestedSamples : 1;
+    vec4 accumulated = vec4(0.0);
+    float totalWeight = 0.0;
+    for (int sampleIndex = 0; sampleIndex < 5; ++sampleIndex) {
+        if (sampleIndex >= sampleCount) {
+            break;
+        }
+        float sampleRatio = sampleCount > 1
+            ? float(sampleIndex) / float(sampleCount - 1)
+            : 0.0;
+        float sampleTime = uTime - sampleRatio * uTrailAmount * 0.35;
+        vec2 movedUV = motionUV(
+            floor(uStyle + 0.5),
+            uv,
+            resolution,
+            sampleTime
+        );
+        float sampleWeight = 1.0 - sampleRatio * 0.55;
+        accumulated += motionSample(movedUV) * sampleWeight;
+        totalWeight += sampleWeight;
+    }
+    vec4 moved = accumulated / max(totalWeight, 1.0e-5);
+    fragColor = TDOutputSwizzle(mix(source, moved, clamp(uMix, 0.0, 1.0)));
+}
+""".strip()
+
+MOTION_STUDIO_PARAMETER_DEFINITIONS = (
+    {
+        "name": "Enabled", "label": "Module Enabled", "type": "toggle",
+        "page": "Motion Studio", "default": True,
+        "description": "Return the input unchanged when the entire motion module is disabled.",
+    },
+    {
+        "name": "Style", "label": "Motion Style", "type": "menu",
+        "page": "Motion Studio", "default": "drift",
+        "menu_names": list(MOTION_STUDIO_STYLE_NAMES),
+        "menu_labels": list(MOTION_STUDIO_STYLE_LABELS),
+        "uniform": "uStyle",
+        "description": "Choose one of forty movement, camera, warp, step, or spatial animation styles.",
+    },
+    {
+        "name": "Mix", "label": "Motion Mix", "type": "float",
+        "page": "Motion Studio", "default": 1.0,
+        "min": 0.0, "max": 1.0, "uniform": "uMix",
+        "description": "Blend continuously between the source and moved image.",
+    },
+    {
+        "name": "Autotime", "label": "Auto Time", "type": "toggle",
+        "page": "Timing", "default": True,
+        "description": "Drive animation from TouchDesigner's absolute time.",
+    },
+    {
+        "name": "Timescale", "label": "Time Scale", "type": "float",
+        "page": "Timing", "default": 1.0,
+        "min": -10.0, "max": 10.0,
+        "description": "Scale, pause, or reverse automatic motion time.",
+    },
+    {
+        "name": "Manualtime", "label": "Manual Time", "type": "float",
+        "page": "Timing", "default": 0.0,
+        "min": -100000.0, "max": 100000.0,
+        "description": "Set deterministic animation time when Auto Time is disabled.",
+    },
+    {
+        "name": "Time", "label": "Effective Time", "type": "float",
+        "page": "Timing", "default": 0.0,
+        "min": -100000.0, "max": 100000.0,
+        "uniform": "uTime", "animatable": False, "read_only": True,
+        "description": "Resolved time sent to the motion shader.",
+    },
+    {
+        "name": "Speed", "label": "Speed", "type": "float",
+        "page": "Timing", "default": 0.7,
+        "min": 0.0, "max": 10.0, "uniform": "uSpeed",
+        "description": "Set the selected motion's temporal rate.",
+    },
+    {
+        "name": "Phase", "label": "Phase", "type": "float",
+        "page": "Timing", "default": 0.0,
+        "min": -10.0, "max": 10.0, "uniform": "uPhase",
+        "description": "Offset animation phase without changing speed.",
+    },
+    {
+        "name": "Easing", "label": "Easing", "type": "menu",
+        "page": "Timing", "default": "sine",
+        "menu_names": list(MOTION_STUDIO_EASING_NAMES),
+        "menu_labels": list(MOTION_STUDIO_EASING_LABELS),
+        "uniform": "uEasing",
+        "description": "Shape oscillating, stepped, and interpolated movement.",
+    },
+    {
+        "name": "Steps", "label": "Animation Steps", "type": "int",
+        "page": "Timing", "default": 12,
+        "min": 2, "max": 120, "uniform": "uSteps",
+        "description": "Set stop-motion, jitter, and step-jump temporal divisions.",
+    },
+    {
+        "name": "Amount", "label": "Motion Amount", "type": "float",
+        "page": "Transform", "default": 0.35,
+        "min": 0.0, "max": 1.0, "uniform": "uAmount",
+        "description": "Scale the main translation, rotation, zoom, or deformation.",
+    },
+    {
+        "name": "Direction", "label": "Direction", "type": "xy",
+        "page": "Transform", "default": [1.0, 0.25],
+        "min": -1.0, "max": 1.0, "uniform": "uDirection",
+        "description": "Set the primary normalized movement direction.",
+    },
+    {
+        "name": "Center", "label": "Center / Pivot", "type": "uv",
+        "page": "Transform", "default": [0.5, 0.5],
+        "min": 0.0, "max": 1.0, "uniform": "uCenter",
+        "description": "Set the pivot for orbit, scale, rotation, spiral, and radial motion.",
+    },
+    {
+        "name": "Zoom", "label": "Base Zoom", "type": "float",
+        "page": "Transform", "default": 1.0,
+        "min": 0.25, "max": 4.0, "uniform": "uZoom",
+        "description": "Apply a constant zoom before animated movement.",
+    },
+    {
+        "name": "Rotation", "label": "Base Rotation (Degrees)", "type": "float",
+        "page": "Transform", "default": 0.0,
+        "min": -360.0, "max": 360.0, "uniform": "uRotation",
+        "description": "Apply a constant rotation around Center before animation.",
+    },
+    {
+        "name": "Frequency", "label": "Frequency", "type": "float",
+        "page": "Deformation", "default": 3.0,
+        "min": 0.1, "max": 30.0, "uniform": "uFrequency",
+        "description": "Set wave density, random update rate, and spatial repetition.",
+    },
+    {
+        "name": "Warp", "label": "Warp Strength", "type": "float",
+        "page": "Deformation", "default": 0.65,
+        "min": 0.0, "max": 2.0, "uniform": "uWarp",
+        "description": "Scale secondary liquid, spiral, wave, perspective, and tunnel deformation.",
+    },
+    {
+        "name": "Randomness", "label": "Randomness", "type": "float",
+        "page": "Deformation", "default": 0.55,
+        "min": 0.0, "max": 1.0, "uniform": "uRandomness",
+        "description": "Control seeded shake, handheld, jitter, flow, and jump variation.",
+    },
+    {
+        "name": "Seed", "label": "Random Seed", "type": "int",
+        "page": "Deformation", "default": 73,
+        "min": 0, "max": 100000, "uniform": "uSeed",
+        "description": "Choose deterministic random movement decisions.",
+    },
+    {
+        "name": "Segments", "label": "Kaleidoscope Segments", "type": "int",
+        "page": "Deformation", "default": 8,
+        "min": 3, "max": 32, "uniform": "uSegments",
+        "description": "Set the number of mirrored wedges in Kaleidoscope Motion.",
+    },
+    {
+        "name": "Edgemode", "label": "Edge Behavior", "type": "menu",
+        "page": "Sampling", "default": "mirror",
+        "menu_names": list(MOTION_STUDIO_EDGE_MODE_NAMES),
+        "menu_labels": list(MOTION_STUDIO_EDGE_MODE_LABELS),
+        "uniform": "uEdgeMode",
+        "description": "Hold, repeat, mirror, or clear pixels moved beyond the source boundary.",
+    },
+    {
+        "name": "Trailamount", "label": "Motion Trail", "type": "float",
+        "page": "Sampling", "default": 0.0,
+        "min": 0.0, "max": 1.0, "uniform": "uTrailAmount",
+        "description": "Accumulate earlier motion samples for a bounded shutter trail.",
+    },
+    {
+        "name": "Trailsamples", "label": "Trail Samples", "type": "int",
+        "page": "Sampling", "default": 3,
+        "min": 1, "max": 5, "uniform": "uTrailSamples",
+        "description": "Use one to five samples; higher values increase GPU texture reads.",
     },
 )
 
@@ -2318,6 +3609,11 @@ def _apply_parameter_metadata(comp, pars, definition):
             par.label = label
         except Exception:
             pass
+        if "read_only" in definition:
+            try:
+                par.readOnly = bool(definition["read_only"])
+            except Exception:
+                pass
     try:
         metadata = dict(comp.fetch("tdimagefx_parameter_metadata", {}))
         metadata[definition["name"]] = _parameter_metadata(definition)
@@ -2970,7 +4266,7 @@ def build_rack(parent_comp, manifests):
     _append_parameter(rack, page, {"name": "Autotime", "label": "Auto Time", "type": "toggle", "default": True})
     _append_parameter(rack, page, {"name": "Timescale", "label": "Time Scale", "type": "float", "default": 1.0, "min": -10.0, "max": 10.0})
     _append_parameter(rack, page, {"name": "Manualtime", "label": "Manual Time", "type": "float", "default": 0.0, "min": -100000.0, "max": 100000.0})
-    _append_parameter(rack, page, {"name": "Time", "label": "Effective Time", "type": "float", "default": 0.0, "min": -100000.0, "max": 100000.0})
+    _append_parameter(rack, page, {"name": "Time", "label": "Effective Time", "type": "float", "default": 0.0, "min": -100000.0, "max": 100000.0, "read_only": True, "animatable": False})
     _append_parameter(rack, page, {"name": "Presetname", "label": "Preset Name", "type": "string", "default": "My Rack"})
     _append_parameter(rack, page, {"name": "Presetpath", "label": "Preset Path", "type": "file", "default": "rack/my-rack.json"})
     _append_parameter(rack, page, {"name": "Presetjson", "label": "Preset JSON", "type": "string", "default": ""})
@@ -3080,9 +4376,14 @@ def build_particle_module(parent_comp):
         "GPU random-move image particles. Use the demo routing toggles to "
         "choose particles and optional video effects."
     )
-    page = particles.appendCustomPage("Particles")
+    pages = {}
     parameter_bindings = []
     for definition in PARTICLE_PARAMETER_DEFINITIONS:
+        page_name = definition.get("page", "Particles")
+        page = pages.get(page_name)
+        if page is None:
+            page = particles.appendCustomPage(page_name)
+            pages[page_name] = page
         custom_pars = _append_parameter(particles, page, definition)
         parameter_bindings.append((definition, custom_pars))
     particles.par.Time.expr = (
@@ -3155,10 +4456,10 @@ def build_particle_module(parent_comp):
             vector_index,
             color_index,
         )
-        if definition["name"] == "Shape":
+        if definition["name"] in {"Shape", "Motionmode"}:
             particle_glsl.par[
                 "vec{}valuex".format(current_vector_index)
-            ].expr = "parent().par.Shape.menuIndex"
+            ].expr = "parent().par.{}.menuIndex".format(definition["name"])
 
     enable_switch = particles.create(switchTOP, "enable_switch")
     source.outputConnectors[0].connect(enable_switch.inputConnectors[0])
@@ -3440,7 +4741,8 @@ def build_color_adjustment_module(parent_comp):
     color_adjustment.color = (0.48, 0.28, 0.08)
     color_adjustment.comment = (
         "Single-pass GPU color correction, inversion, creative treatments, "
-        "duotone, and eight color-overlay blend modes with alpha preservation."
+        "tonal balance, film treatments, duotone, and sixteen color-overlay "
+        "blend modes with alpha preservation."
     )
     pages = {}
     parameter_bindings = []
@@ -3551,6 +4853,135 @@ def build_color_adjustment_module(parent_comp):
     color_adjustment_path = CORE_ROOT / "ColorAdjustment.tox"
     color_adjustment.save(str(color_adjustment_path), createFolders=True)
     return color_adjustment, color_adjustment_path
+
+
+def build_motion_studio_module(parent_comp):
+    """Build the reusable forty-style image motion and animation module."""
+
+    motion = parent_comp.create(baseCOMP, "motion_studio")
+    motion.color = (0.12, 0.34, 0.52)
+    motion.comment = (
+        "Forty selectable GPU motion styles with shared timing, transform, "
+        "deformation, edge, easing, seeded randomness, trail, mix, and "
+        "master-bypass controls."
+    )
+    pages = {}
+    parameter_bindings = []
+    for definition in MOTION_STUDIO_PARAMETER_DEFINITIONS:
+        page_name = definition.get("page", "Motion Studio")
+        page = pages.get(page_name)
+        if page is None:
+            page = motion.appendCustomPage(page_name)
+            pages[page_name] = page
+        custom_pars = _append_parameter(motion, page, definition)
+        parameter_bindings.append((definition, custom_pars))
+    motion.par.Time.expr = (
+        "absTime.seconds * me.par.Timescale "
+        "if me.par.Autotime else me.par.Manualtime"
+    )
+    motion.store(
+        "tdimagefx_motion_studio_module",
+        {
+            "schema_version": 1,
+            "id": "tdimagefx.core.motion-studio",
+            "renderer": "bounded_single_pass_glsl_top",
+            "styles": list(MOTION_STUDIO_STYLE_NAMES),
+            "style_count": len(MOTION_STUDIO_STYLE_NAMES),
+            "edge_modes": list(MOTION_STUDIO_EDGE_MODE_NAMES),
+            "easing_modes": list(MOTION_STUDIO_EASING_NAMES),
+            "maximum_trail_samples": 5,
+            "alpha_policy": "transform_with_source",
+            "video_fx_routing": "before_optional_rack",
+        },
+    )
+
+    source = motion.create(inTOP, "in1_image")
+    source.par.label = "source image"
+    source.nodeX = -400
+    source.nodeY = 0
+
+    shader_dat = motion.create(textDAT, "pixel_shader_motion_studio")
+    shader_dat.text = MOTION_STUDIO_SHADER
+    shader_dat.nodeX = -200
+    shader_dat.nodeY = -220
+
+    motion_glsl = motion.create(glslTOP, "effect_glsl_motion_studio")
+    source.outputConnectors[0].connect(motion_glsl.inputConnectors[0])
+    motion_glsl.nodeX = 0
+    motion_glsl.nodeY = 0
+    motion_glsl.par.pixeldat = motion_glsl.relativePath(shader_dat)
+    if motion_glsl.par["glslversion"] is not None:
+        motion_glsl.par.glslversion = "glsl460"
+    if motion_glsl.par["compilebehavior"] is not None:
+        motion_glsl.par.compilebehavior = "stalluntildone"
+    if motion_glsl.par["errorbehavior"] is not None:
+        motion_glsl.par.errorbehavior = "showerror"
+    if motion_glsl.par["outputresolution"] is not None:
+        motion_glsl.par.outputresolution = "useinput"
+
+    active_bindings = [
+        (definition, custom_pars)
+        for definition, custom_pars in parameter_bindings
+        if definition.get("uniform")
+    ]
+    motion_glsl.seq.vec.numBlocks = max(
+        1,
+        sum(
+            1
+            for definition, _custom_pars in active_bindings
+            if definition.get("type") not in {"rgb", "rgba"}
+        ),
+    )
+    motion_glsl.seq.color.numBlocks = max(
+        1,
+        sum(
+            1
+            for definition, _custom_pars in active_bindings
+            if definition.get("type") in {"rgb", "rgba"}
+        ),
+    )
+    vector_index = 0
+    color_index = 0
+    menu_parameters = {"Style", "Easing", "Edgemode"}
+    for definition, custom_pars in active_bindings:
+        current_vector_index = vector_index
+        vector_index, color_index = _configure_glsl_uniform(
+            motion_glsl,
+            definition,
+            custom_pars,
+            vector_index,
+            color_index,
+        )
+        if definition["name"] in menu_parameters:
+            motion_glsl.par[
+                "vec{}valuex".format(current_vector_index)
+            ].expr = "parent().par.{}.menuIndex".format(definition["name"])
+
+    enable_switch = motion.create(switchTOP, "enable_switch")
+    source.outputConnectors[0].connect(enable_switch.inputConnectors[0])
+    motion_glsl.outputConnectors[0].connect(enable_switch.inputConnectors[1])
+    enable_switch.par.index.expr = "1 if parent().par.Enabled else 0"
+    enable_switch.nodeX = 200
+    enable_switch.nodeY = 0
+
+    output = motion.create(outTOP, "out1_motion")
+    enable_switch.outputConnectors[0].connect(output.inputConnectors[0])
+    output.nodeX = 400
+    output.nodeY = 0
+    output.display = True
+    output.render = True
+    motion.par.opviewer = output.path
+
+    motion_glsl.cook(force=True)
+    errors = list(motion_glsl.errors())
+    if errors:
+        raise RuntimeError(
+            "Motion Studio shader failed: {}".format("; ".join(errors))
+        )
+
+    motion_path = CORE_ROOT / "MotionStudio.tox"
+    motion.save(str(motion_path), createFolders=True)
+    return motion, motion_path
 
 
 def build_browser(parent_comp, manifests, compatibility_confidence="declared"):
@@ -4189,6 +5620,7 @@ def build_library(project_comp, manifests, report):
         "Use core/ink_flow_fusion for minimal ink work, ink wash, and water-current particles.\n"
         "Use core/glitch_fusion for 24 selectable digital and analog glitch treatments.\n"
         "Use core/color_adjustment for grading, inversion, duotone, and color overlays.\n"
+        "Use core/motion_studio for 40 selectable movement and animation styles.\n"
         "Use core/fx_browser to search, filter, favorite, and create effects.\n"
         "Use the promoted Find(), CreateEffect(), CheckUpdates(), and HealthCheck() methods.\n"
         "All effect versions are immutable and stored under packages/<id>/<version>.\n"
@@ -4289,8 +5721,11 @@ def build_library(project_comp, manifests, report):
     )
     color_adjustment.nodeX = 1040
     color_adjustment.nodeY = 0
+    motion, motion_path = build_motion_studio_module(core_parent)
+    motion.nodeX = 1300
+    motion.nodeY = 0
     browser, browser_path = build_browser(core_parent, manifests, compatibility_confidence)
-    browser.nodeX = 1300
+    browser.nodeX = 1560
     browser.nodeY = 0
 
     library.par.Status = "Ready: {} packages".format(len(manifests))
@@ -4303,6 +5738,7 @@ def build_library(project_comp, manifests, report):
         "ink_flow": str(ink_flow_path),
         "glitch": str(glitch_path),
         "color_adjustment": str(color_adjustment_path),
+        "motion": str(motion_path),
         "browser": str(browser_path),
         "updater": str(CORE_ROOT / "FxUpdater.tox"),
     }
@@ -4313,6 +5749,7 @@ def build_library(project_comp, manifests, report):
         ink_flow_path,
         glitch_path,
         color_adjustment_path,
+        motion_path,
     )
 
 
@@ -4323,6 +5760,7 @@ def build_demo(
     ink_flow_path,
     glitch_path,
     color_adjustment_path,
+    motion_path,
 ):
     demo = project_comp.create(baseCOMP, "imagefx_demo")
     demo.nodeX = 100
@@ -4331,7 +5769,7 @@ def build_demo(
     demo.comment = (
         "Animated source -> optional ink flow -> optional random particles -> "
         "optional Glitch Fusion -> optional color adjustment -> optional "
-        "eight-slot video FX. "
+        "Motion Studio -> optional eight-slot video FX. "
         "Output defaults to 1920 x 1080 with 4K UHD and custom presets. "
         "Replace source_image with any TOP."
     )
@@ -4378,6 +5816,17 @@ def build_demo(
             "type": "toggle",
             "default": False,
             "description": "Apply the independently adjustable color module after Glitch Fusion.",
+        },
+    )
+    _append_parameter(
+        demo,
+        demo_page,
+        {
+            "name": "Motionenabled",
+            "label": "Motion Module Enabled",
+            "type": "toggle",
+            "default": False,
+            "description": "Animate the combined image with the selected Motion Studio style.",
         },
     )
     _append_parameter(
@@ -4470,10 +5919,20 @@ def build_demo(
     color_adjustment.par.Enabled.expr = "parent().par.Coloradjustmentenabled"
     glitch.outputConnectors[0].connect(color_adjustment.inputConnectors[0])
 
+    motion = load_tox_component(
+        demo,
+        motion_path,
+        "motion_studio",
+    )
+    motion.nodeX = 1000
+    motion.nodeY = 0
+    motion.par.Enabled.expr = "parent().par.Motionenabled"
+    color_adjustment.outputConnectors[0].connect(motion.inputConnectors[0])
+
     rack = load_tox_component(demo, rack_path, "fx_rack")
-    rack.nodeX = 1000
+    rack.nodeX = 1260
     rack.nodeY = 0
-    color_adjustment.outputConnectors[0].connect(rack.inputConnectors[0])
+    motion.outputConnectors[0].connect(rack.inputConnectors[0])
 
     # Supply visible, deterministic fixtures for every semantic auxiliary bus.
     # The reusable rack still exposes these as normal inputs; this only makes
@@ -4520,15 +5979,15 @@ def build_demo(
         fixture.outputConnectors[0].connect(rack.inputConnectors[input_index])
 
     video_fx_router = demo.create(switchTOP, "video_fx_router")
-    color_adjustment.outputConnectors[0].connect(video_fx_router.inputConnectors[0])
+    motion.outputConnectors[0].connect(video_fx_router.inputConnectors[0])
     rack.outputConnectors[0].connect(video_fx_router.inputConnectors[1])
     video_fx_router.par.index.expr = "1 if parent().par.Applyvideofx else 0"
-    video_fx_router.nodeX = 1250
+    video_fx_router.nodeX = 1510
     video_fx_router.nodeY = 0
 
     output = demo.create(outTOP, "out1_image")
     video_fx_router.outputConnectors[0].connect(output.inputConnectors[0])
-    output.nodeX = 1460
+    output.nodeX = 1720
     output.nodeY = 0
     if output.par["outputresolution"] is not None:
         output.par.outputresolution = "custom"
@@ -4717,6 +6176,7 @@ def build():
             ink_flow_path,
             glitch_path,
             color_adjustment_path,
+            motion_path,
         ) = build_library(
             project_comp,
             manifests,
@@ -4729,6 +6189,7 @@ def build():
             ink_flow_path,
             glitch_path,
             color_adjustment_path,
+            motion_path,
         )
         report["benchmark_data"] = str(_write_benchmark_data(report))
         if report["shader_errors"]:

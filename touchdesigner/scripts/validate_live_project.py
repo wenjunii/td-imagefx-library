@@ -10,7 +10,7 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 REPORT_PATH = PROJECT_ROOT / "build" / "envoy-validation" / "live-project.json"
 EXPECTED_PACKAGES = 96
-EXPECTED_VERSIONS = 122
+EXPECTED_VERSIONS = 124
 MANAGED_ROOTS = (
     "/project1/td_imagefx",
     "/project1/imagefx_demo",
@@ -21,6 +21,7 @@ OUTPUTS = (
     "/project1/imagefx_demo/particle_random_move/out1_particles",
     "/project1/imagefx_demo/glitch_fusion/out1_glitch",
     "/project1/imagefx_demo/color_adjustment/out1_color_adjustment",
+    "/project1/imagefx_demo/motion_studio/out1_motion",
     "/project1/imagefx_demo/fx_rack/out1_image",
     "/project1/td_imagefx/core/fx_browser/selected_preview",
 )

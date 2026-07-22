@@ -27,9 +27,12 @@ project.
 | `touchdesigner/scripts/install_dev_harness.py` | Non-saving compiled-core installer for a disposable project |
 | `touchdesigner/scripts/validate_live_project.py` | Read-only health, error, and TOP structural report |
 | `touchdesigner/scripts/validate_rack_selection.py` | State-restoring live regression test for all eight rack effect menus |
+| `touchdesigner/scripts/validate_all_effect_parameters.py` | State-restoring rendered-pixel sweep for every numeric component, toggle, rack mix, time, and per-effect time scale in all 96 latest packages |
+| `touchdesigner/scripts/validate_particle_module.py` | Pixel checks for all eight shapes, all eight motion modes, every numeric slider, time behavior, range metadata, bypass, and routing |
 | `touchdesigner/scripts/validate_ink_flow_module.py` | Pixel checks for both ink styles, water particles, bypass, and deterministic motion |
 | `touchdesigner/scripts/validate_glitch_fusion_module.py` | Pixel checks for 24 glitch styles, bypass, timing, seed, routing, and shader diagnostics |
-| `touchdesigner/scripts/validate_color_adjustment_module.py` | Pixel checks for neutral grading, adjustments, eight overlay modes, alpha preservation, routing, and shader diagnostics |
+| `touchdesigner/scripts/validate_color_adjustment_module.py` | Pixel checks for neutral grading, all 72 numeric slider components, sixteen overlay modes, alpha preservation, routing, range metadata, and shader diagnostics |
+| `touchdesigner/scripts/validate_motion_studio_module.py` | Pixel checks for 40 motion styles, bypass, manual timing, easing, edges, bounded trails, routing, and shader diagnostics |
 | `touchdesigner/scripts/validate_output_resolution.py` | Live checks for default HD, 4K UHD, custom dimensions, bounds, and output propagation |
 
 Detailed setup and commands are in
@@ -47,7 +50,7 @@ TouchDesigner Python or GLSL.
 
 For an audit, follow `envoy-validation-plan.json`: confirm the TD instance,
 record baseline performance, discover the network, run `HealthCheck`, check
-recursive errors and warnings, capture the seven approved TOPs, and compare
+recursive errors and warnings, capture the eight approved TOPs, and compare
 final performance. Envoy's `capture_top` quality verdict must pass, and the
 images still require visual inspection. A clean operator graph does not prove
 that a frame is visible or aesthetically correct.
@@ -61,6 +64,11 @@ the bridge follows the active project-local registry entry automatically;
 `validate_rack_selection.py` is an explicit mutation test:
 it snapshots the rack preset, exercises all eight menu callbacks, restores the
 snapshot in a `finally` block, and never saves the project.
+`validate_all_effect_parameters.py` is likewise a disposable-harness-only
+mutation test. It restores the complete rack preset, demo routing, source time,
+resolution, and timeline state in a `finally` block and never saves. Its report
+records the context used for controls that only apply in a particular mode or
+state.
 
 The reusable browser includes an Execute DAT that defers `UpdateSelection()` by
 one frame on project startup and component creation. This forces Movie File In
