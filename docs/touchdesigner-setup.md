@@ -41,49 +41,78 @@ Do not point a production component at a mutable download or staging path.
 The repository includes:
 
 - `TD_ImageFX_Library.toe` with `/project1/td_imagefx` and `/project1/imagefx_demo`;
-- 122 versioned effect `.tox` files under `packages/<package-id>/<version>/tox/`: one current version for each of 96 effect IDs plus 26 retained predecessors;
+- 124 versioned effect `.tox` files under `packages/<package-id>/<version>/tox/`: one current version for each of 96 effect IDs plus 28 retained predecessors;
 - `touchdesigner/core/TDImageFXLibrary.tox`;
 - `touchdesigner/core/FxRack.tox`;
 - `touchdesigner/core/InkFlowFusion.tox`;
 - `touchdesigner/core/ParticleRandomMove.tox`;
 - `touchdesigner/core/GlitchFusion.tox`;
 - `touchdesigner/core/ColorAdjustment.tox`;
+- `touchdesigner/core/MotionStudio.tox`;
 - `touchdesigner/core/FxBrowser.tox`;
 - `touchdesigner/core/FxUpdater.tox`.
 
 Open the `.toe` directly for the fastest start. Its browser, rack, demo, gallery, and benchmark data use the latest 96 versions. Exact retained versions remain available through version-aware library calls and project locks. Keep the project in the repository root when using the default configuration: blank **Library Root** fields resolve to `project.folder`. When importing a core `.tox` into a show elsewhere, set its **Library Root** to this checkout or a verified installed-package root.
 
-For a quick inventory check in the Textport, `op('/project1/td_imagefx').HealthCheck()` should return `ok=True`, `package_count=96`, and `package_version_count=122`, with an empty `missing_entrypoints` list.
+For a quick inventory check in the Textport, `op('/project1/td_imagefx').HealthCheck()` should return `ok=True`, `package_count=96`, and `package_version_count=124`, with an empty `missing_entrypoints` list.
+
+For exhaustive package-control QA, run
+`touchdesigner/scripts/validate_all_effect_parameters.py` from the Python
+Textport in a disposable development harness. It loads all 96 latest packages
+through rack slot 1 and checks every numeric manifest component, toggle, rack
+mix, effective-time response, per-effect time scale, parameter range/clamp
+metadata, finite pixels, clean diagnostics, and 320 x 180 cook resolution. The
+ignored report is `build/envoy-validation/all-effect-parameters.json`. The
+script restores rack, demo, source-time, resolution, and timeline state in a
+`finally` block and never saves the project.
+
+Rack-loaded components deliberately show rack-owned **Enable**, **Mix**,
+**Effective Time**, and metadata fields as read-only. Use the slot controls on
+`fx_rack` for enable/mix and the rack's global time controls; each effect's
+editable **Time Scale** multiplies that global time.
 
 For particle-specific GPU and routing QA, run
 `touchdesigner/scripts/validate_particle_module.py` from the Python Textport.
 It temporarily freezes demo time, exercises all four combinations of
 **Random Particles Enabled** and **Apply Video Effects**, checks bypass fidelity,
-random movement, seed variation, and shader diagnostics, then restores the
-artist-facing values. Its ignored report is written to
+all eight shapes, all eight motion modes, every numeric slider, range and clamp
+metadata, resolved-time behavior, seed variation, and shader diagnostics, then
+restores the artist-facing values. Its ignored report is written to
 `build/envoy-validation/particle-module.json`.
 
 For ink-flow QA, run
 `touchdesigner/scripts/validate_ink_flow_module.py` from the Python Textport.
 It checks whole-module and independent-feature bypass, both distinct ink
-styles, water-current motion, seed variation, combined rendering, the
-500-column maximum, and shader diagnostics. Its ignored report is
+styles, every numeric slider (including paper/ink alpha), effective-time
+locking and time scale, water-current motion, seed variation, combined
+rendering, the 500-column maximum, and shader diagnostics. Its ignored report is
 `build/envoy-validation/ink-flow-module.json`.
 
 For Glitch Fusion QA, run
 `touchdesigner/scripts/validate_glitch_fusion_module.py` from the Python
 Textport. It checks whole-module and zero-mix bypass, the exact 24-style menu,
-visible and distinct output from every style, time and seed variation, rack
+visible and distinct output from every style, every numeric slider,
+effective-time locking, time and seed variation, rack
 routing, output resolution, and shader diagnostics. Its ignored report is
 `build/envoy-validation/glitch-fusion-module.json`.
 
 For Color Adjustment QA, run
 `touchdesigner/scripts/validate_color_adjustment_module.py` from the Python
 Textport. It checks whole-module and zero-mix bypass, neutral-default fidelity,
-all grading families, the exact eight-mode overlay menu, visual distinction,
-source-alpha preservation, rack routing, output resolution, and shader
-diagnostics. Its ignored report is
+all grading families, every numeric slider component, the exact sixteen-mode
+overlay menu, visual distinction, endpoint/range metadata, source-alpha
+preservation, rack routing, output resolution, and shader diagnostics. Its
+ignored report is
 `build/envoy-validation/color-adjustment-module.json`.
+
+For Motion Studio QA, run
+`touchdesigner/scripts/validate_motion_studio_module.py` from the Python
+Textport. It checks exact master/mix/amount bypass, all 40 visible and distinct
+styles, deterministic manual-time motion, the exact six easing and four edge
+modes, every numeric slider, effective-time locking, bounded trail sampling,
+rack routing, output resolution, and shader
+diagnostics. Its ignored report is
+`build/envoy-validation/motion-studio-module.json`.
 
 For output-resolution QA, run
 `touchdesigner/scripts/validate_output_resolution.py` from the Python Textport.
@@ -111,7 +140,7 @@ operators, and replaces its generated project atomically.
 For AI-assisted live inspection, create an ignored project at
 `integrations/embody/local/TD_ImageFX_DevHarness.toe`, install Embody there, and
 run `touchdesigner/scripts/install_dev_harness.py`. The script loads the compiled
-library, ink, particle, glitch, and rack components, synchronizes their tracked
+library, ink, particle, glitch, color, motion, and rack components, synchronizes their tracked
 extension sources, repairs portable shader references, points them at this
 checkout, requires the exact unnumbered harness identity, refuses the canonical
 project, refuses existing managed roots, and never saves. If TouchDesigner's
@@ -154,7 +183,7 @@ project or save any work before running it.
    )
    ```
 
-6. Confirm the Textport reports 96 current effects selected from 122 validated package versions and the path to `build/touchdesigner-build-report.json`.
+6. Confirm the Textport reports 96 current effects selected from 124 validated package versions and the path to `build/touchdesigner-build-report.json`.
 7. Inspect that report for `errors`, `shader_errors`, and `preview_errors` before accepting the native output.
 8. Run the generated-document and repository checks described below.
 9. Create or update an exact project lock before treating a show as production-ready.
@@ -163,13 +192,13 @@ The builder creates or updates:
 
 - `TD_ImageFX_Library.toe`;
 - a versioned `.tox` for the latest version of each of 96 effect IDs while preserving all tracked exact-version artifacts;
-- seven reusable core `.tox` files for the library, rack, ink flow, random particles, Glitch Fusion, browser, and updater;
+- nine reusable core `.tox` files for the library, rack, ink flow, random particles, Glitch Fusion, Color Adjustment, Motion Studio, browser, and updater;
 - declared single-pass and multi-pass GLSL graphs plus temporal/simulation feedback graphs;
 - 96 preview PNGs under `docs/gallery/`;
 - `docs/benchmark-data.json` with per-effect runtime samples;
 - `build/touchdesigner-build-report.json` with environment, graph, asset, timing, and shader diagnostics.
 
-The build validates package identity, manifest contracts, declared paths, containment, and required assets across all 122 immutable versions before constructing networks. It then selects only the latest version of each of the 96 effect IDs for the native catalog, previews, and benchmarks. Tracked exact-version `.tox` files are never rewritten; a changed effect must receive a new version. Untracked prepublication components may be regenerated before they enter history. Outside a Git checkout, overwriting an existing versioned component requires the explicit `TDIMAGEFX_ALLOW_UNTRACKED_TOX_OVERWRITE=1` escape hatch. The build also fails if a current shader does not compile or a preview cannot be saved, and writes runtime failure details to its report.
+The build validates package identity, manifest contracts, declared paths, containment, and required assets across all 124 immutable versions before constructing networks. It then selects only the latest version of each of the 96 effect IDs for the native catalog, previews, and benchmarks. Tracked exact-version `.tox` files are never rewritten; a changed effect must receive a new version. Untracked prepublication components may be regenerated before they enter history. Outside a Git checkout, overwriting an existing versioned component requires the explicit `TDIMAGEFX_ALLOW_UNTRACKED_TOX_OVERWRITE=1` escape hatch. The build also fails if a current shader does not compile or a preview cannot be saved, and writes runtime failure details to its report.
 
 Stateful gallery PNGs are deterministic illustrations, not recordings of real-time Feedback TOP scheduling. The builder normally starts from a black reset seed, supplies a deterministic prior-frame fixture when a freeze-only effect would otherwise hold an empty reset frame, and creates a temporary static shader graph that iterates the declared state pass (including declared retained-history delay) before saving the render pass. It deletes that preview-only graph afterward; the versioned `.tox` keeps its black reset seed and live Feedback TOP network. Benchmarks are captured from the actual runtime graph before this preview harness is created and remain first-frame samples rather than warmed steady-state measurements.
 
@@ -183,7 +212,7 @@ python tools/build_gallery.py
 python tools/benchmark_report.py
 ```
 
-The native-validation command accepts only a clean build report and writes `docs/native-validation.json`, binding the named TouchDesigner environment to the size and SHA-256 digest of the library `.toe`, all versioned effect `.tox` files, and the eight core `.tox` files.
+The native-validation command accepts only a clean build report and writes `docs/native-validation.json`, binding the named TouchDesigner environment to the size and SHA-256 digest of the library `.toe`, all versioned effect `.tox` files, and the nine core `.tox` files.
 
 Compare every changed preview on representative media. Only after intentional visual approval should you replace the SHA-256 baselines:
 
@@ -223,12 +252,13 @@ Wave Warp -> Exposure -> Gaussian Blur -> RGB Split
 Each of eight slots provides effect selection, enable, dry/wet mix, modulation depth/rate/state, Up, Down, Reset, and Bypass. Six auxiliary buses route second image, displacement, depth, normal, flow, and mask inputs by declared semantic role. Global controls reload/reset the rack and bypass or enable every slot. **Auto Time** and **Time Scale** drive time-aware parameters; disable Auto Time and set **Manual Time** for deterministic inspection.
 
 The generated demo routes source -> `ink_flow` -> `particle_random_move` ->
-`glitch_fusion` -> `color_adjustment` -> the eight-slot rack. **Ink Flow Module
+`glitch_fusion` -> `color_adjustment` -> `motion_studio` -> the eight-slot rack. **Ink Flow Module
 Enabled** bypasses the combined ink and water-particle module, **Random
 Particles Enabled** controls the existing random-move stage, **Glitch Module
 Enabled** controls the 24-style Glitch Fusion stage, **Color Adjustment
-Enabled** controls the grading/overlay stage, and **Apply Video Effects**
-controls the rack. Inside `ink_flow`, **Ink Visual Enabled** and **Water
+Enabled** controls the grading/overlay stage, **Motion Module Enabled** controls
+the 40-style Motion Studio stage, and **Apply Video Effects** controls the rack.
+Inside `ink_flow`, **Ink Visual Enabled** and **Water
 Particles Enabled** are independent.
 
 Select `imagefx_demo` and use its **Output** page to choose **HD 1920 x 1080**
@@ -246,14 +276,28 @@ opacity, ink mix, seed, and time. Its sparse default is 32 columns, with an
 adjustable range of 8 through 500. Select `particle_random_move` to tune the
 separate random-particle stage. That module's default 96-column grid is about
 5,000 particles at 16:9; reduce it first for 4K or multi-output qualification.
+For the separate `particle_random_move` stage, choose Circle, Square, Diamond,
+Triangle, Hexagon, Ring, Star, or Line and animate it with Orbit, Wander, Wave,
+Swirl, Fountain, Rain, Explosion, or Flow. Appearance, variation, drift,
+turbulence, scatter, pulse, source sampling, compositing, tint, HSV, seed, and
+time controls are independently adjustable. **Effective Time** is a read-only
+resolved-time display; use **Auto Time**, **Time Scale**, or **Manual Time** to
+animate it.
+
 Select `glitch_fusion` to choose one of 24 bounded GPU glitch styles and tune
 its timing, intensity, mix, geometry, signal, color, compression, corruption,
 and seed controls. Select `color_adjustment` to tune exposure, brightness,
-contrast, saturation, vibrance, hue, temperature/tint, input levels, gamma,
-RGB lift/gain, shadows/highlights, inversion, monochrome, sepia, posterize,
-duotone, and one of eight adjustable color-overlay blend modes. Its defaults
-are neutral, the module and overlay have independent toggles, and source alpha
-is preserved.
+global offset, contrast/pivot, saturation, vibrance, hue, temperature/tint,
+input levels, gamma, RGB lift/gain, extended tonal shaping, three-way color
+balance, clarity/dehaze, inversion, monochrome, sepia, posterize, fade,
+solarize, threshold, duotone, grain, vignette, and one of sixteen adjustable
+color-overlay blend modes. Its defaults are neutral; the module and overlay
+have independent toggles, and source alpha
+is preserved. Select `motion_studio` to choose one of 40 transform, camera,
+wave, warp, stepped, or procedural movements and adjust time, speed, phase,
+amount, direction, center, zoom, rotation, frequency, warp, randomness, seed,
+easing, edge handling, and bounded one-through-five-sample trails. Disable
+**Auto Time** and set **Manual Time** for repeatable frames.
 
 **Particle Columns** accepts 8 through 500. A 500-column 16:9 grid is
 approximately 140,000 particles, so qualify the upper range against the actual

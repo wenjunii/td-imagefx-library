@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-07-21T21:52:37.064306+00:00",
+  "generated_at": "2026-07-22T17:26:37.783878+00:00",
   "library_version": "0.3.0",
   "touchdesigner": {
     "version": "099",
@@ -10,11 +10,11 @@
   },
   "builder": {
     "path": "touchdesigner/scripts/build_project.py",
-    "sha256": "2e18f8cfd21839912d3c1aead53e25c85c1258edee2ef7f7a490c63896696ba2"
+    "sha256": "30c7f59c6c93159a611fb9012b7303d86bfcc4fbee830fa260d313a77a13d3ff"
   },
   "catalog": {
     "current_effects": 96,
-    "package_versions": 122
+    "package_versions": 124
   },
   "results": {
     "builder_errors": 0,
@@ -29,48 +29,53 @@
   "artifacts": [
     {
       "path": "TD_ImageFX_Library.toe",
-      "bytes": 162074,
-      "sha256": "6fdeb2c80188c93d2c3fce4e4cacdb5d668c601f1a46c6b0dd0828f43ecdbb10"
+      "bytes": 201010,
+      "sha256": "ca798c05420217d5dab350fdf7eacc76bc8140b43072f62c11305d2bf55d9029"
     },
     {
       "path": "touchdesigner/core/TDImageFXLibrary.tox",
-      "bytes": 105294,
-      "sha256": "2023f7eab9bac17cfa17cb50c37af46932b92047d8b8ea4e9a54bf664609bdfe"
+      "bytes": 124830,
+      "sha256": "971a4acb64198feca59e61e98d90ace56ab849b0c8c0b930788d8e1dcb4fefc2"
     },
     {
       "path": "touchdesigner/core/FxBrowser.tox",
       "bytes": 24814,
-      "sha256": "7396b0b0d10da0a3adcc043d33775e1191b765d9eb24acece6b575e13675931b"
+      "sha256": "d7da15a65cdb496ee2091bb81445a03bb33b1dadf001c8c21f32db2f0fa0580d"
     },
     {
       "path": "touchdesigner/core/FxRack.tox",
-      "bytes": 25158,
-      "sha256": "889ca2728f8eaadc92522ad80f83a90ae12206a69bbee22b0c2aaa1723d5c0b6"
+      "bytes": 25446,
+      "sha256": "f9c3de106433a2ee1a68dcf3a1d9f193b2819c5d451ce6e2f44275c63440230f"
     },
     {
       "path": "touchdesigner/core/ParticleRandomMove.tox",
-      "bytes": 5182,
-      "sha256": "c697eaf319604bda73641a6ff45efcd959ba64b6bf08b21c8b22091196f53647"
+      "bytes": 9046,
+      "sha256": "583bc9de3c12eee3070da446e31760abdf220fdcf3405e3f66087e8b0a2d99b1"
     },
     {
       "path": "touchdesigner/core/InkFlowFusion.tox",
-      "bytes": 8542,
-      "sha256": "dae66cc5f4dd6b9ffa50a788a18688ca2fca1bf6103824493f578c0cf6e6c113"
+      "bytes": 8582,
+      "sha256": "51076e0d120e7363390f1e70d711400c0d4496d8715096b8e8ce083577d318a9"
     },
     {
       "path": "touchdesigner/core/GlitchFusion.tox",
       "bytes": 9030,
-      "sha256": "59971ec2a33f5c66954ed135d2577f29198a3e3abc41faf37f513fcba01afaff"
+      "sha256": "847a59635864f954ad61a80b79d2666a7b0e31fccdd44f03ac6485b9b387dcd5"
     },
     {
       "path": "touchdesigner/core/ColorAdjustment.tox",
-      "bytes": 7198,
-      "sha256": "8c3e4afe391184a91d1ff5f386de23a3333e7be2a0a681bd05c5d06d7d9ad30e"
+      "bytes": 11270,
+      "sha256": "f2e067fd1095d18533a34fda019922fbcb4154ae50a4432f4d82e0b0055eb27b"
+    },
+    {
+      "path": "touchdesigner/core/MotionStudio.tox",
+      "bytes": 9574,
+      "sha256": "7391664c3ee7fe5d3481c2138e4109d544e565f1377568d729bca997f0c843cb"
     },
     {
       "path": "touchdesigner/core/FxUpdater.tox",
-      "bytes": 13638,
-      "sha256": "caf135d09c73eea05a648463baba4462e76382a3905321383e99da4f29949f51"
+      "bytes": 13630,
+      "sha256": "3491990ab8affa3fffc26c25bb0a57caa5c390ebea5f21f9186a153b230e981f"
     },
     {
       "path": "packages/tdimagefx.blur.bilateral-blur/1.0.0/tox/tdimagefx_blur_bilateral_blur.tox",
@@ -333,6 +338,11 @@
       "sha256": "bb6e4363cdbec074812740536302e3554dd874b801983a9bcdb9229f726015de"
     },
     {
+      "path": "packages/tdimagefx.key.despill/1.1.0/tox/tdimagefx_key_despill.tox",
+      "bytes": 3286,
+      "sha256": "1ab419023b52ae0305dbdc07ec4f409b4f1fcef6ad19561d76536606c33c3f5a"
+    },
+    {
       "path": "packages/tdimagefx.key.difference-key/1.0.0/tox/tdimagefx_key_difference_key.tox",
       "bytes": 3254,
       "sha256": "2038a86c7f995e428cc388d65e335228427228689cdc3a7ae0daccd133335461"
@@ -526,6 +536,11 @@
       "path": "packages/tdimagefx.stylize.vignette/1.1.0/tox/tdimagefx_stylize_vignette.tox",
       "bytes": 2198,
       "sha256": "f6a7a4f2e947361bd891c843927c08f7002d584d659e48d8713aa3719d4b3d39"
+    },
+    {
+      "path": "packages/tdimagefx.stylize.vignette/1.2.0/tox/tdimagefx_stylize_vignette.tox",
+      "bytes": 3094,
+      "sha256": "7739f6a30b82ad8d21336e8177567fccb50ed7216660baf2d70f3081c31b7b62"
     },
     {
       "path": "packages/tdimagefx.temporal.echo/1.0.0/tox/tdimagefx_temporal_echo.tox",

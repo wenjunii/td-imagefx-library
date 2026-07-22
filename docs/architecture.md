@@ -32,7 +32,7 @@ flowchart LR
 
 `packages/<package-id>/<version>/` holds one immutable package. `package.json` is its entry point. Declared assets may include GLSL, component source, presets, examples, previews, license text, or future platform-specific payloads. Undeclared executable assets do not become trusted merely because they are present in a directory.
 
-The v0.3 source namespace contains **96 current effect IDs and 122 immutable version directories**. The 26 additional historical versions come from the twelve original v0.1 effects and the fourteen stateful effects that retain older packages beside their current `1.1.0` versions. Latest-version views contain:
+The current source namespace contains **96 current effect IDs and 124 immutable version directories**. The 28 additional historical versions include the twelve original v0.1 effects, fourteen stateful predecessors, and the retained Despill and Vignette versions superseded by slider-response fixes. Latest-version views contain:
 
 | Processing model | Count |
 | --- | ---: |
@@ -146,23 +146,35 @@ The browser supports text/category/tag/favorite filters plus channel, model, cap
 
 The rack provides eight ordered slots; enable/mix/bypass; reset/reload; validated presets; modulation; automatic or manual time; and semantic second-image/displacement/depth/normal/flow/mask routing. Presets are UI/project state. They can retain exact versions but do not install packages, approve updates, or replace the project lock.
 
-`InkFlowFusion.tox`, `ParticleRandomMove.tox`, `GlitchFusion.tox`, and
-`ColorAdjustment.tox` are separate reusable core modules rather than immutable
-effect packages. Ink Flow Fusion combines two single-pass minimal Chinese ink
+Rack ownership is explicit at the loaded-component boundary. Slot **Enable**,
+**Mix**, effective **Time**, and package/status metadata are read-only inside an
+effect because the rack drives them; artist-facing per-effect **Time Scale**
+remains editable and multiplies rack time. The state-restoring all-effect live
+validator loads every latest package and verifies rendered response for all
+manifest numeric components, toggles, rack mix, time, and local time scale.
+
+`InkFlowFusion.tox`, `ParticleRandomMove.tox`, `GlitchFusion.tox`,
+`ColorAdjustment.tox`, and `MotionStudio.tox` are separate reusable core
+modules rather than immutable effect packages. Ink Flow Fusion combines two single-pass minimal Chinese ink
 treatments with an optional seeded water-current particle composite. Its whole
 module, visual treatment, and particle layer each have explicit bypass
 controls. Particle Random Move converts an image into deterministic seeded
-random-moving particles on the GPU and returns its input unchanged when
-disabled. Glitch Fusion provides 24 bounded single-pass corruption styles with
+random-moving particles on the GPU with eight shapes, eight motion models,
+variable appearance, spatial sampling, compositing, and particle-color
+controls, and returns its input unchanged when disabled. Glitch Fusion provides 24 bounded single-pass corruption styles with
 shared timing, geometry, signal, color, seed, mix, and master-bypass controls.
 Color Adjustment is a neutral-by-default single pass for primary grading,
-white balance, tonal range, inversion, monochrome/sepia/posterize/duotone, and
-eight overlay blend modes; it preserves source alpha. None of these modules
+white balance, tonal shaping, three-way RGB balance, clarity/dehaze,
+inversion, monochrome/sepia/posterize/fade/solarize/threshold/duotone, sixteen
+overlay blend modes, grain, and vignette; it preserves source alpha. Motion Studio provides
+40 selectable transform, camera, wave, warp, stepped, and procedural movement
+styles with master/mix bypass, six easing modes, four edge modes, deterministic
+manual time, and bounded one-through-five-sample trails. None of these modules
 retains feedback state.
 
 The canonical demo routes source -> ink-flow module -> random-particle module
--> Glitch Fusion -> Color Adjustment -> rack, then uses an explicit final
-switch for the rack. The five demo-level bypasses and the two feature switches
+-> Glitch Fusion -> Color Adjustment -> Motion Studio -> rack, then uses an explicit final
+switch for the rack. The six demo-level bypasses and the two feature switches
 inside Ink Flow Fusion allow every stage to be used independently or combined
 without rewiring.
 
@@ -184,7 +196,7 @@ The source-first lifecycle is:
 
 1. `tools/new_effect.py` creates a non-overwriting package scaffold with v0.3 contracts.
 2. Authors review manifest, GLSL, provenance, limitations, inputs, and defaults.
-3. `touchdesigner/scripts/build_project.py` runs inside TouchDesigner to validate all 122 manifests, select the latest 96, build native components/project, compile shaders, render previews, and capture benchmark samples.
+3. `touchdesigner/scripts/build_project.py` runs inside TouchDesigner to validate all 124 manifests, select the latest 96, build native components/project, compile shaders, render previews, and capture benchmark samples.
 4. Authors inspect the native build report and visual output, then record the approved environment and native-artifact hashes with `tools/record_native_validation.py`.
 5. Gallery/baseline/benchmark tools regenerate and check derived documentation.
 6. `tools/verify_repository.py` enforces counts, contracts, assets, native entrypoints, generated coverage, tests, feeds, and version consistency.

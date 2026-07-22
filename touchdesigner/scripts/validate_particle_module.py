@@ -20,6 +20,176 @@ ROUTER_PATH = DEMO_PATH + "/video_fx_router"
 PARTICLE_OUTPUT_PATH = PARTICLE_PATH + "/out1_particles"
 PARTICLE_SHADER_PATH = PARTICLE_PATH + "/effect_glsl_particles"
 
+EXPECTED_SHAPES = (
+    "circle",
+    "square",
+    "diamond",
+    "triangle",
+    "hexagon",
+    "ring",
+    "star",
+    "line",
+)
+
+EXPECTED_MOTION_MODES = (
+    "orbit",
+    "wander",
+    "wave",
+    "swirl",
+    "fountain",
+    "rain",
+    "explosion",
+    "flow",
+)
+
+EDITABLE_CONTROL_NAMES = (
+    "Autotime",
+    "Timescale",
+    "Manualtime",
+    "Density",
+    "Size",
+    "Sizevariation",
+    "Aspectx",
+    "Aspecty",
+    "Rotation",
+    "Spin",
+    "Softness",
+    "Hollow",
+    "Speed",
+    "Speedvariation",
+    "Moveamount",
+    "Jitter",
+    "Driftx",
+    "Drifty",
+    "Turbulence",
+    "Scatter",
+    "Pulseamount",
+    "Pulserate",
+    "Seed",
+    "Shape",
+    "Motionmode",
+    "Sourceblend",
+    "Opacity",
+    "Opacityvariation",
+    "Sampleoffsetx",
+    "Sampleoffsety",
+    "Tintcolorr",
+    "Tintcolorg",
+    "Tintcolorb",
+    "Tintcolora",
+    "Tintamount",
+    "Hue",
+    "Huevariation",
+    "Saturation",
+    "Brightness",
+    "Backgroundr",
+    "Backgroundg",
+    "Backgroundb",
+    "Backgrounda",
+)
+
+BASE_VALUES = {
+    "Autotime": False,
+    "Timescale": 1.0,
+    "Manualtime": 1.137,
+    "Density": 72,
+    "Size": 0.72,
+    "Sizevariation": 0.0,
+    "Aspectx": 1.0,
+    "Aspecty": 1.0,
+    "Rotation": 0.0,
+    "Spin": 0.0,
+    "Softness": 0.0,
+    "Hollow": 0.0,
+    "Speed": 0.8,
+    "Speedvariation": 0.0,
+    "Moveamount": 0.55,
+    "Jitter": 0.12,
+    "Driftx": 0.08,
+    "Drifty": 0.03,
+    "Turbulence": 0.0,
+    "Scatter": 0.0,
+    "Pulseamount": 0.0,
+    "Pulserate": 1.0,
+    "Seed": 1,
+    "Shape": "square",
+    "Motionmode": "orbit",
+    "Sourceblend": 0.0,
+    "Opacity": 1.0,
+    "Opacityvariation": 0.0,
+    "Sampleoffsetx": 0.0,
+    "Sampleoffsety": 0.0,
+    "Tintcolorr": 1.0,
+    "Tintcolorg": 1.0,
+    "Tintcolorb": 1.0,
+    "Tintcolora": 1.0,
+    "Tintamount": 0.0,
+    "Hue": 0.0,
+    "Huevariation": 0.0,
+    "Saturation": 1.0,
+    "Brightness": 0.0,
+    "Backgroundr": 0.0,
+    "Backgroundg": 0.0,
+    "Backgroundb": 0.0,
+    "Backgrounda": 0.0,
+}
+
+SLIDER_CASES = {
+    "Manualtime": ({}, 0.2, 1.4),
+    "Density": ({}, 32, 110),
+    "Size": ({}, 0.24, 1.0),
+    "Sizevariation": ({}, 0.0, 0.85),
+    "Aspectx": ({}, 0.5, 2.2),
+    "Aspecty": ({}, 0.5, 2.2),
+    "Rotation": ({"Shape": "square"}, -55.0, 40.0),
+    "Spin": ({"Shape": "square"}, -1.5, 1.5),
+    "Softness": ({}, 0.0, 0.85),
+    "Hollow": ({}, 0.0, 0.78),
+    "Speed": ({}, 0.25, 2.2),
+    "Speedvariation": ({}, 0.0, 0.9),
+    "Moveamount": ({}, 0.1, 1.1),
+    "Jitter": ({}, 0.0, 0.55),
+    "Driftx": ({}, -0.65, 0.65),
+    "Drifty": ({}, -0.65, 0.65),
+    "Turbulence": ({}, 0.0, 0.85),
+    "Scatter": ({}, 0.0, 0.85),
+    "Pulseamount": ({"Manualtime": 0.37}, 0.0, 0.8),
+    "Pulserate": ({"Manualtime": 0.37, "Pulseamount": 0.8}, 0.4, 3.2),
+    "Seed": ({}, 1, 47),
+    "Sourceblend": ({}, 0.0, 0.85),
+    "Opacity": ({}, 0.2, 1.0),
+    "Opacityvariation": ({}, 0.0, 0.9),
+    "Sampleoffsetx": ({}, -0.2, 0.2),
+    "Sampleoffsety": ({}, -0.2, 0.2),
+    "Tintcolorr": ({"Tintamount": 0.85}, 0.0, 1.0),
+    "Tintcolorg": ({"Tintamount": 0.85}, 0.0, 1.0),
+    "Tintcolorb": ({"Tintamount": 0.85}, 0.0, 1.0),
+    "Tintcolora": (
+        {"Tintamount": 1.0, "Tintcolorr": 0.85, "Tintcolorg": 0.15},
+        0.1,
+        1.0,
+    ),
+    "Tintamount": (
+        {"Tintcolorr": 0.85, "Tintcolorg": 0.15, "Tintcolorb": 0.65},
+        0.0,
+        1.0,
+    ),
+    "Hue": ({}, -0.25, 0.3),
+    "Huevariation": ({}, 0.0, 0.9),
+    "Saturation": ({}, 0.2, 2.2),
+    "Brightness": ({}, -0.3, 0.3),
+    "Backgroundr": ({"Backgrounda": 1.0}, 0.0, 1.0),
+    "Backgroundg": ({"Backgrounda": 1.0}, 0.0, 1.0),
+    "Backgroundb": ({"Backgrounda": 1.0}, 0.0, 1.0),
+    "Backgrounda": (
+        {"Backgroundr": 0.25, "Backgroundg": 0.45, "Backgroundb": 0.75},
+        0.0,
+        1.0,
+    ),
+}
+
+EXPECTED_SLIDER_NAMES = set(SLIDER_CASES) | {"Timescale"}
+
 
 def _messages(operator, method_name):
     method = getattr(operator, method_name, None)
@@ -68,6 +238,63 @@ def _mean_absolute_difference(left, right):
     if left.shape != right.shape:
         return None
     return float(np.mean(np.abs(left.astype(np.float32) - right.astype(np.float32))))
+
+
+def _signature(image):
+    row_step = max(1, image.shape[0] // 32)
+    column_step = max(1, image.shape[1] // 32)
+    sample = np.ascontiguousarray(
+        image[::row_step, ::column_step, : min(3, image.shape[-1])]
+    )
+    import hashlib
+
+    return hashlib.sha256(sample.tobytes()).hexdigest()
+
+
+def _set_values(component, values):
+    for name, value in values.items():
+        parameter = component.par[name]
+        if parameter is None:
+            raise RuntimeError("Missing particle parameter {}".format(name))
+        parameter.val = value
+
+
+def _sweep_sliders(component, output):
+    differences = {}
+    finite = {}
+    ranges = {}
+    endpoint_values = {}
+    for name, (activators, low_value, high_value) in SLIDER_CASES.items():
+        _set_values(component, BASE_VALUES)
+        _set_values(component, activators)
+        parameter = component.par[name]
+        if parameter is None:
+            raise RuntimeError("Missing particle slider {}".format(name))
+        parameter.val = low_value
+        low_evaluated = parameter.eval()
+        low_image = _capture(output)
+        parameter.val = high_value
+        high_evaluated = parameter.eval()
+        high_image = _capture(output)
+        differences[name] = _mean_absolute_difference(low_image, high_image)
+        finite[name] = bool(
+            np.isfinite(low_image).all() and np.isfinite(high_image).all()
+        )
+        ranges[name] = {
+            "min": float(parameter.min),
+            "max": float(parameter.max),
+            "norm_min": float(parameter.normMin),
+            "norm_max": float(parameter.normMax),
+            "clamp_min": bool(parameter.clampMin),
+            "clamp_max": bool(parameter.clampMax),
+        }
+        endpoint_values[name] = {
+            "low_requested": low_value,
+            "low_evaluated": float(low_evaluated),
+            "high_requested": high_value,
+            "high_evaluated": float(high_evaluated),
+        }
+    return differences, finite, ranges, endpoint_values
 
 
 def _capture_route(demo, output, router, particles_enabled, apply_video_fx):
@@ -133,11 +360,12 @@ def validate(write_report=True):
         "ink_flow_enabled": demo.par.Inkflowenabled.eval(),
         "glitch_enabled": demo.par.Glitchenabled.eval(),
         "color_enabled": demo.par.Coloradjustmentenabled.eval(),
+        "motion_enabled": demo.par.Motionenabled.eval(),
         "apply_video_fx": demo.par.Applyvideofx.eval(),
-        "auto_time": particles.par.Autotime.eval(),
-        "manual_time": particles.par.Manualtime.eval(),
-        "density": particles.par.Density.eval(),
-        "seed": particles.par.Seed.eval(),
+        "controls": {
+            name: particles.par[name].eval()
+            for name in EDITABLE_CONTROL_NAMES
+        },
         "source_time_expression": source.par.vec0valuex.expr,
         "source_time_value": source.par.vec0valuex.eval(),
     }
@@ -150,8 +378,8 @@ def validate(write_report=True):
         demo.par.Inkflowenabled = False
         demo.par.Glitchenabled = False
         demo.par.Coloradjustmentenabled = False
-        particles.par.Autotime = False
-        particles.par.Manualtime = 0.0
+        demo.par.Motionenabled = False
+        _set_values(particles, BASE_VALUES)
 
         source_image = _capture(source)
         routes = {}
@@ -181,10 +409,60 @@ def validate(write_report=True):
         motion_end = _capture(particle_output)
         particles.par.Manualtime = 0.0
         seed_start = _capture(particle_output)
-        particles.par.Seed = int(saved["seed"]) + 17
+        particles.par.Seed = int(BASE_VALUES["Seed"]) + 17
         seed_end = _capture(particle_output)
         particles.par.Density = int(particles.par.Density.max)
         maximum_density = _capture(particle_output)
+
+        _set_values(particles, BASE_VALUES)
+        shape_names = tuple(str(item) for item in particles.par.Shape.menuNames)
+        shape_signatures = {}
+        shape_differences = {}
+        for shape in EXPECTED_SHAPES:
+            particles.par.Shape = shape
+            image = _capture(particle_output)
+            shape_signatures[shape] = _signature(image)
+            shape_differences[shape] = _mean_absolute_difference(
+                image,
+                source_image,
+            )
+
+        _set_values(particles, BASE_VALUES)
+        motion_names = tuple(
+            str(item) for item in particles.par.Motionmode.menuNames
+        )
+        motion_signatures = {}
+        motion_differences = {}
+        for mode in EXPECTED_MOTION_MODES:
+            particles.par.Motionmode = mode
+            image = _capture(particle_output)
+            motion_signatures[mode] = _signature(image)
+            motion_differences[mode] = _mean_absolute_difference(
+                image,
+                source_image,
+            )
+
+        (
+            slider_differences,
+            slider_finite,
+            slider_ranges,
+            slider_endpoint_values,
+        ) = _sweep_sliders(particles, particle_output)
+
+        _set_values(particles, BASE_VALUES)
+        particles.par.Autotime = True
+        particles.par.Timescale = 0.5
+        effective_time_low = float(particles.par.Time.eval())
+        particles.par.Timescale = 1.5
+        effective_time_high = float(particles.par.Time.eval())
+        time_scale_range = {
+            "min": float(particles.par.Timescale.min),
+            "max": float(particles.par.Timescale.max),
+            "norm_min": float(particles.par.Timescale.normMin),
+            "norm_max": float(particles.par.Timescale.normMax),
+            "clamp_min": bool(particles.par.Timescale.clampMin),
+            "clamp_max": bool(particles.par.Timescale.clampMax),
+        }
 
         differences = {
             "bypass_vs_source": _mean_absolute_difference(
@@ -245,11 +523,78 @@ def validate(write_report=True):
                 particle_shader,
                 "errors",
             ),
+            "particle_shader_has_no_warnings": not _messages(
+                particle_shader,
+                "warnings",
+            ),
             "particle_columns_maximum_is_500": (
                 float(particles.par.Density.max) == 500.0
             ),
             "maximum_density_cooks_visible_output": (
                 float(np.std(maximum_density)) > 1.0e-5
+            ),
+            "shape_menu_contains_exactly_eight_shapes": (
+                shape_names == EXPECTED_SHAPES
+            ),
+            "every_shape_changes_source": all(
+                value is not None and value > 1.0e-5
+                for value in shape_differences.values()
+            ),
+            "all_shapes_are_visually_distinct": (
+                len(set(shape_signatures.values())) == len(EXPECTED_SHAPES)
+            ),
+            "motion_menu_contains_exactly_eight_modes": (
+                motion_names == EXPECTED_MOTION_MODES
+            ),
+            "every_motion_mode_changes_source": all(
+                value is not None and value > 1.0e-5
+                for value in motion_differences.values()
+            ),
+            "all_motion_modes_are_visually_distinct": (
+                len(set(motion_signatures.values()))
+                == len(EXPECTED_MOTION_MODES)
+            ),
+            "every_numeric_slider_is_covered": (
+                EXPECTED_SLIDER_NAMES
+                == set(EDITABLE_CONTROL_NAMES)
+                - {"Autotime", "Shape", "Motionmode"}
+            ),
+            "every_numeric_slider_changes_output": all(
+                value is not None and value > 1.0e-6
+                for value in slider_differences.values()
+            ),
+            "every_numeric_slider_stays_finite": all(slider_finite.values()),
+            "every_numeric_slider_has_valid_range": (
+                all(
+                    values["min"] < values["max"]
+                    and abs(values["norm_min"] - values["min"]) <= 1.0e-9
+                    and abs(values["norm_max"] - values["max"]) <= 1.0e-9
+                    and values["clamp_min"]
+                    and values["clamp_max"]
+                    for values in slider_ranges.values()
+                )
+                and time_scale_range["min"] < time_scale_range["max"]
+                and abs(time_scale_range["norm_min"] - time_scale_range["min"])
+                <= 1.0e-9
+                and abs(time_scale_range["norm_max"] - time_scale_range["max"])
+                <= 1.0e-9
+                and time_scale_range["clamp_min"]
+                and time_scale_range["clamp_max"]
+            ),
+            "every_numeric_slider_accepts_test_endpoints": all(
+                abs(values["low_requested"] - values["low_evaluated"])
+                <= 1.0e-6
+                and abs(values["high_requested"] - values["high_evaluated"])
+                <= 1.0e-6
+                for values in slider_endpoint_values.values()
+            ),
+            "time_scale_changes_effective_time": (
+                abs(effective_time_high - effective_time_low) > 1.0e-3
+            ),
+            "effective_time_is_read_only_and_resolved": (
+                bool(particles.par.Time.readOnly)
+                and "Autotime" in str(particles.par.Time.expr)
+                and "Manualtime" in str(particles.par.Time.expr)
             ),
         }
         report.update(
@@ -258,6 +603,19 @@ def validate(write_report=True):
                 "differences": differences,
                 "maximum_density_metrics": _metrics(maximum_density),
                 "particle_metrics": _metrics(motion_start),
+                "shape_differences": shape_differences,
+                "shape_signatures": shape_signatures,
+                "motion_differences": motion_differences,
+                "motion_signatures": motion_signatures,
+                "slider_differences": slider_differences,
+                "slider_finite": slider_finite,
+                "slider_ranges": slider_ranges,
+                "slider_endpoint_values": slider_endpoint_values,
+                "time_scale": {
+                    "effective_low": effective_time_low,
+                    "effective_high": effective_time_high,
+                    "range": time_scale_range,
+                },
                 "routes": {
                     key: {
                         field: value
@@ -278,11 +636,9 @@ def validate(write_report=True):
         demo.par.Inkflowenabled = saved["ink_flow_enabled"]
         demo.par.Glitchenabled = saved["glitch_enabled"]
         demo.par.Coloradjustmentenabled = saved["color_enabled"]
+        demo.par.Motionenabled = saved["motion_enabled"]
         demo.par.Applyvideofx = saved["apply_video_fx"]
-        particles.par.Autotime = saved["auto_time"]
-        particles.par.Manualtime = saved["manual_time"]
-        particles.par.Density = saved["density"]
-        particles.par.Seed = saved["seed"]
+        _set_values(particles, saved["controls"])
         if saved["source_time_expression"]:
             source.par.vec0valuex.expr = saved["source_time_expression"]
         else:

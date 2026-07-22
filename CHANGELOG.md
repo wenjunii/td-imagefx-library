@@ -30,17 +30,45 @@ All notable changes to TD ImageFX Library are recorded here. Package versions fo
   every style's visible and distinct output, bypass fidelity, time and seed
   variation, rack routing, resolution, and GLSL diagnostics.
 - `ColorAdjustment.tox`, a reusable neutral-by-default single-pass GPU module
-  for inversion, exposure, brightness, contrast, saturation, vibrance, hue,
-  white balance, levels, gamma, RGB lift/gain, shadows/highlights, monochrome,
-  sepia, posterize, duotone, and eight adjustable color-overlay blend modes.
+  for inversion, primary grading, white balance, levels, tonal shaping,
+  three-way RGB balance, clarity/dehaze, creative treatments, duotone,
+  sixteen adjustable color-overlay blend modes, grain, and vignette.
 - A dedicated live Color Adjustment validator covering master and zero-mix
-  bypass, neutral fidelity, every adjustment family and overlay mode, visual
-  distinction, source-alpha preservation, rack routing, and GLSL diagnostics.
+  bypass, neutral fidelity, every numeric slider and overlay mode, endpoint
+  metadata, visual distinction, source-alpha preservation, rack routing, and
+  GLSL diagnostics.
+- `MotionStudio.tox`, a reusable single-pass GPU motion module with 40
+  selectable animation styles, master and mix bypass, deterministic/manual
+  timing, six easing modes, four edge modes, adjustable transform/warp/random
+  controls, and bounded one-through-five-sample motion trails.
+- A dedicated live Motion Studio validator covering the exact style, easing,
+  and edge menus; bypass fidelity; every style's visible and distinct output;
+  manual time; bounded trail sampling; routing; resolution; and GLSL
+  diagnostics.
 - Demo output-resolution controls with a default 1920 x 1080 preset, a 4K UHD
   3840 x 2160 preset, and adjustable 16-through-8192 custom width and height.
 - A dedicated live output-resolution validator covering default values, the
   exact preset menu, HD, 4K UHD, nonstandard custom dimensions, source/output
   propagation, bounds, and operator diagnostics.
+- Expanded Color Adjustment controls for global offset and contrast pivot,
+  extended tonal shaping, three-way color balance, clarity/dehaze, fade,
+  solarize, threshold, sixteen overlay blend modes, film grain, and vignette.
+- Expanded Random Particles controls with eight shapes, eight motion modes,
+  size/aspect/rotation/spin/softness/hollow variation, richer motion and source
+  sampling, opacity variation, tint/HSV grading, and an explicit read-only
+  Effective Time display.
+- Exhaustive native slider validation for all 72 Color Adjustment numeric
+  components and all 39 Random Particles numeric components, including visible
+  output response, finite pixels, endpoint evaluation, range/clamp metadata,
+  menu distinction, alpha preservation, and resolved-time behavior.
+- A state-restoring all-effect validator that loads all 96 latest packages and
+  checks every manifest numeric component, toggle, rack mix, effective time,
+  per-effect time scale, range/clamp contract, finite output, diagnostics, and
+  320 x 180 cook resolution without saving the project.
+- Compatible `tdimagefx.key.despill@1.1.0` and
+  `tdimagefx.stylize.vignette@1.2.0` packages whose color-alpha sliders now
+  scale suppression and vignette strength; prior immutable versions remain
+  available for exact project locks.
 
 ### Changed
 
@@ -68,22 +96,32 @@ All notable changes to TD ImageFX Library are recorded here. Package versions fo
   selection changes; the native builder also initializes and validates the
   first 512x288 preview before exporting the component.
 - The canonical demo now routes source through ink flow, optional random
-  particles, optional Glitch Fusion, optional Color Adjustment, and the
-  eight-slot rack with explicit stage-level bypass controls.
+  particles, optional Glitch Fusion, optional Color Adjustment, optional
+  Motion Studio, and the eight-slot rack with explicit stage-level bypass
+  controls.
 - The generated demo source and final Out TOP now follow the selected delivery
   resolution automatically.
-- The native `.toe`, eight core `.tox` components, benchmark report, and
+- The native `.toe`, nine core `.tox` components, benchmark report, and
   SHA-256-bound native validation record were rebuilt with TouchDesigner
   `2025.32820`.
-- The offline suite now contains 170 tests, including contracts for bounded
+- The offline suite now contains 172 tests, including contracts for every
+  latest manifest uniform being both declared and referenced, bounded
   ink-flow particles, two distinct visual styles, all 24 Glitch Fusion styles,
-  neutral color adjustment, eight overlay modes, HD/4K/custom output
-  resolution, native artifact inventory, and the seven-output Embody audit.
+  neutral color adjustment, sixteen overlay modes, all 40 Motion Studio styles,
+  HD/4K/custom output resolution, native artifact inventory, and the
+  eight-output Embody audit.
 - Repository verification now scans tracked files for high-confidence
   credential formats and forbidden secret-bearing filenames without printing
   suspected values; a staged-only mode supports pre-commit review.
 
 ### Fixed
+
+- Rack-loaded effects now multiply global rack time by their editable local
+  **Time Scale**; effective time, enable/mix, and package metadata are locked
+  read-only when the rack owns them, so internal controls no longer appear
+  editable while being overridden.
+- Ink and paper palette alpha now participate in pigment, paper, and
+  water-particle blending instead of behaving like inactive sliders.
 
 - Replaced ambiguous SemVer regular expressions in the Python package and
   TouchDesigner updater with bounded deterministic parsers, preventing

@@ -33,7 +33,7 @@ top-level operators.
 
 The installer loads the tracked `TDImageFXLibrary.tox`, `InkFlowFusion.tox`,
 `ParticleRandomMove.tox`, `GlitchFusion.tox`, `ColorAdjustment.tox`, and
-`FxRack.tox`,
+`MotionStudio.tox`, and `FxRack.tox`,
 synchronizes their extension DATs from `touchdesigner/extensions/`, repairs
 legacy absolute Pixel Shader DAT paths inside loaded effects, points every
 library root at the checkout, creates the same managed paths used by the
@@ -135,7 +135,7 @@ project-scoped MCP process.
 3. checks the managed network and calls `HealthCheck`;
 4. checks recursive operator errors and warnings;
 5. captures the demo, ink-flow, random-particle, Glitch Fusion, Color
-   Adjustment, rack, and browser preview TOPs with Envoy's pixel-quality
+   Adjustment, Motion Studio, rack, and browser preview TOPs with Envoy's pixel-quality
    verdict; and
 6. compares final performance before running the offline repository verifier.
 
@@ -171,11 +171,32 @@ newly loaded package, and restores the exact preset snapshot in a `finally`
 block. It changes live rack state temporarily, so run it only in the ignored
 development harness. It never saves the project.
 
+For a state-restoring rendered-pixel regression across the complete package
+catalog, run `touchdesigner/scripts/validate_all_effect_parameters.py` with the
+same Textport pattern. It loads all 96 latest effects through slot 1, checks
+every numeric component and toggle plus rack mix, effective time, and local
+time scale, validates range/clamp metadata, finite pixels, diagnostics, and QA
+resolution, then restores rack, demo, source-time, resolution, and timeline
+state. Run it only in the ignored development harness; it never saves.
+
+For a state-restoring pixel regression of the separate Random Particles stage,
+run `touchdesigner/scripts/validate_particle_module.py`. It verifies all eight
+shapes and eight motion modes, every numeric slider component, the 500-column
+maximum, range/clamp metadata, automatic/manual resolved time, bypass, seed,
+rack routing, and shader diagnostics, then restores every artist-facing value.
+
 For a state-restoring pixel regression of the dedicated grading stage, run
 `touchdesigner/scripts/validate_color_adjustment_module.py` with the same
 Textport pattern. It verifies neutral output, independent module/mix bypass,
-the adjustment families, all eight overlay blend modes, alpha preservation,
-rack routing, and shader diagnostics, then restores every artist-facing value.
+the adjustment families, every numeric slider component, all sixteen overlay
+blend modes, alpha preservation, rack routing, and shader diagnostics, then
+restores every artist-facing value.
+
+For a state-restoring pixel regression of Motion Studio, run
+`touchdesigner/scripts/validate_motion_studio_module.py` with the same Textport
+pattern. It verifies all 40 styles, master/mix/amount bypass, manual timing,
+the exact easing and edge menus, bounded trail sampling, rack routing, output
+resolution, and shader diagnostics, then restores every artist-facing value.
 
 If opening `TD_ImageFX_DevHarness.toe` leaves a numbered project name such as
 `TD_ImageFX_DevHarness.1.toe` or `.2.toe` in TouchDesigner's title, the file was

@@ -39,6 +39,40 @@ def _write_package(
 
 
 class TouchDesignerBuilderPathTests(unittest.TestCase):
+    def test_every_latest_manifest_uniform_is_declared_and_referenced(self) -> None:
+        manifests = BUILDER.load_manifests()
+        self.assertEqual(len(manifests), 96)
+
+        for manifest in manifests:
+            processing = manifest.get("processing") or {}
+            pass_paths = processing.get("passes") or [manifest["entrypoints"]["shader"]]
+            shader_source = "\n".join(
+                BUILDER._manifest_asset(
+                    manifest,
+                    pass_path,
+                    "$.processing.passes",
+                ).read_text(encoding="utf-8")
+                for pass_path in pass_paths
+            )
+            for definition in manifest.get("parameters") or []:
+                uniform = definition.get("uniform")
+                if not uniform:
+                    continue
+                with self.subTest(
+                    package=manifest["id"],
+                    version=manifest["version"],
+                    parameter=definition["name"],
+                ):
+                    self.assertGreaterEqual(
+                        shader_source.count(uniform),
+                        2,
+                        "{}@{} parameter {} is declared but never used".format(
+                            manifest["id"],
+                            manifest["version"],
+                            definition["name"],
+                        ),
+                    )
+
     def test_parameter_callbacks_use_component_relative_target_after_relocation(self) -> None:
         class CallbackParameters:
             op = None
@@ -155,18 +189,38 @@ class TouchDesignerBuilderPathTests(unittest.TestCase):
         self.assertEqual(
             uniform_names,
             {
+                "uAspect",
+                "uBackground",
+                "uBrightness",
                 "uTime",
                 "uDensity",
                 "uSize",
+                "uSizeVariation",
                 "uSpeed",
+                "uSpeedVariation",
                 "uMoveAmount",
                 "uJitter",
+                "uTurbulence",
+                "uScatter",
+                "uPulseAmount",
+                "uPulseRate",
                 "uDrift",
                 "uSeed",
                 "uShape",
+                "uMotionMode",
+                "uRotation",
+                "uSpin",
+                "uSoftness",
+                "uHollow",
                 "uSourceBlend",
                 "uOpacity",
-                "uBackground",
+                "uOpacityVariation",
+                "uSampleOffset",
+                "uTintColor",
+                "uTintAmount",
+                "uHue",
+                "uHueVariation",
+                "uSaturation",
             },
         )
         for uniform in uniform_names:
@@ -177,8 +231,34 @@ class TouchDesignerBuilderPathTests(unittest.TestCase):
             if definition["name"] == "Density"
         )
         self.assertEqual(density["max"], 500)
+        definitions = {
+            definition["name"]: definition
+            for definition in BUILDER.PARTICLE_PARAMETER_DEFINITIONS
+        }
+        self.assertEqual(len(definitions["Shape"]["menu_names"]), 8)
+        self.assertEqual(len(definitions["Motionmode"]["menu_names"]), 8)
+        self.assertTrue(definitions["Time"]["read_only"])
+        for definition in BUILDER.PARTICLE_PARAMETER_DEFINITIONS:
+            if definition.get("type", "float") not in {
+                "float", "int", "xy", "xyz", "uv", "rgb", "rgba"
+            }:
+                continue
+            minimum = definition.get("min", 0.0)
+            maximum = definition.get("max", 1.0)
+            if definition.get("type") not in {"rgb", "rgba"}:
+                self.assertIn("min", definition)
+                self.assertIn("max", definition)
+            self.assertLess(minimum, maximum)
+            defaults = definition.get("default", 0)
+            if not isinstance(defaults, (list, tuple)):
+                defaults = [defaults]
+            for default in defaults:
+                self.assertGreaterEqual(default, minimum)
+                self.assertLessEqual(default, maximum)
         self.assertIn("textureSize(sTD2DInputs[0], 0)", shader)
         self.assertIn("particleHash", shader)
+        self.assertIn("uMotionMode < 6.5", shader)
+        self.assertIn("displacementLength > 1.30", shader)
         self.assertIn("for (int offsetY = -2; offsetY <= 2; ++offsetY)", shader)
         self.assertIn("for (int offsetX = -2; offsetX <= 2; ++offsetX)", shader)
         self.assertNotIn("feedback", shader.lower())
@@ -233,9 +313,17 @@ class TouchDesignerBuilderPathTests(unittest.TestCase):
         )
         self.assertEqual(style["menu_names"], ["ink_work", "ink_wash"])
         self.assertEqual(density["max"], 500)
+        time = next(
+            definition
+            for definition in BUILDER.INK_FLOW_PARAMETER_DEFINITIONS
+            if definition["name"] == "Time"
+        )
+        self.assertTrue(time["read_only"])
         self.assertIn("minimalInkWork", shader)
         self.assertIn("minimalInkWash", shader)
         self.assertIn("waterParticleMotion", shader)
+        self.assertIn("uPaperColor.a", shader)
+        self.assertIn("uInkColor.a", shader)
         self.assertIn("uVisualEnabled <= 0.5", shader)
         self.assertIn("uParticlesEnabled > 0.5", shader)
         self.assertIn("for (int offsetY = -2; offsetY <= 2; ++offsetY)", shader)
@@ -288,6 +376,12 @@ class TouchDesignerBuilderPathTests(unittest.TestCase):
             BUILDER.GLITCH_FUSION_STYLE_NAMES,
         )
         self.assertEqual(style["default"], "glitch_fusion")
+        time = next(
+            definition
+            for definition in BUILDER.GLITCH_FUSION_PARAMETER_DEFINITIONS
+            if definition["name"] == "Time"
+        )
+        self.assertTrue(time["read_only"])
         self.assertIn("rgbSplitColor", shader)
         self.assertIn("smearColor", shader)
         self.assertIn("Glitch Fusion", shader)
@@ -304,11 +398,14 @@ class TouchDesignerBuilderPathTests(unittest.TestCase):
         self.assertEqual(
             uniform_names,
             {
+                "uBalancePreserveLuma",
                 "uMix",
                 "uInvert",
                 "uExposure",
                 "uBrightness",
+                "uOffset",
                 "uContrast",
+                "uPivot",
                 "uSaturation",
                 "uVibrance",
                 "uHue",
@@ -320,9 +417,25 @@ class TouchDesignerBuilderPathTests(unittest.TestCase):
                 "uLift",
                 "uGain",
                 "uShadows",
+                "uMidtones",
                 "uHighlights",
+                "uBlacks",
+                "uWhites",
+                "uToe",
+                "uShoulder",
+                "uShadowBalance",
+                "uMidtoneBalance",
+                "uHighlightBalance",
+                "uClarity",
+                "uDehaze",
                 "uMonochrome",
                 "uSepia",
+                "uFade",
+                "uSolarizeAmount",
+                "uSolarizePoint",
+                "uThresholdAmount",
+                "uThresholdLevel",
+                "uThresholdSoftness",
                 "uPosterizeAmount",
                 "uPosterizeLevels",
                 "uDuotoneAmount",
@@ -332,6 +445,14 @@ class TouchDesignerBuilderPathTests(unittest.TestCase):
                 "uOverlayColor",
                 "uOverlayAmount",
                 "uOverlayMode",
+                "uGrainAmount",
+                "uGrainSize",
+                "uGrainColored",
+                "uGrainSeed",
+                "uVignetteAmount",
+                "uVignetteMidpoint",
+                "uVignetteFeather",
+                "uVignetteRoundness",
             },
         )
         for uniform in uniform_names:
@@ -355,12 +476,92 @@ class TouchDesignerBuilderPathTests(unittest.TestCase):
         )
         self.assertEqual(
             len(BUILDER.COLOR_ADJUSTMENT_OVERLAY_MODE_NAMES),
-            8,
+            16,
         )
+        for definition in BUILDER.COLOR_ADJUSTMENT_PARAMETER_DEFINITIONS:
+            if definition.get("type", "float") not in {
+                "float", "int", "xy", "xyz", "uv", "rgb", "rgba"
+            }:
+                continue
+            minimum = definition.get("min", 0.0)
+            maximum = definition.get("max", 1.0)
+            if definition.get("type") not in {"rgb", "rgba"}:
+                self.assertIn("min", definition)
+                self.assertIn("max", definition)
+            self.assertLess(minimum, maximum)
+            defaults = definition.get("default", 0)
+            if not isinstance(defaults, (list, tuple)):
+                defaults = [defaults]
+            for default in defaults:
+                self.assertGreaterEqual(default, minimum)
+                self.assertLessEqual(default, maximum)
         self.assertIn("colorOverlayBlend", shader)
+        self.assertIn("uDuotoneAmount * duotoneAlpha", shader)
+        self.assertIn("uGrainAmount > 0.0", shader)
         self.assertIn("source.a", shader)
         self.assertIn("TDOutputSwizzle", shader)
         self.assertNotIn("for (", shader)
+        self.assertNotIn("feedback", shader.lower())
+
+    def test_motion_studio_exposes_forty_bounded_adjustable_styles(self) -> None:
+        shader = BUILDER.MOTION_STUDIO_SHADER
+        uniform_names = {
+            definition["uniform"]
+            for definition in BUILDER.MOTION_STUDIO_PARAMETER_DEFINITIONS
+            if definition.get("uniform")
+        }
+        self.assertEqual(
+            uniform_names,
+            {
+                "uStyle",
+                "uMix",
+                "uTime",
+                "uAmount",
+                "uSpeed",
+                "uFrequency",
+                "uPhase",
+                "uDirection",
+                "uCenter",
+                "uZoom",
+                "uRotation",
+                "uWarp",
+                "uRandomness",
+                "uSeed",
+                "uSteps",
+                "uSegments",
+                "uEdgeMode",
+                "uEasing",
+                "uTrailAmount",
+                "uTrailSamples",
+            },
+        )
+        for uniform in uniform_names:
+            self.assertIn(uniform, shader)
+        definitions = {
+            definition["name"]: definition
+            for definition in BUILDER.MOTION_STUDIO_PARAMETER_DEFINITIONS
+        }
+        self.assertEqual(len(BUILDER.MOTION_STUDIO_STYLE_NAMES), 40)
+        self.assertEqual(len(set(BUILDER.MOTION_STUDIO_STYLE_NAMES)), 40)
+        self.assertEqual(
+            tuple(definitions["Style"]["menu_names"]),
+            BUILDER.MOTION_STUDIO_STYLE_NAMES,
+        )
+        self.assertEqual(definitions["Style"]["default"], "drift")
+        self.assertTrue(definitions["Time"]["read_only"])
+        self.assertEqual(definitions["Trailsamples"]["max"], 5)
+        self.assertEqual(
+            tuple(definitions["Edgemode"]["menu_names"]),
+            BUILDER.MOTION_STUDIO_EDGE_MODE_NAMES,
+        )
+        self.assertEqual(
+            tuple(definitions["Easing"]["menu_names"]),
+            BUILDER.MOTION_STUDIO_EASING_NAMES,
+        )
+        self.assertIn("for (int sampleIndex = 0; sampleIndex < 5; ++sampleIndex)", shader)
+        self.assertIn("Kaleidoscope Motion", shader)
+        self.assertIn("TDOutputSwizzle", shader)
+        self.assertIn("mix(source, moved", shader)
         self.assertNotIn("feedback", shader.lower())
 
     def test_demo_output_supports_hd_4k_and_bounded_custom_resolution(self) -> None:

@@ -96,6 +96,7 @@ class FakeSlot:
         self.par.add("Enable", True)
         self.par.add("Mix", 1.0)
         self.par.add("Time", 0.0)
+        self.par.add("Timescale", 1.0)
         self.par.add("Reset", False)
         self.par.add("Gain", gain)
         self.customPars = [self.par["Gain"]]
@@ -322,13 +323,20 @@ class FxRackExtensionTests(unittest.TestCase):
                 routes = self.rack._input_routes(manifest)
                 self.assertEqual(len(routes), len(manifest["inputs"]))
             checked += 1
-        self.assertEqual(checked, 122)
+        self.assertEqual(checked, 124)
 
     def test_default_slot_binding_uses_modulation_and_manual_time_is_preset(self):
         slot = self.owner.op("slot1")
         self.rack._bind_slot(1, slot)
         self.assertEqual(slot.par["Mix"].expr, "parent().ModulatedMix(1)")
-        self.assertEqual(slot.par["Time"].expr, "parent().par.Time")
+        self.assertEqual(
+            slot.par["Time"].expr,
+            "parent().par.Time * me.par.Timescale",
+        )
+        self.assertTrue(slot.par["Enable"].readOnly)
+        self.assertTrue(slot.par["Mix"].readOnly)
+        self.assertTrue(slot.par["Time"].readOnly)
+        self.assertFalse(hasattr(slot.par["Timescale"], "readOnly"))
 
         self.owner.par["Manualtime"].val = 4.25
         self.owner.par["Time"].val = 99.0

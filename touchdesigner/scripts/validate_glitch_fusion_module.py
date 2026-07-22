@@ -49,6 +49,47 @@ EXPECTED_STYLES = (
     "glitch_fusion",
 )
 
+EDITABLE_CONTROL_NAMES = (
+    "Autotime", "Timescale", "Manualtime", "Style", "Mix", "Intensity",
+    "Speed", "Blocksize", "Slicedensity", "Displacement", "Jitter", "Smear",
+    "Rgbsplit", "Noiseamount", "Dropout", "Scanlines", "Tracking",
+    "Compression", "Colorshift", "Quantize", "Edgeamount", "Seed",
+)
+
+BASE_VALUES = {
+    "Autotime": False, "Timescale": 1.0, "Manualtime": 0.731,
+    "Style": "glitch_fusion", "Mix": 1.0, "Intensity": 0.78,
+    "Speed": 1.4, "Blocksize": 36, "Slicedensity": 52,
+    "Displacement": 0.18, "Jitter": 0.07, "Smear": 0.22,
+    "Rgbsplit": 0.025, "Noiseamount": 0.42, "Dropout": 0.28,
+    "Scanlines": 0.48, "Tracking": 0.045, "Compression": 0.52,
+    "Colorshift": 0.42, "Quantize": 10, "Edgeamount": 2.2, "Seed": 47,
+}
+
+SLIDER_CASES = {
+    "Manualtime": ({"Style": "digital_noise"}, 0.15, 1.35),
+    "Mix": ({"Style": "glitch_fusion"}, 0.05, 1.0),
+    "Intensity": ({"Style": "glitch_fusion"}, 0.15, 1.0),
+    "Speed": ({"Style": "digital_noise", "Manualtime": 0.67}, 0.2, 6.0),
+    "Blocksize": ({"Style": "block_shift"}, 4, 260),
+    "Slicedensity": ({"Style": "slice_tear"}, 4, 280),
+    "Displacement": ({"Style": "block_shift"}, 0.02, 0.48),
+    "Jitter": ({"Style": "scanline_jitter"}, 0.0, 0.24),
+    "Smear": ({"Style": "datamosh"}, 0.02, 0.58),
+    "Rgbsplit": ({"Style": "rgb_split"}, 0.002, 0.095),
+    "Noiseamount": ({"Style": "digital_noise"}, 0.05, 1.0),
+    "Dropout": ({"Style": "signal_dropout"}, 0.05, 0.95),
+    "Scanlines": ({"Style": "crt_corruption"}, 0.05, 1.0),
+    "Tracking": ({"Style": "vhs_tracking"}, 0.002, 0.19),
+    "Compression": ({"Style": "macroblock"}, 0.05, 1.0),
+    "Colorshift": ({"Style": "data_bend"}, 0.05, 1.0),
+    "Quantize": ({"Style": "color_quantize"}, 3, 56),
+    "Edgeamount": ({"Style": "edge_corrupt"}, 0.2, 5.5),
+    "Seed": ({"Style": "digital_noise"}, 3, 91),
+}
+
+EXPECTED_SLIDER_NAMES = set(SLIDER_CASES) | {"Timescale"}
+
 
 def _messages(operator, method_name):
     method = getattr(operator, method_name, None)
@@ -94,6 +135,48 @@ def _signature(image):
         image[::row_step, ::column_step, : min(3, image.shape[-1])]
     )
     return hashlib.sha256(sample.tobytes()).hexdigest()
+
+
+def _set_values(component, values):
+    for name, value in values.items():
+        parameter = component.par[name]
+        if parameter is None:
+            raise RuntimeError("Missing Glitch Fusion parameter {}".format(name))
+        parameter.val = value
+
+
+def _sweep_sliders(component, output):
+    differences = {}
+    finite = {}
+    ranges = {}
+    endpoint_values = {}
+    for name, (activators, low_value, high_value) in SLIDER_CASES.items():
+        _set_values(component, BASE_VALUES)
+        _set_values(component, activators)
+        parameter = component.par[name]
+        parameter.val = low_value
+        low_evaluated = parameter.eval()
+        low_image = _capture(output)
+        parameter.val = high_value
+        high_evaluated = parameter.eval()
+        high_image = _capture(output)
+        differences[name] = _mean_absolute_difference(low_image, high_image)
+        finite[name] = bool(
+            np.isfinite(low_image).all() and np.isfinite(high_image).all()
+        )
+        ranges[name] = {
+            "min": float(parameter.min), "max": float(parameter.max),
+            "norm_min": float(parameter.normMin),
+            "norm_max": float(parameter.normMax),
+            "clamp_min": bool(parameter.clampMin),
+            "clamp_max": bool(parameter.clampMax),
+        }
+        endpoint_values[name] = {
+            "low_requested": low_value, "low_evaluated": float(low_evaluated),
+            "high_requested": high_value,
+            "high_evaluated": float(high_evaluated),
+        }
+    return differences, finite, ranges, endpoint_values
 
 
 def validate(write_report=True):
@@ -150,13 +233,12 @@ def validate(write_report=True):
         "random_particles_enabled": demo.par.Particlesenabled.eval(),
         "glitch_enabled": demo.par.Glitchenabled.eval(),
         "color_enabled": demo.par.Coloradjustmentenabled.eval(),
+        "motion_enabled": demo.par.Motionenabled.eval(),
         "apply_video_fx": demo.par.Applyvideofx.eval(),
-        "auto_time": glitch.par.Autotime.eval(),
-        "manual_time": glitch.par.Manualtime.eval(),
-        "style": glitch.par.Style.eval(),
-        "mix": glitch.par.Mix.eval(),
-        "intensity": glitch.par.Intensity.eval(),
-        "seed": glitch.par.Seed.eval(),
+        "controls": {
+            name: glitch.par[name].eval()
+            for name in EDITABLE_CONTROL_NAMES
+        },
         "source_time_expression": source.par.vec0valuex.expr,
         "source_time_value": source.par.vec0valuex.eval(),
     }
@@ -167,11 +249,9 @@ def validate(write_report=True):
         demo.par.Inkflowenabled = False
         demo.par.Particlesenabled = False
         demo.par.Coloradjustmentenabled = False
+        demo.par.Motionenabled = False
         demo.par.Applyvideofx = False
-        glitch.par.Autotime = False
-        glitch.par.Manualtime = 0.0
-        glitch.par.Mix = 1.0
-        glitch.par.Intensity = max(0.68, float(saved["intensity"]))
+        _set_values(glitch, BASE_VALUES)
 
         source_image = _capture(source)
 
@@ -204,12 +284,12 @@ def validate(write_report=True):
         time_one = _capture(glitch_output)
 
         glitch.par.Manualtime = 0.0
-        glitch.par.Seed = saved["seed"]
+        glitch.par.Seed = BASE_VALUES["Seed"]
         seed_default = _capture(glitch_output)
-        glitch.par.Seed = int(saved["seed"]) + 31
+        glitch.par.Seed = int(BASE_VALUES["Seed"]) + 31
         seed_changed = _capture(glitch_output)
 
-        glitch.par.Seed = saved["seed"]
+        glitch.par.Seed = BASE_VALUES["Seed"]
         glitch_only = _capture(glitch_output)
         router_without_rack = _capture(router)
         demo_output_without_rack = _capture(output)
@@ -217,6 +297,28 @@ def validate(write_report=True):
         rack_processed = _capture(rack_output)
         router_with_rack = _capture(router)
         demo_output_with_rack = _capture(output)
+
+        (
+            slider_differences,
+            slider_finite,
+            slider_ranges,
+            slider_endpoint_values,
+        ) = _sweep_sliders(glitch, glitch_output)
+
+        _set_values(glitch, BASE_VALUES)
+        glitch.par.Autotime = True
+        glitch.par.Timescale = 0.5
+        effective_time_low = float(glitch.par.Time.eval())
+        glitch.par.Timescale = 1.5
+        effective_time_high = float(glitch.par.Time.eval())
+        time_scale_range = {
+            "min": float(glitch.par.Timescale.min),
+            "max": float(glitch.par.Timescale.max),
+            "norm_min": float(glitch.par.Timescale.normMin),
+            "norm_max": float(glitch.par.Timescale.normMax),
+            "clamp_min": bool(glitch.par.Timescale.clampMin),
+            "clamp_max": bool(glitch.par.Timescale.clampMax),
+        }
 
         differences = {
             "module_bypass_vs_source": _mean_absolute_difference(
@@ -311,6 +413,40 @@ def validate(write_report=True):
                 int(glitch_output.width) == int(source.width)
                 and int(glitch_output.height) == int(source.height)
             ),
+            "every_numeric_slider_is_covered": (
+                EXPECTED_SLIDER_NAMES
+                == set(EDITABLE_CONTROL_NAMES) - {"Autotime", "Style"}
+            ),
+            "every_numeric_slider_changes_output": all(
+                value is not None and value > 1.0e-6
+                for value in slider_differences.values()
+            ),
+            "every_numeric_slider_stays_finite": all(slider_finite.values()),
+            "every_numeric_slider_has_valid_range": (
+                all(
+                    values["min"] < values["max"]
+                    and abs(values["norm_min"] - values["min"]) <= 1.0e-9
+                    and abs(values["norm_max"] - values["max"]) <= 1.0e-9
+                    and values["clamp_min"] and values["clamp_max"]
+                    for values in slider_ranges.values()
+                )
+                and time_scale_range["min"] < time_scale_range["max"]
+                and time_scale_range["clamp_min"]
+                and time_scale_range["clamp_max"]
+            ),
+            "every_numeric_slider_accepts_test_endpoints": all(
+                abs(values["low_requested"] - values["low_evaluated"]) <= 1.0e-6
+                and abs(values["high_requested"] - values["high_evaluated"]) <= 1.0e-6
+                for values in slider_endpoint_values.values()
+            ),
+            "time_scale_changes_effective_time": (
+                abs(effective_time_high - effective_time_low) > 1.0e-3
+            ),
+            "effective_time_is_read_only_and_resolved": (
+                bool(glitch.par.Time.readOnly)
+                and "Autotime" in str(glitch.par.Time.expr)
+                and "Manualtime" in str(glitch.par.Time.expr)
+            ),
             "glitch_shader_has_no_errors": not shader_errors,
             "glitch_shader_has_no_warnings": not shader_warnings,
         }
@@ -321,6 +457,15 @@ def validate(write_report=True):
                 "style_differences": style_differences,
                 "style_signatures": style_signatures,
                 "style_standard_deviations": style_standard_deviations,
+                "slider_differences": slider_differences,
+                "slider_finite": slider_finite,
+                "slider_ranges": slider_ranges,
+                "slider_endpoint_values": slider_endpoint_values,
+                "time_scale": {
+                    "effective_low": effective_time_low,
+                    "effective_high": effective_time_high,
+                    "range": time_scale_range,
+                },
                 "shader_errors": shader_errors,
                 "shader_warnings": shader_warnings,
                 "ok": all(checks.values()),
@@ -333,13 +478,9 @@ def validate(write_report=True):
         demo.par.Particlesenabled = saved["random_particles_enabled"]
         demo.par.Glitchenabled = saved["glitch_enabled"]
         demo.par.Coloradjustmentenabled = saved["color_enabled"]
+        demo.par.Motionenabled = saved["motion_enabled"]
         demo.par.Applyvideofx = saved["apply_video_fx"]
-        glitch.par.Autotime = saved["auto_time"]
-        glitch.par.Manualtime = saved["manual_time"]
-        glitch.par.Style = saved["style"]
-        glitch.par.Mix = saved["mix"]
-        glitch.par.Intensity = saved["intensity"]
-        glitch.par.Seed = saved["seed"]
+        _set_values(glitch, saved["controls"])
         if saved["source_time_expression"]:
             source.par.vec0valuex.expr = saved["source_time_expression"]
         else:

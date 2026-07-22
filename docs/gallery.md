@@ -540,7 +540,7 @@ Builds an alpha matte from chroma distance in a luminance-separated color repres
 
 Suppresses a configurable screen-color component while retaining perceived luminance.
 
-- Package: `tdimagefx.key.despill@1.0.0`
+- Package: `tdimagefx.key.despill@1.1.0`
 - Processing: `single_pass` · GPU cost: `low`
 - Capabilities: none
 - Tags: key, despill, green-screen, blue-screen, color
@@ -942,7 +942,7 @@ Combines animated line jitter, chroma delay, scanlines, noise, and tracking dist
 
 Darkens or colors image edges with adjustable roundness and softness.
 
-- Package: `tdimagefx.stylize.vignette@1.1.0`
+- Package: `tdimagefx.stylize.vignette@1.2.0`
 - Processing: `single_pass` · GPU cost: `low`
 - Capabilities: none
 - Tags: lens, edge, cinematic

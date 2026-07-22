@@ -478,12 +478,29 @@ class FxRackExt:
         enable_parameter = self._component_parameter(slot, "Enable")
         mix_parameter = self._component_parameter(slot, "Mix")
         time_parameter = self._component_parameter(slot, "Time")
+        time_scale_parameter = self._component_parameter(slot, "Timescale")
         if enable_parameter is not None:
             enable_parameter.expr = "parent().par.Slot{}enable".format(index)
         if mix_parameter is not None:
             mix_parameter.expr = "parent().ModulatedMix({})".format(index)
         if time_parameter is not None:
-            time_parameter.expr = "parent().par.Time"
+            if time_scale_parameter is None:
+                time_parameter.expr = "parent().par.Time"
+            else:
+                time_parameter.expr = "parent().par.Time * me.par.Timescale"
+
+        # Rack-owned expressions and immutable package identity fields must not
+        # look like artist sliders that silently reject edits. Keep per-effect
+        # Time Scale and Reset interactive; clearly lock the fields driven by
+        # the rack or supplied as package metadata.
+        editable_system_parameters = {"Timescale", "Reset"}
+        for name in SYSTEM_PARAMETER_NAMES - editable_system_parameters:
+            parameter = self._component_parameter(slot, name)
+            if parameter is not None:
+                try:
+                    parameter.readOnly = True
+                except Exception:
+                    pass
 
     def _unique_operator_name(self, base_name):
         candidate = base_name

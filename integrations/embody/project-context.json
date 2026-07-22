@@ -17,7 +17,7 @@
     ],
     "catalog": {
       "current_effect_ids": 96,
-      "immutable_package_versions": 122,
+      "immutable_package_versions": 124,
       "categories": 18
     }
   },
@@ -35,6 +35,7 @@
     "ink_flow": "/project1/td_imagefx/core/ink_flow_fusion",
     "glitch": "/project1/td_imagefx/core/glitch_fusion",
     "color_adjustment": "/project1/td_imagefx/core/color_adjustment",
+    "motion_studio": "/project1/td_imagefx/core/motion_studio",
     "update_manager": "/project1/td_imagefx/update_manager",
     "approved_read_scope": [
       "/project1/td_imagefx",
@@ -64,6 +65,7 @@
     "particles": "/project1/imagefx_demo/particle_random_move/out1_particles",
     "glitch": "/project1/imagefx_demo/glitch_fusion/out1_glitch",
     "color_adjustment": "/project1/imagefx_demo/color_adjustment/out1_color_adjustment",
+    "motion": "/project1/imagefx_demo/motion_studio/out1_motion",
     "rack": "/project1/imagefx_demo/fx_rack/out1_image",
     "browser_preview": "/project1/td_imagefx/core/fx_browser/selected_preview",
     "visual_failure_signals": [
@@ -132,7 +134,7 @@
     "required_health": {
       "ok": true,
       "package_count": 96,
-      "package_version_count": 122,
+      "package_version_count": 124,
       "missing_entrypoints": []
     },
     "order": [
@@ -147,13 +149,23 @@
     ],
     "pass_criteria": [
       "TouchDesigner build is 2025.32820 or a deliberately qualified newer build.",
-      "HealthCheck reports 96 current packages and 122 immutable versions with no missing entrypoints.",
+      "HealthCheck reports 96 current packages and 124 immutable versions with no missing entrypoints.",
       "Managed roots report no operator, warning, or script messages.",
-      "All seven approved TOPs exist, cook, have usable resolution, and are neither black nor fully transparent.",
+      "All eight approved TOPs exist, cook, have usable resolution, and are neither black nor fully transparent.",
       "The primary demo output matches its selected HD, 4K UHD, or custom resolution.",
       "No unexplained frame drops, memory spike, or material frame-time regression is introduced.",
       "python tools/verify_repository.py passes."
     ],
-    "report_file": "build/envoy-validation/live-project.json"
+    "report_file": "build/envoy-validation/live-project.json",
+    "state_restoring_regression_reports": {
+      "all_effect_parameters": "build/envoy-validation/all-effect-parameters.json",
+      "rack_selection": "build/envoy-validation/rack-selection.json",
+      "ink_flow": "build/envoy-validation/ink-flow-module.json",
+      "random_particles": "build/envoy-validation/particle-module.json",
+      "glitch_fusion": "build/envoy-validation/glitch-fusion-module.json",
+      "color_adjustment": "build/envoy-validation/color-adjustment-module.json",
+      "motion_studio": "build/envoy-validation/motion-studio-module.json",
+      "output_resolution": "build/envoy-validation/output-resolution.json"
+    }
   }
 }
