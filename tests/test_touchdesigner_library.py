@@ -13,6 +13,20 @@ LIBRARY_MODULE = importlib.util.module_from_spec(SPEC)
 assert SPEC.loader is not None
 SPEC.loader.exec_module(LIBRARY_MODULE)
 
+CALLBACK_PATH = (
+    Path(__file__).resolve().parents[1]
+    / "touchdesigner"
+    / "callbacks"
+    / "library_parameter_callbacks.py"
+)
+CALLBACK_SPEC = importlib.util.spec_from_file_location(
+    "tdimagefx_touchdesigner_library_callbacks",
+    CALLBACK_PATH,
+)
+LIBRARY_CALLBACKS = importlib.util.module_from_spec(CALLBACK_SPEC)
+assert CALLBACK_SPEC.loader is not None
+CALLBACK_SPEC.loader.exec_module(LIBRARY_CALLBACKS)
+
 
 class FakeParameter:
     def __init__(self, value):
@@ -120,6 +134,31 @@ def _write_rich_manifest(root: Path, package_id: str, version: str) -> None:
 
 
 class ImageFXLibraryVersionTests(unittest.TestCase):
+    def test_refresh_catalog_button_dispatches_to_library_extension(self):
+        class Owner:
+            def __init__(self):
+                self.calls = 0
+
+            def RefreshCatalog(self):
+                self.calls += 1
+                return 96
+
+        class Parameter:
+            name = "Refreshcatalog"
+
+        owner = Owner()
+        original_parent = getattr(LIBRARY_CALLBACKS, "parent", None)
+        LIBRARY_CALLBACKS.parent = lambda: owner
+        try:
+            LIBRARY_CALLBACKS.onPulse(Parameter())
+        finally:
+            if original_parent is None:
+                del LIBRARY_CALLBACKS.parent
+            else:
+                LIBRARY_CALLBACKS.parent = original_parent
+
+        self.assertEqual(owner.calls, 1)
+
     def test_catalog_input_roles_match_rack_bus_aliases(self):
         self.assertEqual(
             LIBRARY_MODULE._manifest_input_roles({

@@ -25,11 +25,12 @@ project.
 | `integrations/embody/check_td_bridge.py` | Official-client smoke test for the contract, knowledge index, and optional Envoy session |
 | `integrations/embody/envoy-validation-plan.json` | Ordered read-only live audit |
 | `touchdesigner/scripts/install_dev_harness.py` | Non-saving compiled-core installer for a disposable project |
-| `touchdesigner/scripts/validate_live_suite.py` | One-command Textport runner for all ten tracked live validators with a consolidated ignored report |
+| `touchdesigner/scripts/validate_live_suite.py` | One-command Textport runner for all eleven tracked live validators with a consolidated ignored report |
+| `touchdesigner/scripts/validate_control_surface.py` | State-restoring check for all 45 visible pulse buttons, all 42 rack value controls, callback wiring, presets, and slot ordering |
 | `touchdesigner/scripts/validate_reference_video_modules.py` | State-restoring rendered-pixel sweep for the three independently adjustable reference-video recreations |
 | `touchdesigner/scripts/validate_live_project.py` | Read-only health, error, and TOP structural report |
 | `touchdesigner/scripts/validate_rack_selection.py` | State-restoring live regression test for all eight rack effect menus |
-| `touchdesigner/scripts/validate_all_effect_parameters.py` | State-restoring rendered-pixel sweep for every numeric component, toggle, rack mix, time, and per-effect time scale in all 96 latest packages |
+| `touchdesigner/scripts/validate_all_effect_parameters.py` | State-restoring rendered-pixel sweep for every numeric component, toggle, reset pulse, rack mix, time, and per-effect time scale in all 96 latest packages |
 | `touchdesigner/scripts/validate_particle_module.py` | Pixel checks for all eight shapes, all eight motion modes, every numeric slider, time behavior, range metadata, bypass, and routing |
 | `touchdesigner/scripts/validate_ink_flow_module.py` | Pixel checks for both ink styles, water particles, bypass, and deterministic motion |
 | `touchdesigner/scripts/validate_glitch_fusion_module.py` | Pixel checks for 24 glitch styles, bypass, timing, seed, routing, and shader diagnostics |
@@ -71,6 +72,9 @@ mutation test. It restores the complete rack preset, demo routing, source time,
 resolution, and timeline state in a `finally` block and never saves. Its report
 records the context used for controls that only apply in a particular mode or
 state.
+`validate_control_surface.py` exercises every visible pulse button and rack
+value control, verifies callback DAT wiring, and restores the rack, browser,
+updater, and library state without saving.
 `validate_live_suite.py` runs the structural audit and every state-restoring
 regression in order. Its documented Textport invocation copies `globals()` so
 TouchDesigner objects remain available inside each isolated validator scope;

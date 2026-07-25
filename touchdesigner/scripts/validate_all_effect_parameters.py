@@ -586,6 +586,49 @@ def _sweep_toggle(output, slot, rack, manifest, name):
     }
 
 
+def _exercise_pulse(slot, rack, name):
+    parameter = slot.par[name]
+    callbacks = slot.op("reset_callbacks")
+    callback_checks = {
+        "parameter_exists": parameter is not None,
+        "callbacks_exist": callbacks is not None,
+        "callbacks_target_owner": (
+            callbacks is not None and callbacks.par.op.eval() == slot
+        ),
+        "callbacks_watch_parameter": (
+            callbacks is not None
+            and name in str(callbacks.par.pars.eval()).split()
+        ),
+        "pulse_enabled": (
+            callbacks is not None and bool(callbacks.par.onpulse.eval())
+        ),
+    }
+    triggered = False
+    errors = []
+    warnings = []
+    if parameter is not None:
+        try:
+            parameter.pulse()
+            slot.cook(force=True)
+            triggered = True
+            errors = _messages(slot, "errors")
+            warnings = _messages(slot, "warnings")
+        except Exception as exc:
+            errors.append("{}: {}".format(type(exc).__name__, exc))
+    return {
+        "callback_checks": callback_checks,
+        "triggered": triggered,
+        "errors": errors,
+        "warnings": warnings,
+        "responds": (
+            all(callback_checks.values())
+            and triggered
+            and not errors
+            and not warnings
+        ),
+    }
+
+
 def _sweep_time(output, slot, rack, manifest):
     stateful = (manifest.get("processing") or {}).get("model") in {
         "temporal",
@@ -712,7 +755,11 @@ def validate(write_report=True):
         "Customwidth",
         "Customheight",
     )
-    saved_demo = {name: demo.par[name].eval() for name in demo_names}
+    saved_demo = {
+        name: demo.par[name].eval()
+        for name in demo_names
+        if demo.par[name] is not None
+    }
     saved_source_expression = source.par.vec0valuex.expr
     saved_source_value = source.par.vec0valuex.eval()
     saved_source_shader_text = source_shader.text
@@ -730,18 +777,24 @@ def validate(write_report=True):
         source.par.vec0valuex.expr = ""
         source.par.vec0valuex = 0.0
         root.time.play = False
-        demo.par.Inkflowenabled = False
-        demo.par.Particlesenabled = False
-        demo.par.Glitchenabled = False
-        demo.par.Coloradjustmentenabled = False
-        demo.par.Motionenabled = False
-        demo.par.Referenceparticlefieldenabled = False
-        demo.par.Calligraphicshadowenabled = False
-        demo.par.Inkorbitenabled = False
-        demo.par.Applyvideofx = True
-        demo.par.Resolutionpreset = "custom"
-        demo.par.Customwidth = QA_WIDTH
-        demo.par.Customheight = QA_HEIGHT
+        demo_values = {
+            "Inkflowenabled": False,
+            "Particlesenabled": False,
+            "Glitchenabled": False,
+            "Coloradjustmentenabled": False,
+            "Motionenabled": False,
+            "Referenceparticlefieldenabled": False,
+            "Calligraphicshadowenabled": False,
+            "Inkorbitenabled": False,
+            "Applyvideofx": True,
+            "Resolutionpreset": "custom",
+            "Customwidth": QA_WIDTH,
+            "Customheight": QA_HEIGHT,
+        }
+        for name, value in demo_values.items():
+            parameter = demo.par[name]
+            if parameter is not None:
+                parameter.val = value
         for index in range(2, SLOT_COUNT + 1):
             rack.ClearSlot(index)
 
@@ -756,6 +809,7 @@ def validate(write_report=True):
                 ),
                 "numeric": {},
                 "toggles": {},
+                "pulses": {},
                 "errors": [],
             }
             try:
@@ -844,6 +898,12 @@ def validate(write_report=True):
                                     definition,
                                     component_name,
                                 )
+                    elif parameter_type == "pulse":
+                        result["pulses"][name] = _exercise_pulse(
+                            slot,
+                            rack,
+                            name,
+                        )
 
                 result["shader_errors"] = _messages(slot, "errors")
                 result["shader_warnings"] = _messages(slot, "warnings")
@@ -857,9 +917,14 @@ def validate(write_report=True):
                     value.get("responds") and value.get("finite")
                     for value in result["toggles"].values()
                 )
+                pulses_ok = all(
+                    value.get("responds")
+                    for value in result["pulses"].values()
+                )
                 result["ok"] = bool(
                     numeric_ok
                     and toggles_ok
+                    and pulses_ok
                     and result["read_only_ok"]
                     and result["resolution"] == [QA_WIDTH, QA_HEIGHT]
                     and not result["shader_errors"]
@@ -903,6 +968,11 @@ def validate(write_report=True):
         for package in package_results
         for value in package.get("toggles", {}).values()
     ]
+    pulse_results = [
+        value
+        for package in package_results
+        for value in package.get("pulses", {}).values()
+    ]
     failed_packages = [
         package["id"] for package in package_results if not package.get("ok")
     ]
@@ -917,6 +987,10 @@ def validate(write_report=True):
         ),
         "every_toggle_responds": bool(toggle_results)
         and all(value.get("responds") for value in toggle_results),
+        "every_package_pulse_button_responds": (
+            len(pulse_results) == 14
+            and all(value.get("responds") for value in pulse_results)
+        ),
         "rack_driven_and_metadata_fields_are_read_only": all(
             package.get("read_only_ok") for package in package_results
         ),
@@ -939,6 +1013,7 @@ def validate(write_report=True):
             "failed_packages": failed_packages,
             "numeric_control_count": len(numeric_results),
             "toggle_control_count": len(toggle_results),
+            "pulse_control_count": len(pulse_results),
             "restoration_error": restoration_error,
             "ok": (
                 report.get("error") is None

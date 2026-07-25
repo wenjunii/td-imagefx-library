@@ -56,7 +56,7 @@ rebuilds require a separate blank TouchDesigner project.
 
 ## Run the complete live suite
 
-After installing the harness, run all ten tracked live validators with one
+After installing the harness, run all eleven tracked live validators with one
 Textport command:
 
 ```python
@@ -198,6 +198,13 @@ every numeric component and toggle plus rack mix, effective time, and local
 time scale, validates range/clamp metadata, finite pixels, diagnostics, and QA
 resolution, then restores rack, demo, source-time, resolution, and timeline
 state. Run it only in the ignored development harness; it never saves.
+
+For a complete interaction regression, run
+`touchdesigner/scripts/validate_control_surface.py`. It exercises all 45 visible
+pulse buttons and all 42 rack value controls, verifies callback DAT ownership
+and watched parameters, checks preset round trips and slot ordering, and
+restores rack, browser, updater, and library state without saving. The
+all-effect validator separately exercises all 14 package reset pulse buttons.
 
 For a state-restoring pixel regression of the separate Random Particles stage,
 run `touchdesigner/scripts/validate_particle_module.py`. It verifies all eight
