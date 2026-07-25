@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-07-22T21:32:26.152678+00:00",
+  "generated_at": "2026-07-25T21:03:13.354856+00:00",
   "library_version": "0.3.0",
   "touchdesigner": {
     "version": "099",
@@ -10,7 +10,7 @@
   },
   "builder": {
     "path": "touchdesigner/scripts/build_project.py",
-    "sha256": "4fe66a89050c260177b4a3965ad3d2051b2c30968145f9f28e9bc30814c25bb5"
+    "sha256": "f6dd5ddd7bb8fa19a3c8fb2d33ee370b16c7991a9fefcec5dd3e5257f40bf24a"
   },
   "catalog": {
     "current_effects": 96,
@@ -29,68 +29,68 @@
   "artifacts": [
     {
       "path": "TD_ImageFX_Library.toe",
-      "bytes": 229034,
-      "sha256": "e49e9178558b8f8ab2bb0a05c628abda79efc31f9ecc4817c9fd58d1f336ea09"
+      "bytes": 229186,
+      "sha256": "7f508bd35ed5607d0d484cf8b1d06582320cd53d7929f18799d8bddebc765d72"
     },
     {
       "path": "touchdesigner/core/TDImageFXLibrary.tox",
-      "bytes": 138270,
-      "sha256": "63148bd47a85dd12e6409dc1e83a6d9537c878fa0884468e7905ebda617633b2"
+      "bytes": 138422,
+      "sha256": "3c8320d01bece3cdd8901f8905552df34a7b565d2c4ad7c36b5f7dfa156e45c9"
     },
     {
       "path": "touchdesigner/core/FxBrowser.tox",
       "bytes": 24814,
-      "sha256": "c6dd1cb9e9e6de18bb35c29a31fe40d378954b16f26fed46072bad72d305519a"
+      "sha256": "a4638943db4d62e8372e96d99cf436ac36e03aaf98bea5f091e564dc3676992a"
     },
     {
       "path": "touchdesigner/core/FxRack.tox",
       "bytes": 25446,
-      "sha256": "80065360f32dd249bd0c6574e1bce7c9459f6fdadff39e1a3dcff2efb22e76fe"
+      "sha256": "08381277b8d037878a81ca06d89419e8b2ffb79c5adcc89a3d7ef0b072b5331b"
     },
     {
       "path": "touchdesigner/core/ParticleRandomMove.tox",
       "bytes": 9046,
-      "sha256": "21fc821464f4ab7b0675d4c70eb38e6d9155db797670674e2c473984e7a06aaa"
+      "sha256": "da42e999cf0a18d13e62275a1bc443e5b7c458e7fbbfbf677535d26ae3560453"
     },
     {
       "path": "touchdesigner/core/InkFlowFusion.tox",
       "bytes": 8582,
-      "sha256": "8cd946a1e6b510632f9fb818c527b54ded85947c9a7f42fdcda05cf9830a99b6"
+      "sha256": "c9cbf4042fa1629eb63b6378c8da0e34451a12c5a9acd8ea519388e940df06ad"
     },
     {
       "path": "touchdesigner/core/GlitchFusion.tox",
       "bytes": 9030,
-      "sha256": "edfc681d85c97a8ba35c7b2f3a62da4260d0d443a07e7e8229fbff70ec445c27"
+      "sha256": "c6251b86fe12ca82cb63fb2d1e28d030609c22a34a2471664d718ed653fde279"
     },
     {
       "path": "touchdesigner/core/ColorAdjustment.tox",
       "bytes": 11270,
-      "sha256": "2391aff9a059e32d0179a8a96fee1322915b5fef375ebc4146feee72c2201255"
+      "sha256": "11e7ea6cdcf2e74e282d61c200f5715f2526f3dbeaa69512c762ece2e8307680"
     },
     {
       "path": "touchdesigner/core/MotionStudio.tox",
       "bytes": 9574,
-      "sha256": "a74dc7ce3d07e48a8b491263900060d77f50e9b19b5a9f18fcc9a6d353693869"
+      "sha256": "f9773c486f1910145013f7628d845534321a2f88f18fe4ec8abba0568c562490"
     },
     {
       "path": "touchdesigner/core/ReferenceParticleField.tox",
-      "bytes": 7542,
-      "sha256": "3d59de83bd94af8bde895396f7185481dbdc25897b03cf32d40ba552d058bfa0"
+      "bytes": 7550,
+      "sha256": "fe18acfa4a66059c634e84ab513a1a3e86a6cf599c7642ee749bc009589b26e2"
     },
     {
       "path": "touchdesigner/core/CalligraphicShadow.tox",
       "bytes": 7054,
-      "sha256": "ab1afd6544eb0892883825dff9f2670d5c599780406c074aef40ecad77fe661a"
+      "sha256": "ec7f607f3d16aace26ab0073c99c91834eddd1c2549564114e39a3214c7d548f"
     },
     {
       "path": "touchdesigner/core/InkOrbitCanvas.tox",
-      "bytes": 7430,
-      "sha256": "afae27240032b029cd7571241514a454c32e3047aae4f88bb221458082f2ca30"
+      "bytes": 7438,
+      "sha256": "50cba12c451431bcfe4402676149bbc31f77fe9175458ea27af2426918a592a7"
     },
     {
       "path": "touchdesigner/core/FxUpdater.tox",
       "bytes": 13630,
-      "sha256": "c5d85b4184c902918761e6edeb7b35c3b5d028724ed1531b78f83641974180b2"
+      "sha256": "e6d222400459f373ae4f98f759fa51a9ae813b91301c5d31129a2d4fb99e0a2a"
     },
     {
       "path": "packages/tdimagefx.blur.bilateral-blur/1.0.0/tox/tdimagefx_blur_bilateral_blur.tox",

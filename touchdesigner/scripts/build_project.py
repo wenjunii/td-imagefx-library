@@ -6360,6 +6360,16 @@ def build_library(project_comp, manifests, report):
         "ImageFXLibraryExt",
         PROJECT_ROOT / "touchdesigner" / "extensions" / "ImageFXLibraryExt.py",
     )
+    library_callbacks = configure_parameter_callbacks(
+        library,
+        PROJECT_ROOT
+        / "touchdesigner"
+        / "callbacks"
+        / "library_parameter_callbacks.py",
+        "Refreshcatalog",
+    )
+    library_callbacks.nodeX = 80
+    library_callbacks.nodeY = -380
 
     readme = library.create(textDAT, "README")
     readme.text = (

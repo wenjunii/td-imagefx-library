@@ -132,6 +132,18 @@ class TouchDesignerBuilderPathTests(unittest.TestCase):
         owner.path = "/project1/imagefx_demo/fx_rack"
         self.assertEqual(callback.par.op, "..")
 
+    def test_library_refresh_button_has_live_parameter_callback(self) -> None:
+        source = MODULE_PATH.read_text(encoding="utf-8")
+        self.assertIn("library_parameter_callbacks.py", source)
+        self.assertIn('"Refreshcatalog"', source)
+        callback_source = (
+            MODULE_PATH.parents[2]
+            / "touchdesigner"
+            / "callbacks"
+            / "library_parameter_callbacks.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn("library.RefreshCatalog()", callback_source)
+
     def test_feedback_targets_are_repaired_relative_to_loaded_state(self) -> None:
         class Target:
             pass

@@ -30,6 +30,7 @@ REPORT_PATH = PROJECT_ROOT / "build" / "envoy-validation" / "live-suite.json"
 
 VALIDATORS = (
     ("live_project", "validate_live_project.py"),
+    ("control_surface", "validate_control_surface.py"),
     ("output_resolution", "validate_output_resolution.py"),
     ("rack_selection", "validate_rack_selection.py"),
     ("ink_flow", "validate_ink_flow_module.py"),

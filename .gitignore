@@ -24,6 +24,7 @@ cache/
 downloads/
 staging/
 quarantine/
+presets/.qa-control-surface.json
 
 # Local Embody/Envoy QA project and generated assistant configuration
 integrations/embody/local/

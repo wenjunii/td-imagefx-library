@@ -43,6 +43,7 @@ INK_ORBIT_CANVAS_TOX = (
     PROJECT_ROOT / "touchdesigner" / "core" / "InkOrbitCanvas.tox"
 )
 EXTENSION_ROOT = PROJECT_ROOT / "touchdesigner" / "extensions"
+CALLBACK_ROOT = PROJECT_ROOT / "touchdesigner" / "callbacks"
 MANAGED_NAMES = ("td_imagefx", "imagefx_demo")
 OUTPUT_PRESETS = (
     ("hd", "HD 1920 x 1080"),
@@ -229,6 +230,22 @@ def _sync_extension(component, class_name):
     parameter.pulse()
 
 
+def _sync_callbacks(component, filename):
+    """Load one tracked callback source into a compiled component DAT."""
+
+    if component is None:
+        raise RuntimeError(
+            "Cannot synchronize {} on a missing component".format(filename)
+        )
+    source = CALLBACK_ROOT / filename
+    callbacks = component.op("parameter_callbacks")
+    if not source.is_file() or callbacks is None:
+        raise RuntimeError(
+            "{} callback source or DAT is unavailable".format(filename)
+        )
+    callbacks.text = source.read_text(encoding="utf-8")
+
+
 def _set_library_root(component, label):
     if component is None:
         raise RuntimeError("Loaded ImageFX library is missing {}".format(label))
@@ -290,6 +307,10 @@ def install():
         _sync_extension(library_rack, "FxRackExt")
         _sync_extension(browser, "ImageFXBrowserExt")
         _sync_extension(updater, "UpdaterExt")
+        _sync_callbacks(library, "library_parameter_callbacks.py")
+        _sync_callbacks(library_rack, "rack_parameter_callbacks.py")
+        _sync_callbacks(browser, "browser_parameter_callbacks.py")
+        _sync_callbacks(updater, "updater_parameter_callbacks.py")
         if browser.UpdateSelection() is None:
             raise RuntimeError("Library browser preview did not initialize")
         _repair_effect_shader_paths(library)

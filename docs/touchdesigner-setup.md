@@ -70,17 +70,25 @@ scope.update({"__file__": script, "__name__": "__main__"})
 exec(compile(open(script, encoding="utf-8").read(), script, "exec"), scope)
 ```
 
-The runner executes all ten tracked validators, writes
+The runner executes all eleven tracked validators, writes
 `build/envoy-validation/live-suite.json` and the individual ignored reports,
 and never saves the project. A complete run can take several minutes. Do not
 run the mutating suite in a production show.
+
+`touchdesigner/scripts/validate_control_surface.py` checks all 45 visible pulse
+buttons and all 42 rack value controls, including library refresh, update
+check, browser actions, preset round trips, global rack actions, and every
+slot's reorder/reset/bypass controls. It verifies callback DAT wiring and
+restores rack, browser, updater, and library state. The all-effect sweep also
+exercises all 14 package-level reset pulse buttons.
 
 For exhaustive package-control QA, run
 `touchdesigner/scripts/validate_all_effect_parameters.py` from the Python
 Textport in a disposable development harness. It loads all 96 latest packages
 through rack slot 1 and checks every numeric manifest component, toggle, rack
 mix, effective-time response, per-effect time scale, parameter range/clamp
-metadata, finite pixels, clean diagnostics, and 320 x 180 cook resolution. The
+metadata, all 14 effect-level reset pulse buttons, finite pixels, clean
+diagnostics, and 320 x 180 cook resolution. The
 ignored report is `build/envoy-validation/all-effect-parameters.json`. The
 script restores rack, demo, source-time, resolution, and timeline state in a
 `finally` block and never saves the project.

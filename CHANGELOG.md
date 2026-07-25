@@ -72,10 +72,15 @@ All notable changes to TD ImageFX Library are recorded here. Package versions fo
   menu distinction, alpha preservation, and resolved-time behavior.
 - A state-restoring all-effect validator that loads all 96 latest packages and
   checks every manifest numeric component, toggle, rack mix, effective time,
-  per-effect time scale, range/clamp contract, finite output, diagnostics, and
-  320 x 180 cook resolution without saving the project.
+  per-effect time scale, all 14 effect-level reset pulse buttons, range/clamp
+  contract, finite output, diagnostics, and 320 x 180 cook resolution without
+  saving the project.
+- A state-restoring control-surface validator for all 45 library, updater,
+  browser, rack, and slot pulse buttons plus all 42 rack value controls,
+  callback wiring, preset round trips, slot ordering, and complete state
+  restoration.
 - A one-command `validate_live_suite.py` Textport runner that preserves
-  TouchDesigner globals, executes all ten live validators, keeps running to
+  TouchDesigner globals, executes all eleven live validators, keeps running to
   report every failure, writes an ignored summary, and never saves the project.
 - Compatible `tdimagefx.key.despill@1.1.0` and
   `tdimagefx.stylize.vignette@1.2.0` packages whose color-alpha sliders now
@@ -99,6 +104,9 @@ All notable changes to TD ImageFX Library are recorded here. Package versions fo
 - Repository verification now protects the live-QA integration identity,
   catalog counts, managed paths, required audit tools, and no-save harness
   boundary.
+- The library **Refresh Catalog** pulse now has a live Parameter Execute
+  callback and is synchronized into both generated releases and development
+  harnesses.
 - Repository verification now also rejects drift between public README claims,
   the checked source test count, the live validator's catalog constants, and
   the native TouchDesigner build recorded in the ImageFX project context.
@@ -116,7 +124,7 @@ All notable changes to TD ImageFX Library are recorded here. Package versions fo
 - The native `.toe`, twelve core `.tox` components, benchmark report, and
   SHA-256-bound native validation record were rebuilt with TouchDesigner
   `2025.32820`.
-- The offline suite now contains 173 tests, including contracts for every
+- The offline suite now contains 175 tests, including contracts for every
   latest manifest uniform being both declared and referenced, bounded
   ink-flow particles, two distinct visual styles, all 24 Glitch Fusion styles,
   neutral color adjustment, sixteen overlay modes, all 40 Motion Studio styles,

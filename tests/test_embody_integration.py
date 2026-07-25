@@ -225,6 +225,11 @@ class EmbodyIntegrationTests(unittest.TestCase):
         self.assertEqual(installer.count("_sync_extension("), 6)
         self.assertIn('_sync_extension(browser, "ImageFXBrowserExt")', installer)
         self.assertIn('_sync_extension(updater, "UpdaterExt")', installer)
+        self.assertEqual(installer.count("_sync_callbacks("), 5)
+        self.assertIn(
+            '_sync_callbacks(library, "library_parameter_callbacks.py")',
+            installer,
+        )
         self.assertIn('library.op("update_manager")', installer)
         self.assertNotIn("project.save(", installer)
         self.assertNotIn("_save_project_atomically", installer)
@@ -249,6 +254,7 @@ class EmbodyIntegrationTests(unittest.TestCase):
             "validate_color_adjustment_module.py",
             "validate_motion_studio_module.py",
             "validate_reference_video_modules.py",
+            "validate_control_surface.py",
             "validate_all_effect_parameters.py",
         ):
             self.assertIn(script_name, live_suite_validator)

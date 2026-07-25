@@ -572,6 +572,12 @@ def _check_embody_integration() -> None:
         / "scripts"
         / "validate_reference_video_modules.py"
     )
+    control_surface_validator_path = (
+        ROOT
+        / "touchdesigner"
+        / "scripts"
+        / "validate_control_surface.py"
+    )
     output_resolution_validator_path = (
         ROOT / "touchdesigner" / "scripts" / "validate_output_resolution.py"
     )
@@ -597,6 +603,7 @@ def _check_embody_integration() -> None:
         color_adjustment_validator_path,
         motion_validator_path,
         reference_video_validator_path,
+        control_surface_validator_path,
         output_resolution_validator_path,
         browser_start_callbacks_path,
         bridge_checker_path,
@@ -775,6 +782,7 @@ def _check_embody_integration() -> None:
         "validate_color_adjustment_module.py",
         "validate_motion_studio_module.py",
         "validate_reference_video_modules.py",
+        "validate_control_surface.py",
         "validate_all_effect_parameters.py",
     )
     if (
@@ -808,6 +816,7 @@ def _check_embody_integration() -> None:
         or "contains_exactly_96_latest_packages" not in all_effect_validator
         or "every_numeric_control_responds" not in all_effect_validator
         or "every_toggle_responds" not in all_effect_validator
+        or "every_package_pulse_button_responds" not in all_effect_validator
         or "rack_driven_and_metadata_fields_are_read_only" not in all_effect_validator
         or "Timescale" not in all_effect_validator
         or "ExportPreset" not in all_effect_validator
@@ -817,6 +826,23 @@ def _check_embody_integration() -> None:
     ):
         raise VerificationError(
             "All-effect validator must test every latest package control, restore state, and never save"
+        )
+
+    control_surface_validator = control_surface_validator_path.read_text(
+        encoding="utf-8"
+    )
+    if (
+        "EXPECTED_PULSE_BUTTON_COUNT = 45" not in control_surface_validator
+        or "every_rack_value_control_responds" not in control_surface_validator
+        or "every_pulse_button_was_exercised" not in control_surface_validator
+        or "every_pulse_button_works" not in control_surface_validator
+        or "complete_state_restoration" not in control_surface_validator
+        or "Refreshcatalog" not in control_surface_validator
+        or "Checkupdates" not in control_surface_validator
+        or "project.save(" in control_surface_validator
+    ):
+        raise VerificationError(
+            "Control-surface validator must exercise every rack value control and pulse button, restore state, and never save"
         )
 
     particle_validator = particle_validator_path.read_text(encoding="utf-8")
