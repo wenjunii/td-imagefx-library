@@ -6,6 +6,10 @@ All notable changes to TD ImageFX Library are recorded here. Package versions fo
 
 ### Added
 
+- An optional trail-aware glitter layer for `CalligraphicShadow.tox`, with an
+  exact zero-amount bypass and adjustable amount, density, grain size,
+  threshold, softness, shimmer, independent drift speed, spread, sparse star
+  highlights, and RGBA tint.
 - Project-scoped integration for Embody `6.0.131`, Envoy, the local
   TouchDesigner knowledge library, and `td-knowledge-mcp`.
 - A public-safe `get_td_project_context` profile, placeholder-only combined MCP
@@ -136,6 +140,10 @@ All notable changes to TD ImageFX Library are recorded here. Package versions fo
 
 ### Fixed
 
+- The blocking Textport control-surface validator now dispatches each verified
+  Parameter Execute DAT pulse handler synchronously, so all 45 buttons are
+  tested deterministically instead of producing a false empty-preset failure
+  while the event loop waits for the next frame.
 - Rack-loaded effects now multiply global rack time by their editable local
   **Time Scale**; effective time, enable/mix, and package metadata are locked
   read-only when the rack owns them, so internal controls no longer appear

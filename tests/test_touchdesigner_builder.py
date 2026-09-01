@@ -650,6 +650,22 @@ class TouchDesignerBuilderPathTests(unittest.TestCase):
             particle_definitions["Palette"]["default"],
             "electric_blue",
         )
+
+        calligraphic_definitions = {
+            item["name"]: item
+            for item in BUILDER.CALLIGRAPHIC_SHADOW_PARAMETER_DEFINITIONS
+        }
+        self.assertEqual(calligraphic_definitions["Glitteramount"]["default"], 0.0)
+        self.assertEqual(calligraphic_definitions["Glitteramount"]["max"], 2.0)
+        self.assertEqual(calligraphic_definitions["Glitterspeed"]["min"], -8.0)
+        self.assertEqual(calligraphic_definitions["Glitterspeed"]["max"], 8.0)
+        self.assertEqual(
+            calligraphic_definitions["Glittercolor"]["page"],
+            "Glitter",
+        )
+        self.assertIn("glitterCarrier", BUILDER.CALLIGRAPHIC_SHADOW_SHADER)
+        self.assertIn("starHorizontal", BUILDER.CALLIGRAPHIC_SHADOW_SHADER)
+        self.assertIn("uGlitterAmount", BUILDER.CALLIGRAPHIC_SHADOW_SHADER)
         shadow_definitions = {
             item["name"]: item
             for item in BUILDER.CALLIGRAPHIC_SHADOW_PARAMETER_DEFINITIONS

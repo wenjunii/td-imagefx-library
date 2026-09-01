@@ -3,9 +3,12 @@
 This validator complements the rendered-pixel effect/module sweeps. It
 exercises all eight rack control groups, every rack pulse, the library,
 browser, and updater buttons, and the callback DAT wiring that makes a visible
-TouchDesigner button do work. Rack and browser state are restored in a
-``finally`` block, the project is never saved, and the preset button writes
-only the ignored ``presets/.qa-control-surface.json`` runtime fixture.
+TouchDesigner button do work. Pulse handlers are dispatched synchronously
+through the same callback modules used by the Parameter Execute DATs because a
+blocking Textport sweep cannot wait for a later frame to deliver queued pulse
+events. Rack and browser state are restored in a ``finally`` block, the project
+is never saved, and the preset button writes only the ignored
+``presets/.qa-control-surface.json`` runtime fixture.
 """
 
 from __future__ import annotations
@@ -108,7 +111,24 @@ def _invoke_pulse(component, callbacks, name):
         raise RuntimeError(
             "{} is missing pulse {}".format(component.path, name)
         )
-    parameter.pulse()
+    if callbacks is None:
+        raise RuntimeError(
+            "{} is missing parameter callbacks for {}".format(
+                component.path, name
+            )
+        )
+    handler = getattr(callbacks.module, "onPulse", None)
+    if not callable(handler):
+        raise RuntimeError(
+            "{} callback module has no onPulse handler for {}".format(
+                callbacks.path, name
+            )
+        )
+    # Parameter Execute DATs deliver pulse events on TouchDesigner's event
+    # loop. The live suite runs as one blocking Textport call, so invoke the
+    # exact configured handler directly after separately verifying the DAT's
+    # owner, watched parameters, and pulse flag in _callback_diagnostics().
+    handler(parameter)
     component.cook(force=True)
 
 
