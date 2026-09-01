@@ -3559,9 +3559,19 @@ uniform float uTrailSamples;
 uniform float uDiffusion;
 uniform float uDryBrush;
 uniform float uSplatter;
+uniform float uGlitterAmount;
+uniform float uGlitterDensity;
+uniform float uGlitterSize;
+uniform float uGlitterThreshold;
+uniform float uGlitterSoftness;
+uniform float uGlitterShimmer;
+uniform float uGlitterSpeed;
+uniform float uGlitterSpread;
+uniform float uStarAmount;
 uniform float uSeed;
 uniform vec4 uInkColor;
 uniform vec4 uPaperColor;
+uniform vec4 uGlitterColor;
 
 float calligraphyHash(vec2 value) {
     vec3 p3 = fract(vec3(value.xyx) * 0.1031);
@@ -3657,10 +3667,72 @@ void main() {
     );
     float inkMask = clamp(diffusion * dryPattern + splatterGate * 0.72, 0.0, 1.0);
 
+    // Granular, light-catching pigment constrained to the extracted subject
+    // and its calligraphic trails. Glitter Amount at zero is an exact bypass.
+    float glitterSpread = clamp(uGlitterSpread, 0.0, 1.0);
+    float glitterCarrier = max(inkMask, currentMask * 0.85);
+    glitterCarrier = max(
+        glitterCarrier,
+        trailMask * glitterSpread * 0.52
+    );
+    float glitterSoftness = max(uGlitterSoftness, 0.001);
+    float glitterThreshold = uGlitterThreshold * mix(1.0, 0.35, glitterSpread);
+    float glitterSurface = smoothstep(
+        glitterThreshold - glitterSoftness,
+        glitterThreshold + glitterSoftness,
+        glitterCarrier
+    );
+    float glitterCellSize = max(uGlitterSize, 0.5);
+    float glitterTime = uTime * uGlitterSpeed;
+    vec2 glitterGrid = uv * resolution / glitterCellSize
+        + vec2(glitterTime * 0.19, -glitterTime * 0.13);
+    vec2 glitterCell = floor(glitterGrid);
+    vec2 glitterLocal = fract(glitterGrid) - 0.5;
+    float glitterSeed = calligraphyHash(glitterCell + uSeed * 1.37);
+    vec2 glitterJitter = vec2(
+        calligraphyHash(glitterCell + uSeed * 0.73 + 19.1),
+        calligraphyHash(glitterCell + uSeed * 1.11 + 47.7)
+    ) - 0.5;
+    float grainRadius = mix(0.08, 0.34, glitterSeed);
+    float grain = 1.0 - smoothstep(
+        grainRadius,
+        grainRadius + 0.10,
+        length(glitterLocal - glitterJitter * 0.42)
+    );
+    float densityGate = step(
+        1.0 - clamp(uGlitterDensity, 0.0, 1.0),
+        calligraphyHash(glitterCell + uSeed * 2.31 + 83.4)
+    );
+    float twinkleWave = 0.5 + 0.5 * sin(
+        glitterTime * 6.28318530718 + glitterSeed * 31.4159265359
+    );
+    float twinkle = mix(
+        1.0,
+        0.22 + 1.38 * pow(twinkleWave, 3.0),
+        clamp(uGlitterShimmer, 0.0, 1.0)
+    );
+    float starGate = step(
+        1.0 - clamp(uGlitterDensity * uStarAmount * 0.15, 0.0, 0.15),
+        calligraphyHash(glitterCell + uSeed * 3.17 + 127.9)
+    );
+    float starHorizontal = (
+        1.0 - smoothstep(0.015, 0.075, abs(glitterLocal.y))
+    ) * (1.0 - smoothstep(0.10, 0.50, abs(glitterLocal.x)));
+    float starVertical = (
+        1.0 - smoothstep(0.015, 0.075, abs(glitterLocal.x))
+    ) * (1.0 - smoothstep(0.10, 0.50, abs(glitterLocal.y)));
+    float star = max(starHorizontal, starVertical) * starGate * uStarAmount;
+    float glitterMask = glitterSurface
+        * max(grain * densityGate, star)
+        * clamp(uGlitterAmount, 0.0, 2.0)
+        * uGlitterColor.a;
+
     vec3 paper = mix(source.rgb, uPaperColor.rgb, clamp(uPaperAmount * uPaperColor.a, 0.0, 1.0));
     vec3 inked = mix(paper, uInkColor.rgb, inkMask * uInkColor.a);
     vec3 subject = mix(inked, source.rgb, clamp(currentMask * uSourceOpacity, 0.0, 1.0));
+    subject += uGlitterColor.rgb * glitterMask * twinkle;
     float resultAlpha = max(source.a * (1.0 - uPaperAmount), uPaperColor.a * uPaperAmount);
+    resultAlpha = max(resultAlpha, clamp(glitterMask, 0.0, 1.0));
     vec4 result = vec4(subject, resultAlpha);
     fragColor = TDOutputSwizzle(mix(source, result, clamp(uMix, 0.0, 1.0)));
 }
@@ -3691,6 +3763,16 @@ CALLIGRAPHIC_SHADOW_PARAMETER_DEFINITIONS = (
     {"name": "Diffusion", "label": "Wet Diffusion", "type": "float", "page": "Ink Surface", "default": 0.34, "min": 0.0, "max": 1.0, "uniform": "uDiffusion", "description": "Soften and pool the calligraphic pigment."},
     {"name": "Drybrush", "label": "Dry Brush", "type": "float", "page": "Ink Surface", "default": 0.24, "min": 0.0, "max": 1.0, "uniform": "uDryBrush", "description": "Break the ink into dry-brush fibers."},
     {"name": "Splatter", "label": "Ink Splatter", "type": "float", "page": "Ink Surface", "default": 0.16, "min": 0.0, "max": 1.0, "uniform": "uSplatter", "description": "Add sparse deterministic ink droplets near the shadow."},
+    {"name": "Glitteramount", "label": "Glitter Amount (0 = Off)", "type": "float", "page": "Glitter", "default": 0.0, "min": 0.0, "max": 2.0, "uniform": "uGlitterAmount", "description": "Add light-catching glitter to the subject and calligraphic trails; zero is an exact bypass."},
+    {"name": "Glitterdensity", "label": "Glitter Density", "type": "float", "page": "Glitter", "default": 0.46, "min": 0.0, "max": 1.0, "uniform": "uGlitterDensity", "description": "Set the proportion of trail cells that contain glitter grains."},
+    {"name": "Glittersize", "label": "Glitter Grain Size", "type": "float", "page": "Glitter", "default": 2.4, "min": 0.5, "max": 12.0, "uniform": "uGlitterSize", "description": "Set the glitter grain cell size in source pixels."},
+    {"name": "Glitterthreshold", "label": "Glitter Trail Threshold", "type": "float", "page": "Glitter", "default": 0.24, "min": 0.0, "max": 1.0, "uniform": "uGlitterThreshold", "description": "Restrict glitter to stronger or weaker regions of the ink trail."},
+    {"name": "Glittersoftness", "label": "Glitter Edge Softness", "type": "float", "page": "Glitter", "default": 0.10, "min": 0.001, "max": 0.5, "uniform": "uGlitterSoftness", "description": "Soften the transition between glittered and unglittered trail regions."},
+    {"name": "Glittershimmer", "label": "Glitter Shimmer", "type": "float", "page": "Glitter", "default": 0.78, "min": 0.0, "max": 1.0, "uniform": "uGlitterShimmer", "description": "Animate individual grain brightness like reflected light."},
+    {"name": "Glitterspeed", "label": "Glitter Motion Speed", "type": "float", "page": "Glitter", "default": 1.15, "min": -8.0, "max": 8.0, "uniform": "uGlitterSpeed", "description": "Set or reverse glitter drift and twinkle speed independently from ink motion."},
+    {"name": "Glitterspread", "label": "Glitter Spread", "type": "float", "page": "Glitter", "default": 0.20, "min": 0.0, "max": 1.0, "uniform": "uGlitterSpread", "description": "Expand glitter outward from the extracted subject and trail core."},
+    {"name": "Staramount", "label": "Star Highlight Amount", "type": "float", "page": "Glitter", "default": 0.28, "min": 0.0, "max": 1.0, "uniform": "uStarAmount", "description": "Add sparse cross-shaped specular highlights among the grains."},
+    {"name": "Glittercolor", "label": "Glitter Color", "type": "rgba", "page": "Glitter", "default": [0.76, 0.92, 1.0, 1.0], "uniform": "uGlitterColor", "description": "Tint glitter from silver-blue to any desired highlight color and opacity."},
     {"name": "Inkcolor", "label": "Ink Color", "type": "rgba", "page": "Palette", "default": [0.008, 0.012, 0.010, 1.0], "uniform": "uInkColor", "description": "Set shadow pigment color and alpha."},
     {"name": "Papercolor", "label": "Paper Color", "type": "rgba", "page": "Palette", "default": [0.78, 0.88, 0.82, 1.0], "uniform": "uPaperColor", "description": "Set the minimal background color and alpha."},
     {"name": "Seed", "label": "Random Seed", "type": "int", "page": "Ink Surface", "default": 53, "min": 0, "max": 100000, "uniform": "uSeed", "description": "Choose deterministic brush fibers and splatter."},

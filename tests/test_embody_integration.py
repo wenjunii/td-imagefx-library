@@ -191,6 +191,12 @@ class EmbodyIntegrationTests(unittest.TestCase):
             / "scripts"
             / "validate_all_effect_parameters.py"
         ).read_text(encoding="utf-8")
+        control_surface_validator = (
+            ROOT
+            / "touchdesigner"
+            / "scripts"
+            / "validate_control_surface.py"
+        ).read_text(encoding="utf-8")
         bridge_checker = (
             ROOT / "integrations" / "embody" / "check_td_bridge.py"
         ).read_text(encoding="utf-8")
@@ -280,6 +286,13 @@ class EmbodyIntegrationTests(unittest.TestCase):
         self.assertIn("ImportPreset", all_effect_validator)
         self.assertIn("finally:", all_effect_validator)
         self.assertNotIn("project.save(", all_effect_validator)
+        self.assertIn(
+            'handler = getattr(callbacks.module, "onPulse", None)',
+            control_surface_validator,
+        )
+        self.assertIn("handler(parameter)", control_surface_validator)
+        self.assertNotIn("parameter.pulse()", control_surface_validator)
+        self.assertNotIn("project.save(", control_surface_validator)
         self.assertIn(
             'EXPECTED_PROJECT_ID = "td-imagefx-library"',
             bridge_checker,

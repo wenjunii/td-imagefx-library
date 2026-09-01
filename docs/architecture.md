@@ -176,7 +176,8 @@ retains feedback state.
 The three reference-video modules are independently bypassable, bounded
 single-pass GPU recreations. Chromatic Particle Field converts the source into
 a palette-mapped turbulent point cloud; Calligraphic Shadow extracts a subject
-mask and spatially accumulates up to eight flowing ink gestures; Ink Orbit
+mask and spatially accumulates up to eight flowing ink gestures, with an
+optional seeded glitter layer constrained to the subject and trail masks; Ink Orbit
 Canvas generates seeded rings and droplets with source modulation, paper
 fibers, wet diffusion, and floor-perspective compression. Each exposes
 automatic/manual time, dry/wet mix, palette controls, and deterministic seed.
