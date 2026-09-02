@@ -38,7 +38,9 @@ synchronizes their extension DATs from `touchdesigner/extensions/`, repairs
 legacy absolute Pixel Shader DAT paths inside loaded effects, points every
 library root at the checkout, creates the same managed paths used by the
 canonical project, and exposes HD, 4K UHD, and custom output-resolution
-controls. It refuses to run in `TD_ImageFX_Library.toe`, refuses to
+controls. It also builds the same show-control section as the canonical TOE,
+with audio disabled, blackout on and audience windows closed. It refuses to run
+in `TD_ImageFX_Library.toe`, refuses to
 replace existing managed roots, requires the exact unnumbered
 `TD_ImageFX_DevHarness.toe` identity, and never saves a project. Run it through
 Envoy for a single undoable operation, or use a fresh local harness when you
@@ -56,7 +58,7 @@ rebuilds require a separate blank TouchDesigner project.
 
 ## Run the complete live suite
 
-After installing the harness, run all eleven tracked live validators with one
+After installing a fresh harness, run all twelve tracked live validators with one
 Textport command:
 
 ```python

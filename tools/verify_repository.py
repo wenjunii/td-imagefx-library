@@ -431,6 +431,9 @@ def _check_native_validation(library_version: str) -> None:
         or builder.get("sha256") != _sha256(builder_path)
     ):
         raise VerificationError("Native validation is not bound to the current builder source")
+    show_sources = ("src/tdimagefx/show.py", "touchdesigner/extensions/ShowControlExt.py", "touchdesigner/scripts/build_show_control.py")
+    if record.get("show_sources") != {path: _sha256(ROOT / path) for path in show_sources}:
+        raise VerificationError("Native validation is not bound to current show-control sources")
     environment = record.get("touchdesigner")
     if not isinstance(environment, dict) or any(
         not isinstance(environment.get(field), str) or not environment[field].strip()

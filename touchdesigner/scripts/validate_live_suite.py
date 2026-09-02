@@ -40,6 +40,7 @@ VALIDATORS = (
     ("motion_studio", "validate_motion_studio_module.py"),
     ("reference_video_modules", "validate_reference_video_modules.py"),
     ("all_effect_parameters", "validate_all_effect_parameters.py"),
+    ("show_control", "validate_show_control.py"),
 )
 
 

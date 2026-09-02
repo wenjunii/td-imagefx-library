@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import re
+import sys
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -583,6 +584,19 @@ def install():
         output.render = True
         demo.par.opviewer = output.path
 
+        # Reuse the same source builder as the canonical TOE, without invoking
+        # its main build/save entrypoint or touching Embody's top-level nodes.
+        source_root = str(PROJECT_ROOT / "src")
+        if source_root not in sys.path:
+            sys.path.insert(0, source_root)
+        builder = PROJECT_ROOT / "touchdesigner" / "scripts" / "build_project.py"
+        context = dict(globals(), __file__=str(builder), __name__="_imagefx_harness_helpers")
+        exec(compile(builder.read_text(encoding="utf-8"), str(builder), "exec"), context)
+        show_builder = PROJECT_ROOT / "touchdesigner" / "scripts" / "build_show_control.py"
+        show_scope = dict(context, __file__=str(show_builder), __name__="_imagefx_harness_show")
+        exec(compile(show_builder.read_text(encoding="utf-8"), str(show_builder), "exec"), show_scope)
+        show = show_scope["build_show_control"](demo, context)
+
         health = library.HealthCheck()
         return {
             "ok": bool(health.get("ok")),
@@ -596,6 +610,7 @@ def install():
             "glitch": glitch.path,
             "color_adjustment": color_adjustment.path,
             "motion": motion.path,
+            "show_control": show.path,
             "output": output.path,
             "resolution_preset": str(demo.par.Resolutionpreset.eval()),
             "output_width": int(output.width),

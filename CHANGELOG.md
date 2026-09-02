@@ -6,6 +6,24 @@ All notable changes to TD ImageFX Library are recorded here. Package versions fo
 
 ### Added
 
+- A rehearsal-preview show-control section inside the demo TOE: local media
+  cues, captured effect/rack looks, parameter automation, a pause-aware show
+  clock, manual and automatic GO, crossfades, and local JSON show persistence.
+- Three 1080p–4K mapped output channels with identical/panoramic/independent
+  routing, corner pins, crop, rotation/flips, grade, overlap and edge fades;
+  stereo file/embedded-video audio with gain, mute and explicit output arming.
+- Portable scheduler/geometry tests and a state-restoring native show validator.
+  Build records also bind the three new show source files to the generated TOE.
+  Physical multi-display performance and audible playback need venue rehearsal.
+- Expanded cue-control regression coverage: all editor fields and pulse routes,
+  safe preload of running cues, fade-from-black after stop, cancellation of
+  queued track cues/follows, disabled-row chaining, transactional invalid-map
+  saves, and practical timing slider drag ranges with exact-value entry.
+- Corrected the show's fallback TOP to actual black (the native Constant TOP
+  default was white), preventing a white flash at the beginning of a fade.
+- New development-harness installations include show control using the same
+  source builder as the canonical TOE, without invoking its save entrypoint.
+
 - An independently adjustable Particle Shadow stage for
   `CalligraphicShadow.tox`. The continuous ink gesture can be progressively
   replaced with seeded GPU grains using density, size, softness, opacity,

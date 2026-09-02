@@ -8,6 +8,28 @@ The current source contains **96 current effect IDs across 18 categories**, back
 
 Canonical repository: [github.com/wenjunii/td-imagefx-library](https://github.com/wenjunii/td-imagefx-library)
 
+## Show control (rehearsal preview)
+
+The TOE now includes `/project1/imagefx_demo/show_control`: a clickable cue panel
+for local images, videos, stereo audio, captured effect/rack looks, parameter
+automation, timestamps, pre/post waits, crossfades, GO, pause/resume and stop.
+Three configurable 1080p–4K outputs support identical, panoramic or independent
+content, corner pinning, crop, rotation, gamma/brightness and edge fades.
+Audio and audience outputs start disarmed. Show JSON and media stay local.
+
+Open `TD_ImageFX_Library.toe`, enter `imagefx_demo`, then right-click
+`show_control` → **View**. Follow the [show-control guide](docs/show-control.md)
+for cue creation, display layout, audio and rehearsal testing. This is an initial
+native TouchDesigner workstation, not QLab or a show-readiness certification;
+physical output capability and sustained multi-display/audio performance still
+need rehearsal on the actual hardware.
+
+The show-control audit covers all 21 editor fields, 63 mapping/grade/flip
+controls, 19 pulse dispatch routes and eight panel buttons. Regression checks
+protect fade-from-black, running-cue preload, stop/follow cancellation and invalid
+mapping saves. Hardware arm/device/window controls are wiring-tested only; the
+automated suite deliberately does not open audience output or play audible sound.
+
 ## Effect catalog
 
 Package manifests under `packages/` are authoritative for versions, inputs, parameters, processing requirements, image behavior, provenance, assets, licenses, and compatibility. Discovery surfaces select the highest SemVer for each effect ID. Exact historical versions remain addressable for project locks and reproducible shows.
@@ -105,7 +127,7 @@ git clone https://github.com/wenjunii/td-imagefx-library.git
 cd td-imagefx-library
 ```
 
-The current source and generated artifacts are synchronized. The recorded Windows build used TouchDesigner `2025.32820` and validated all 96 current effects with 124 versioned effect `.tox` files, twelve core `.tox` files, one library `.toe`, 96 previews, 96 visual baselines, and 96 benchmark samples. The build report contains zero shader, preview, or builder errors. A fresh repository run completed 179 tests successfully, with four expected Windows symlink-permission skips, and two independent 99-file release builds matched byte-for-byte. Read [TouchDesigner setup](docs/touchdesigner-setup.md) to reproduce the native build.
+The current source and generated artifacts are synchronized. The recorded Windows build used TouchDesigner `2025.32820` and validated all 96 current effects with 124 versioned effect `.tox` files, twelve core `.tox` files, one library `.toe`, 96 previews, 96 visual baselines, and 96 benchmark samples. The build report contains zero shader, preview, or builder errors. A fresh repository run completed 195 tests successfully, with four expected Windows symlink-permission skips, and two independent 99-file release builds matched byte-for-byte. Read [TouchDesigner setup](docs/touchdesigner-setup.md) to reproduce the native build.
 
 The generated project targets TouchDesigner 2025. Validate the exact TouchDesigner build, operating system, GPU, driver, resolution, pixel format, and color pipeline used by your production system. Python 3.11 or newer is required for repository tooling; it is not required merely to use already-built native components.
 
@@ -438,7 +460,7 @@ exec(compile(open(script, encoding="utf-8").read(), script, "exec"), scope)
 
 Copying `globals()` is required because rendered-pixel QA uses
 TouchDesigner-provided objects including `op`, `app`, `root`, `textDAT`, and
-`glslTOP`. The runner executes all eleven tracked validators, continues long
+`glslTOP`. The runner executes all twelve tracked validators, continues long
 enough to report every failure, writes the ignored
 `build/envoy-validation/live-suite.json` summary plus each validator's normal
 report, and never saves the project. A complete run can take several minutes.

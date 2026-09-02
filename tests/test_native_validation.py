@@ -58,6 +58,12 @@ class NativeValidationRecordTests(unittest.TestCase):
         builder.parent.mkdir(parents=True, exist_ok=True)
         builder.write_text("# fixture builder\n", encoding="utf-8")
         builder_sha256 = hashlib.sha256(builder.read_bytes()).hexdigest()
+        show_sources = {}
+        for relative in record_native_validation.SHOW_SOURCES:
+            path = root / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("# show fixture\n", encoding="utf-8")
+            show_sources[relative] = hashlib.sha256(path.read_bytes()).hexdigest()
         report = root / "build-report.json"
         report.write_text(
             json.dumps(
@@ -73,6 +79,7 @@ class NativeValidationRecordTests(unittest.TestCase):
                         "path": record_native_validation.BUILDER_SOURCE,
                         "sha256": builder_sha256,
                     },
+                    "show_sources": show_sources,
                     "effects": [{
                         "id": "tdimagefx.test.effect",
                         "version": "1.0.0",

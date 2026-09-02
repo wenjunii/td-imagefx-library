@@ -7176,6 +7176,10 @@ def build():
         "shader_errors": {},
         "preview_errors": {},
         "errors": [],
+        "show_sources": {path: _sha256_file(PROJECT_ROOT / path) for path in (
+            "src/tdimagefx/show.py", "touchdesigner/extensions/ShowControlExt.py",
+            "touchdesigner/scripts/build_show_control.py",
+        )},
     }
     report_path = BUILD_ROOT / "touchdesigner-build-report.json"
     try:
@@ -7212,7 +7216,7 @@ def build():
             manifests,
             report,
         )
-        build_demo(
+        demo = build_demo(
             project_comp,
             rack_path,
             particle_path,
@@ -7224,6 +7228,11 @@ def build():
             calligraphic_shadow_path,
             ink_orbit_canvas_path,
         )
+        show_builder_path = PROJECT_ROOT / "touchdesigner" / "scripts" / "build_show_control.py"
+        show_scope = dict(globals())
+        show_scope.update({"__file__": str(show_builder_path), "__name__": "_imagefx_show_builder"})
+        exec(compile(_read_text(show_builder_path), str(show_builder_path), "exec"), show_scope)
+        show_scope["build_show_control"](demo, globals())
         report["benchmark_data"] = str(_write_benchmark_data(report))
         if report["shader_errors"]:
             raise RuntimeError("{} effects have GLSL errors".format(len(report["shader_errors"])))
