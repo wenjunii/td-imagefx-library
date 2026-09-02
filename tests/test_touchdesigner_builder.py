@@ -655,6 +655,14 @@ class TouchDesignerBuilderPathTests(unittest.TestCase):
             item["name"]: item
             for item in BUILDER.CALLIGRAPHIC_SHADOW_PARAMETER_DEFINITIONS
         }
+        self.assertEqual(calligraphic_definitions["Particleamount"]["default"], 0.0)
+        self.assertEqual(calligraphic_definitions["Particleamount"]["max"], 1.0)
+        self.assertEqual(calligraphic_definitions["Particlespeed"]["min"], -8.0)
+        self.assertEqual(calligraphic_definitions["Particlespeed"]["max"], 8.0)
+        self.assertEqual(
+            calligraphic_definitions["Particlecolor"]["page"],
+            "Particle Shadow",
+        )
         self.assertEqual(calligraphic_definitions["Glitteramount"]["default"], 0.0)
         self.assertEqual(calligraphic_definitions["Glitteramount"]["max"], 2.0)
         self.assertEqual(calligraphic_definitions["Glitterspeed"]["min"], -8.0)
@@ -666,6 +674,22 @@ class TouchDesignerBuilderPathTests(unittest.TestCase):
         self.assertIn("glitterCarrier", BUILDER.CALLIGRAPHIC_SHADOW_SHADER)
         self.assertIn("starHorizontal", BUILDER.CALLIGRAPHIC_SHADOW_SHADER)
         self.assertIn("uGlitterAmount", BUILDER.CALLIGRAPHIC_SHADOW_SHADER)
+        self.assertIn("particleCarrier", BUILDER.CALLIGRAPHIC_SHADOW_SHADER)
+        self.assertIn("particleGrid", BUILDER.CALLIGRAPHIC_SHADOW_SHADER)
+        self.assertIn("solidInkMask", BUILDER.CALLIGRAPHIC_SHADOW_SHADER)
+        self.assertIn("uParticleAmount", BUILDER.CALLIGRAPHIC_SHADOW_SHADER)
+        self.assertIn(
+            "max(0.0, particleThreshold - 0.12)",
+            BUILDER.CALLIGRAPHIC_SHADOW_SHADER,
+        )
+        self.assertIn(
+            "max(0.0, glitterThreshold - glitterSoftness)",
+            BUILDER.CALLIGRAPHIC_SHADOW_SHADER,
+        )
+        self.assertIn(
+            "particleGrid -= particleFlowDirection * particleTime * uParticleFlow",
+            BUILDER.CALLIGRAPHIC_SHADOW_SHADER,
+        )
         shadow_definitions = {
             item["name"]: item
             for item in BUILDER.CALLIGRAPHIC_SHADOW_PARAMETER_DEFINITIONS

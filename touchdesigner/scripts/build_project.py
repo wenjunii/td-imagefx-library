@@ -3559,6 +3559,16 @@ uniform float uTrailSamples;
 uniform float uDiffusion;
 uniform float uDryBrush;
 uniform float uSplatter;
+uniform float uParticleAmount;
+uniform float uParticleDensity;
+uniform float uParticleSize;
+uniform float uParticleSoftness;
+uniform float uParticleOpacity;
+uniform float uParticleSpeed;
+uniform float uParticleJitter;
+uniform float uParticleFlow;
+uniform float uParticleSpread;
+uniform float uParticleGlow;
 uniform float uGlitterAmount;
 uniform float uGlitterDensity;
 uniform float uGlitterSize;
@@ -3571,6 +3581,7 @@ uniform float uStarAmount;
 uniform float uSeed;
 uniform vec4 uInkColor;
 uniform vec4 uPaperColor;
+uniform vec4 uParticleColor;
 uniform vec4 uGlitterColor;
 
 float calligraphyHash(vec2 value) {
@@ -3667,6 +3678,61 @@ void main() {
     );
     float inkMask = clamp(diffusion * dryPattern + splatterGate * 0.72, 0.0, 1.0);
 
+    // Replace the continuous shadow with seeded particles. Particle Amount at
+    // zero leaves the original ink result bit-for-bit unchanged; at one, the
+    // solid shadow is fully replaced while the extracted source stays visible.
+    float particleAmount = clamp(uParticleAmount, 0.0, 1.0);
+    float particleSpread = clamp(uParticleSpread, 0.0, 1.0);
+    float particleCarrier = max(currentMask * 0.82, trailMask);
+    float particleThreshold = mix(0.46, 0.035, particleSpread);
+    float particleSurface = smoothstep(
+        max(0.0, particleThreshold - 0.12),
+        particleThreshold + 0.12,
+        particleCarrier
+    );
+    float particleCellSize = max(uParticleSize, 0.5);
+    float particleTime = uTime * uParticleSpeed;
+    vec2 particleFlowDirection = length(uOffset) > 0.0001
+        ? normalize(uOffset)
+        : vec2(-1.0, 0.0);
+    vec2 particleGrid = uv * resolution / particleCellSize;
+    // Sampling coordinates move opposite the visible particle travel.
+    particleGrid -= particleFlowDirection * particleTime * uParticleFlow;
+    vec2 particleCell = floor(particleGrid);
+    vec2 particleLocal = fract(particleGrid) - 0.5;
+    float particleSeed = calligraphyHash(particleCell + uSeed * 4.19 + 211.7);
+    vec2 particleRandom = vec2(
+        calligraphyHash(particleCell + uSeed * 2.71 + 37.4),
+        calligraphyHash(particleCell + uSeed * 3.53 + 91.8)
+    ) - 0.5;
+    vec2 particleOscillation = vec2(
+        sin(particleTime * (0.73 + particleSeed * 1.31) + particleSeed * 19.0),
+        cos(particleTime * (0.61 + particleSeed * 1.17) + particleSeed * 23.0)
+    );
+    vec2 particleCenter = particleRandom * 0.36
+        + particleOscillation * clamp(uParticleJitter, 0.0, 1.0) * 0.22;
+    float particleRadius = mix(0.075, 0.31, particleSeed);
+    float particleEdge = mix(
+        0.015,
+        0.24,
+        clamp(uParticleSoftness, 0.0, 1.0)
+    );
+    float particleDot = 1.0 - smoothstep(
+        particleRadius,
+        particleRadius + particleEdge,
+        length(particleLocal - particleCenter)
+    );
+    float particleDensityGate = step(
+        1.0 - clamp(uParticleDensity, 0.0, 1.0),
+        calligraphyHash(particleCell + uSeed * 5.07 + 157.3)
+    );
+    float particleMask = particleSurface
+        * particleDot
+        * particleDensityGate
+        * particleAmount
+        * clamp(uParticleOpacity, 0.0, 1.0)
+        * uParticleColor.a;
+
     // Granular, light-catching pigment constrained to the extracted subject
     // and its calligraphic trails. Glitter Amount at zero is an exact bypass.
     float glitterSpread = clamp(uGlitterSpread, 0.0, 1.0);
@@ -3678,7 +3744,7 @@ void main() {
     float glitterSoftness = max(uGlitterSoftness, 0.001);
     float glitterThreshold = uGlitterThreshold * mix(1.0, 0.35, glitterSpread);
     float glitterSurface = smoothstep(
-        glitterThreshold - glitterSoftness,
+        max(0.0, glitterThreshold - glitterSoftness),
         glitterThreshold + glitterSoftness,
         glitterCarrier
     );
@@ -3728,10 +3794,19 @@ void main() {
         * uGlitterColor.a;
 
     vec3 paper = mix(source.rgb, uPaperColor.rgb, clamp(uPaperAmount * uPaperColor.a, 0.0, 1.0));
-    vec3 inked = mix(paper, uInkColor.rgb, inkMask * uInkColor.a);
+    float solidInkMask = inkMask * (1.0 - particleAmount);
+    vec3 inked = mix(paper, uInkColor.rgb, solidInkMask * uInkColor.a);
     vec3 subject = mix(inked, source.rgb, clamp(currentMask * uSourceOpacity, 0.0, 1.0));
+    vec3 particleTone = mix(
+        uParticleColor.rgb,
+        vec3(1.0),
+        clamp(uParticleGlow, 0.0, 2.0) * 0.24
+    );
+    subject = mix(subject, particleTone, clamp(particleMask, 0.0, 1.0));
+    subject += particleTone * particleMask * max(uParticleGlow - 1.0, 0.0) * 0.35;
     subject += uGlitterColor.rgb * glitterMask * twinkle;
     float resultAlpha = max(source.a * (1.0 - uPaperAmount), uPaperColor.a * uPaperAmount);
+    resultAlpha = max(resultAlpha, clamp(particleMask, 0.0, 1.0));
     resultAlpha = max(resultAlpha, clamp(glitterMask, 0.0, 1.0));
     vec4 result = vec4(subject, resultAlpha);
     fragColor = TDOutputSwizzle(mix(source, result, clamp(uMix, 0.0, 1.0)));
@@ -3763,6 +3838,17 @@ CALLIGRAPHIC_SHADOW_PARAMETER_DEFINITIONS = (
     {"name": "Diffusion", "label": "Wet Diffusion", "type": "float", "page": "Ink Surface", "default": 0.34, "min": 0.0, "max": 1.0, "uniform": "uDiffusion", "description": "Soften and pool the calligraphic pigment."},
     {"name": "Drybrush", "label": "Dry Brush", "type": "float", "page": "Ink Surface", "default": 0.24, "min": 0.0, "max": 1.0, "uniform": "uDryBrush", "description": "Break the ink into dry-brush fibers."},
     {"name": "Splatter", "label": "Ink Splatter", "type": "float", "page": "Ink Surface", "default": 0.16, "min": 0.0, "max": 1.0, "uniform": "uSplatter", "description": "Add sparse deterministic ink droplets near the shadow."},
+    {"name": "Particleamount", "label": "Particle Shadow Amount (0 = Off)", "type": "float", "page": "Particle Shadow", "default": 0.0, "min": 0.0, "max": 1.0, "uniform": "uParticleAmount", "description": "Replace the continuous ink shadow with particles; zero preserves the original shadow and one fully particleizes it."},
+    {"name": "Particledensity", "label": "Particle Density", "type": "float", "page": "Particle Shadow", "default": 0.58, "min": 0.0, "max": 1.0, "uniform": "uParticleDensity", "description": "Set the proportion of shadow cells that contain particles."},
+    {"name": "Particlesize", "label": "Particle Size", "type": "float", "page": "Particle Shadow", "default": 3.0, "min": 0.5, "max": 20.0, "uniform": "uParticleSize", "description": "Set particle cell size in source pixels."},
+    {"name": "Particlesoftness", "label": "Particle Softness", "type": "float", "page": "Particle Shadow", "default": 0.18, "min": 0.0, "max": 1.0, "uniform": "uParticleSoftness", "description": "Adjust the transition from crisp grains to soft dust."},
+    {"name": "Particleopacity", "label": "Particle Opacity", "type": "float", "page": "Particle Shadow", "default": 0.92, "min": 0.0, "max": 1.0, "uniform": "uParticleOpacity", "description": "Control particle visibility independently from the replacement amount."},
+    {"name": "Particlespeed", "label": "Particle Motion Speed", "type": "float", "page": "Particle Shadow", "default": 0.85, "min": -8.0, "max": 8.0, "uniform": "uParticleSpeed", "description": "Set or reverse particle movement independently from ink and glitter motion."},
+    {"name": "Particlejitter", "label": "Random Movement", "type": "float", "page": "Particle Shadow", "default": 0.36, "min": 0.0, "max": 1.0, "uniform": "uParticleJitter", "description": "Add independent seeded wandering to each shadow particle."},
+    {"name": "Particleflow", "label": "Flow Along Shadow", "type": "float", "page": "Particle Shadow", "default": 0.70, "min": -4.0, "max": 4.0, "uniform": "uParticleFlow", "description": "Move particles along or against the configured shadow direction."},
+    {"name": "Particlespread", "label": "Particle Spread", "type": "float", "page": "Particle Shadow", "default": 0.42, "min": 0.0, "max": 1.0, "uniform": "uParticleSpread", "description": "Expand particles from the strongest shadow core into weaker trail regions."},
+    {"name": "Particleglow", "label": "Particle Highlight", "type": "float", "page": "Particle Shadow", "default": 0.12, "min": 0.0, "max": 2.0, "uniform": "uParticleGlow", "description": "Brighten particles toward luminous dust while retaining their chosen color."},
+    {"name": "Particlecolor", "label": "Particle Color", "type": "rgba", "page": "Particle Shadow", "default": [0.10, 0.14, 0.16, 1.0], "uniform": "uParticleColor", "description": "Set particle pigment color and opacity independently from solid ink and glitter."},
     {"name": "Glitteramount", "label": "Glitter Amount (0 = Off)", "type": "float", "page": "Glitter", "default": 0.0, "min": 0.0, "max": 2.0, "uniform": "uGlitterAmount", "description": "Add light-catching glitter to the subject and calligraphic trails; zero is an exact bypass."},
     {"name": "Glitterdensity", "label": "Glitter Density", "type": "float", "page": "Glitter", "default": 0.46, "min": 0.0, "max": 1.0, "uniform": "uGlitterDensity", "description": "Set the proportion of trail cells that contain glitter grains."},
     {"name": "Glittersize", "label": "Glitter Grain Size", "type": "float", "page": "Glitter", "default": 2.4, "min": 0.5, "max": 12.0, "uniform": "uGlitterSize", "description": "Set the glitter grain cell size in source pixels."},

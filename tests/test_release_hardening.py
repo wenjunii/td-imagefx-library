@@ -13,9 +13,51 @@ from tdimagefx.archive import StageLimits, stage_package
 from tdimagefx.compatibility import RuntimeContext
 from tdimagefx.errors import FeedError, SecurityError, ValidationError
 from tdimagefx.feed import SourcePolicy, load_update_feed
+from tdimagefx.paths import rename_directory_with_retry
 from tdimagefx.registry import MAX_FEED_PACKAGES, LocalRegistry, UpdateFeed, validate_update_feed_data
 from tests.helpers import feed_data, write_package_zip
 from tools import check_immutable_history, package_release
+
+
+class DirectoryRenameTests(unittest.TestCase):
+    def test_transient_windows_locks_retry_the_same_atomic_rename(self) -> None:
+        for code in (5, 32, 33):
+            with self.subTest(winerror=code):
+                error = PermissionError("temporary Windows lock")
+                error.winerror = code
+                with mock.patch("tdimagefx.paths.os.path.lexists", return_value=False), \
+                     mock.patch.object(Path, "rename", side_effect=[error, None]) as rename, \
+                     mock.patch("tdimagefx.paths.time.sleep") as sleep:
+                    rename_directory_with_retry(Path("stage"), Path("published"))
+                self.assertEqual(rename.call_count, 2)
+                rename.assert_called_with(Path("published"))
+                sleep.assert_called_once_with(0.05)
+
+    def test_other_errors_and_persistent_locks_propagate(self) -> None:
+        for code, expected_attempts in ((None, 1), (2, 1), (5, 6)):
+            with self.subTest(winerror=code):
+                error = PermissionError("denied")
+                if code is not None:
+                    error.winerror = code
+                with mock.patch("tdimagefx.paths.os.path.lexists", return_value=False), \
+                     mock.patch.object(Path, "rename", side_effect=error) as rename, \
+                     mock.patch("tdimagefx.paths.time.sleep") as sleep:
+                    with self.assertRaises(PermissionError):
+                        rename_directory_with_retry(Path("stage"), Path("published"))
+                self.assertEqual(rename.call_count, expected_attempts)
+                self.assertEqual(sleep.call_count, expected_attempts - 1)
+
+    def test_destination_appearing_during_retry_is_not_replaced(self) -> None:
+        error = PermissionError("temporary Windows lock")
+        error.winerror = 5
+        for states, expected_attempts in (([True], 0), ([False, True], 1)):
+            with self.subTest(states=states):
+                with mock.patch("tdimagefx.paths.os.path.lexists", side_effect=states), \
+                     mock.patch.object(Path, "rename", side_effect=error) as rename, \
+                     mock.patch("tdimagefx.paths.time.sleep"):
+                    with self.assertRaises(FileExistsError):
+                        rename_directory_with_retry(Path("stage"), Path("published"))
+                self.assertEqual(rename.call_count, expected_attempts)
 
 
 class FeedBindingTests(unittest.TestCase):

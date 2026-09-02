@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import os
 import re
+import time
 import unicodedata
 from pathlib import Path, PurePosixPath
 
@@ -59,3 +61,25 @@ def is_relative_to(path: Path, root: Path) -> bool:
         return True
     except ValueError:
         return False
+
+
+def rename_directory_with_retry(source: Path, destination: Path) -> None:
+    """Publish an already-confined staging directory with bounded Windows retries.
+
+    Short-lived Windows file locks can deny a directory rename immediately
+    after its files are closed. Retry only those error codes, keep the atomic
+    rename, and propagate persistent permissions or any other error. Callers
+    remain responsible for path confinement and transaction cleanup.
+    """
+
+    delays = (0.05, 0.1, 0.2, 0.4, 0.8)
+    for attempt in range(len(delays) + 1):
+        if os.path.lexists(destination):
+            raise FileExistsError(f"Destination already exists: {destination}")
+        try:
+            source.rename(destination)
+            return
+        except OSError as exc:
+            if getattr(exc, "winerror", None) not in {5, 32, 33} or attempt == len(delays):
+                raise
+            time.sleep(delays[attempt])
