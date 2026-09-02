@@ -123,7 +123,14 @@ MODULES = (
             "Offsety": 0.04, "Stretch": 1.35, "Curl": 0.055,
             "Turbulence": 0.11, "Noisescale": 3.8, "Strokeweight": 2.4,
             "Traillength": 1.0, "Trailsamples": 7, "Diffusion": 0.34,
-            "Drybrush": 0.24, "Splatter": 0.16, "Glitteramount": 0.82,
+            "Drybrush": 0.24, "Splatter": 0.16, "Particleamount": 0.72,
+            "Particledensity": 0.58, "Particlesize": 3.0,
+            "Particlesoftness": 0.18, "Particleopacity": 0.92,
+            "Particlespeed": 0.85, "Particlejitter": 0.36,
+            "Particleflow": 0.70, "Particlespread": 0.42,
+            "Particleglow": 0.12, "Particlecolorr": 0.10,
+            "Particlecolorg": 0.14, "Particlecolorb": 0.16,
+            "Particlecolora": 1.0, "Glitteramount": 0.82,
             "Glitterdensity": 0.52, "Glittersize": 2.4,
             "Glitterthreshold": 0.22, "Glittersoftness": 0.10,
             "Glittershimmer": 0.78, "Glitterspeed": 1.15,
@@ -157,6 +164,20 @@ MODULES = (
             "Diffusion": _case({}, 0.0, 1.0),
             "Drybrush": _case({}, 0.0, 1.0),
             "Splatter": _case({}, 0.0, 1.0),
+            "Particleamount": _case({"Glitteramount": 0.0}, 0.0, 1.0),
+            "Particledensity": _case({"Particleamount": 1.0, "Glitteramount": 0.0}, 0.03, 1.0),
+            "Particlesize": _case({"Particleamount": 1.0, "Glitteramount": 0.0}, 0.6, 18.0),
+            "Particlesoftness": _case({"Particleamount": 1.0, "Glitteramount": 0.0}, 0.0, 1.0),
+            "Particleopacity": _case({"Particleamount": 1.0, "Glitteramount": 0.0}, 0.08, 1.0),
+            "Particlespeed": _case({"Particleamount": 1.0, "Particleflow": 1.0, "Glitteramount": 0.0}, -5.0, 5.0),
+            "Particlejitter": _case({"Particleamount": 1.0, "Glitteramount": 0.0}, 0.0, 1.0),
+            "Particleflow": _case({"Particleamount": 1.0, "Particlespeed": 1.0, "Glitteramount": 0.0}, -3.0, 3.0),
+            "Particlespread": _case({"Particleamount": 1.0, "Glitteramount": 0.0}, 0.0, 1.0),
+            "Particleglow": _case({"Particleamount": 1.0, "Particlecolorr": 0.7, "Particlecolorg": 0.8, "Particlecolorb": 1.0, "Glitteramount": 0.0}, 0.0, 2.0),
+            "Particlecolorr": _case({"Particleamount": 1.0, "Glitteramount": 0.0}, 0.0, 1.0),
+            "Particlecolorg": _case({"Particleamount": 1.0, "Glitteramount": 0.0}, 0.0, 1.0),
+            "Particlecolorb": _case({"Particleamount": 1.0, "Glitteramount": 0.0}, 0.0, 1.0),
+            "Particlecolora": _case({"Particleamount": 1.0, "Glitteramount": 0.0}, 0.10, 1.0),
             "Glitteramount": _case({}, 0.0, 1.8),
             "Glitterdensity": _case({"Glitteramount": 1.0}, 0.03, 1.0),
             "Glittersize": _case({"Glitteramount": 1.0}, 0.6, 10.0),
@@ -328,6 +349,138 @@ def _sweep_sliders(component, output, base, cases):
     return differences, finite, ranges, endpoints
 
 
+def _validate_particle_shadow_edges(component, output, base):
+    """Check semantic endpoints, not only whether a slider changes pixels."""
+    saved = {name: component.par[name].eval() for name in base}
+    upstream = component.inputs[0]
+    fixture = component.parent().create(constantTOP, "particle_shadow_qa_fixture")
+    checks = {}
+    differences = {}
+    endpoint_finite = {}
+    try:
+        fixture.par.colorr = 0.0
+        fixture.par.colorg = 0.0
+        fixture.par.colorb = 0.0
+        fixture.par.alpha = 1.0
+        fixture.par.outputresolution = "custom"
+        fixture.par.resolutionw = 320
+        fixture.par.resolutionh = 180
+        fixture.outputConnectors[0].connect(component.inputConnectors[0])
+
+        active = dict(base)
+        active.update({
+            "Autotime": False, "Manualtime": 0.0, "Speed": 0.0,
+            "Maskmode": "dark", "Threshold": 0.5, "Softness": 0.01,
+            "Paperamount": 1.0, "Sourceopacity": 0.0,
+            "Papercolorr": 0.0, "Papercolorg": 0.0, "Papercolorb": 0.0,
+            "Glitteramount": 0.0, "Particleamount": 1.0,
+            "Particledensity": 0.65, "Particlesize": 8.0,
+            "Particlesoftness": 0.1, "Particleopacity": 1.0,
+            "Particlespeed": 1.0, "Particlejitter": 0.0,
+            "Particleflow": 1.0, "Particlespread": 1.0,
+            "Particleglow": 0.0, "Particlecolorr": 1.0,
+            "Particlecolorg": 1.0, "Particlecolorb": 1.0,
+            "Particlecolora": 1.0, "Offsetx": 1.0, "Offsety": 0.0,
+        })
+        _set_values(component, active)
+        frame_zero = _capture(output)
+        component.par.Manualtime = 1.0
+        frame_forward = _capture(output)
+        differences["positive_flow_right_shift"] = _difference(
+            frame_forward[:, 8:, :], frame_zero[:, :-8, :]
+        )
+        component.par.Particleflow = -1.0
+        frame_reverse = _capture(output)
+        differences["negative_flow_left_shift"] = _difference(
+            frame_reverse[:, :-8, :], frame_zero[:, 8:, :]
+        )
+        checks["particle_positive_flow_follows_shadow_direction"] = (
+            differences["positive_flow_right_shift"] <= 1.0e-5
+        )
+        checks["particle_negative_flow_reverses_direction"] = (
+            differences["negative_flow_left_shift"] <= 1.0e-5
+        )
+        checks["particle_fixture_has_visible_grains"] = (
+            float(np.max(frame_zero[:, :, :3])) > 0.1
+        )
+
+        _set_values(component, active)
+        component.par.Maskmode = "light"
+        component.par.Particleopacity = 0.0
+        empty = _capture(output)
+        component.par.Particleopacity = 1.0
+        empty_with_particles = _capture(output)
+        differences["empty_mask_max_spread"] = _difference(empty, empty_with_particles)
+        checks["particle_max_spread_preserves_empty_background"] = (
+            differences["empty_mask_max_spread"] <= 1.0e-6
+        )
+
+        component.par.Particleamount = 0.0
+        component.par.Glitteramount = 2.0
+        component.par.Glitterthreshold = 0.0
+        component.par.Glittersoftness = 1.0
+        component.par.Glitterspread = 1.0
+        differences["empty_mask_max_glitter"] = _difference(empty, _capture(output))
+        checks["glitter_extreme_settings_preserve_empty_background"] = (
+            differences["empty_mask_max_glitter"] <= 1.0e-6
+        )
+
+        for name in ("Particledensity", "Particleopacity", "Particlecolora"):
+            _set_values(component, active)
+            component.par[name] = 0.0
+            image = _capture(output)
+            differences[name + "_zero"] = _difference(image, empty)
+            checks[name.lower() + "_zero_removes_particles"] = (
+                differences[name + "_zero"] <= 1.0e-6
+            )
+
+        _set_values(component, active)
+        component.par.Particleamount = 0.0
+        off_first = _capture(output)
+        for name in base:
+            if name.startswith("Particle") and name != "Particleamount":
+                component.par[name] = float(component.par[name].max)
+        off_second = _capture(output)
+        differences["particle_amount_zero"] = _difference(off_first, off_second)
+        checks["particle_amount_zero_ignores_particle_controls"] = (
+            differences["particle_amount_zero"] <= 1.0e-6
+        )
+
+        _set_values(component, active)
+        component.par.Particlespeed = 0.0
+        component.par.Particlejitter = 1.0
+        frozen_first = _capture(output)
+        component.par.Manualtime = 3.0
+        frozen_second = _capture(output)
+        differences["particle_speed_zero"] = _difference(frozen_first, frozen_second)
+        checks["particle_speed_zero_freezes_flow_and_jitter"] = (
+            differences["particle_speed_zero"] <= 1.0e-6
+        )
+
+        for name in base:
+            if not name.startswith("Particle"):
+                continue
+            parameter = component.par[name]
+            endpoint_finite[name] = True
+            for value in (float(parameter.min), float(parameter.max)):
+                _set_values(component, active)
+                parameter.val = value
+                image = _capture(output)
+                endpoint_finite[name] = endpoint_finite[name] and bool(
+                    np.isfinite(image).all()
+                    and abs(float(parameter.eval()) - value) <= 1.0e-6
+                )
+        checks["particle_actual_min_max_values_are_finite_and_accepted"] = all(
+            endpoint_finite.values()
+        )
+    finally:
+        upstream.outputConnectors[0].connect(component.inputConnectors[0])
+        fixture.destroy()
+        _set_values(component, saved)
+        output.cook(force=True)
+    return {"checks": checks, "differences": differences, "endpoint_finite": endpoint_finite}
+
+
 def _validate_module(demo, definition, operators):
     component = operators["component"]
     output = operators["output"]
@@ -375,6 +528,11 @@ def _validate_module(demo, definition, operators):
         definition["base"],
         definition["sliders"],
     )
+    particle_edges = None
+    if definition["name"] == "calligraphic_shadow":
+        particle_edges = _validate_particle_shadow_edges(
+            component, output, definition["base"]
+        )
     _set_values(component, definition["base"])
     component.par.Autotime = True
     component.par.Timescale = 0.5
@@ -391,11 +549,15 @@ def _validate_module(demo, definition, operators):
     }
 
     numeric_controls = set(definition["sliders"]) | {"Timescale"}
+    # Compare against native controls, not just the hand-maintained test cases:
+    # omitting a new parameter from both base and sliders must fail coverage.
     expected_numeric = {
-        name
-        for name in definition["base"]
-        if name not in {"Autotime", *definition["menus"]}
+        parameter.name for parameter in component.customPars
+        if parameter.isNumber and not parameter.isToggle
+        and not parameter.isMenu and not parameter.readOnly
     }
+    native_menus = {p.name for p in component.customPars if p.isMenu}
+    native_toggles = {p.name for p in component.customPars if p.isToggle}
     differences = {
         "module_bypass_vs_upstream": _difference(module_bypass, upstream_image),
         "mix_zero_vs_upstream": _difference(mix_bypass, upstream_image),
@@ -433,6 +595,8 @@ def _validate_module(demo, definition, operators):
             for values in menu_signatures.values()
         ),
         "every_numeric_control_is_covered": numeric_controls == expected_numeric,
+        "every_menu_is_covered": native_menus == set(definition["menus"]),
+        "every_toggle_is_covered": native_toggles == {"Enabled", "Autotime"},
         "every_numeric_control_changes_output": all(
             value is not None and value > 1.0e-8
             for value in slider_differences.values()
@@ -474,6 +638,8 @@ def _validate_module(demo, definition, operators):
         "shader_has_no_errors": not shader_errors,
         "shader_has_no_warnings": not shader_warnings,
     }
+    if particle_edges is not None:
+        checks.update(particle_edges["checks"])
     return {
         "module_id": definition["id"],
         "checks": checks,
@@ -483,6 +649,12 @@ def _validate_module(demo, definition, operators):
         "slider_finite": slider_finite,
         "slider_ranges": slider_ranges,
         "slider_endpoint_values": endpoints,
+        "particle_shadow_edges": particle_edges,
+        "native_control_inventory": {
+            "numeric": sorted(expected_numeric),
+            "menus": sorted(native_menus),
+            "toggles": sorted(native_toggles),
+        },
         "time_scale": {
             "effective_low": effective_time_low,
             "effective_high": effective_time_high,

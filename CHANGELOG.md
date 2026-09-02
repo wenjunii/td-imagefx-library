@@ -6,6 +6,11 @@ All notable changes to TD ImageFX Library are recorded here. Package versions fo
 
 ### Added
 
+- An independently adjustable Particle Shadow stage for
+  `CalligraphicShadow.tox`. The continuous ink gesture can be progressively
+  replaced with seeded GPU grains using density, size, softness, opacity,
+  reversible speed, random movement, directional flow, spread, highlight, and
+  RGBA color controls; zero amount preserves the original solid shadow.
 - An optional trail-aware glitter layer for `CalligraphicShadow.tox`, with an
   exact zero-amount bypass and adjustable amount, density, grain size,
   threshold, softness, shimmer, independent drift speed, spread, sparse star
@@ -140,6 +145,15 @@ All notable changes to TD ImageFX Library are recorded here. Package versions fo
 
 ### Fixed
 
+- Atomic package/release publication retries short-lived Windows directory
+  locks for up to 1.55 seconds, while still rejecting existing destinations
+  and surfacing persistent permissions or unrelated errors.
+- Calligraphic Shadow particle spread and glitter threshold/softness extremes
+  no longer introduce grains into fully empty mask regions. Positive particle
+  flow now travels along the shadow's configured direction instead of against
+  it. Native pixel regressions cover these cases, zero/off controls, frozen
+  motion, and all particle range endpoints; reference-module control coverage
+  is cross-checked against the live custom-parameter inventory.
 - The blocking Textport control-surface validator now dispatches each verified
   Parameter Execute DAT pulse handler synchronously, so all 45 buttons are
   tested deterministically instead of producing a false empty-preset failure

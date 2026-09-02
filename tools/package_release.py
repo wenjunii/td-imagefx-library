@@ -34,7 +34,7 @@ if str(SRC_ROOT) not in sys.path:
 
 from tdimagefx import PackageManifest, Version, load_manifest  # noqa: E402
 from tdimagefx.errors import ImageFxError, SecurityError  # noqa: E402
-from tdimagefx.paths import validate_package_path  # noqa: E402
+from tdimagefx.paths import rename_directory_with_retry, validate_package_path  # noqa: E402
 from tdimagefx.registry import UpdateFeed  # noqa: E402
 
 
@@ -530,7 +530,7 @@ def build_release(
             source_revision=source_revision,
         )
         try:
-            staging_root.rename(requested_root)
+            rename_directory_with_retry(staging_root, requested_root)
         except FileExistsError as exc:
             raise ReleaseError(f"Release output root appeared during build: {requested_root}") from exc
         staging_root = None

@@ -169,6 +169,28 @@ class EmbodyIntegrationTests(unittest.TestCase):
             ],
         )
 
+    def test_reference_controls_have_native_inventory_and_semantic_checks(self):
+        validator = (
+            ROOT / "touchdesigner" / "scripts" / "validate_reference_video_modules.py"
+        ).read_text(encoding="utf-8")
+        for check in (
+            "native_control_inventory",
+            "every_numeric_control_is_covered",
+            "every_menu_is_covered",
+            "every_toggle_is_covered",
+            "particle_actual_min_max_values_are_finite_and_accepted",
+            "particle_positive_flow_follows_shadow_direction",
+            "particle_negative_flow_reverses_direction",
+            "particle_max_spread_preserves_empty_background",
+            "glitter_extreme_settings_preserve_empty_background",
+            "particle_amount_zero_ignores_particle_controls",
+            "particle_speed_zero_freezes_flow_and_jitter",
+        ):
+            self.assertIn(check, validator)
+        self.assertIn("for parameter in component.customPars", validator)
+        self.assertIn("fixture.destroy()", validator)
+        self.assertNotIn("project.save(", validator)
+
     def test_harness_scripts_preserve_the_canonical_project_boundary(self):
         installer = (
             ROOT / "touchdesigner" / "scripts" / "install_dev_harness.py"

@@ -20,7 +20,7 @@ from .errors import SecurityError, StateError, ValidationError
 from .feed import DEFAULT_ARTIFACT_LIMIT, SourcePolicy, download_source, redact_source_url
 from .jsonutil import atomic_write_json
 from .manifest import PACKAGE_ID_RE, PackageManifest, is_sha256, load_manifest
-from .paths import is_relative_to, validate_package_path
+from .paths import is_relative_to, rename_directory_with_retry, validate_package_path
 from .registry import InstalledVersion, LocalRegistry, load_local_registry, save_local_registry, utc_now
 from .semver import Version
 
@@ -577,7 +577,7 @@ def stage_package(
             updated_registry = LocalRegistry.from_data(updated_registry.to_dict())
 
             try:
-                extraction_root.rename(final_path)
+                rename_directory_with_retry(extraction_root, final_path)
             except FileExistsError as exc:
                 raise StateError(f"immutable package directory already exists: {final_path}") from exc
             extraction_root = None
