@@ -32,6 +32,7 @@ CORE_ASSETS = (
     "touchdesigner/core/FxUpdater.tox",
 )
 BUILDER_SOURCE = "touchdesigner/scripts/build_project.py"
+SHOW_SOURCES = ("src/tdimagefx/show.py", "touchdesigner/extensions/ShowControlExt.py", "touchdesigner/scripts/build_show_control.py")
 
 
 class NativeValidationError(RuntimeError):
@@ -126,6 +127,8 @@ def build_record(root: Path, report_path: Path) -> dict:
         or builder.get("sha256") != _sha256(builder_path)
     ):
         raise NativeValidationError("TouchDesigner build report does not match the current builder source")
+    if report.get("show_sources") != {path: _sha256(root / path) for path in SHOW_SOURCES}:
+        raise NativeValidationError("TouchDesigner build report does not match current show-control sources")
 
     manifests = sorted((root / "packages").glob("*/*/package.json"))
     artifacts = []
@@ -156,6 +159,7 @@ def build_record(root: Path, report_path: Path) -> dict:
             "path": BUILDER_SOURCE,
             "sha256": _sha256(builder_path),
         },
+        "show_sources": report["show_sources"],
         "catalog": {
             "current_effects": len(effects),
             "package_versions": len(manifests),
