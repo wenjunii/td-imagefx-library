@@ -65,6 +65,12 @@ class NativeValidationRecordTests(unittest.TestCase):
             path.write_text("# show fixture\n", encoding="utf-8")
             show_sources[relative] = hashlib.sha256(path.read_bytes()).hexdigest()
         report = root / "build-report.json"
+        module_sources = {}
+        for relative in record_native_validation.MODULE_SOURCES:
+            path = root / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("# module fixture\n", encoding="utf-8")
+            module_sources[relative] = hashlib.sha256(path.read_bytes()).hexdigest()
         report.write_text(
             json.dumps(
                 {
@@ -80,6 +86,7 @@ class NativeValidationRecordTests(unittest.TestCase):
                         "sha256": builder_sha256,
                     },
                     "show_sources": show_sources,
+                    "module_sources": module_sources,
                     "effects": [{
                         "id": "tdimagefx.test.effect",
                         "version": "1.0.0",
@@ -101,7 +108,7 @@ class NativeValidationRecordTests(unittest.TestCase):
             self.assertEqual(record["catalog"], {"current_effects": 1, "package_versions": 1})
             self.assertEqual(record["touchdesigner"]["build"], "12345")
             self.assertEqual(record["builder"]["path"], record_native_validation.BUILDER_SOURCE)
-            self.assertEqual(len(record["artifacts"]), 14)
+            self.assertEqual(len(record["artifacts"]), 15)
             self.assertTrue(all(len(item["sha256"]) == 64 for item in record["artifacts"]))
 
     def test_record_rejects_a_build_with_errors(self) -> None:

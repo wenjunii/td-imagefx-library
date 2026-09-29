@@ -43,6 +43,7 @@ PREVIEW_ROOT = DOCS_ROOT / "gallery"
 PROJECT_PATH = PROJECT_ROOT / "TD_ImageFX_Library.toe"
 BUILDER_PATH = Path(__file__).resolve()
 LIBRARY_VERSION = "0.3.0"
+MODULE_SOURCES = ("touchdesigner/scripts/ink_dream_flow.py",)
 RACK_SLOT_COUNT = 8
 OWNED_PROJECT_NODES = frozenset({"td_imagefx", "imagefx_demo"})
 DEFAULT_TEMPLATE_NODES = {
@@ -5901,6 +5902,20 @@ def build_ink_orbit_canvas_module(parent_comp):
     )
 
 
+def build_ink_dream_flow_module(parent_comp):
+    module_path = PROJECT_ROOT / MODULE_SOURCES[0]
+    scope = {"__file__": str(module_path), "__name__": "_ink_dream_flow"}
+    exec(compile(_read_text(module_path), str(module_path), "exec"), scope)
+    return _build_reference_video_module(
+        parent_comp,
+        component_name="ink_dream_flow", component_label="Ink Dream Flow",
+        shader_source=scope["SHADER"], parameter_definitions=scope["PARAMETERS"],
+        storage_key="tdimagefx_ink_dream_flow_module",
+        module_id="tdimagefx.core.ink-dream-flow", tox_name="InkDreamFlow.tox",
+        color=(0.16, 0.20, 0.36), reference_video="Timeline 1.mp4",
+    )
+
+
 def build_browser(parent_comp, manifests, compatibility_confidence="declared"):
     browser = parent_comp.create(baseCOMP, "fx_browser")
     browser.color = (0.14, 0.38, 0.30)
@@ -6551,6 +6566,7 @@ def build_library(project_comp, manifests, report):
         "Use core/reference_particle_field for the chromatic point-cloud reference effect.\n"
         "Use core/calligraphic_shadow for the dancer-like flowing ink shadow reference effect.\n"
         "Use core/ink_orbit_canvas for procedural wet-ink rings, droplets, and floor perspective.\n"
+        "Use core/ink_dream_flow for dreamy marbled liquid, pigment particles, and Xuan paper.\n"
         "Use core/fx_browser to search, filter, favorite, and create effects.\n"
         "Use the promoted Find(), CreateEffect(), CheckUpdates(), and HealthCheck() methods.\n"
         "All effect versions are immutable and stored under packages/<id>/<version>.\n"
@@ -6669,8 +6685,11 @@ def build_library(project_comp, manifests, report):
     )
     ink_orbit_canvas.nodeX = 2080
     ink_orbit_canvas.nodeY = 0
+    ink_dream_flow, ink_dream_flow_path = build_ink_dream_flow_module(core_parent)
+    ink_dream_flow.nodeX = 2340
+    ink_dream_flow.nodeY = 0
     browser, browser_path = build_browser(core_parent, manifests, compatibility_confidence)
-    browser.nodeX = 2340
+    browser.nodeX = 2600
     browser.nodeY = 0
 
     library.par.Status = "Ready: {} packages".format(len(manifests))
@@ -6687,6 +6706,7 @@ def build_library(project_comp, manifests, report):
         "reference_particle_field": str(reference_particle_field_path),
         "calligraphic_shadow": str(calligraphic_shadow_path),
         "ink_orbit_canvas": str(ink_orbit_canvas_path),
+        "ink_dream_flow": str(ink_dream_flow_path),
         "browser": str(browser_path),
         "updater": str(CORE_ROOT / "FxUpdater.tox"),
     }
@@ -6701,6 +6721,7 @@ def build_library(project_comp, manifests, report):
         reference_particle_field_path,
         calligraphic_shadow_path,
         ink_orbit_canvas_path,
+        ink_dream_flow_path,
     )
 
 
@@ -6715,19 +6736,25 @@ def build_demo(
     reference_particle_field_path,
     calligraphic_shadow_path,
     ink_orbit_canvas_path,
+    ink_dream_flow_path,
 ):
     demo = project_comp.create(baseCOMP, "imagefx_demo")
     demo.nodeX = 100
     demo.nodeY = 100
     demo.color = (0.32, 0.18, 0.36)
     demo.comment = (
-        "Animated source -> three optional reference recreations -> optional ink flow -> optional random particles -> "
+        "Animated source -> three optional reference recreations -> optional Ink Dream Flow -> optional ink flow -> optional random particles -> "
         "optional Glitch Fusion -> optional color adjustment -> optional "
         "Motion Studio -> optional eight-slot video FX. "
         "Output defaults to 1920 x 1080 with 4K UHD and custom presets. "
         "Replace source_image with any TOP."
     )
     demo_page = demo.appendCustomPage("Demo")
+    _append_parameter(demo, demo_page, {
+        "name": "Inkdreamenabled", "label": "Ink Dream Flow Enabled",
+        "type": "toggle", "default": False,
+        "description": "Generate dreamy liquid marbling and pigment particles on Xuan paper.",
+    })
     _append_parameter(
         demo,
         demo_page,
@@ -6914,7 +6941,12 @@ def build_demo(
     ink_flow.nodeX = 740
     ink_flow.nodeY = 0
     ink_flow.par.Enabled.expr = "parent().par.Inkflowenabled"
-    ink_orbit_canvas.outputConnectors[0].connect(ink_flow.inputConnectors[0])
+    ink_dream_flow = load_tox_component(demo, ink_dream_flow_path, "ink_dream_flow")
+    ink_dream_flow.nodeX = 610
+    ink_dream_flow.nodeY = -180
+    ink_dream_flow.par.Enabled.expr = "parent().par.Inkdreamenabled"
+    ink_orbit_canvas.outputConnectors[0].connect(ink_dream_flow.inputConnectors[0])
+    ink_dream_flow.outputConnectors[0].connect(ink_flow.inputConnectors[0])
 
     particles = load_tox_component(
         demo,
@@ -7180,6 +7212,7 @@ def build():
             "src/tdimagefx/show.py", "touchdesigner/extensions/ShowControlExt.py",
             "touchdesigner/scripts/build_show_control.py",
         )},
+        "module_sources": {path: _sha256_file(PROJECT_ROOT / path) for path in MODULE_SOURCES},
     }
     report_path = BUILD_ROOT / "touchdesigner-build-report.json"
     try:
@@ -7211,6 +7244,7 @@ def build():
             reference_particle_field_path,
             calligraphic_shadow_path,
             ink_orbit_canvas_path,
+            ink_dream_flow_path,
         ) = build_library(
             project_comp,
             manifests,
@@ -7227,6 +7261,7 @@ def build():
             reference_particle_field_path,
             calligraphic_shadow_path,
             ink_orbit_canvas_path,
+            ink_dream_flow_path,
         )
         show_builder_path = PROJECT_ROOT / "touchdesigner" / "scripts" / "build_show_control.py"
         show_scope = dict(globals())

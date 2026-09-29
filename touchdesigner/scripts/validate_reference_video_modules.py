@@ -27,6 +27,7 @@ DEMO_TOGGLES = (
     "Referenceparticlefieldenabled",
     "Calligraphicshadowenabled",
     "Inkorbitenabled",
+    "Inkdreamenabled",
     "Inkflowenabled",
     "Particlesenabled",
     "Glitchenabled",

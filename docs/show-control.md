@@ -167,7 +167,7 @@ Load `validate_show_media.py` into a Text DAT inside `show_control`, then call
 that DAT's `module.start()` in the Textport. It schedules its own frame-by-frame
 checks and writes `build/envoy-validation/show-media.json`; do not save this
 temporary QA DAT into your performance TOE. Both validators leave physical
-audio disabled and audience blackout on. The full twelve-validator synchronous
+audio disabled and audience blackout on. The full thirteen-validator synchronous
 suite includes show-control checks, but asynchronous media QA is a separate run.
 The portable `tests/test_show.py` covers deterministic scheduling and quad math.
 

@@ -127,7 +127,7 @@ git clone https://github.com/wenjunii/td-imagefx-library.git
 cd td-imagefx-library
 ```
 
-The current source and generated artifacts are synchronized. The recorded Windows build used TouchDesigner `2025.32820` and validated all 96 current effects with 124 versioned effect `.tox` files, twelve core `.tox` files, one library `.toe`, 96 previews, 96 visual baselines, and 96 benchmark samples. The build report contains zero shader, preview, or builder errors. A fresh repository run completed 195 tests successfully, with four expected Windows symlink-permission skips, and two independent 99-file release builds matched byte-for-byte. Read [TouchDesigner setup](docs/touchdesigner-setup.md) to reproduce the native build.
+The current source and generated artifacts are synchronized. The recorded Windows build used TouchDesigner `2025.32820` and validated all 96 current effects with 124 versioned effect `.tox` files, thirteen core `.tox` files, one library `.toe`, 96 previews, 96 visual baselines, and 96 benchmark samples. The build report contains zero shader, preview, or builder errors. A fresh repository run completed 202 tests successfully, with four expected Windows symlink-permission skips, and two independent 99-file release builds matched byte-for-byte. Read [TouchDesigner setup](docs/touchdesigner-setup.md) to reproduce the native build.
 
 The generated project targets TouchDesigner 2025. Validate the exact TouchDesigner build, operating system, GPU, driver, resolution, pixel format, and color pipeline used by your production system. Python 3.11 or newer is required for repository tooling; it is not required merely to use already-built native components.
 
@@ -431,6 +431,17 @@ on only one for its closest reference look, or combine them intentionally. At
 4K, reduce particle density, calligraphic trail samples, and ink ring/droplet
 counts first if frame time exceeds the show budget.
 
+### Ink Dream Flow
+
+`InkDreamFlow.tox` combines dreamy random liquid marbling with flowing pigment
+particles, indigo washes, bleeding edges and warm Xuan paper. Separate switches,
+RGBA colors, composition, motion, granulation and paper controls are adjustable.
+Enable **Ink Dream Flow Enabled** on `/project1/imagefx_demo`, then select
+`ink_dream_flow`. For its pure look, disable other modules and **Apply Video Effects**.
+Use **Background → Input Image / Paper** for your own scenic image or paper;
+reference artwork is not bundled. Show Control's **Capture Look** includes it.
+See the [controls and starting looks](docs/ink-dream-flow.md).
+
 ### Eight-slot rack
 
 1. Open `/project1/imagefx_demo` after a successful native build.
@@ -460,10 +471,13 @@ exec(compile(open(script, encoding="utf-8").read(), script, "exec"), scope)
 
 Copying `globals()` is required because rendered-pixel QA uses
 TouchDesigner-provided objects including `op`, `app`, `root`, `textDAT`, and
-`glslTOP`. The runner executes all twelve tracked validators, continues long
+`glslTOP`. The runner executes all thirteen tracked validators, continues long
 enough to report every failure, writes the ignored
 `build/envoy-validation/live-suite.json` summary plus each validator's normal
-report, and never saves the project. A complete run can take several minutes.
+report, and never saves the project. Each successful dispatch records the validator
+source hash and elapsed time; failures retain their diagnostic error in the
+summary, and a false check cannot be masked by an inconsistent overall success flag.
+A complete run can take several minutes.
 Each mutating validator restores its parameters, rack preset, routing,
 resolution, source time, and timeline state in its own `finally` block.
 
@@ -486,6 +500,16 @@ frozen motion, every particle control's actual minimum and maximum, and empty
 background preservation at maximum particle spread and extreme glitter settings.
 These tests qualify the recorded fixtures and environment, not every possible
 combination of values, input media, GPU, or production resolution.
+
+The **2026-09-29 native recheck** passed all 13 validators after reopening the
+saved canonical TOE in TouchDesigner 2025.32820. The 96-package sweep covered
+511 numeric controls, 116 toggles and 14 reset pulses; the control-surface pass
+covered 45 buttons and 42 rack values. Ink Dream Flow additionally passed all
+59 writable controls, actual range endpoints, bypass/alpha/seek checks and
+1080p/4K rendering. Show-cue tests verified captured looks, enable routing and
+parameter animation. These are native parameter/callback and rendered-pixel
+tests, not a claim that every GUI widget was manually clicked. Audience display
+windows and audible playback were not armed during validation.
 
 For the exact selection-callback regression check, run
 `touchdesigner/scripts/validate_rack_selection.py` in the development harness.
@@ -579,7 +603,7 @@ Run the dependency-free repository check with Python 3.11 or newer:
 python tools/verify_repository.py
 ```
 
-The verifier expects exactly 96 current IDs and 124 immutable manifests. It compiles Python, runs tests, validates manifests and feeds, verifies the recorded hashes of the library `.toe`, all 124 effect `.tox` files, and twelve core `.tox` files, compares generated gallery/baseline/benchmark coverage with the latest catalog, and prevents version drift. It also cross-checks this README's test and catalog claims, the ImageFX project context, and the live validator's package/build constants against checked source and native records. A failure caused by stale native or generated artifacts is intentional: rebuild and review them rather than weakening the invariant.
+The verifier expects exactly 96 current IDs and 124 immutable manifests. It compiles Python, runs tests, validates manifests and feeds, verifies the recorded hashes of the library `.toe`, all 124 effect `.tox` files, and thirteen core `.tox` files, compares generated gallery/baseline/benchmark coverage with the latest catalog, and prevents version drift. It also cross-checks this README's test and catalog claims, the ImageFX project context, and the live validator's package/build constants against checked source and native records. A failure caused by stale native or generated artifacts is intentional: rebuild and review them rather than weakening the invariant.
 
 GitHub Actions runs verification on Windows, macOS, and Linux with Python 3.11 and 3.13, and separately rejects modifications to package versions already present in repository history.
 

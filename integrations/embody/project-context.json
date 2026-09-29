@@ -13,7 +13,8 @@
       "schemas/",
       "src/tdimagefx/",
       "touchdesigner/extensions/",
-      "touchdesigner/scripts/build_project.py"
+      "touchdesigner/scripts/build_project.py",
+      "touchdesigner/scripts/ink_dream_flow.py"
     ],
     "catalog": {
       "current_effect_ids": 96,
@@ -39,6 +40,7 @@
     "reference_particle_field": "/project1/td_imagefx/core/reference_particle_field",
     "calligraphic_shadow": "/project1/td_imagefx/core/calligraphic_shadow",
     "ink_orbit_canvas": "/project1/td_imagefx/core/ink_orbit_canvas",
+    "ink_dream_flow": "/project1/td_imagefx/core/ink_dream_flow",
     "update_manager": "/project1/td_imagefx/update_manager",
     "approved_read_scope": [
       "/project1/td_imagefx",
@@ -72,6 +74,7 @@
     "reference_particle_field": "/project1/imagefx_demo/reference_particle_field/out1_image",
     "calligraphic_shadow": "/project1/imagefx_demo/calligraphic_shadow/out1_image",
     "ink_orbit_canvas": "/project1/imagefx_demo/ink_orbit_canvas/out1_image",
+    "ink_dream_flow": "/project1/imagefx_demo/ink_dream_flow/out1_image",
     "rack": "/project1/imagefx_demo/fx_rack/out1_image",
     "browser_preview": "/project1/td_imagefx/core/fx_browser/selected_preview",
     "visual_failure_signals": [

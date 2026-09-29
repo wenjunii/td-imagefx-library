@@ -221,9 +221,14 @@ class ShowControlExt:
             deck.par[name] = False
         template = self.ownerComp.op("deck_template")
         for module_name in self.model.MODULES:
-            for parameter in deck.op(module_name).customPars:
-                if self._safe_parameter(parameter):
+            module = deck.op(module_name)
+            for parameter in module.customPars:
+                if self._safe_parameter(parameter) and parameter.name not in {"Enabled", "Autotime", "Manualtime"}:
                     parameter.val = template.op(module_name).par[parameter.name].eval()
+            # Enabled belongs to the deck's routing, not its saved effect values.
+            # Assigning .val here previously replaced the expression with False.
+            # Repair it on reused decks too, including decks made by older builds.
+            module.par.Enabled.expr = "parent().par.{}".format(self.model.MODULE_TOGGLES[module_name])
         for name, value in look.get("toggles", {}).items():
             if name not in self.model.TOGGLES or not isinstance(value, bool):
                 raise ValueError("Unknown demo toggle")

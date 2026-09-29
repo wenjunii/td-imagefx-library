@@ -301,6 +301,7 @@ def validate(write_report=True):
         "reference_particle_field_enabled": demo.par.Referenceparticlefieldenabled.eval(),
         "calligraphic_shadow_enabled": demo.par.Calligraphicshadowenabled.eval(),
         "ink_orbit_enabled": demo.par.Inkorbitenabled.eval(),
+        "ink_dream_enabled": demo.par.Inkdreamenabled.eval(),
         "controls": {name: motion.par[name].eval() for name in CONTROL_NAMES},
         "source_time_expression": source.par.vec0valuex.expr,
         "source_time_value": source.par.vec0valuex.eval(),
@@ -316,6 +317,7 @@ def validate(write_report=True):
         demo.par.Referenceparticlefieldenabled = False
         demo.par.Calligraphicshadowenabled = False
         demo.par.Inkorbitenabled = False
+        demo.par.Inkdreamenabled = False
         demo.par.Applyvideofx = False
         _set_values(motion, STANDARD_VALUES)
 
@@ -575,6 +577,7 @@ def validate(write_report=True):
         demo.par.Referenceparticlefieldenabled = saved["reference_particle_field_enabled"]
         demo.par.Calligraphicshadowenabled = saved["calligraphic_shadow_enabled"]
         demo.par.Inkorbitenabled = saved["ink_orbit_enabled"]
+        demo.par.Inkdreamenabled = saved["ink_dream_enabled"]
         _set_values(motion, saved["controls"])
         if saved["source_time_expression"]:
             source.par.vec0valuex.expr = saved["source_time_expression"]

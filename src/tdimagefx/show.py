@@ -15,13 +15,24 @@ MAX_SHOW_BYTES = 8 * 1024 * 1024
 MODULES = (
     "reference_particle_field", "calligraphic_shadow", "ink_orbit_canvas",
     "ink_flow", "particle_random_move", "glitch_fusion", "color_adjustment",
-    "motion_studio",
+    "motion_studio", "ink_dream_flow",
 )
 TOGGLES = (
     "Referenceparticlefieldenabled", "Calligraphicshadowenabled", "Inkorbitenabled",
     "Inkflowenabled", "Particlesenabled", "Glitchenabled", "Coloradjustmentenabled",
-    "Motionenabled", "Applyvideofx",
+    "Motionenabled", "Applyvideofx", "Inkdreamenabled",
 )
+MODULE_TOGGLES = {
+    "reference_particle_field": "Referenceparticlefieldenabled",
+    "calligraphic_shadow": "Calligraphicshadowenabled",
+    "ink_orbit_canvas": "Inkorbitenabled",
+    "ink_flow": "Inkflowenabled",
+    "particle_random_move": "Particlesenabled",
+    "glitch_fusion": "Glitchenabled",
+    "color_adjustment": "Coloradjustmentenabled",
+    "motion_studio": "Motionenabled",
+    "ink_dream_flow": "Inkdreamenabled",
+}
 
 
 def number(value, label, minimum=0.0, maximum=86400.0):

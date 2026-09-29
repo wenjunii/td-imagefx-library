@@ -19,6 +19,8 @@ and ``glslTOP``.
 from __future__ import annotations
 
 import json
+import hashlib
+import time
 import traceback
 from datetime import datetime, timezone
 from pathlib import Path
@@ -39,6 +41,7 @@ VALIDATORS = (
     ("color_adjustment", "validate_color_adjustment_module.py"),
     ("motion_studio", "validate_motion_studio_module.py"),
     ("reference_video_modules", "validate_reference_video_modules.py"),
+    ("ink_dream_flow", "validate_ink_dream_flow.py"),
     ("all_effect_parameters", "validate_all_effect_parameters.py"),
     ("show_control", "validate_show_control.py"),
 )
@@ -62,19 +65,28 @@ def _run_validator(name, filename):
     if not callable(validator):
         raise RuntimeError("{} does not expose validate()".format(filename))
 
+    started = time.perf_counter()
     result = validator(write_report=True)
     if not isinstance(result, dict):
         raise RuntimeError("{} returned a non-dictionary report".format(filename))
     failed_checks = [
         key for key, value in result.get("checks", {}).items() if value is False
     ]
-    return {
+    summary = {
         "name": name,
         "script": filename,
-        "ok": result.get("ok") is True,
+        "ok": result.get("ok") is True and not failed_checks,
         "failed_checks": failed_checks,
         "generated_at": result.get("generated_at"),
+        "duration_seconds": round(time.perf_counter() - started, 3),
+        "source_sha256": hashlib.sha256(source.encode("utf-8")).hexdigest(),
     }
+    if not summary["ok"]:
+        details = result.get("details") or {}
+        error = result.get("error") or (details.get("error") if isinstance(details, dict) else None)
+        if error:
+            summary["error"] = str(error)
+    return summary
 
 
 def validate(write_report=True):
