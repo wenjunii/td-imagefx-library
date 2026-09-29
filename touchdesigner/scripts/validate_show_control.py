@@ -144,6 +144,9 @@ def validate(write_report=True):
         # A full captured look verifies every serializable module value.
         load([cue(track=1,duration=0,fade=0),cue(track=2,duration=0,fade=0),cue(track=3,duration=0,fade=0)])
         show.par.Selectedcue=1; ext.CaptureLook()
+        look = ext.document["cues"][0]["look"]
+        require("ink_dream_flow" in look["modules"] and "Inkdreamenabled" in look["toggles"], "Ink Dream Flow missing from captured look")
+        checks["ink_dream_flow_capture_look"] = True
         ext.engine.clock=lambda:clock[0]; ext.engine._last=clock[0]
         for i in range(3): ext.engine.go(i)
         step(clock[0])
@@ -188,6 +191,22 @@ def validate(write_report=True):
         require(np.max(pixels("track1")[:,:,:3]) > 0, "Stopping current cue broke prepared successor")
         checks["stop_fades_from_black_and_preserves_prepared_successor"] = True
         checks["running_and_held_preload_protection"] = True
+
+        ext.engine.stop()
+        dream_look = {"toggles": {"Inkdreamenabled": True}, "modules": {"ink_dream_flow": {"Coverage": .4}}}
+        load([cue(duration=0,fade=0,look=dream_look), cue(kind="parameters",target="ink_dream_flow/Coverage",value=.75,duration=2)])
+        ext.engine.go(0); step(0)
+        dream = ext.tracks[1]["deck"].op("ink_dream_flow")
+        require(bool(dream.par.Enabled), "Dream cue toggle did not apply")
+        deck = ext.tracks[1]["deck"]
+        for name, toggle in ext.model.MODULE_TOGGLES.items():
+            require(deck.op(name).par.Enabled.expr == "parent().par." + toggle, "Lost cue routing expression: " + name)
+        checks["all_module_cue_routing_expressions_preserved"] = True
+        first_dream = pixels("track1")
+        ext.engine.go(1); step(0); step(1); step(2)
+        require(abs(dream.par.Coverage.eval()-.75)<.001, "Dream parameter cue failed")
+        require(not np.allclose(first_dream,pixels("track1")), "Dream cue pixels did not change")
+        checks["ink_dream_flow_parameter_cue"] = True
 
         ext.engine.stop()
         fixture = ROOT/"build"/"envoy-validation"/"show-fixture.wav"

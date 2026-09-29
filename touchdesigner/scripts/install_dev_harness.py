@@ -44,6 +44,7 @@ INK_ORBIT_CANVAS_TOX = (
     PROJECT_ROOT / "touchdesigner" / "core" / "InkOrbitCanvas.tox"
 )
 EXTENSION_ROOT = PROJECT_ROOT / "touchdesigner" / "extensions"
+INK_DREAM_FLOW_TOX = PROJECT_ROOT / "touchdesigner" / "core" / "InkDreamFlow.tox"
 CALLBACK_ROOT = PROJECT_ROOT / "touchdesigner" / "callbacks"
 MANAGED_NAMES = ("td_imagefx", "imagefx_demo")
 OUTPUT_PRESETS = (
@@ -328,6 +329,9 @@ def install():
             "color adjustment, Motion Studio, and video effects"
         )
         demo_page = demo.appendCustomPage("Demo")
+        demo_page.appendToggle("Inkdreamenabled", label="Ink Dream Flow Enabled")
+        demo.par.Inkdreamenabled.default = False
+        demo.par.Inkdreamenabled = False
         demo_page.appendToggle(
             "Referenceparticlefieldenabled",
             label="Chromatic Particle Field Enabled",
@@ -472,7 +476,14 @@ def install():
         ink_flow.nodeY = 0
         ink_flow.par.Enabled.expr = "parent().par.Inkflowenabled"
         _repair_effect_shader_paths(ink_flow)
-        ink_orbit_canvas.outputConnectors[0].connect(ink_flow.inputConnectors[0])
+        ink_dream_flow = _load_single_tox(demo, INK_DREAM_FLOW_TOX)
+        ink_dream_flow.name = "ink_dream_flow"
+        ink_dream_flow.nodeX = 610
+        ink_dream_flow.nodeY = -180
+        ink_dream_flow.par.Enabled.expr = "parent().par.Inkdreamenabled"
+        _repair_effect_shader_paths(ink_dream_flow)
+        ink_orbit_canvas.outputConnectors[0].connect(ink_dream_flow.inputConnectors[0])
+        ink_dream_flow.outputConnectors[0].connect(ink_flow.inputConnectors[0])
 
         particles = _load_single_tox(demo, PARTICLE_TOX)
         particles.name = "particle_random_move"
@@ -605,6 +616,7 @@ def install():
             "reference_particle_field": reference_particle_field.path,
             "calligraphic_shadow": calligraphic_shadow.path,
             "ink_orbit_canvas": ink_orbit_canvas.path,
+            "ink_dream_flow": ink_dream_flow.path,
             "ink_flow": ink_flow.path,
             "particles": particles.path,
             "glitch": glitch.path,

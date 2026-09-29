@@ -29,9 +29,11 @@ CORE_ASSETS = (
     "touchdesigner/core/ReferenceParticleField.tox",
     "touchdesigner/core/CalligraphicShadow.tox",
     "touchdesigner/core/InkOrbitCanvas.tox",
+    "touchdesigner/core/InkDreamFlow.tox",
     "touchdesigner/core/FxUpdater.tox",
 )
 BUILDER_SOURCE = "touchdesigner/scripts/build_project.py"
+MODULE_SOURCES = ("touchdesigner/scripts/ink_dream_flow.py",)
 SHOW_SOURCES = ("src/tdimagefx/show.py", "touchdesigner/extensions/ShowControlExt.py", "touchdesigner/scripts/build_show_control.py")
 
 
@@ -129,6 +131,8 @@ def build_record(root: Path, report_path: Path) -> dict:
         raise NativeValidationError("TouchDesigner build report does not match the current builder source")
     if report.get("show_sources") != {path: _sha256(root / path) for path in SHOW_SOURCES}:
         raise NativeValidationError("TouchDesigner build report does not match current show-control sources")
+    if report.get("module_sources") != {path: _sha256(root / path) for path in MODULE_SOURCES}:
+        raise NativeValidationError("TouchDesigner build report does not match current module sources")
 
     manifests = sorted((root / "packages").glob("*/*/package.json"))
     artifacts = []
@@ -160,6 +164,7 @@ def build_record(root: Path, report_path: Path) -> dict:
             "sha256": _sha256(builder_path),
         },
         "show_sources": report["show_sources"],
+        "module_sources": report["module_sources"],
         "catalog": {
             "current_effects": len(effects),
             "package_versions": len(manifests),
