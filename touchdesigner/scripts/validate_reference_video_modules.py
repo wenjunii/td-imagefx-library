@@ -28,6 +28,7 @@ DEMO_TOGGLES = (
     "Calligraphicshadowenabled",
     "Inkorbitenabled",
     "Inkdreamenabled",
+    "Layercompositeenabled",
     "Inkflowenabled",
     "Particlesenabled",
     "Glitchenabled",
@@ -50,7 +51,7 @@ MODULES = (
         "output": DEMO_PATH + "/reference_particle_field/out1_image",
         "shader": DEMO_PATH + "/reference_particle_field/effect_glsl_reference_particle_field",
         "switch": DEMO_PATH + "/reference_particle_field/enable_switch",
-        "upstream": SOURCE_PATH,
+        "upstream": DEMO_PATH + "/layer_composite/out1_image",
         "base": {
             "Autotime": False, "Timescale": 1.0, "Manualtime": 0.71,
             "Mix": 1.0, "Speed": 0.42, "Density": 120, "Pointsize": 0.38,

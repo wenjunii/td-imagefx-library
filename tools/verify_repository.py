@@ -266,6 +266,7 @@ def _check_manifests() -> tuple[int, set[str], dict[str, str]]:
         ROOT / "touchdesigner" / "core" / "CalligraphicShadow.tox",
         ROOT / "touchdesigner" / "core" / "InkOrbitCanvas.tox",
         ROOT / "touchdesigner" / "core" / "InkDreamFlow.tox",
+        ROOT / "touchdesigner" / "core" / "LayerComposite.tox",
         ROOT / "touchdesigner" / "core" / "FxUpdater.tox",
     )
     missing = [path.relative_to(ROOT) for path in required_native_assets if not path.is_file()]
@@ -435,7 +436,7 @@ def _check_native_validation(library_version: str) -> None:
     show_sources = ("src/tdimagefx/show.py", "touchdesigner/extensions/ShowControlExt.py", "touchdesigner/scripts/build_show_control.py")
     if record.get("show_sources") != {path: _sha256(ROOT / path) for path in show_sources}:
         raise VerificationError("Native validation is not bound to current show-control sources")
-    module_sources = ("touchdesigner/scripts/ink_dream_flow.py",)
+    module_sources = ("touchdesigner/scripts/ink_dream_flow.py", "touchdesigner/scripts/layer_composite.py")
     if record.get("module_sources") != {path: _sha256(ROOT / path) for path in module_sources}:
         raise VerificationError("Native validation is not bound to current module sources")
     environment = record.get("touchdesigner")
@@ -459,6 +460,7 @@ def _check_native_validation(library_version: str) -> None:
         "touchdesigner/core/CalligraphicShadow.tox",
         "touchdesigner/core/InkOrbitCanvas.tox",
         "touchdesigner/core/InkDreamFlow.tox",
+        "touchdesigner/core/LayerComposite.tox",
         "touchdesigner/core/FxUpdater.tox",
         *(
             path.relative_to(ROOT).as_posix()
@@ -663,6 +665,8 @@ def _check_embody_integration() -> None:
         != "/project1/td_imagefx/core/ink_orbit_canvas"
         or network.get("ink_dream_flow")
         != "/project1/td_imagefx/core/ink_dream_flow"
+        or network.get("layer_composite")
+        != "/project1/td_imagefx/core/layer_composite"
         or outputs.get("reference_particle_field")
         != "/project1/imagefx_demo/reference_particle_field/out1_image"
         or outputs.get("calligraphic_shadow")
@@ -671,6 +675,8 @@ def _check_embody_integration() -> None:
         != "/project1/imagefx_demo/ink_orbit_canvas/out1_image"
         or outputs.get("ink_dream_flow")
         != "/project1/imagefx_demo/ink_dream_flow/out1_image"
+        or outputs.get("layer_composite")
+        != "/project1/imagefx_demo/layer_composite/out1_image"
     ):
         raise VerificationError("Embody project context has unexpected managed paths")
 

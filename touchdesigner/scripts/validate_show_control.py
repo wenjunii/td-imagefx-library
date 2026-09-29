@@ -28,6 +28,11 @@ def validate(write_report=True):
     ext = show.ext.ShowControlExt
     if ext.engine.state != "stopped":
         raise RuntimeError("Stop All before running show-control QA")
+    # Fresh runtime decks make repeated runs independent of cached cooks and
+    # avoid changing the operator's rehearsal cue state.
+    show = show.parent().copy(show, name="show_control_qa")
+    show.initializeExtensions()
+    ext = show.ext.ShowControlExt
     original = copy.deepcopy(ext.document)
     values = {p.name: p.eval() for p in show.customPars if not p.isPulse}
     tick_active = show.op("show_tick").par.active.eval()
@@ -147,6 +152,8 @@ def validate(write_report=True):
         look = ext.document["cues"][0]["look"]
         require("ink_dream_flow" in look["modules"] and "Inkdreamenabled" in look["toggles"], "Ink Dream Flow missing from captured look")
         checks["ink_dream_flow_capture_look"] = True
+        require("layer_composite" in look["modules"] and "Layercompositeenabled" in look["toggles"] and "layer_files" in look, "Layer Composite missing from captured look")
+        checks["layer_composite_capture_look"] = True
         ext.engine.clock=lambda:clock[0]; ext.engine._last=clock[0]
         for i in range(3): ext.engine.go(i)
         step(clock[0])
@@ -207,6 +214,22 @@ def validate(write_report=True):
         require(abs(dream.par.Coverage.eval()-.75)<.001, "Dream parameter cue failed")
         require(not np.allclose(first_dream,pixels("track1")), "Dream cue pixels did not change")
         checks["ink_dream_flow_parameter_cue"] = True
+
+        ext.engine.stop()
+        layer_look = {"toggles": {"Layercompositeenabled": True},
+                      "modules": {"layer_composite": {"Opacity": .9, "Invert": True}},
+                      "layer_files": {"Topfile": str(image_fixture)}}
+        # Image decode/GO and opacity animation need real TD frames; they are
+        # covered by validate_show_media.py, not a blocking polling loop here.
+        ext._apply_look(deck, layer_look)
+        layer = deck.op("layer_composite")
+        require(layer.par.Enabled.eval() and layer.par.Invert.eval(), "Layer look did not apply")
+        require(layer.par.Topfile.eval()==str(image_fixture.resolve()), "Layer file path not preserved")
+        require(abs(layer.par.Opacity.eval()-.9)<.001, "Layer opacity look did not apply")
+        # Old shows omit image fields: they must not reuse prior deck files.
+        ext._apply_look(deck,{})
+        require(layer.par.Topfile.eval()=="" and layer.par.Backdropfile.eval()=="", "Stale layer file on reused deck")
+        checks["layer_file_look_and_clear"] = True
 
         ext.engine.stop()
         fixture = ROOT/"build"/"envoy-validation"/"show-fixture.wav"
@@ -377,6 +400,7 @@ def validate(write_report=True):
         show.op("show_tick").par.active=tick_active
         ext._mapping_key=None
         ext.UpdateMapping(); ext.SelectCue(1)
+        show.destroy()
     report={"ok":not details,"generated_at":datetime.now(timezone.utc).isoformat(),"checks":checks,"details":details,"coverage":coverage,"hardware_outputs_tested":False,"audio_auditioned":False}
     if write_report:
         REPORT_PATH.parent.mkdir(parents=True,exist_ok=True)

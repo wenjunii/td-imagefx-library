@@ -23,7 +23,11 @@ Audience windows start closed, Master Blackout starts on, and audio starts off.
 4. For visual effects, adjust the modules and eight-slot rack in the original
    `imagefx_demo`, return to the cue panel, and click **Capture look**. This
    saves the enabled modules, their editable values, rack order and effect
-   selections into that cue. A fresh cue with no captured look has effects off.
+   selections into that cue. Layer Composite also captures its backdrop and top
+   image/video paths; see the [two-layer media guide](layer-composite.md). Layer
+   videos follow the cue clock; embedded audio from those two layers is not routed.
+   Use the main movie-audio route or an audio cue for sound. A fresh
+   cue with no captured look has effects off and no retained layer files.
 5. Select a cue row and click **Preload**. Release Master Blackout for rehearsal,
    then click **GO**. GO advances selection to the next row; it does not stop
    other tracks or audio cues. Use the Cue List Page control for lists over 12.

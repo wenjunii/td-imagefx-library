@@ -184,6 +184,11 @@ class ShowControlExt:
                 if self._safe_parameter(p) and p.name not in {"Enabled", "Autotime", "Manualtime"}
             }
         look["rack"] = json.loads(demo.op("fx_rack").ExportPreset())
+        layer = demo.op("layer_composite")
+        look["layer_files"] = self.model.resolve_layer_files(
+            {name: layer.par[name].eval() for name in ("Backdropfile", "Topfile")},
+            project.folder,
+        )
         cues = copy.deepcopy(self.document["cues"])
         cues[index]["look"] = look
         self._replace_cues(cues)
@@ -198,7 +203,9 @@ class ShowControlExt:
 
     def _validate_assignment(self, component, name, value):
         parameter = getattr(component.par, name, None)
-        if not self._safe_parameter(parameter) or parameter not in component.customPars:
+        # Par equality evaluates values (including unrelated expressions), not
+        # parameter identity. Check names instead, without cooking status fields.
+        if not self._safe_parameter(parameter) or name not in {p.name for p in component.customPars}:
             raise ValueError("Unsafe or unknown parameter: " + name)
         if parameter.isMenu:
             if value not in parameter.menuNames:
@@ -215,8 +222,11 @@ class ShowControlExt:
         parameter.val = value
 
     def _apply_look(self, deck, look):
-        if set(look) - {"toggles", "modules", "rack"}:
+        if set(look) - {"toggles", "modules", "rack", "layer_files"}:
             raise ValueError("Unknown look fields")
+        layer_files = self.model.resolve_layer_files(
+            look.get("layer_files", {}), Path(self._p("Showfile")).resolve().parent,
+        )
         for name in self.model.TOGGLES:
             deck.par[name] = False
         template = self.ownerComp.op("deck_template")
@@ -233,6 +243,8 @@ class ShowControlExt:
             if name not in self.model.TOGGLES or not isinstance(value, bool):
                 raise ValueError("Unknown demo toggle")
             deck.par[name] = value
+        for name, value in layer_files.items():
+            deck.op("layer_composite").par[name] = value
         for module_name, parameters in look.get("modules", {}).items():
             if module_name not in self.model.MODULES or not isinstance(parameters, dict):
                 raise ValueError("Unknown module in look")
@@ -279,7 +291,7 @@ class ShowControlExt:
         source.par.resolutionw.expr = "parent().par.Customwidth"
         source.par.resolutionh.expr = "parent().par.Customheight"
         deck.op("test_pattern").outputConnectors[0].connect(source.inputConnectors[0])
-        source.outputConnectors[0].connect(deck.op("reference_particle_field").inputConnectors[0])
+        source.outputConnectors[0].connect(deck.op("layer_composite").inputConnectors[0])
         source.outputConnectors[0].connect(deck.op("fixture_image_b").inputConnectors[0])
         return deck
 
@@ -352,6 +364,11 @@ class ShowControlExt:
                 movie.par.cuepulse.pulse()
                 movie.preload()
         deck.allowCooking = True
+        layer = deck.op("layer_composite")
+        if layer.par.Enabled.eval():
+            for field, node_name in (("Backdropfile", "backdrop_file"), ("Topfile", "top_file")):
+                if layer.par[field].eval():
+                    layer.op(node_name).preload()
         deck.op("out1_image").cook(force=True)
         self.ownerComp.op("track{}_source{}".format(track, side)).par.top = deck.op("out1_image").path
         self.prepared[cue["id"]] = {"cue": cue, "deck": deck, "movie": movie if path else None, "track": track, "side": side}
@@ -390,6 +407,18 @@ class ShowControlExt:
 
     def ready(self, cue):
         item = self.prepared[cue["id"]]
+        deck = item.get("deck")
+        if deck is not None and deck.op("layer_composite").par.Enabled.eval():
+            layer = deck.op("layer_composite")
+            for field, node_name in (("Backdropfile", "backdrop_file"), ("Topfile", "top_file")):
+                if not layer.par[field].eval():
+                    continue
+                image = layer.op(node_name)
+                image.cook(force=True)
+                if image.isInvalid:
+                    raise ValueError("Layer image could not be decoded: " + field)
+                if not image.isOpen or not image.isFullyPreRead:
+                    return False
         if "reader" in item:
             item["reader"].cook(force=True)
             if item["reader"].errors():
@@ -614,6 +643,9 @@ class ShowControlExt:
         for index, cue in enumerate(self.document["cues"]):
             try:
                 if cue["kind"] in {"visual", "audio"}:
+                    self.model.resolve_layer_files(
+                        cue["look"].get("layer_files", {}), Path(self._p("Showfile")).resolve().parent,
+                    )
                     path = self._media_path(cue)
                     if cue["kind"] == "audio" and not path:
                         raise ValueError("Audio cue needs a media file")

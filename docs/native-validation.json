@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-09-29T18:40:49.492330+00:00",
+  "generated_at": "2026-09-29T20:16:34.760798+00:00",
   "library_version": "0.3.0",
   "touchdesigner": {
     "version": "099",
@@ -10,15 +10,16 @@
   },
   "builder": {
     "path": "touchdesigner/scripts/build_project.py",
-    "sha256": "430d2d811958b69fe8f403b7f602f135857aac1eccb152150ba02480c7a0ebf6"
+    "sha256": "5b455839ce79c16a7f33a4b05dd0dc6e217c116385c5ee57e08fe30daff191d8"
   },
   "show_sources": {
-    "src/tdimagefx/show.py": "9ab3ade65455489b77dd2339833dcb3e4aee7c4558739e2f275baab9ce011f1b",
-    "touchdesigner/extensions/ShowControlExt.py": "e683decfd81968284ce1140ee096ec2d721fb850547639c4199a1a99ec81865e",
+    "src/tdimagefx/show.py": "38b221841cd2ca1140c8d3734bcf3f72b516a1568af4b554817402e838988b74",
+    "touchdesigner/extensions/ShowControlExt.py": "98c68abb34e1c441522adf6be88098698bef9f538be2803e5f048f05fa9d615c",
     "touchdesigner/scripts/build_show_control.py": "1d743b38eadf783b5cd9a787bd7705e6c6eb2c45502b47c1b3454a8d66f40f96"
   },
   "module_sources": {
-    "touchdesigner/scripts/ink_dream_flow.py": "f34f69ca1e2487c364e2cd466d2024a941942cd95e8ccef19bb098fc38efc533"
+    "touchdesigner/scripts/ink_dream_flow.py": "f34f69ca1e2487c364e2cd466d2024a941942cd95e8ccef19bb098fc38efc533",
+    "touchdesigner/scripts/layer_composite.py": "6d7a0cbb7ca7d89c5138df8bf6ebf68dd08ce3fff9fc8c78d47b3dd144467ad1"
   },
   "catalog": {
     "current_effects": 96,
@@ -37,73 +38,78 @@
   "artifacts": [
     {
       "path": "TD_ImageFX_Library.toe",
-      "bytes": 389668,
-      "sha256": "c4a46e27bbc14afcb02f406453427503db3954213872b22407379e327c1632bf"
+      "bytes": 407780,
+      "sha256": "0aeebba43498a417f1f562c94c5e432c0b469b479e955e9a1a86ad1fb8004ab1"
     },
     {
       "path": "touchdesigner/core/TDImageFXLibrary.tox",
-      "bytes": 152318,
-      "sha256": "5e7f23845fd6d4d6a81e834a29a2bc0b5bbdcb1ce2b79b61b9dc100629f7465f"
+      "bytes": 158566,
+      "sha256": "e0c530a130442d3cc758769809905ae68cc0d73a4a0f1a7af2735c84f07d3101"
     },
     {
       "path": "touchdesigner/core/FxBrowser.tox",
       "bytes": 24814,
-      "sha256": "a5f3eaca6401ae0378331dba30501e0955dfa19f265cc5b343224389ab653658"
+      "sha256": "deff5a4ea0f450cfc34331daf133c81904585bc0a2270431fadc6ca15f6d6966"
     },
     {
       "path": "touchdesigner/core/FxRack.tox",
       "bytes": 25446,
-      "sha256": "4a8c0f364d615ee8f749bf7b77c24392b5e7aef6f041de5ec4b92180eabd5654"
+      "sha256": "1d679a81792e5ab17ef455119eb9b79d07a172fc38c39ed7c27f6820ef526c7b"
     },
     {
       "path": "touchdesigner/core/ParticleRandomMove.tox",
       "bytes": 9046,
-      "sha256": "605ecff04736237fe45f0ad4000671a77b4f31b1d720853a3ba63ea456571c57"
+      "sha256": "100efe5ec361b800901078c61a3937c743c032d42f7607c1627b1b73949dbd83"
     },
     {
       "path": "touchdesigner/core/InkFlowFusion.tox",
       "bytes": 8582,
-      "sha256": "320a94800e6643a582da111a2acee9ede1260890638707107d750dca9246d600"
+      "sha256": "595f840086f00614d60bdc187d9f2d6bc691303225bd1a408dc3cce9bba11ce3"
     },
     {
       "path": "touchdesigner/core/GlitchFusion.tox",
       "bytes": 9030,
-      "sha256": "54a133cb0c850b796f11e8dc5143541591a941232134ea10e04c2596beaa58d7"
+      "sha256": "abe5939d2436f6a9b9a35d5396f9218ace742d2c1f30b937f1236be6e7eb7cb8"
     },
     {
       "path": "touchdesigner/core/ColorAdjustment.tox",
       "bytes": 11270,
-      "sha256": "ee6ee140afaad0e9bf2ef5535f071cba921e6fe782c5e58806cfbe96a5b7e8c8"
+      "sha256": "b7948800aadf7e3e42762ff8460e518879be32a358c12b8c490a512ed3a28854"
     },
     {
       "path": "touchdesigner/core/MotionStudio.tox",
       "bytes": 9574,
-      "sha256": "9f83de4309632a370aa7f19b05442431587cb6c49cbf3c06e7f4de51e78b5bff"
+      "sha256": "73e5d9d2f73f7f92f0b9f7142b5ce4f024d8a84c846e4cab72048479b309b1f8"
     },
     {
       "path": "touchdesigner/core/ReferenceParticleField.tox",
-      "bytes": 7550,
-      "sha256": "7c123f059281eddce8a15b3f601b5cd9dc69d7af20435798e78acc3e8d91b755"
+      "bytes": 7526,
+      "sha256": "a90b1e4d16a9b21ee3920320315d49716c25a9e3011ac69ce60b16bbb6e26676"
     },
     {
       "path": "touchdesigner/core/CalligraphicShadow.tox",
-      "bytes": 11102,
-      "sha256": "09eefb0c9c6ca5324a64b19abb385913f8a1cd64aaf53bfea094ac8aa4401cd5"
+      "bytes": 11086,
+      "sha256": "80c8f806507faa7aff38a649311dd40bf04ffd652a039b2322539ace44a73273"
     },
     {
       "path": "touchdesigner/core/InkOrbitCanvas.tox",
-      "bytes": 7430,
-      "sha256": "bd333af5bad3d97a52e2fc910ab017d261ecd9b01716beca04bc118b18c71dd3"
+      "bytes": 7414,
+      "sha256": "2f75965fdf138d3197fef0915548eebd50d1b344217afb95d70b810360568dbf"
     },
     {
       "path": "touchdesigner/core/InkDreamFlow.tox",
-      "bytes": 8246,
-      "sha256": "9129680d1d44be2d66ddadad363eb9c1b649af9435919cfe23031872f17c4ecd"
+      "bytes": 8222,
+      "sha256": "ea17085e9693f4435704a339468439550c678e434db307c89ed261ab00bfc2af"
+    },
+    {
+      "path": "touchdesigner/core/LayerComposite.tox",
+      "bytes": 7750,
+      "sha256": "96b8239121907076f94acbd14e54c72b4fdd2fe324c5905fa2ba0133b309e093"
     },
     {
       "path": "touchdesigner/core/FxUpdater.tox",
       "bytes": 13630,
-      "sha256": "6dc489dda4577dd96d4eefb0dae228c3c29965acf12400a28f4b6cdb4d2ef9a4"
+      "sha256": "a21ecbe8d66a16964f1949379f9db13c20e469647b01fbb6cc4dbe3a606f370a"
     },
     {
       "path": "packages/tdimagefx.blur.bilateral-blur/1.0.0/tox/tdimagefx_blur_bilateral_blur.tox",

@@ -43,7 +43,7 @@ PREVIEW_ROOT = DOCS_ROOT / "gallery"
 PROJECT_PATH = PROJECT_ROOT / "TD_ImageFX_Library.toe"
 BUILDER_PATH = Path(__file__).resolve()
 LIBRARY_VERSION = "0.3.0"
-MODULE_SOURCES = ("touchdesigner/scripts/ink_dream_flow.py",)
+MODULE_SOURCES = ("touchdesigner/scripts/ink_dream_flow.py", "touchdesigner/scripts/layer_composite.py")
 RACK_SLOT_COUNT = 8
 OWNED_PROJECT_NODES = frozenset({"td_imagefx", "imagefx_demo"})
 DEFAULT_TEMPLATE_NODES = {
@@ -5732,8 +5732,9 @@ def _build_reference_video_module(
     tox_name,
     color,
     reference_video,
+    input_setup=None,
 ):
-    """Build one bounded, single-input GPU module derived from a reference video."""
+    """Build a bounded GPU module, optionally with custom image input routing."""
 
     module = parent_comp.create(baseCOMP, component_name)
     module.color = color
@@ -5773,6 +5774,8 @@ def _build_reference_video_module(
     source.nodeX = -400
     source.nodeY = 0
 
+    image_inputs = input_setup(module, source) if input_setup else [source]
+
     shader_suffix = component_name
     shader_dat = module.create(textDAT, "pixel_shader_{}".format(shader_suffix))
     shader_dat.text = shader_source
@@ -5780,7 +5783,8 @@ def _build_reference_video_module(
     shader_dat.nodeY = -220
 
     glsl = module.create(glslTOP, "effect_glsl_{}".format(shader_suffix))
-    source.outputConnectors[0].connect(glsl.inputConnectors[0])
+    for index, image_input in enumerate(image_inputs):
+        image_input.outputConnectors[0].connect(glsl.inputConnectors[index])
     glsl.nodeX = 0
     glsl.nodeY = 0
     glsl.par.pixeldat = glsl.relativePath(shader_dat)
@@ -5792,6 +5796,10 @@ def _build_reference_video_module(
         glsl.par.errorbehavior = "showerror"
     if glsl.par["outputresolution"] is not None:
         glsl.par.outputresolution = "useinput"
+    if input_setup:
+        glsl.par.outputresolution = "custom"
+        glsl.par.resolutionw.expr = "parent().inputs[0].width if parent().inputs else 1920"
+        glsl.par.resolutionh.expr = "parent().inputs[0].height if parent().inputs else 1080"
 
     active_bindings = [
         (definition, custom_pars)
@@ -5843,7 +5851,8 @@ def _build_reference_video_module(
     output.nodeY = 0
     output.display = True
     output.render = True
-    module.par.opviewer = output.path
+    # A saved .tox must display its own output after being copied/loaded.
+    module.par.opviewer = module.relativePath(output)
 
     glsl.cook(force=True)
     errors = list(glsl.errors())
@@ -5914,6 +5923,86 @@ def build_ink_dream_flow_module(parent_comp):
         module_id="tdimagefx.core.ink-dream-flow", tox_name="InkDreamFlow.tox",
         color=(0.16, 0.20, 0.36), reference_video="Timeline 1.mp4",
     )
+
+
+def build_layer_composite_module(parent_comp):
+    module_path = PROJECT_ROOT / "touchdesigner/scripts/layer_composite.py"
+    scope = {"__file__": str(module_path), "__name__": "_layer_composite"}
+    exec(compile(_read_text(module_path), str(module_path), "exec"), scope)
+
+    def inputs(module, source):
+        source.par.label = "backdrop / canvas resolution"
+        foreground = module.create(inTOP, "in2_foreground")
+        foreground.par.label = "top image (optional)"
+        foreground.nodeX, foreground.nodeY = -600, -160
+        empty = module.create(constantTOP, "transparent")
+        empty.par.alpha = 0
+        empty.nodeX, empty.nodeY = -600, -320
+        nodes = []
+        for index, (name, parameter, port) in enumerate((
+            ("backdrop", "Backdropfile", source), ("top", "Topfile", foreground),
+        )):
+            movie = module.create(moviefileinTOP, name + "_file")
+            movie.par.file.expr = "parent().par.{}".format(parameter)
+            prefix = "Backdrop" if name == "backdrop" else "Top"
+            movie.par.playmode.expr = "'sequential' if parent().par.Autotime else 'specify'"
+            # Play must remain on in Specify Index mode or TD freezes decoded
+            # frames even when the requested index changes.
+            movie.par.play.expr = "parent().par.Enabled and (not parent().par.Autotime or parent().par.{}play)".format(prefix)
+            movie.par.speed.expr = "parent().par.{}speed".format(prefix)
+            movie.par.cuepointunit = "seconds"
+            movie.par.cuepoint.expr = "parent().par.{}in".format(prefix)
+            movie.par.indexunit = "seconds"
+            movie.par.index.expr = "parent().par.{0}in + parent().par.Manualtime * parent().par.{0}speed".format(prefix)
+            for extend in (movie.par.textendleft, movie.par.textendright):
+                extend.expr = "'cycle' if parent().par.{}loop else 'hold'".format(prefix)
+            # The compositor implements straight-alpha Over. TD's automatic
+            # PNG import premultiplies RGB, which would apply alpha twice.
+            movie.par.premultrgbbyalpha = "off"
+            movie.par.alwaysloadinitial = True
+            movie.nodeX, movie.nodeY = -600, -500-index*140
+            select = module.create(switchTOP, name + "_source")
+            empty.outputConnectors[0].connect(select.inputConnectors[0])
+            port.outputConnectors[0].connect(select.inputConnectors[1])
+            movie.outputConnectors[0].connect(select.inputConnectors[2])
+            select.par.index.expr = (
+                "2 if parent().par.{}.eval().strip() else "
+                "(1 if len(parent().inputs) > {} else 0)"
+            ).format(parameter, index)
+            select.nodeX, select.nodeY = -280, -index*140
+            nodes.append(select)
+        callback = module.create(parameterexecuteDAT, "media_callbacks")
+        callback.text = scope["CALLBACKS"]
+        callback.par.op = ".."
+        callback.par.pars = "Backdropfile Topfile Backdropin Topin Preview Backdroprestart Toprestart Backdropreload Topreload"
+        callback.par.custom = True
+        callback.par.builtin = False
+        callback.par.valuechange = True
+        callback.par.onpulse = True
+        # Status expressions must not cook the Parameter Execute DAT they
+        # belong to; doing so creates a parent/child dependency cycle.
+        status_dat = module.create(textDAT, "media_status")
+        status_dat.text = scope["STATUS"]
+        for prefix in ("Backdrop", "Top"):
+            module.par[prefix+"play"].enableExpr = "me.par.Autotime"
+            module.par[prefix+"restart"].enableExpr = "me.par.Autotime"
+            module.par[prefix+"status"].expr = "me.op('media_status').module.status(me, '{}')".format(prefix.lower())
+        module.par.Routingstatus.expr = (
+            "'Layer output active (Preview shows this module only)' if me.par.Enabled else "
+            "'BYPASSED: enable Module Enabled / demo Layer Composite Enabled'"
+        )
+        return nodes
+
+    module, path = _build_reference_video_module(
+        parent_comp, component_name="layer_composite", component_label="Layer Composite",
+        shader_source=scope["SHADER"], parameter_definitions=scope["PARAMETERS"],
+        storage_key="tdimagefx_layer_composite_module", module_id="tdimagefx.core.layer-composite",
+        tox_name="LayerComposite.tox", color=(.22,.32,.42),
+        reference_video="two-image / video layering", input_setup=inputs,
+    )
+    module.viewer = True
+    module.save(str(path), createFolders=True)
+    return module, path
 
 
 def build_browser(parent_comp, manifests, compatibility_confidence="declared"):
@@ -6567,6 +6656,7 @@ def build_library(project_comp, manifests, report):
         "Use core/calligraphic_shadow for the dancer-like flowing ink shadow reference effect.\n"
         "Use core/ink_orbit_canvas for procedural wet-ink rings, droplets, and floor perspective.\n"
         "Use core/ink_dream_flow for dreamy marbled liquid, pigment particles, and Xuan paper.\n"
+        "Use core/layer_composite for two images, top-layer color controls, and optional flicker.\n"
         "Use core/fx_browser to search, filter, favorite, and create effects.\n"
         "Use the promoted Find(), CreateEffect(), CheckUpdates(), and HealthCheck() methods.\n"
         "All effect versions are immutable and stored under packages/<id>/<version>.\n"
@@ -6586,6 +6676,12 @@ def build_library(project_comp, manifests, report):
     preview_source.nodeX = -520
     preview_source.nodeY = 180
     preview_source.par.pixeldat = preview_shader.path
+    # Bind the preview clock explicitly. TD can reuse a compiled GLSL program
+    # from the animated demo during an in-session rebuild; an unset uniform
+    # must not inherit that demo's last time value.
+    preview_source.seq.vec.numBlocks = 1
+    preview_source.par.vec0name = "uTime"
+    preview_source.par.vec0valuex = 0
     if preview_source.par["glslversion"] is not None:
         preview_source.par.glslversion = "glsl460"
     if preview_source.par["compilebehavior"] is not None:
@@ -6688,8 +6784,10 @@ def build_library(project_comp, manifests, report):
     ink_dream_flow, ink_dream_flow_path = build_ink_dream_flow_module(core_parent)
     ink_dream_flow.nodeX = 2340
     ink_dream_flow.nodeY = 0
+    layer_composite, layer_composite_path = build_layer_composite_module(core_parent)
+    layer_composite.nodeX, layer_composite.nodeY = 2600, 0
     browser, browser_path = build_browser(core_parent, manifests, compatibility_confidence)
-    browser.nodeX = 2600
+    browser.nodeX = 2860
     browser.nodeY = 0
 
     library.par.Status = "Ready: {} packages".format(len(manifests))
@@ -6707,6 +6805,7 @@ def build_library(project_comp, manifests, report):
         "calligraphic_shadow": str(calligraphic_shadow_path),
         "ink_orbit_canvas": str(ink_orbit_canvas_path),
         "ink_dream_flow": str(ink_dream_flow_path),
+        "layer_composite": str(layer_composite_path),
         "browser": str(browser_path),
         "updater": str(CORE_ROOT / "FxUpdater.tox"),
     }
@@ -6722,6 +6821,7 @@ def build_library(project_comp, manifests, report):
         calligraphic_shadow_path,
         ink_orbit_canvas_path,
         ink_dream_flow_path,
+        layer_composite_path,
     )
 
 
@@ -6737,19 +6837,24 @@ def build_demo(
     calligraphic_shadow_path,
     ink_orbit_canvas_path,
     ink_dream_flow_path,
+    layer_composite_path,
 ):
     demo = project_comp.create(baseCOMP, "imagefx_demo")
     demo.nodeX = 100
     demo.nodeY = 100
     demo.color = (0.32, 0.18, 0.36)
     demo.comment = (
-        "Animated source -> three optional reference recreations -> optional Ink Dream Flow -> optional ink flow -> optional random particles -> "
+        "Animated source -> optional Layer Composite -> three optional reference recreations -> optional Ink Dream Flow -> optional ink flow -> optional random particles -> "
         "optional Glitch Fusion -> optional color adjustment -> optional "
         "Motion Studio -> optional eight-slot video FX. "
         "Output defaults to 1920 x 1080 with 4K UHD and custom presets. "
         "Replace source_image with any TOP."
     )
     demo_page = demo.appendCustomPage("Demo")
+    _append_parameter(demo, demo_page, {
+        "name": "Layercompositeenabled", "label": "Layer Composite Enabled",
+        "type": "toggle", "default": False,
+    })
     _append_parameter(demo, demo_page, {
         "name": "Inkdreamenabled", "label": "Ink Dream Flow Enabled",
         "type": "toggle", "default": False,
@@ -6903,7 +7008,11 @@ def build_demo(
     reference_particle_field.par.Enabled.expr = (
         "parent().par.Referenceparticlefieldenabled"
     )
-    source.outputConnectors[0].connect(
+    layer_composite = load_tox_component(demo, layer_composite_path, "layer_composite")
+    layer_composite.nodeX, layer_composite.nodeY = -170, -180
+    layer_composite.par.Enabled.expr = "parent().par.Layercompositeenabled"
+    source.outputConnectors[0].connect(layer_composite.inputConnectors[0])
+    layer_composite.outputConnectors[0].connect(
         reference_particle_field.inputConnectors[0]
     )
 
@@ -7245,6 +7354,7 @@ def build():
             calligraphic_shadow_path,
             ink_orbit_canvas_path,
             ink_dream_flow_path,
+            layer_composite_path,
         ) = build_library(
             project_comp,
             manifests,
@@ -7262,6 +7372,7 @@ def build():
             calligraphic_shadow_path,
             ink_orbit_canvas_path,
             ink_dream_flow_path,
+            layer_composite_path,
         )
         show_builder_path = PROJECT_ROOT / "touchdesigner" / "scripts" / "build_show_control.py"
         show_scope = dict(globals())

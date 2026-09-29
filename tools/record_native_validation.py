@@ -30,10 +30,11 @@ CORE_ASSETS = (
     "touchdesigner/core/CalligraphicShadow.tox",
     "touchdesigner/core/InkOrbitCanvas.tox",
     "touchdesigner/core/InkDreamFlow.tox",
+    "touchdesigner/core/LayerComposite.tox",
     "touchdesigner/core/FxUpdater.tox",
 )
 BUILDER_SOURCE = "touchdesigner/scripts/build_project.py"
-MODULE_SOURCES = ("touchdesigner/scripts/ink_dream_flow.py",)
+MODULE_SOURCES = ("touchdesigner/scripts/ink_dream_flow.py", "touchdesigner/scripts/layer_composite.py")
 SHOW_SOURCES = ("src/tdimagefx/show.py", "touchdesigner/extensions/ShowControlExt.py", "touchdesigner/scripts/build_show_control.py")
 
 

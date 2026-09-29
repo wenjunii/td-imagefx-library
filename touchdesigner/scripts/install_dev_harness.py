@@ -45,6 +45,7 @@ INK_ORBIT_CANVAS_TOX = (
 )
 EXTENSION_ROOT = PROJECT_ROOT / "touchdesigner" / "extensions"
 INK_DREAM_FLOW_TOX = PROJECT_ROOT / "touchdesigner" / "core" / "InkDreamFlow.tox"
+LAYER_COMPOSITE_TOX = PROJECT_ROOT / "touchdesigner" / "core" / "LayerComposite.tox"
 CALLBACK_ROOT = PROJECT_ROOT / "touchdesigner" / "callbacks"
 MANAGED_NAMES = ("td_imagefx", "imagefx_demo")
 OUTPUT_PRESETS = (
@@ -329,6 +330,9 @@ def install():
             "color adjustment, Motion Studio, and video effects"
         )
         demo_page = demo.appendCustomPage("Demo")
+        demo_page.appendToggle("Layercompositeenabled", label="Layer Composite Enabled")
+        demo.par.Layercompositeenabled.default = False
+        demo.par.Layercompositeenabled = False
         demo_page.appendToggle("Inkdreamenabled", label="Ink Dream Flow Enabled")
         demo.par.Inkdreamenabled.default = False
         demo.par.Inkdreamenabled = False
@@ -441,7 +445,13 @@ def install():
             "parent().par.Referenceparticlefieldenabled"
         )
         _repair_effect_shader_paths(reference_particle_field)
-        source.outputConnectors[0].connect(
+        layer_composite = _load_single_tox(demo, LAYER_COMPOSITE_TOX)
+        layer_composite.name = "layer_composite"
+        layer_composite.nodeX, layer_composite.nodeY = -170, -180
+        layer_composite.par.Enabled.expr = "parent().par.Layercompositeenabled"
+        _repair_effect_shader_paths(layer_composite)
+        source.outputConnectors[0].connect(layer_composite.inputConnectors[0])
+        layer_composite.outputConnectors[0].connect(
             reference_particle_field.inputConnectors[0]
         )
 
@@ -617,6 +627,7 @@ def install():
             "calligraphic_shadow": calligraphic_shadow.path,
             "ink_orbit_canvas": ink_orbit_canvas.path,
             "ink_dream_flow": ink_dream_flow.path,
+            "layer_composite": layer_composite.path,
             "ink_flow": ink_flow.path,
             "particles": particles.path,
             "glitch": glitch.path,
