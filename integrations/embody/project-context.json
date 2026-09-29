@@ -14,7 +14,8 @@
       "src/tdimagefx/",
       "touchdesigner/extensions/",
       "touchdesigner/scripts/build_project.py",
-      "touchdesigner/scripts/ink_dream_flow.py"
+      "touchdesigner/scripts/ink_dream_flow.py",
+      "touchdesigner/scripts/layer_composite.py"
     ],
     "catalog": {
       "current_effect_ids": 96,
@@ -41,6 +42,7 @@
     "calligraphic_shadow": "/project1/td_imagefx/core/calligraphic_shadow",
     "ink_orbit_canvas": "/project1/td_imagefx/core/ink_orbit_canvas",
     "ink_dream_flow": "/project1/td_imagefx/core/ink_dream_flow",
+    "layer_composite": "/project1/td_imagefx/core/layer_composite",
     "update_manager": "/project1/td_imagefx/update_manager",
     "approved_read_scope": [
       "/project1/td_imagefx",
@@ -75,6 +77,7 @@
     "calligraphic_shadow": "/project1/imagefx_demo/calligraphic_shadow/out1_image",
     "ink_orbit_canvas": "/project1/imagefx_demo/ink_orbit_canvas/out1_image",
     "ink_dream_flow": "/project1/imagefx_demo/ink_dream_flow/out1_image",
+    "layer_composite": "/project1/imagefx_demo/layer_composite/out1_image",
     "rack": "/project1/imagefx_demo/fx_rack/out1_image",
     "browser_preview": "/project1/td_imagefx/core/fx_browser/selected_preview",
     "visual_failure_signals": [
@@ -160,13 +163,15 @@
       "TouchDesigner build is 2025.32820 or a deliberately qualified newer build.",
       "HealthCheck reports 96 current packages and 124 immutable versions with no missing entrypoints.",
       "Managed roots report no operator, warning, or script messages.",
-      "All eleven approved TOPs exist, cook, have usable resolution, and are neither black nor fully transparent.",
+      "All approved demo TOPs exist, cook, have usable resolution, and are neither black nor fully transparent.",
       "The primary demo output matches its selected HD, 4K UHD, or custom resolution.",
       "No unexplained frame drops, memory spike, or material frame-time regression is introduced.",
       "python tools/verify_repository.py passes."
     ],
     "report_file": "build/envoy-validation/live-project.json",
     "state_restoring_regression_reports": {
+      "ink_dream_flow": "build/envoy-validation/ink-dream-flow.json",
+      "layer_composite": "build/envoy-validation/layer-composite.json",
       "all_effect_parameters": "build/envoy-validation/all-effect-parameters.json",
       "rack_selection": "build/envoy-validation/rack-selection.json",
       "ink_flow": "build/envoy-validation/ink-flow-module.json",

@@ -89,6 +89,32 @@ def advance():
             if _snapshot(show.op("track1"))==_STATE["hash"]: raise RuntimeError("Video did not resume")
             _STATE["checks"]["video_resumes"]=True
             if show.par.Audioenabled: raise RuntimeError("QA enabled physical audio")
+            ext.engine.stop()
+            layer_look={"toggles":{"Layercompositeenabled":True},
+                        "modules":{"layer_composite":{"Opacity":.9,"Invert":True}},
+                        "layer_files":{"Topfile":str(_STATE["folder"]/"show-image-fixture.png"),
+                                       "Backdropfile":str(_STATE["folder"]/"show-image-fixture.png")}}
+            ext._replace_cues([
+                dict(ext.model.new_cue(),duration=0,fade=0,look=layer_look),
+                dict(ext.model.new_cue(),kind="parameters",target="layer_composite/Opacity",value=.2,duration=.25)])
+            ext.engine.go(0); _STATE["stage"]="layer"; _later(); return
+        if stage=="layer":
+            active=ext.tracks.get(1)
+            if not active:
+                _later(); return
+            layer=active["deck"].op("layer_composite")
+            if not all(layer.op(name).isOpen and layer.op(name).isFullyPreRead for name in ("top_file","backdrop_file")):
+                raise RuntimeError("Layer cue began before both images were ready")
+            _STATE["checks"]["layer_images_decoded_before_go"]=True
+            _STATE["hash"]=_snapshot(show.op("track1"))
+            ext.engine.go(1); _STATE["stage"]="layer_opacity"; _later(); return
+        if stage=="layer_opacity":
+            layer=ext.tracks[1]["deck"].op("layer_composite")
+            if abs(layer.par.Opacity.eval()-.2)>1e-5:
+                _later(); return
+            if _snapshot(show.op("track1"))==_STATE["hash"]:
+                raise RuntimeError("Layer opacity cue did not change pixels")
+            _STATE["checks"]["layer_opacity_parameter_cue_pixels"]=True
             finish()
     except Exception:
         finish(traceback.format_exc())

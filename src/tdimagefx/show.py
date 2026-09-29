@@ -7,6 +7,7 @@ import math
 import re
 import time
 import uuid
+from pathlib import Path
 
 
 SHOW_KIND = "tdimagefx.show"
@@ -15,12 +16,12 @@ MAX_SHOW_BYTES = 8 * 1024 * 1024
 MODULES = (
     "reference_particle_field", "calligraphic_shadow", "ink_orbit_canvas",
     "ink_flow", "particle_random_move", "glitch_fusion", "color_adjustment",
-    "motion_studio", "ink_dream_flow",
+    "motion_studio", "ink_dream_flow", "layer_composite",
 )
 TOGGLES = (
     "Referenceparticlefieldenabled", "Calligraphicshadowenabled", "Inkorbitenabled",
     "Inkflowenabled", "Particlesenabled", "Glitchenabled", "Coloradjustmentenabled",
-    "Motionenabled", "Applyvideofx", "Inkdreamenabled",
+    "Motionenabled", "Applyvideofx", "Inkdreamenabled", "Layercompositeenabled",
 )
 MODULE_TOGGLES = {
     "reference_particle_field": "Referenceparticlefieldenabled",
@@ -32,7 +33,30 @@ MODULE_TOGGLES = {
     "color_adjustment": "Coloradjustmentenabled",
     "motion_studio": "Motionenabled",
     "ink_dream_flow": "Inkdreamenabled",
+    "layer_composite": "Layercompositeenabled",
 }
+
+
+def resolve_layer_files(values, base_dir):
+    """Whitelist the two passive media paths in a captured layer look."""
+    names = ("Backdropfile", "Topfile")
+    if not isinstance(values, dict) or set(values) - set(names):
+        raise ValueError("Unknown Layer Composite media fields")
+    result = {}
+    for name in names:
+        raw = values.get(name, "")
+        if not isinstance(raw, str) or len(raw) > 4096 or "://" in raw or "\x00" in raw:
+            raise ValueError("Layer media must be local file paths")
+        if not raw.strip():
+            result[name] = ""
+            continue
+        path = Path(raw)
+        if not path.is_absolute():
+            path = Path(base_dir) / path
+        if not path.is_file():
+            raise ValueError("Missing layer media: " + path.name)
+        result[name] = str(path.resolve())
+    return result
 
 
 def number(value, label, minimum=0.0, maximum=86400.0):
