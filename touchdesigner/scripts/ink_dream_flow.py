@@ -53,6 +53,30 @@ PARAMETERS = (
     _control("Particleflow", "Particle Flow Distortion", "Particles", 0.65, 0.0, 1.0, uniform="uParticleFlow"),
     _control("Particlespread", "Particles Outside Liquid", "Particles", 0.28, 0.0, 1.0, uniform="uParticleSpread"),
     _control("Particletrail", "Particle Streak Length", "Particles", 0.2, 0.0, 1.0, uniform="uParticleTrail"),
+    dict(name="Glitterenabled", label="Glitter Enabled", page="Glitter", type="toggle", default=False, uniform="uGlitterEnabled"),
+    _control("Glitteramount", "Glitter Amount (0 = Off)", "Glitter", 0.7, 0.0, 2.0, uniform="uGlitterAmount"),
+    _control("Glitterdensity", "Glitter Density", "Glitter", 0.45, uniform="uGlitterDensity"),
+    _control("Glittersize", "Glitter Grain Size (Pixels)", "Glitter", 2.2, 0.3, 6.0, uniform="uGlitterSize"),
+    _control("Glittersoftness", "Glitter Grain Softness", "Glitter", 0.2, uniform="uGlitterSoftness"),
+    _control("Glitterbrightness", "Glitter Brightness (0 = Off)", "Glitter", 1.4, 0.0, 8.0, uniform="uGlitterBrightness"),
+    dict(name="Glittercolor", label="Glitter Color / Opacity", page="Glitter", type="rgba", default=[0.76, 0.9, 1.0, 1.0], uniform="uGlitterColor"),
+    dict(name="Glittersurface", label="Glitter Surface", page="Glitter", type="menu", default="combined",
+         menu_names=["ink", "wash", "particles", "combined"], menu_labels=["Deep Ink", "Diluted Wash", "Pigment Particles", "Ink + Wash + Particles"], uniform="uGlitterSurface"),
+    _control("Glitterthreshold", "Surface Threshold", "Glitter", 0.12, uniform="uGlitterThreshold"),
+    _control("Glitteredge", "Surface Edge Softness", "Glitter", 0.08, 0.001, 0.5, uniform="uGlitterEdge"),
+    _control("Glitterspread", "Glitter Outside Ink", "Glitter", 0.0, uniform="uGlitterSpread"),
+    _control("Glitterspeed", "Glitter Drift Speed / Reverse", "Glitter Motion", 0.25, -4.0, 4.0, uniform="uGlitterSpeed"),
+    _control("Glitterdirection", "Glitter Drift Direction", "Glitter Motion", 25.0, -180.0, 180.0, uniform="uGlitterDirection"),
+    _control("Glitterflow", "Glitter Flow Distortion", "Glitter Motion", 0.35, uniform="uGlitterFlow"),
+    _control("Glitterjitter", "Glitter Random Wandering", "Glitter Motion", 0.35, uniform="uGlitterJitter"),
+    dict(name="Glitterseed", label="Glitter Random Seed", page="Glitter Motion", type="int", default=71, min=0, max=100000, uniform="uGlitterSeed"),
+    _control("Glittershimmer", "Glitter Shimmer Amount", "Glitter Motion", 0.75, uniform="uGlitterShimmer"),
+    _control("Glittertwinklespeed", "Shimmer Speed (0 = Freeze)", "Glitter Motion", 1.1, 0.0, 8.0, uniform="uGlitterTwinkleSpeed"),
+    _control("Glitterstars", "Star Highlight Amount", "Glitter Highlights", 0.2, uniform="uGlitterStars"),
+    _control("Glitterstarlength", "Star Highlight Length", "Glitter Highlights", 1.8, 1.0, 3.0, uniform="uGlitterStarLength"),
+    _control("Glitterstarrotation", "Star Highlight Rotation", "Glitter Highlights", 0.0, -180.0, 180.0, uniform="uGlitterStarRotation"),
+    _control("Glitterglow", "Glitter Glow Amount", "Glitter Highlights", 0.2, 0.0, 2.0, uniform="uGlitterGlow"),
+    _control("Glitterglowradius", "Glitter Glow Radius", "Glitter Highlights", 1.4, 0.5, 2.0, uniform="uGlitterGlowRadius"),
     _control("Papertexture", "Paper Fiber Strength", "Paper", 0.28, 0.0, 1.0, uniform="uPaperTexture"),
     _control("Papergrain", "Paper Grain Scale", "Paper", 1.0, 0.25, 4.0, uniform="uPaperGrain"),
     _control("Vignette", "Paper Edge Aging", "Paper", 0.18, 0.0, 1.0, uniform="uVignette"),
@@ -75,6 +99,13 @@ uniform float uParticlesEnabled, uParticleAmount, uParticleDensity, uParticleSiz
 uniform float uParticleSoftness, uParticleSpeed, uParticleJitter, uParticleFlow;
 uniform float uParticleSpread, uParticleTrail, uPaperTexture, uPaperGrain, uVignette;
 uniform vec4 uInkColor, uWashColor, uParticleColor, uPaperColor;
+uniform float uGlitterEnabled, uGlitterAmount, uGlitterDensity, uGlitterSize;
+uniform float uGlitterSoftness, uGlitterBrightness, uGlitterSurface, uGlitterThreshold;
+uniform float uGlitterEdge, uGlitterSpread, uGlitterSpeed, uGlitterDirection;
+uniform float uGlitterFlow, uGlitterJitter, uGlitterSeed, uGlitterShimmer;
+uniform float uGlitterTwinkleSpeed, uGlitterStars, uGlitterStarLength, uGlitterStarRotation;
+uniform float uGlitterGlow, uGlitterGlowRadius;
+uniform vec4 uGlitterColor;
 
 float hash21(vec2 p) {
     vec3 q = fract(vec3(p.xyx) * .1031);
@@ -133,6 +164,43 @@ float grains(vec2 p, float t, float seed) {
     }
     return dots;
 }
+vec3 glitterGrains(vec2 screen, float height, float seed) {
+    // Fixed 16-pixel cells keep grain radius independent of density. Nine
+    // neighbors support soft grains, star arms and halos across cell borders.
+    float gt=uTime*uGlitterSpeed;
+    float gs=seed+uGlitterSeed*.719+13.1;
+    vec2 direction=vec2(cos(radians(uGlitterDirection)),sin(radians(uGlitterDirection)));
+    vec2 coord=mix(screen,flow(screen,gt,gs),uGlitterFlow);
+    vec2 g=(coord*height+direction*gt*8.)/16.;
+    vec2 cell=floor(g), f=fract(g);
+    float aa=max(length(fwidth(g))*.55,.008);
+    vec3 lights=vec3(0.);
+    if(uGlitterDensity<=0.) return lights;
+    for(int y=-1;y<=1;y++) for(int x=-1;x<=1;x++) {
+        vec2 id=cell+vec2(x,y);
+        float h=hash21(id+gs), h2=hash21(id+gs+37.2);
+        float alive=step(h,clamp(uGlitterDensity,0.,1.));
+        vec2 center=.5+.32*vec2(sin(h*6.283+gt),cos(h2*6.283+gt*.73))*uGlitterJitter;
+        vec2 d=f-vec2(x,y)-center;
+        float distance=length(d), radius=uGlitterSize/16.*mix(.45,1.,h2);
+        float grain=1.-smoothstep(max(0.,radius*(1.-uGlitterSoftness)-aa),radius+aa,distance);
+        float pulse=.5+.5*sin(uTime*uGlitterTwinkleSpeed*6.2831853+h2*31.4159265);
+        float shimmer=mix(1.,.12+.88*pow(pulse,4.),uGlitterShimmer);
+        vec2 starCoord=rot(radians(uGlitterStarRotation))*d;
+        float arm=min(radius*uGlitterStarLength,.7);
+        float thickness=max(radius*.16,aa);
+        float star=(1.-smoothstep(thickness,thickness+aa,abs(starCoord.x)))
+                   *(1.-smoothstep(arm*.2,arm+aa,abs(starCoord.y)));
+        star+=(1.-smoothstep(thickness,thickness+aa,abs(starCoord.y)))
+              *(1.-smoothstep(arm*.2,arm+aa,abs(starCoord.x)));
+        star*=uGlitterStars*step(hash21(id+gs+83.4),.18);
+        float haloRadius=max(radius*uGlitterGlowRadius,.008);
+        float halo=exp(-dot(d,d)/(haloRadius*haloRadius))
+                   *(1.-smoothstep(.65,.9,distance))*uGlitterGlow;
+        lights=max(lights,vec3(grain,star,halo)*alive*shimmer);
+    }
+    return lights;
+}
 void main() {
     vec2 uv=vUV.st;
     vec4 source=texture(sTD2DInputs[0],uv);
@@ -178,13 +246,30 @@ void main() {
         result=overInk(result,uWashColor,wash*uWashAmount*.64);
         result=overInk(result,uInkColor,ink*uInkAmount);
     }
+    float particleSurface=0.;
     if(uParticlesEnabled>.5 && uParticleAmount>0.) {
         // Particle clock is independent; zero freezes grains even while ink moves.
         float pt=uTime*uParticleSpeed;
         vec2 pq=mix(p,flow(p,pt,seed),uParticleFlow);
         float particleMask=mix(wash,envelope,uParticleSpread);
         float dots=grains(pq,pt,seed);
+        particleSurface=dots*particleMask*uParticleAmount*uParticleColor.a;
         result=overInk(result,uParticleColor,dots*particleMask*uParticleAmount);
+    }
+    if(uGlitterEnabled>.5 && uGlitterAmount>0. && uGlitterBrightness>0.) {
+        float inkSurface=uLiquidEnabled>.5 ? ink*uInkAmount*uInkColor.a : 0.;
+        float washSurface=uLiquidEnabled>.5 ? wash*uWashAmount*uWashColor.a*.64 : 0.;
+        float carrier=max(max(inkSurface,washSurface),particleSurface);
+        if(uGlitterSurface<.5) carrier=inkSurface;
+        else if(uGlitterSurface<1.5) carrier=washSurface;
+        else if(uGlitterSurface<2.5) carrier=particleSurface;
+        carrier=mix(carrier,envelope,uGlitterSpread);
+        float surface=smoothstep(uGlitterThreshold-uGlitterEdge,
+                                 uGlitterThreshold+uGlitterEdge,carrier)*step(.00001,carrier);
+        vec3 lights=glitterGrains(screen,uTD2DInfos[0].res.w,seed);
+        float strength=surface*(lights.x+lights.y*.6+lights.z*.2)*uGlitterAmount;
+        vec4 highlight=vec4(uGlitterColor.rgb*uGlitterBrightness,uGlitterColor.a);
+        result=overInk(result,highlight,strength);
     }
     // Public TOP contract uses straight alpha; transparent background is usable
     // with an Over TOP and never carries hidden paper RGB at alpha zero.

@@ -454,6 +454,11 @@ particles, indigo washes, bleeding edges and warm Xuan paper. Separate switches,
 RGBA colors, composition, motion, granulation and paper controls are adjustable.
 Enable **Ink Dream Flow Enabled** on `/project1/imagefx_demo`, then select
 `ink_dream_flow`. For its pure look, disable other modules and **Apply Video Effects**.
+Its **Glitter**, **Glitter Motion** and **Glitter Highlights** pages add an optional
+layer of adjustable sparkle on deep ink, wash, pigment particles, or all three.
+Turn **Glitter Enabled** on, then adjust amount, density, pixel size, softness,
+brightness, RGBA tint, surface threshold/spread, independent drift/shimmer,
+random seed, stars and glow. Glitter starts off and is captured in show looks.
 Use **Background → Input Image / Paper** for your own scenic image or paper;
 reference artwork is not bundled. Show Control's **Capture Look** includes it.
 See the [controls and starting looks](docs/ink-dream-flow.md).
@@ -533,6 +538,15 @@ zero-speed holds, start-time seeking while paused, reverse, restart/reload,
 loop repetition, end holding, still/video mixing and missing-file status. These are native parameter/callback and rendered-pixel
 tests, not a claim that every GUI widget was manually clicked. Audience display
 windows and audible playback were not armed during validation.
+
+The **2026-10-02 Ink Dream Flow glitter validation** covers all 85 writable
+module values, including 26 new glitter values. It checks every control's pixel
+response and range endpoints, exact off/zero bypass, selected ink/wash/particle
+surface switches, independent drift and shimmer clocks, repeatable seeking,
+transparent output, and 1080p/4K rendering. Show tests verify glitter capture,
+parameter-cue interpolation and resetting older looks on reused decks. A private
+render comparison also confirmed that glitter off matches the previously
+published Ink Dream Flow component exactly.
 
 For the exact selection-callback regression check, run
 `touchdesigner/scripts/validate_rack_selection.py` in the development harness.

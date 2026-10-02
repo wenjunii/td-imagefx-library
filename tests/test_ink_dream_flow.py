@@ -37,7 +37,10 @@ class InkDreamFlowTests(unittest.TestCase):
 
     def test_independent_layers_and_palette(self):
         names = {d["name"] for d in MODULE["PARAMETERS"]}
-        self.assertTrue({"Liquidenabled", "Particlesenabled", "Flowspeed", "Particlespeed", "Inkcolor", "Washcolor", "Particlecolor", "Papercolor"} <= names)
+        self.assertTrue({"Liquidenabled", "Particlesenabled", "Flowspeed", "Particlespeed", "Inkcolor", "Washcolor", "Particlecolor", "Papercolor",
+                         "Glitterenabled", "Glittersurface", "Glitterspeed", "Glittertwinklespeed", "Glitterseed", "Glittercolor"} <= names)
+        glitter_switch = next(d for d in MODULE["PARAMETERS"] if d["name"] == "Glitterenabled")
+        self.assertFalse(glitter_switch["default"])
         self.assertIn("if(uParticleDensity<=0.) return 0.;", MODULE["SHADER"])
 
     def test_show_cue_accepts_module(self):
@@ -47,6 +50,9 @@ class InkDreamFlowTests(unittest.TestCase):
         self.assertEqual(set(MODULE_TOGGLES.values()), set(TOGGLES) - {"Applyvideofx"})
         cue = dict(new_cue(), kind="parameters", target="ink_dream_flow/Flowamount", value=.75)
         self.assertEqual(validate_cue(cue)["target"], cue["target"])
+        for parameter in ("Glitteramount", "Glittercolorr", "Glitterspeed"):
+            cue = dict(new_cue(), kind="parameters", target="ink_dream_flow/"+parameter, value=.75)
+            self.assertEqual(validate_cue(cue)["target"], cue["target"])
 
     def test_builder_harness_and_suite_include_module(self):
         for name in ("build_project.py", "install_dev_harness.py"):

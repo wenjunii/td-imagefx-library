@@ -28,6 +28,9 @@ control. It starts bypassed in the demo to preserve existing looks.
 | Liquid Flow | Separate liquid switch, deformation, speed/reverse, direction, drift, vortex curl, turbulence, wandering |
 | Ink Surface | Marbling, filament frequency, deep ink, diluted wash, bleeding edges, pigment pooling, granulation, dry brush |
 | Particles | Separate particle switch, opacity, density, size, softness, speed/reverse, random wandering, flow distortion, spread, streak length |
+| Glitter | Separate switch, amount, density, grain size/softness, brightness, RGBA color, surface choice, threshold, edge softness, spread |
+| Glitter Motion | Independent drift speed/reverse, direction, flow distortion, wandering, seed, shimmer amount/speed |
+| Glitter Highlights | Star amount, length, rotation, glow amount/radius |
 | Paper | Fiber strength, grain scale, edge aging |
 | Palette | Independent RGBA for deep ink, wash, particles and paper |
 
@@ -36,17 +39,49 @@ or scenic artwork), or transparent ink. Set **Mix** to 1 for a pure transparent
 layer; lower mix values intentionally blend in the input. Paper controls apply
 only to procedural paper. Use an Over TOP for the straight-alpha transparent output.
 
-Both layers work together or separately. Density zero, particle opacity zero,
+Liquid, pigment and glitter work together or separately. Density zero, particle opacity zero,
 or particle-color alpha zero removes particles. Particle **Size** and **Density**
 are independent artistic values, not a particle count. Composition transforms
 also stretch the grains. Particle **Spread** distributes pigment beyond the
 liquid, including when ink coverage is low.
 
 With **Auto Time** on, **Time Scale = 0** freezes at effective time zero. To hold a particular moment,
-disable **Auto Time** and set **Manual Time**. Set both layer speeds to zero to
-freeze both layers. Particles use the same family of flow fields but retain an
-independent clock. Seed and time reproduce a frame without simulation warm-up.
+disable **Auto Time** and set **Manual Time**. Set liquid and particle speeds to zero to
+freeze their layers. Particles use the same family of flow fields but retain an
+independent clock. With glitter enabled, also set **Glitter Drift Speed** and
+**Shimmer Speed** to zero to freeze its motion. Seed and time reproduce a frame without simulation warm-up.
 Speed edits can jump phase; animate Manual Time for a continuous speed ramp.
+
+## Glitter
+
+Glitter starts **off**. On `/project1/imagefx_demo/ink_dream_flow`, open the
+**Glitter** page and turn **Glitter Enabled** on. **Glitter Surface** selects
+deep ink, diluted wash, pigment particles, or their combination. It respects
+those layers' switches, strength and color alpha. **Surface Threshold** selects
+stronger regions; **Surface Edge Softness** softens that selection.
+**Glitter Outside Ink** spreads highlights into the composition envelope: at
+zero, empty paper stays empty even with Threshold = 0; at one, glitter can render
+on its own with the liquid and pigment layers off.
+
+**Glitter Grain Size** uses output pixels, with a fixed 16-pixel grid and
+independent density. **Amount** controls coverage; **Brightness** controls the
+highlight color intensity. Switch off, Amount = 0, Density = 0, Brightness = 0,
+or glitter-color alpha = 0 removes glitter exactly. Brightness above one brightens
+highlights and can clip to white in standard 8-bit output.
+
+**Glitter Motion** has separate drift and shimmer clocks. Drift direction,
+flow distortion and wandering control grain movement; Shimmer Amount = 0 gives
+steady highlights. Drift speed zero holds the grains while shimmer can still
+animate, and shimmer speed zero holds their sparkle while drift can still move.
+The surface can keep moving with liquid/pigment even when glitter clocks are zero.
+The glitter seed selects a repeatable grain pattern. Composition controls shape
+the surface, while glitter grain sizing remains based on the output resolution.
+
+**Glitter Highlights** adds sparse cross-shaped stars and soft halos. Star length
+and glow radius scale with grain size, with bounded support around each cell.
+For a quiet silver ink look, start with Amount 0.5, Density 0.4, Size 1.6,
+Brightness 1.4, Shimmer 0.5 and Star Amount 0.1. For gold, set the glitter color
+to approximately RGB (1.0, 0.72, 0.3). These are manual settings.
 
 ## Starting looks
 
@@ -62,15 +97,19 @@ These are manual settings, not additional preset buttons.
 
 Show Control's **Capture Look** includes this module and its demo switch.
 Parameter cues accept e.g. `ink_dream_flow/Coverage`,
-`ink_dream_flow/Flowamount`, and `ink_dream_flow/Inkcolorr`.
+`ink_dream_flow/Flowamount`, `ink_dream_flow/Inkcolorr`,
+`ink_dream_flow/Glitteramount`, and `ink_dream_flow/Glittercolorr`.
 Show time drives manual time during an active cue, including pause/resume.
 In show cues, adjust **Liquid Speed** and **Particle Speed** for motion rate;
 the cue clock owns manual time, so the Auto Time scale does not apply there.
+Glitter drift and shimmer speeds also work under the cue clock; Capture Look
+includes every glitter value and its enable switch.
 The cue loader preserves each module's enable expression when resetting effect
 parameters, so captured on/off choices remain live when decks are reused.
 
-`validate_ink_dream_flow.py` creates a temporary test copy, sweeps every writable
-control, checks bypass, alpha, zero endpoints and deterministic seeking, and
+`validate_ink_dream_flow.py` creates a temporary test copy, sweeps all 85 writable
+control, checks bypass, alpha, zero endpoints, glitter surface isolation,
+independent glitter clocks and deterministic seeking, and
 renders at 1080p and 4K. It removes only its own test container and never saves
 the TOE. It is included in `validate_live_suite.py`.
 

@@ -152,6 +152,8 @@ def validate(write_report=True):
         look = ext.document["cues"][0]["look"]
         require("ink_dream_flow" in look["modules"] and "Inkdreamenabled" in look["toggles"], "Ink Dream Flow missing from captured look")
         checks["ink_dream_flow_capture_look"] = True
+        require({"Glitterenabled", "Glitteramount", "Glittercolorr", "Glitterspeed", "Glittertwinklespeed"} <= set(look["modules"]["ink_dream_flow"]), "Glitter controls missing from captured look")
+        checks["ink_dream_glitter_capture_look"] = True
         require("layer_composite" in look["modules"] and "Layercompositeenabled" in look["toggles"] and "layer_files" in look, "Layer Composite missing from captured look")
         checks["layer_composite_capture_look"] = True
         ext.engine.clock=lambda:clock[0]; ext.engine._last=clock[0]
@@ -214,6 +216,28 @@ def validate(write_report=True):
         require(abs(dream.par.Coverage.eval()-.75)<.001, "Dream parameter cue failed")
         require(not np.allclose(first_dream,pixels("track1")), "Dream cue pixels did not change")
         checks["ink_dream_flow_parameter_cue"] = True
+
+        ext.engine.stop()
+        glitter_look = {"toggles": {"Inkdreamenabled": True},
+                        "modules": {"ink_dream_flow": {"Glitterenabled": True,
+                            "Glitteramount": 0., "Glitterdensity": .8, "Glittersize": 4.,
+                            "Glitterbrightness": 2., "Glitterspread": .3,
+                            "Flowspeed": 0., "Particlespeed": 0.,
+                            "Glitterspeed": 0., "Glittertwinklespeed": 0.}}}
+        load([cue(duration=0,fade=0,look=glitter_look),
+              cue(kind="parameters",target="ink_dream_flow/Glitteramount",value=1.,duration=2)])
+        ext.engine.go(0); step(0)
+        dream = ext.tracks[1]["deck"].op("ink_dream_flow")
+        first_glitter = pixels("track1")
+        require(bool(dream.par.Glitterenabled), "Captured glitter switch did not apply")
+        ext.engine.go(1); step(0); step(1)
+        require(abs(dream.par.Glitteramount.eval()-.5)<.001, "Glitter cue midpoint failed")
+        require(not np.allclose(first_glitter,pixels("track1")), "Glitter parameter cue did not change pixels")
+        step(2)
+        require(abs(dream.par.Glitteramount.eval()-1.)<.001, "Glitter cue endpoint failed")
+        ext._apply_look(ext.tracks[1]["deck"], {})
+        require(not dream.par.Glitterenabled, "An older look retained glitter on a reused deck")
+        checks["ink_dream_glitter_parameter_cue_and_older_look_reset"] = True
 
         ext.engine.stop()
         layer_look = {"toggles": {"Layercompositeenabled": True},
