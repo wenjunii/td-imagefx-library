@@ -56,6 +56,7 @@ def _callback_diagnostics(rack):
         target = callbacks.par.op.eval()
         watched = str(callbacks.par.pars.eval())
         checks = {
+            "callback_active": bool(callbacks.par.active.eval()),
             "targets_owning_rack": target == rack,
             "watches_all_slot_parameters": "Slot*" in watched,
             "value_change_enabled": bool(callbacks.par.valuechange.eval()),

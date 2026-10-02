@@ -78,6 +78,13 @@ example `0.7`, `true`, or a menu name). Duration interpolates numeric values;
 toggles and menus change at the end. Easing is Linear or Smooth. Cue-owned clock,
 enable-routing, file, pulse and read-only parameters cannot be automated.
 
+Ink Radial Flow is available as `ink_radial_flow`, including every inherited
+Brush/particle/glitter value and its ten radial controls. For example,
+`ink_radial_flow/Radialspeed` changes expansion/reverse and
+`ink_radial_flow/Staticglittershimmer` changes the stationary grains' twinkle.
+Enable the module and desired glitter layer before Capture Look. Its radiation
+and glitter use the same pauseable cue clock as the other modules.
+
 To change whole effect combinations or module on/off states, capture a new
 Visual cue using the same media and crossfade into it. A new Visual cue cancels
 parameter automation on its track. Parameter cues must follow the target Visual

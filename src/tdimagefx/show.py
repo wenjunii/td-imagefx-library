@@ -16,12 +16,12 @@ MAX_SHOW_BYTES = 8 * 1024 * 1024
 MODULES = (
     "reference_particle_field", "calligraphic_shadow", "ink_orbit_canvas",
     "ink_flow", "particle_random_move", "glitch_fusion", "color_adjustment",
-    "motion_studio", "ink_dream_flow", "ink_brush_flow", "layer_composite",
+    "motion_studio", "ink_dream_flow", "ink_brush_flow", "ink_radial_flow", "layer_composite",
 )
 TOGGLES = (
     "Referenceparticlefieldenabled", "Calligraphicshadowenabled", "Inkorbitenabled",
     "Inkflowenabled", "Particlesenabled", "Glitchenabled", "Coloradjustmentenabled",
-    "Motionenabled", "Applyvideofx", "Inkdreamenabled", "Inkbrushenabled", "Layercompositeenabled",
+    "Motionenabled", "Applyvideofx", "Inkdreamenabled", "Inkbrushenabled", "Inkradialenabled", "Layercompositeenabled",
 )
 MODULE_TOGGLES = {
     "reference_particle_field": "Referenceparticlefieldenabled",
@@ -34,6 +34,7 @@ MODULE_TOGGLES = {
     "motion_studio": "Motionenabled",
     "ink_dream_flow": "Inkdreamenabled",
     "ink_brush_flow": "Inkbrushenabled",
+    "ink_radial_flow": "Inkradialenabled",
     "layer_composite": "Layercompositeenabled",
 }
 

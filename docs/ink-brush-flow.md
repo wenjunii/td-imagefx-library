@@ -18,8 +18,9 @@ particle engine is bundled.
 5. View `/project1/imagefx_demo/out1_image`.
 
 The reusable `touchdesigner/core/InkBrushFlow.tox` accepts an input TOP to
-establish resolution. In the demo it is between Ink Dream Flow and Ink Flow
-Fusion. Both Dream and Brush modules start bypassed, preserving existing looks.
+establish resolution. In the demo it is between Ink Dream Flow and the optional
+Ink Radial Flow stage, followed by Ink Flow Fusion. Dream, Brush and Radial
+modules start bypassed, preserving existing looks.
 For layering rather than replacement, choose **Input Image / Paper** background
 or lower the module's **Effect Mix**. **Transparent Ink** provides straight RGBA
 for an Over TOP.
@@ -86,3 +87,7 @@ the cellular renderer, without accumulated state or simulation warm-up.
 Fine trail integration and both glitter layers cost more GPU time. Rehearse the
 full cue chain and all connected projectors before selecting show resolution;
 successful 4K rendering is not a guarantee of sustained multi-output frame rate.
+
+For a center-emitting variation retaining all these controls, use the separate
+[Ink Radial Flow](ink-radial-flow.md) module. This does not change Brush's renderer
+or its saved control values.

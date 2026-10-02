@@ -13,12 +13,13 @@ ROOT = Path(__file__).resolve().parents[2]
 REPORT_PATH = ROOT / "build" / "envoy-validation" / "ink-dream-flow.json"
 
 
-def validate(write_report=True, brush=False):
+def validate(write_report=True, brush=False, radial=False):
     source_path = ROOT / "touchdesigner/scripts/ink_dream_flow.py"
     scope = {}
     exec(compile(source_path.read_text(encoding="utf-8"), str(source_path), "exec"), scope)
-    definitions = scope["brush_variant"]()[0] if brush else scope["PARAMETERS"]
-    module_name = "ink_brush_flow" if brush else "ink_dream_flow"
+    definitions = (scope["radial_variant"]()[0] if radial else
+                   scope["brush_variant"]()[0] if brush else scope["PARAMETERS"])
+    module_name = "ink_radial_flow" if radial else "ink_brush_flow" if brush else "ink_dream_flow"
     module = op("/project1/imagefx_demo/" + module_name)
     if module is None:
         raise RuntimeError("Build " + module_name + " first")
@@ -83,6 +84,7 @@ def validate(write_report=True, brush=False):
             "Glitterstarrotation": (-30., 15.), "Glitterseed": (1, 89),
             "Staticglitterstarrotation": (-30., 15.), "Staticglitterseed": (1, 89),
             "Staticglittertwinklespeed": (-.4, 1.1),
+            "Radialspeed": (-.5, .8), "Radialspiral": (-.8, .9),
         }
         for par in test.customPars:
             if par.readOnly:
@@ -282,15 +284,55 @@ def validate(write_report=True, brush=False):
         checks["both_glitter_layers_combine"] = difference(animated_only,both) > 1e-6
         test.par.Glitterenabled = False
         checks["animated_switch_independent_of_static"] = difference(both,capture()) > 1e-6
-        if brush:
+        if brush or radial:
             reset(Brushenabled=False)
             unbrushed = capture()
             test.par.Brushenabled = True
             checks["brush_renderer_is_distinct"] = difference(unbrushed,capture()) > 1e-5
+        if radial:
+            # Off/zero amount exactly returns the inherited renderer, with the
+            # same inherited parameter values (palette defaults may differ).
+            brush_copy=host.copy(op("/project1/imagefx_demo/ink_brush_flow"),name="brush_baseline")
+            fixture.outputConnectors[0].connect(brush_copy.inputConnectors[0])
+            reset(Radialenabled=False)
+            for par in brush_copy.customPars:
+                if not par.readOnly:
+                    par.val=test.par[par.name].eval()
+            baseline=capture(brush_copy.op("out1_image"))
+            checks["radial_off_exact_brush"] = np.array_equal(baseline,capture())
+            test.par.Radialenabled=True
+            test.par.Radialamount=0.
+            checks["radial_zero_exact_brush"] = np.array_equal(baseline,capture())
+            test.par.Radialamount=1.
+            checks["radial_renderer_is_distinct"] = difference(baseline,capture()) > 1e-5
+            # Isolated ring phase: positive motion must progress outward and
+            # negative motion inward, rather than merely reshuffling noise.
+            reset(Background="transparent", Particlesenabled=False, Swirl=0.,
+                  Flowamount=0., Turbulence=0., Wander=0., Drift=0., Radialwarp=0.,
+                  Radialspiral=0., Radialglow=0., Radialatmosphere=0., Radialfalloff=0.,
+                  Marbling=0., Drybrush=0., Granulation=0., Edge=0., Brushglow=0.,
+                  Brushhaze=0., Inkamount=1., Washamount=0., Coverage=.55, Spread=2.,
+                  Manualtime=0., Inkcolorr=1., Inkcolorg=1., Inkcolorb=1.)
+            start=capture()[90,180:308,3]
+            for label,speed,sign in (("outward",.45,1),("inward",-.45,-1)):
+                test.par.Radialspeed=speed
+                test.par.Manualtime=1.
+                later=capture()[90,180:308,3]
+                shifts=list(range(-6,7))
+                losses=[float(np.mean((start[8:-8]-later[8+shift:len(later)-8+shift])**2)) for shift in shifts]
+                best=shifts[int(np.argmin(losses))]
+                checks["radial_"+label+"_phase_direction"] = best*sign>0
+            reset(Flowspeed=0., Particlespeed=0.)
+            first=capture()
+            test.par.Manualtime=20.
+            checks["radial_inherited_clocks_freeze"] = np.array_equal(first,capture())
         checks["all_controls_covered"] = set(controls) == {p.name for p in test.customPars if not p.readOnly}
-        checks["demo_toggle_binding"] = module.par.Enabled.expr == "parent().par." + ("Inkbrushenabled" if brush else "Inkdreamenabled")
-        checks["chain_input"] = module.inputs[0] == op("/project1/imagefx_demo/" + ("ink_dream_flow" if brush else "ink_orbit_canvas") + "/out1_image")
-        checks["chain_output"] = op("/project1/imagefx_demo/" + ("ink_flow" if brush else "ink_brush_flow")).inputs[0] == module.op("out1_image")
+        toggle = "Inkradialenabled" if radial else "Inkbrushenabled" if brush else "Inkdreamenabled"
+        upstream = "ink_brush_flow" if radial else "ink_dream_flow" if brush else "ink_orbit_canvas"
+        downstream = "ink_flow" if radial else "ink_radial_flow" if brush else "ink_brush_flow"
+        checks["demo_toggle_binding"] = module.par.Enabled.expr == "parent().par." + toggle
+        checks["chain_input"] = module.inputs[0] == op("/project1/imagefx_demo/" + upstream + "/out1_image")
+        checks["chain_output"] = op("/project1/imagefx_demo/" + downstream).inputs[0] == module.op("out1_image")
         # Check native full-resolution rendering without claiming frame-rate suitability.
         for width, height in ((1920,1080), (3840,2160)):
             fixture.par.resolutionw, fixture.par.resolutionh = width, height

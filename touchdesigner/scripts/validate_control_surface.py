@@ -84,6 +84,7 @@ def _callback_diagnostics(component, expected_names):
         }
     watched = str(callbacks.par.pars.eval())
     checks = {
+        "callback_active": bool(callbacks.par.active.eval()),
         "targets_owner": callbacks.par.op.eval() == component,
         "pulse_enabled": bool(callbacks.par.onpulse.eval()),
         "custom_parameters_enabled": bool(callbacks.par.custom.eval()),
@@ -463,21 +464,40 @@ def _browser_buttons(browser, callbacks):
 
     target = browser.par.Target
     saved_expression = str(target.expr)
+    saved_value = target.val
+    saved_mode = target.mode
+    host = None
     try:
         target.expr = "None"
         _invoke_pulse(browser, callbacks, "Create")
+        missing_target_status = str(browser.par.Status.eval())
+        host = browser.parent().create(baseCOMP, "control_surface_create_qa")
+        target.expr = "op({!r})".format(host.path)
+        _invoke_pulse(browser, callbacks, "Create")
         create_status = str(browser.par.Status.eval())
+        created = list(host.children)
+        created_output = created[0].op("out1_image") if len(created) == 1 else None
         results.append(
             {
                 "name": "Create",
                 "ok": (
-                    "Error:" in create_status
-                    and "Target COMP" in create_status
+                    "Error:" in missing_target_status
+                    and "Target COMP" in missing_target_status
+                    and create_status.startswith("Created ")
+                    and created_output is not None
+                    and len(created[0].outputConnectors) > 0
+                    and not _messages(created[0], "errors")
                 ),
+                "missing_target_rejected": "Target COMP" in missing_target_status,
+                "valid_target_created": created_output is not None,
             }
         )
     finally:
+        target.val = saved_value
         target.expr = saved_expression
+        target.mode = saved_mode
+        if host is not None:
+            host.destroy()
         browser.UpdateSelection()
 
     return results
@@ -507,6 +527,128 @@ def _updater_button(updater, callbacks):
         ),
         "status": status_finished,
     }
+
+
+def validate_deferred():
+    """Check actual queued control events, then restore the rack without saving.
+
+    Run separately from validate(): this returns immediately and writes
+    control-events.json after TouchDesigner's event loop delivers the changes.
+    No callback handlers are called directly by this check.
+    """
+    rack = op(RACK_PATH)
+    if rack is None:
+        raise RuntimeError("Required rack is missing")
+    if rack.fetch("control_events_qa_running", False):
+        raise RuntimeError("A deferred control check is already running")
+    saved_ui = {
+        name: rack.par[name].eval()
+        for name in ("Presetname", "Presetpath", "Presetjson")
+    }
+    saved_state = dict(rack.PresetData(""))
+    saved_preset = rack.ExportPreset("control-events-validator-snapshot", indent=0)
+    report = {
+        "schema_version": 1,
+        "validator": "control-events",
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "ok": False,
+        "checks": {},
+    }
+    checks = report["checks"]
+    rack.store("control_events_qa_running", True)
+
+    def exercise():
+        callbacks = rack.op("parameter_callbacks")
+        checks["active_parameter_execute"] = bool(callbacks.par.active.eval())
+        alternatives = []
+        for index in range(1, SLOT_COUNT + 1):
+            parameter = rack.par["Slot{}effect".format(index)]
+            original = str(parameter.eval())
+            alternative = next(
+                item for item in ("tdimagefx.color.duotone", "tdimagefx.stylize.pixelate")
+                if item != original and item in parameter.menuNames
+            )
+            alternatives.append(alternative)
+            parameter.val = alternative
+            rack.par["Slot{}modstate".format(index)] = "off"
+            rack.par["Slot{}moddepth".format(index)] = 0.0
+        yield
+        for index, alternative in enumerate(alternatives, 1):
+            checks["slot{}_menu_event".format(index)] = (
+                (rack.SlotState(index).get("package") or {}).get("id") == alternative
+            )
+        for value in (0.21, 0.79):
+            for index in range(1, SLOT_COUNT + 1):
+                rack.par["Slot{}mix".format(index)] = value
+            yield
+            for index in range(1, SLOT_COUNT + 1):
+                checks["slot{}_mix_{}".format(index, value)] = math.isclose(
+                    float(rack.op("slot{}".format(index)).par.Mix.eval()), value,
+                    abs_tol=1.0e-6,
+                )
+        original_enables = _slot_enables(rack)
+        for index in range(1, SLOT_COUNT + 1):
+            rack.par["Slot{}bypass".format(index)].pulse()
+        yield
+        for index, original in enumerate(original_enables, 1):
+            checks["slot{}_bypass_event".format(index)] = (
+                bool(rack.par["Slot{}enable".format(index)].eval()) != original
+            )
+        for index in range(1, SLOT_COUNT + 1):
+            rack.par["Slot{}bypass".format(index)].pulse()
+        yield
+        checks["slot_bypasses_restored"] = _slot_enables(rack) == original_enables
+        rack.par.Bypassall.pulse()
+        yield
+        checks["bypass_all_event"] = not any(_slot_enables(rack))
+        rack.par.Enableall.pulse()
+        yield
+        checks["enable_all_event"] = all(_slot_enables(rack))
+        rack.par.Presetjson = ""
+        rack.par.Exportpreset.pulse()
+        yield
+        exported = json.loads(str(rack.par.Presetjson.eval()))
+        checks["export_preset_event"] = len(exported.get("slots", [])) == SLOT_COUNT
+
+    steps = exercise()
+
+    def finish():
+        try:
+            rack.ImportPreset(saved_preset)
+            for name, value in saved_ui.items():
+                rack.par[name] = value
+            checks["rack_state_restored"] = dict(rack.PresetData("")) == saved_state
+            checks["clean_rack_diagnostics"] = not _messages(rack, "errors")
+        except Exception as exc:
+            report["restoration_error"] = "{}: {}".format(type(exc).__name__, exc)
+        finally:
+            rack.unstore("control_events_qa_running")
+        report["ok"] = (
+            bool(checks) and all(checks.values())
+            and not report.get("error") and not report.get("restoration_error")
+        )
+        REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
+        (REPORT_PATH.parent / "control-events.json").write_text(
+            json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        )
+        print("[control-events] {}: {} checks".format(
+            "PASS" if report["ok"] else "FAIL", len(checks)
+        ))
+
+    def advance():
+        try:
+            next(steps)
+        except StopIteration:
+            finish()
+        except Exception as exc:
+            report["error"] = "{}: {}".format(type(exc).__name__, exc)
+            finish()
+        else:
+            run("args[0]()", advance, delayMilliSeconds=150,
+                wallTime=True, delayRef=op.TDResources)
+
+    advance()
+    return {"scheduled": True, "report": "build/envoy-validation/control-events.json"}
 
 
 def validate(write_report=True):
@@ -598,6 +740,8 @@ def validate(write_report=True):
             "Favorites": browser.par.Favorites.eval(),
             "Status": browser.par.Status.eval(),
             "Targetexpr": str(browser.par.Target.expr),
+            "Targetvalue": browser.par.Target.val,
+            "Targetmode": browser.par.Target.mode,
         }
         saved_updater = {
             name: updater.par[name].eval()
@@ -638,7 +782,9 @@ def validate(write_report=True):
         if saved_browser:
             try:
                 browser.par.Favorites = saved_browser["Favorites"]
+                browser.par.Target.val = saved_browser["Targetvalue"]
                 browser.par.Target.expr = saved_browser["Targetexpr"]
+                browser.par.Target.mode = saved_browser["Targetmode"]
                 browser.ApplyFilters()
                 browser.UpdateSelection()
                 browser.par.Status = saved_browser["Status"]

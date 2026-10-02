@@ -143,7 +143,7 @@ class InkDreamFlowTests(unittest.TestCase):
             self.assertGreaterEqual(len(re.findall(r"\b"+name+r"\b",shader)),2,name)
 
     def test_packed_bindings_cover_every_scalar_once(self):
-        for parameters, shader in ((MODULE["PARAMETERS"],MODULE["SHADER"]),MODULE["brush_variant"]()):
+        for parameters, shader in ((MODULE["PARAMETERS"],MODULE["SHADER"]),MODULE["brush_variant"](),MODULE["radial_variant"]()):
             packed, bindings = MODULE["pack_scalar_uniforms"](shader,parameters)
             scalar = [d for d in parameters if d.get("uniform") and d["type"] not in ("xy","rgb","rgba")]
             self.assertEqual(sum(len(values) for _,values in bindings),len(scalar))
@@ -165,3 +165,56 @@ class InkDreamFlowTests(unittest.TestCase):
             self.assertIn("parent().par.Inkbrushenabled",text)
         suite = (ROOT/"touchdesigner/scripts/validate_live_suite.py").read_text(encoding="utf-8")
         self.assertIn('("ink_brush_flow", "validate_ink_brush_flow.py")',suite)
+
+    def test_radial_inherits_every_brush_control_without_mutation(self):
+        import copy
+        brush, _ = MODULE["brush_variant"]()
+        before = copy.deepcopy(brush)
+        radial, _ = MODULE["radial_variant"]()
+        self.assertEqual(before, brush)
+        inherited = {d["name"]: d for d in radial}
+        self.assertEqual(len(inherited),len(radial))
+        for definition in brush:
+            variant=inherited[definition["name"]]
+            for key in ("type", "uniform", "min", "max", "norm_min", "norm_max", "menu_names", "menu_labels", "read_only"):
+                self.assertEqual(variant.get(key),definition.get(key),definition["name"]+":"+key)
+        self.assertFalse(inherited["Glitterenabled"]["default"])
+        self.assertFalse(inherited["Staticglitterenabled"]["default"])
+        self.assertEqual(inherited["Staticglittershimmer"]["default"],0.)
+        self.assertEqual(len(radial)-len(brush),10)
+
+    def test_radial_uniforms_and_valid_defaults(self):
+        parameters, shader=MODULE["radial_variant"]()
+        declared=set()
+        for declaration in re.findall(r"uniform\s+(?:float|vec[234])\s+([^;]+);",shader):
+            declared.update(n.strip() for n in declaration.split(","))
+        bound={d["uniform"] for d in parameters if d.get("uniform")}
+        self.assertEqual(declared,bound)
+        for d in parameters:
+            self.assertRegex(d["name"],r"^[A-Z][a-z]+$")
+            if d["type"] in ("float","int"):
+                self.assertLess(d["min"],d["max"])
+                self.assertLessEqual(d["min"],d["default"])
+                self.assertGreaterEqual(d["max"],d["default"])
+            if d.get("uniform"):
+                self.assertGreaterEqual(len(re.findall(r"\b"+d["uniform"]+r"\b",shader)),2,d["name"])
+        self.assertNotIn("absTime",shader)
+        self.assertIn("radialBlend()",shader)
+        self.assertIn("t*uRadialSpeed*6.2831853",shader)
+        self.assertIn("float first=3.*a",shader)
+        self.assertIn("float second=5.*a",shader)
+        self.assertIn("max(length(p),.001)",shader)
+
+    def test_radial_show_harness_and_validation_routes(self):
+        self.assertEqual(MODULE_TOGGLES["ink_radial_flow"],"Inkradialenabled")
+        for parameter in ("Radialenabled","Radialamount","Radialspeed","Centerx","Brushglow","Staticglittershimmer","Glittercolorr"):
+            cue=dict(new_cue(),kind="parameters",target="ink_radial_flow/"+parameter,value=.7)
+            self.assertEqual(validate_cue(cue)["target"],cue["target"])
+        for name in ("build_project.py","install_dev_harness.py"):
+            source=(ROOT/"touchdesigner/scripts"/name).read_text(encoding="utf-8")
+            self.assertIn("InkRadialFlow.tox",source)
+            self.assertIn("parent().par.Inkradialenabled",source)
+            self.assertIn("ink_brush_flow.outputConnectors[0].connect(ink_radial_flow.inputConnectors[0])",source)
+            self.assertIn("ink_radial_flow.outputConnectors[0].connect(ink_flow.inputConnectors[0])",source)
+        suite=(ROOT/"touchdesigner/scripts/validate_live_suite.py").read_text(encoding="utf-8")
+        self.assertIn('("ink_radial_flow", "validate_ink_radial_flow.py")',suite)

@@ -43,6 +43,7 @@ VALIDATORS = (
     ("reference_video_modules", "validate_reference_video_modules.py"),
     ("ink_dream_flow", "validate_ink_dream_flow.py"),
     ("ink_brush_flow", "validate_ink_brush_flow.py"),
+    ("ink_radial_flow", "validate_ink_radial_flow.py"),
     ("layer_composite", "validate_layer_composite.py"),
     ("all_effect_parameters", "validate_all_effect_parameters.py"),
     ("show_control", "validate_show_control.py"),

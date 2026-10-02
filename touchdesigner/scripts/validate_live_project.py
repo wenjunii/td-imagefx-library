@@ -22,6 +22,7 @@ OUTPUTS = (
     "/project1/imagefx_demo/ink_orbit_canvas/out1_image",
     "/project1/imagefx_demo/ink_dream_flow/out1_image",
     "/project1/imagefx_demo/ink_brush_flow/out1_image",
+    "/project1/imagefx_demo/ink_radial_flow/out1_image",
     "/project1/imagefx_demo/layer_composite/out1_image",
     "/project1/imagefx_demo/ink_flow/out1_ink_flow",
     "/project1/imagefx_demo/particle_random_move/out1_particles",

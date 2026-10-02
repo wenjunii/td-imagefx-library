@@ -499,6 +499,113 @@ float currentWisps(vec2 p, float t, float seed) {
     return tuple(parameters), shader
 
 
+def radial_variant():
+    """Center-emitting, seamless ring currents inheriting the entire brush API.
+
+    The periodic angular harmonics have no polar seam. Analytic gradients and
+    a softened origin keep trails finite at the center. Positive radial speed
+    moves contour phases outward, using the inherited liquid/particle clocks.
+    Switching radial mode off (or amount to zero) retains the brush renderer.
+    """
+    parameters, shader = brush_variant()
+    parameters = list(parameters)
+    defaults = dict(Stretch=1., Scale=.85, Coverage=.57, Brushglow=.2,
+                    Brushwidth=.2, Brushscale=3.2, Brushhaze=.75,
+                    Papertexture=.35, Granulation=.16, Particleamount=.65,
+                    Particlesize=.9, Particlesoftness=.65, Washamount=.3,
+                    Inkcolor=[.82,.94,1.,1.], Washcolor=[.75,.32,.62,1.],
+                    Particlecolor=[.9,.96,1.,1.], Papercolor=[1.,.43,.14,1.],
+                    Glittercolor=[1.,.91,.67,1.], Staticglittercolor=[1.,.91,.75,1.])
+    for definition in parameters:
+        if definition["page"] == "Ink Brush Flow":
+            definition["page"] = "Ink Radial Flow"
+        if definition["name"] in defaults:
+            definition["default"] = defaults[definition["name"]]
+    parameters.extend((
+        dict(name="Radialenabled", label="Center Radiation Enabled", page="Radial Flow",
+             type="toggle", default=True, uniform="uRadialEnabled"),
+        _control("Radialamount", "Radial / Brush Blend", "Radial Flow", 1., uniform="uRadialAmount"),
+        _control("Radialrings", "Radiating Ring Frequency", "Radial Flow", 4.2, 1., 24., uniform="uRadialRings"),
+        _control("Radialspeed", "Outward Speed / Inward Reverse", "Radial Flow", .45, -3., 3., uniform="uRadialSpeed"),
+        _control("Radialspiral", "Spiral Twist / Reverse", "Radial Flow", .7, -3., 3., uniform="uRadialSpiral"),
+        _control("Radialwarp", "Organic Ring Wandering", "Radial Flow", 1., 0., 1.5, uniform="uRadialWarp"),
+        _control("Radialcore", "Central Opening Radius", "Radial Light", .32, .05, 1.5, uniform="uRadialCore"),
+        _control("Radialglow", "Central Light Amount", "Radial Light", .5, 0., 2., uniform="uRadialGlow"),
+        _control("Radialatmosphere", "Palette Atmosphere", "Radial Light", .75, uniform="uRadialAtmosphere"),
+        _control("Radialfalloff", "Outer Ring Fade", "Radial Light", .2, uniform="uRadialFalloff"),
+    ))
+
+    def replace_once(old, new):
+        nonlocal shader
+        if shader.count(old) != 1:
+            raise ValueError("Radial shader anchor changed: " + old[:60])
+        shader = shader.replace(old, new, 1)
+
+    replace_once("float hash21(vec2 p)", """uniform float uRadialEnabled, uRadialAmount, uRadialRings, uRadialSpeed;
+uniform float uRadialSpiral, uRadialWarp, uRadialCore, uRadialGlow;
+uniform float uRadialAtmosphere, uRadialFalloff;
+float hash21(vec2 p)""")
+    replace_once("vec3 currentPotential(vec2 p, float t, float seed) {", r"""
+float radialBlend() { return uRadialEnabled>.5 ? uRadialAmount : 0.; }
+vec3 radialPotential(vec2 p, float t, float seed) {
+    float r=max(length(p),.001), core=max(uRadialCore,.05);
+    vec2 outward=p/r;
+    // Integer angular harmonics join exactly across -pi / +pi. Damping at
+    // the origin removes the angular singularity without a center pinhole.
+    float a=atan(p.y,p.x+.000001);
+    vec2 angular=vec2(-p.y,p.x)/max(dot(p,p),.000001);
+    float damp=1.-exp(-dot(p,p)/(core*core));
+    vec2 dampGradient=2.*p/(core*core)*(1.-damp);
+    float first=3.*a+r*uRadialSpiral*6.+seed+t*.14;
+    float second=5.*a-r*uRadialSpiral*3.-seed*.7-t*.11;
+    float wander=sin(first)+.45*sin(second);
+    vec2 wanderGradient=cos(first)*(3.*angular+outward*uRadialSpiral*6.)
+                      +.45*cos(second)*(5.*angular-outward*uRadialSpiral*3.);
+    vec3 detail=currentNoise(p*uBrushScale+seed+t*vec2(.02,-.015));
+    // Log-radius gives fine waves at the opening and broad flowing sheets at
+    // the outside, avoiding a uniform radar/bullseye pattern.
+    float frequency=uRadialRings*3.;
+    float phase=log(1.+r/core)*frequency-t*uRadialSpeed*6.2831853
+               +uRadialWarp*1.5*(damp*wander+.35*(detail.x-.5));
+    vec2 gradient=outward*frequency/(core+r)+uRadialWarp*1.5*
+                 (damp*wanderGradient+dampGradient*wander+.35*detail.yz*uBrushScale);
+    return vec3(.5+.25*sin(phase),.25*cos(phase)*gradient);
+}
+vec3 currentPotential(vec2 p, float t, float seed) {""")
+    replace_once("return vec3(.76*a.x+.24*b.x,grad);",
+                 "return mix(vec3(.76*a.x+.24*b.x,grad),radialPotential(p,t,seed),radialBlend());")
+    replace_once("vec2 v=mix(drift,current,uParticleFlow);", """vec2 outward=p/max(length(p),.03);
+    vec2 radiation=outward*(uRadialSpeed>=0. ? 1. : -1.)
+                  +vec2(-outward.y,outward.x)*uRadialSpiral*.8;
+    current=mix(current,radiation+current*.18,radialBlend());
+    vec2 v=mix(drift,current,uParticleFlow);""")
+    replace_once("return q+uBrushCurl*.18*vec2(sin(q.y*3.+t*.23),cos(q.x*3.-t*.19));", """vec2 brush=q+uBrushCurl*.18*vec2(sin(q.y*3.+t*.23),cos(q.x*3.-t*.19));
+    float r=length(p), anchor=1.-exp(-r*r/.04);
+    vec2 softWarp=vec2(fbm(p*2.3+seed+t*.11),fbm(p*2.3-seed-t*.09+31.7))-.5;
+    vec2 radial=p+softWarp*anchor*uTurbulence*uFlowAmount*uRadialWarp*.4;
+    radial=rot(uSwirl*uFlowAmount*uBrushCurl*.2*anchor*sin(t*.27+seed))*radial;
+    radial+=anchor*(uWander*.025*vec2(sin(t*.53+seed),cos(t*.39+seed))
+                   -direction*t*uDrift*.025);
+    return mix(brush,radial,radialBlend());""")
+    replace_once("float envelope=exp(-dot(p*vec2(.72,1.),p*vec2(.72,1.))/(uSpread*uSpread*3.));", """float envelope=exp(-dot(p*vec2(.72,1.),p*vec2(.72,1.))/(uSpread*uSpread*3.));
+    envelope*=mix(1.,exp(-length(p)*.85/max(uSpread,.1)),radialBlend()*uRadialFalloff);""")
+    replace_once("vec4 result=vec4(paper*uPaperColor.a,uPaperColor.a);", """float atmosphere=radialBlend()*uRadialAtmosphere;
+    float vertical=smoothstep(-1.2,1.2,p.y);
+    vec3 ambient=mix(uPaperColor.rgb,uWashColor.rgb,vertical*.65);
+    ambient=mix(ambient,uInkColor.rgb,vertical*vertical*.8);
+    float opening=exp(-dot(p,p)/max(uRadialCore*uRadialCore*8.,.001));
+    ambient=mix(ambient,uInkColor.rgb,opening*.82);
+    paper=mix(paper,ambient*paperTone*(1.-uVignette*rim*.3),atmosphere);
+    vec4 result=vec4(paper*uPaperColor.a,uPaperColor.a);""")
+    replace_once("    if(uGlitterEnabled>.5", """    if(uLiquidEnabled>.5 && radialBlend()>0. && uRadialGlow>0.) {
+        float core=exp(-dot(p,p)/max(uRadialCore*uRadialCore,.001));
+        vec4 light=vec4(uInkColor.rgb*(1.+uRadialGlow),uInkColor.a);
+        result=overInk(result,light,core*uRadialGlow*uInkAmount*radialBlend());
+    }
+    if(uGlitterEnabled>.5""")
+    return tuple(parameters), shader
+
+
 def pack_scalar_uniforms(shader, definitions):
     """Pack scalar controls into vec4 slots without limiting the control count.
 

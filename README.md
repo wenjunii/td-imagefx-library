@@ -127,7 +127,7 @@ git clone https://github.com/wenjunii/td-imagefx-library.git
 cd td-imagefx-library
 ```
 
-The current source and generated artifacts are synchronized. The recorded Windows build used TouchDesigner `2025.32820` and validated all 96 current effects with 124 versioned effect `.tox` files, fifteen core `.tox` files, one library `.toe`, 96 previews, 96 visual baselines, and 96 benchmark samples. The build report contains zero shader, preview, or builder errors. A fresh repository run completed 218 tests successfully, with four expected Windows symlink-permission skips. Read [TouchDesigner setup](docs/touchdesigner-setup.md) to reproduce the native build.
+The current source and generated artifacts are synchronized. The recorded Windows build used TouchDesigner `2025.32820` and validated all 96 current effects with 124 versioned effect `.tox` files, sixteen core `.tox` files, one library `.toe`, 96 previews, 96 visual baselines, and 96 benchmark samples. The build report contains zero shader, preview, or builder errors. A fresh repository run completed 221 tests successfully, with four expected Windows symlink-permission skips. Read [TouchDesigner setup](docs/touchdesigner-setup.md) to reproduce the native build.
 
 The generated project targets TouchDesigner 2025. Validate the exact TouchDesigner build, operating system, GPU, driver, resolution, pixel format, and color pipeline used by your production system. Python 3.11 or newer is required for repository tooling; it is not required merely to use already-built native components.
 
@@ -485,14 +485,49 @@ Enable **Ink Brush Flow Enabled** on `/project1/imagefx_demo`, then select
 `ink_brush_flow`. Turn off other modules and **Apply Video Effects** for its pure
 look. See [Ink Brush Flow](docs/ink-brush-flow.md) for settings, cue targets and limitations.
 
+### Ink Radial Flow
+
+`InkRadialFlow.tox` is a separate center-radiating version of Ink Brush Flow:
+soft expanding liquid rings, organic spiral currents and fine particle wisps.
+It keeps **every Ink Brush Flow control and range**, including animated glitter,
+static glitter and all five static shimmer controls. Its warm coral/magenta,
+pale-cyan and gold defaults are inspired by the supplied central-vortex image;
+the reference image and its figures are not embedded or redistributed.
+Enable **Ink Radial Flow Enabled** on `/project1/imagefx_demo`, then select
+`ink_radial_flow`. Turn off other modules and **Apply Video Effects** for the pure
+look. **Composition Center** positions the center; **Radial Flow** adds enable,
+radial/brush blend, ring frequency, outward speed/inward reverse, spiral and
+organic wandering. **Radial Light** adds opening radius, central light,
+palette atmosphere and outer fade. It has 130 writable values; show looks
+capture eligible effect controls, with timing managed by the cue clock.
+Both glitter layers default off. Turning radial mode off, or its
+blend to zero, gives the inherited brush renderer with the selected palette.
+See [Ink Radial Flow](docs/ink-radial-flow.md) for controls and cue targets.
+
+The **2026-10-02 Ink Radial Flow recheck** passed all 16 live validators after
+reopening the saved TOE in TouchDesigner 2025.32820. All 130 writable Radial
+values passed 684 checks: rendered response/range endpoints, inherited glitter
+and stationary shimmer, exact off/zero brush fallback, outward/inward phase
+direction, clock freeze/replay, transparent alpha and 1080p/4K dimensions.
+Show checks verified every eligible captured value, radial speed interpolation,
+pause/resume and glitter cues. Render comparisons also matched the previous
+Dream and Brush components exactly. These are native parameter/callback and
+pixel tests, not a sustained multi-projector frame-rate certification.
+
+The follow-up full-control check also passed 39 actual deferred rack event checks,
+successful browser creation, decoded PNG compositing, 18 layer-video transport
+checks and 9 show-media playback checks. See the
+[2026-10-02 control validation record](docs/control-validation.md) for coverage,
+reproduction instructions and hardware-testing limits.
+
 ### Eight-slot rack
 
 1. Open `/project1/imagefx_demo` after a successful native build.
 2. Choose **HD 1920 x 1080**, **4K UHD 3840 x 2160**, or **Custom** on the **Output** page.
-3. Drag a still or movie into the demo to create a **Movie File In TOP**. Disconnect the generated `source_image` from input 0 of `reference_particle_field`, then connect your Movie File In TOP there. On an older build without the reference modules, connect it to `ink_flow`.
+3. Drag a still or movie into the demo to create a **Movie File In TOP**. Replace the generated `source_image` connection to input 0 of `layer_composite` with your Movie File In TOP. On an older build without Layer Composite, use input 0 of `reference_particle_field` instead.
 4. Keep your source connected to `fixture_image_b` if you want its derived clean/alternate image, or replace rack input 1 with a different TOP for transitions, composites, and Difference Key.
-5. On `imagefx_demo`, choose whether the three reference modules, **Ink Flow Module Enabled**, **Random Particles Enabled**, **Glitch Module Enabled**, **Color Adjustment Enabled**, **Motion Module Enabled**, and **Apply Video Effects** are on.
-6. Select a reference module to tune its recreation, `ink_flow` for ink visuals and water particles, `particle_random_move` for the separate random-particle stage, `glitch_fusion` for its 24 glitch styles, `color_adjustment` for grading and overlays, `motion_studio` for its 40 motion styles, or `fx_rack` and open its **Rack** custom parameter page to choose up to eight effects.
+5. On `imagefx_demo`, enable the stages you want: Layer Composite, the three reference modules, Ink Dream Flow, Ink Brush Flow, Ink Radial Flow, Ink Flow, Random Particles, Glitch, Color Adjustment, Motion Studio, and **Apply Video Effects**.
+6. Select the corresponding child module to edit its custom parameters. Use `ink_dream_flow` for marbling, `ink_brush_flow` for curling particle currents, `ink_radial_flow` for center radiation, or `fx_rack` and its **Rack** custom page to choose up to eight additional effects.
 7. Adjust slot enable, mix, order, bypass, reset, and modulation. Leave **Auto Time** enabled for timeline-driven, particle, and feedback motion.
 8. View `out1_image`, then export/import validated JSON rack presets if needed.
 
@@ -514,7 +549,7 @@ exec(compile(open(script, encoding="utf-8").read(), script, "exec"), scope)
 
 Copying `globals()` is required because rendered-pixel QA uses
 TouchDesigner-provided objects including `op`, `app`, `root`, `textDAT`, and
-`glslTOP`. The runner executes all fifteen tracked validators, continues long
+`glslTOP`. The runner executes all sixteen tracked validators, continues long
 enough to report every failure, writes the ignored
 `build/envoy-validation/live-suite.json` summary plus each validator's normal
 report, and never saves the project. Each successful dispatch records the validator
@@ -527,13 +562,32 @@ resolution, source time, and timeline state in its own `finally` block.
 The dedicated `validate_control_surface.py` pass exercises all 45 visible pulse
 buttons and all 42 rack value controls. It checks the library, updater, browser,
 global rack, and every per-slot callback, including preset round trips and
-slot reordering, then restores the original state. During the blocking
+slot reordering, then restores the original state. It verifies that callback
+DATs are active and tests browser Create with both a missing target and a valid
+temporary target, including the created component's output. During the blocking
 Textport run it calls each verified Parameter Execute DAT's `onPulse` handler
 synchronously, avoiding a false failure caused by pulse events waiting for the
 next frame. The package sweep also
 exercises all 14 effect-level **Reset** pulse buttons. Together with the
 rendered-pixel module and all-effect sweeps, this covers every writable slider,
 toggle, menu, and pulse control generated by the library.
+
+For an additional check of actual event delivery, run this separately after
+the blocking suite has finished:
+
+```python
+script = project.folder + "/touchdesigner/scripts/validate_control_surface.py"
+scope = dict(globals(), __file__=script, __name__="_control_events")
+exec(compile(open(script, encoding="utf-8").read(), script, "exec"), scope)
+scope["validate_deferred"]()
+```
+
+This changes all eight effect menus and both tested mix values, pulses each
+slot's bypass button twice, and exercises global bypass, enable and preset
+export through TouchDesigner's event loop. It returns immediately, restores the
+rack when complete, and writes `build/envoy-validation/control-events.json`.
+Wait for its PASS/FAIL message before starting another validator or editing the
+rack. It does not call callback handlers directly and never saves the project.
 
 The reference-module validator also compares its test inventory with the actual
 native controls, so an untested new slider, menu, or toggle fails coverage.
@@ -628,7 +682,7 @@ Open `/project1/td_imagefx/core/fx_browser`. Search is case-insensitive across c
 
 ### Individual components
 
-Versioned effect components live under `packages/<package-id>/<version>/tox/`. Reusable core components, including `InkFlowFusion.tox`, `ParticleRandomMove.tox`, `GlitchFusion.tox`, `ColorAdjustment.tox`, `MotionStudio.tox`, `ReferenceParticleField.tox`, `CalligraphicShadow.tox`, `InkOrbitCanvas.tox`, `InkDreamFlow.tox`, `InkBrushFlow.tox`, and `LayerComposite.tox`, are generated under `touchdesigner/core/`. When importing one into another show, set **Library Root** to this checkout or a verified installed-package root.
+Versioned effect components live under `packages/<package-id>/<version>/tox/`. Reusable core components, including `InkFlowFusion.tox`, `ParticleRandomMove.tox`, `GlitchFusion.tox`, `ColorAdjustment.tox`, `MotionStudio.tox`, `ReferenceParticleField.tox`, `CalligraphicShadow.tox`, `InkOrbitCanvas.tox`, `InkDreamFlow.tox`, `InkBrushFlow.tox`, `InkRadialFlow.tox`, and `LayerComposite.tox`, are generated under `touchdesigner/core/`. When importing one into another show, set **Library Root** to this checkout or a verified installed-package root.
 
 ## Author and validate effects
 
@@ -685,7 +739,7 @@ Run the dependency-free repository check with Python 3.11 or newer:
 python tools/verify_repository.py
 ```
 
-The verifier expects exactly 96 current IDs and 124 immutable manifests. It compiles Python, runs tests, validates manifests and feeds, verifies the recorded hashes of the library `.toe`, all 124 effect `.tox` files, and fifteen core `.tox` files, compares generated gallery/baseline/benchmark coverage with the latest catalog, and prevents version drift. It also cross-checks this README's test and catalog claims, the ImageFX project context, and the live validator's package/build constants against checked source and native records. A failure caused by stale native or generated artifacts is intentional: rebuild and review them rather than weakening the invariant.
+The verifier expects exactly 96 current IDs and 124 immutable manifests. It compiles Python, runs tests, validates manifests and feeds, verifies the recorded hashes of the library `.toe`, all 124 effect `.tox` files, and sixteen core `.tox` files, compares generated gallery/baseline/benchmark coverage with the latest catalog, and prevents version drift. It also cross-checks this README's test and catalog claims, the ImageFX project context, and the live validator's package/build constants against checked source and native records. A failure caused by stale native or generated artifacts is intentional: rebuild and review them rather than weakening the invariant.
 
 GitHub Actions runs verification on Windows, macOS, and Linux with Python 3.11 and 3.13, and separately rejects modifications to package versions already present in repository history.
 

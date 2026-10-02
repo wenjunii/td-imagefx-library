@@ -154,12 +154,20 @@ def validate(write_report=True):
         checks["ink_dream_flow_capture_look"] = True
         require({"Glitterenabled", "Glitteramount", "Glittercolorr", "Glitterspeed", "Glittertwinklespeed"} <= set(look["modules"]["ink_dream_flow"]), "Glitter controls missing from captured look")
         checks["ink_dream_glitter_capture_look"] = True
-        for module_name in ("ink_dream_flow", "ink_brush_flow"):
+        for module_name in ("ink_dream_flow", "ink_brush_flow", "ink_radial_flow"):
             require({"Staticglitterenabled", "Staticglitteramount", "Staticglittercolorr", "Staticglitterseed",
                      "Staticglittershimmer", "Staticglittertwinklespeed", "Staticglittershimmercontrast",
                      "Staticglittershimmerfloor", "Staticglittershimmerrandom"} <= set(look["modules"][module_name]), "Static glitter missing from " + module_name)
         require("Inkbrushenabled" in look["toggles"] and "Brushweb" in look["modules"]["ink_brush_flow"], "Brush routing missing from captured look")
         checks["static_glitter_and_brush_capture_look"] = True
+        require("Inkradialenabled" in look["toggles"] and
+                {"Radialenabled", "Radialamount", "Radialspeed", "Radialspiral", "Radialrings"}
+                <= set(look["modules"]["ink_radial_flow"]), "Radial routing missing from captured look")
+        checks["ink_radial_capture_look"] = True
+        radial_controls={p.name for p in show.parent().op("ink_radial_flow").customPars
+                         if ext._safe_parameter(p) and p.name not in {"Enabled","Autotime","Manualtime"}}
+        require(set(look["modules"]["ink_radial_flow"])==radial_controls,"A radial effect value was not captured")
+        checks["ink_radial_every_eligible_value_captured"] = True
         require("layer_composite" in look["modules"] and "Layercompositeenabled" in look["toggles"] and "layer_files" in look, "Layer Composite missing from captured look")
         checks["layer_composite_capture_look"] = True
         ext.engine.clock=lambda:clock[0]; ext.engine._last=clock[0]
@@ -245,7 +253,7 @@ def validate(write_report=True):
         require(not dream.par.Glitterenabled, "An older look retained glitter on a reused deck")
         checks["ink_dream_glitter_parameter_cue_and_older_look_reset"] = True
 
-        for module_name, toggle in (("ink_dream_flow","Inkdreamenabled"),("ink_brush_flow","Inkbrushenabled")):
+        for module_name, toggle in (("ink_dream_flow","Inkdreamenabled"),("ink_brush_flow","Inkbrushenabled"),("ink_radial_flow","Inkradialenabled")):
             ext.engine.stop()
             static_look = {"toggles": {toggle:True}, "modules": {module_name:{
                 "Staticglitterenabled":True, "Staticglitteramount":0.,
@@ -278,6 +286,27 @@ def validate(write_report=True):
             require(not target_module.par.Staticglitterenabled.eval(), "Older cue retained static glitter")
             require(target_module.par.Staticglittershimmer.eval()==0., "Older cue retained static shimmer")
             checks[module_name+"_static_glitter_cue_and_reset"] = True
+
+        ext.engine.stop()
+        radial_look={"toggles":{"Inkradialenabled":True},"modules":{"ink_radial_flow":{
+            "Radialspeed":.2,"Radialspiral":.7,"Glitterenabled":False,"Staticglitterenabled":False}}}
+        load([cue(duration=0,fade=0,look=radial_look),
+              cue(kind="parameters",target="ink_radial_flow/Radialspeed",value=1.,duration=2)])
+        ext.engine.go(0); step(0)
+        radial=ext.tracks[1]["deck"].op("ink_radial_flow")
+        require(radial.par.Enabled.eval(),"Radial cue routing failed")
+        first_radial=pixels("track1")
+        ext.engine.go(1); step(0); step(1)
+        require(abs(radial.par.Radialspeed.eval()-.6)<.001,"Radial cue midpoint failed")
+        require(not np.allclose(first_radial,pixels("track1")),"Radial cue did not change pixels")
+        step(2)
+        require(abs(radial.par.Radialspeed.eval()-1.)<.001,"Radial cue endpoint failed")
+        ext.engine.pause(); paused_radial=pixels("track1")
+        step(4.)
+        require(np.array_equal(paused_radial,pixels("track1")),"Radial flow changed while paused")
+        ext.engine.resume(); step(4.2)
+        require(not np.allclose(paused_radial,pixels("track1")),"Radial flow did not resume")
+        checks["ink_radial_parameter_cue_pause_resume"] = True
 
         ext.engine.stop()
         layer_look = {"toggles": {"Layercompositeenabled": True},

@@ -162,6 +162,7 @@ class EmbodyIntegrationTests(unittest.TestCase):
                 "/project1/imagefx_demo/layer_composite/out1_image",
                 "/project1/imagefx_demo/ink_dream_flow/out1_image",
                 "/project1/imagefx_demo/ink_brush_flow/out1_image",
+                "/project1/imagefx_demo/ink_radial_flow/out1_image",
                 "/project1/imagefx_demo/ink_flow/out1_ink_flow",
                 "/project1/imagefx_demo/particle_random_move/out1_particles",
                 "/project1/imagefx_demo/glitch_fusion/out1_glitch",
@@ -243,7 +244,7 @@ class EmbodyIntegrationTests(unittest.TestCase):
         self.assertIn('parameter.val = ""', installer)
         self.assertIn('parameter.expr = "me.op(\'../../effects\')"', installer)
         self.assertIn("browser.cook(force=True)", installer)
-        self.assertEqual(installer.count("_repair_effect_shader_paths("), 14)
+        self.assertEqual(installer.count("_repair_effect_shader_paths("), 15)
         self.assertIn("ParticleRandomMove.tox", installer)
         self.assertIn("InkFlowFusion.tox", installer)
         self.assertIn("GlitchFusion.tox", installer)
