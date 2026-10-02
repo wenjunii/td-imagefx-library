@@ -154,6 +154,10 @@ def validate(write_report=True):
         checks["ink_dream_flow_capture_look"] = True
         require({"Glitterenabled", "Glitteramount", "Glittercolorr", "Glitterspeed", "Glittertwinklespeed"} <= set(look["modules"]["ink_dream_flow"]), "Glitter controls missing from captured look")
         checks["ink_dream_glitter_capture_look"] = True
+        for module_name in ("ink_dream_flow", "ink_brush_flow"):
+            require({"Staticglitterenabled", "Staticglitteramount", "Staticglittercolorr", "Staticglitterseed"} <= set(look["modules"][module_name]), "Static glitter missing from " + module_name)
+        require("Inkbrushenabled" in look["toggles"] and "Brushweb" in look["modules"]["ink_brush_flow"], "Brush routing missing from captured look")
+        checks["static_glitter_and_brush_capture_look"] = True
         require("layer_composite" in look["modules"] and "Layercompositeenabled" in look["toggles"] and "layer_files" in look, "Layer Composite missing from captured look")
         checks["layer_composite_capture_look"] = True
         ext.engine.clock=lambda:clock[0]; ext.engine._last=clock[0]
@@ -238,6 +242,28 @@ def validate(write_report=True):
         ext._apply_look(ext.tracks[1]["deck"], {})
         require(not dream.par.Glitterenabled, "An older look retained glitter on a reused deck")
         checks["ink_dream_glitter_parameter_cue_and_older_look_reset"] = True
+
+        for module_name, toggle in (("ink_dream_flow","Inkdreamenabled"),("ink_brush_flow","Inkbrushenabled")):
+            ext.engine.stop()
+            static_look = {"toggles": {toggle:True}, "modules": {module_name:{
+                "Staticglitterenabled":True, "Staticglitteramount":0.,
+                "Staticglitterspread":.6, "Staticglittersize":2.,
+                "Staticglitterdensity":.9, "Staticglitterbrightness":3.,
+                "Flowspeed":0., "Particlespeed":0.}}}
+            load([cue(duration=0,fade=0,look=static_look),
+                  cue(kind="parameters",target=module_name+"/Staticglitteramount",value=1.,duration=2)])
+            ext.engine.go(0); step(0)
+            target_module = ext.tracks[1]["deck"].op(module_name)
+            require(target_module.par.Enabled.eval() and target_module.par.Staticglitterenabled.eval(), "Static cue enable failed")
+            first_static = pixels("track1")
+            ext.engine.go(1); step(0); step(1)
+            require(abs(target_module.par.Staticglitteramount.eval()-.5)<.001, "Static cue midpoint failed")
+            require(not np.allclose(first_static,pixels("track1")), "Static cue pixels did not change")
+            step(2)
+            require(abs(target_module.par.Staticglitteramount.eval()-1.)<.001, "Static cue endpoint failed")
+            ext._apply_look(ext.tracks[1]["deck"], {})
+            require(not target_module.par.Staticglitterenabled.eval(), "Older cue retained static glitter")
+            checks[module_name+"_static_glitter_cue_and_reset"] = True
 
         ext.engine.stop()
         layer_look = {"toggles": {"Layercompositeenabled": True},

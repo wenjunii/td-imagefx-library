@@ -97,3 +97,59 @@ class InkDreamFlowTests(unittest.TestCase):
                 self.assertGreaterEqual(summary["duration_seconds"], 0.)
                 if not result["ok"]:
                     self.assertEqual(summary["error"], "cue toggle failed")
+
+    def test_static_glitter_is_separate_and_default_off(self):
+        names = {d["name"]:d for d in MODULE["PARAMETERS"]}
+        self.assertFalse(names["Staticglitterenabled"]["default"])
+        self.assertTrue({"Staticglitteramount", "Staticglitterseed", "Staticglittercolor",
+                         "Staticglittersurface", "Staticglittersize", "Staticglitterstars"} <= set(names))
+        static_function = MODULE["SHADER"].split("vec3 staticGlitterGrains",1)[1].split("void main()",1)[0]
+        self.assertNotIn("uTime", static_function)
+        self.assertNotIn("uGlitter", static_function)
+
+    def test_brush_inherits_all_parameters_without_mutation(self):
+        import copy
+        original = copy.deepcopy(MODULE["PARAMETERS"])
+        parameters, shader = MODULE["brush_variant"]()
+        self.assertEqual(original, MODULE["PARAMETERS"])
+        inherited = {d["name"]:d for d in parameters}
+        for definition in original:
+            variant = inherited[definition["name"]]
+            for key in ("type", "uniform", "min", "max", "menu_names"):
+                self.assertEqual(variant.get(key), definition.get(key))
+        self.assertIn("brushWeb(q,seed)", shader)
+        self.assertIn("Staticglitterenabled", inherited)
+
+    def test_brush_uniforms_bound_and_used(self):
+        parameters, shader = MODULE["brush_variant"]()
+        declared = set()
+        for declaration in re.findall(r"uniform\s+(?:float|vec[234])\s+([^;]+);",shader):
+            declared.update(n.strip() for n in declaration.split(","))
+        bound = {d["uniform"] for d in parameters if d.get("uniform")}
+        self.assertEqual(declared,bound)
+        for name in bound:
+            self.assertGreaterEqual(len(re.findall(r"\b"+name+r"\b",shader)),2,name)
+
+    def test_packed_bindings_cover_every_scalar_once(self):
+        for parameters, shader in ((MODULE["PARAMETERS"],MODULE["SHADER"]),MODULE["brush_variant"]()):
+            packed, bindings = MODULE["pack_scalar_uniforms"](shader,parameters)
+            scalar = [d for d in parameters if d.get("uniform") and d["type"] not in ("xy","rgb","rgba")]
+            self.assertEqual(sum(len(values) for _,values in bindings),len(scalar))
+            self.assertLess(len(bindings)+1,32)
+            for definition in scalar:
+                self.assertEqual(len(re.findall(r"#define "+definition["uniform"]+r"\s+uPacked\d+\.[xyzw]",packed)),1)
+                expr = "parent().par."+definition["name"]+(".menuIndex" if definition["type"]=="menu" else "")
+                self.assertEqual(sum(values.count(expr) for _,values in bindings),1)
+            self.assertNotRegex(packed,r"uniform\s+float")
+
+    def test_brush_show_and_harness_routes(self):
+        self.assertEqual(MODULE_TOGGLES["ink_brush_flow"],"Inkbrushenabled")
+        for parameter in ("Brushweb", "Staticglitteramount", "Glittercolorr", "Particletrail"):
+            cue = dict(new_cue(),kind="parameters",target="ink_brush_flow/"+parameter,value=.7)
+            self.assertEqual(validate_cue(cue)["target"],cue["target"])
+        for name in ("build_project.py","install_dev_harness.py"):
+            text = (ROOT/"touchdesigner/scripts"/name).read_text(encoding="utf-8")
+            self.assertIn("InkBrushFlow.tox",text)
+            self.assertIn("parent().par.Inkbrushenabled",text)
+        suite = (ROOT/"touchdesigner/scripts/validate_live_suite.py").read_text(encoding="utf-8")
+        self.assertIn('("ink_brush_flow", "validate_ink_brush_flow.py")',suite)

@@ -58,7 +58,7 @@ rebuilds require a separate blank TouchDesigner project.
 
 ## Run the complete live suite
 
-After installing a fresh harness, run all twelve tracked live validators with one
+After installing a fresh harness, run all fifteen tracked live validators with one
 Textport command:
 
 ```python

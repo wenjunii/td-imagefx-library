@@ -42,6 +42,7 @@
     "calligraphic_shadow": "/project1/td_imagefx/core/calligraphic_shadow",
     "ink_orbit_canvas": "/project1/td_imagefx/core/ink_orbit_canvas",
     "ink_dream_flow": "/project1/td_imagefx/core/ink_dream_flow",
+    "ink_brush_flow": "/project1/td_imagefx/core/ink_brush_flow",
     "layer_composite": "/project1/td_imagefx/core/layer_composite",
     "update_manager": "/project1/td_imagefx/update_manager",
     "approved_read_scope": [
@@ -77,6 +78,7 @@
     "calligraphic_shadow": "/project1/imagefx_demo/calligraphic_shadow/out1_image",
     "ink_orbit_canvas": "/project1/imagefx_demo/ink_orbit_canvas/out1_image",
     "ink_dream_flow": "/project1/imagefx_demo/ink_dream_flow/out1_image",
+    "ink_brush_flow": "/project1/imagefx_demo/ink_brush_flow/out1_image",
     "layer_composite": "/project1/imagefx_demo/layer_composite/out1_image",
     "rack": "/project1/imagefx_demo/fx_rack/out1_image",
     "browser_preview": "/project1/td_imagefx/core/fx_browser/selected_preview",
@@ -171,6 +173,7 @@
     "report_file": "build/envoy-validation/live-project.json",
     "state_restoring_regression_reports": {
       "ink_dream_flow": "build/envoy-validation/ink-dream-flow.json",
+      "ink_brush_flow": "build/envoy-validation/ink-brush-flow.json",
       "layer_composite": "build/envoy-validation/layer-composite.json",
       "all_effect_parameters": "build/envoy-validation/all-effect-parameters.json",
       "rack_selection": "build/envoy-validation/rack-selection.json",

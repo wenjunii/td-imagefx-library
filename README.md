@@ -127,7 +127,7 @@ git clone https://github.com/wenjunii/td-imagefx-library.git
 cd td-imagefx-library
 ```
 
-The current source and generated artifacts are synchronized. The recorded Windows build used TouchDesigner `2025.32820` and validated all 96 current effects with 124 versioned effect `.tox` files, fourteen core `.tox` files, one library `.toe`, 96 previews, 96 visual baselines, and 96 benchmark samples. The build report contains zero shader, preview, or builder errors. A fresh repository run completed 213 tests successfully, with four expected Windows symlink-permission skips. Read [TouchDesigner setup](docs/touchdesigner-setup.md) to reproduce the native build.
+The current source and generated artifacts are synchronized. The recorded Windows build used TouchDesigner `2025.32820` and validated all 96 current effects with 124 versioned effect `.tox` files, fifteen core `.tox` files, one library `.toe`, 96 previews, 96 visual baselines, and 96 benchmark samples. The build report contains zero shader, preview, or builder errors. A fresh repository run completed 218 tests successfully, with four expected Windows symlink-permission skips. Read [TouchDesigner setup](docs/touchdesigner-setup.md) to reproduce the native build.
 
 The generated project targets TouchDesigner 2025. Validate the exact TouchDesigner build, operating system, GPU, driver, resolution, pixel format, and color pipeline used by your production system. Python 3.11 or newer is required for repository tooling; it is not required merely to use already-built native components.
 
@@ -459,9 +459,25 @@ layer of adjustable sparkle on deep ink, wash, pigment particles, or all three.
 Turn **Glitter Enabled** on, then adjust amount, density, pixel size, softness,
 brightness, RGBA tint, surface threshold/spread, independent drift/shimmer,
 random seed, stars and glow. Glitter starts off and is captured in show looks.
+**Static Glitter** and **Static Highlights** add a separate Calligraphic-Shadow-style
+fine-grain layer with no drift or shimmer. Adjust its own amount, density, pixel
+radius, softness, brightness, RGBA tint, surface, threshold/spread, seed, stars
+and glow. Both glitter layers can run together and start off.
 Use **Background → Input Image / Paper** for your own scenic image or paper;
 reference artwork is not bundled. Show Control's **Capture Look** includes it.
 See the [controls and starting looks](docs/ink-dream-flow.md).
+
+### Ink Brush Flow
+
+`InkBrushFlow.tox` is a separate ink-wash interpretation of the curling, wispy
+particle currents in the supplied reference video's right panel. It inherits
+**every Ink Dream Flow parameter**, including both glitter layers, and adds
+**Brush Currents**: current amount/scale/width, particle brush length, fine fibers,
+extra curl and contrast. It uses indigo pigment on warm Xuan paper by default;
+all four palette colors and transparent/input backgrounds remain adjustable.
+Enable **Ink Brush Flow Enabled** on `/project1/imagefx_demo`, then select
+`ink_brush_flow`. Turn off other modules and **Apply Video Effects** for its pure
+look. See [Ink Brush Flow](docs/ink-brush-flow.md) for settings, cue targets and limitations.
 
 ### Eight-slot rack
 
@@ -492,7 +508,7 @@ exec(compile(open(script, encoding="utf-8").read(), script, "exec"), scope)
 
 Copying `globals()` is required because rendered-pixel QA uses
 TouchDesigner-provided objects including `op`, `app`, `root`, `textDAT`, and
-`glslTOP`. The runner executes all fourteen tracked validators, continues long
+`glslTOP`. The runner executes all fifteen tracked validators, continues long
 enough to report every failure, writes the ignored
 `build/envoy-validation/live-suite.json` summary plus each validator's normal
 report, and never saves the project. Each successful dispatch records the validator
@@ -548,6 +564,16 @@ parameter-cue interpolation and resetting older looks on reused decks. A private
 render comparison also confirmed that glitter off matches the previously
 published Ink Dream Flow component exactly.
 
+The **2026-10-02 static glitter and Ink Brush Flow recheck** passed all 15
+validators after reopening the saved TOE. Dream's 105 writable values passed
+554 checks; Brush's 113 writable values passed 592 checks. Coverage includes
+isolated surface selections, exact off/zero bypass, independent animated/static
+glitter, static time invariance, transparent alpha, every range endpoint and
+1080p/4K rendering. Show checks passed both modules' captured static-glitter
+values, cue interpolation and older-look reset. With both glitter layers off,
+Dream still matches the previously published renderer exactly. Hardware display
+windows and audio audition were not enabled.
+
 For the exact selection-callback regression check, run
 `touchdesigner/scripts/validate_rack_selection.py` in the development harness.
 It snapshots the complete rack preset, changes every `Slot1effect` through
@@ -583,7 +609,7 @@ Open `/project1/td_imagefx/core/fx_browser`. Search is case-insensitive across c
 
 ### Individual components
 
-Versioned effect components live under `packages/<package-id>/<version>/tox/`. Reusable core components, including `InkFlowFusion.tox`, `ParticleRandomMove.tox`, `GlitchFusion.tox`, `ColorAdjustment.tox`, `MotionStudio.tox`, `ReferenceParticleField.tox`, `CalligraphicShadow.tox`, and `InkOrbitCanvas.tox`, are generated under `touchdesigner/core/`. When importing one into another show, set **Library Root** to this checkout or a verified installed-package root.
+Versioned effect components live under `packages/<package-id>/<version>/tox/`. Reusable core components, including `InkFlowFusion.tox`, `ParticleRandomMove.tox`, `GlitchFusion.tox`, `ColorAdjustment.tox`, `MotionStudio.tox`, `ReferenceParticleField.tox`, `CalligraphicShadow.tox`, `InkOrbitCanvas.tox`, `InkDreamFlow.tox`, `InkBrushFlow.tox`, and `LayerComposite.tox`, are generated under `touchdesigner/core/`. When importing one into another show, set **Library Root** to this checkout or a verified installed-package root.
 
 ## Author and validate effects
 
@@ -640,7 +666,7 @@ Run the dependency-free repository check with Python 3.11 or newer:
 python tools/verify_repository.py
 ```
 
-The verifier expects exactly 96 current IDs and 124 immutable manifests. It compiles Python, runs tests, validates manifests and feeds, verifies the recorded hashes of the library `.toe`, all 124 effect `.tox` files, and fourteen core `.tox` files, compares generated gallery/baseline/benchmark coverage with the latest catalog, and prevents version drift. It also cross-checks this README's test and catalog claims, the ImageFX project context, and the live validator's package/build constants against checked source and native records. A failure caused by stale native or generated artifacts is intentional: rebuild and review them rather than weakening the invariant.
+The verifier expects exactly 96 current IDs and 124 immutable manifests. It compiles Python, runs tests, validates manifests and feeds, verifies the recorded hashes of the library `.toe`, all 124 effect `.tox` files, and fifteen core `.tox` files, compares generated gallery/baseline/benchmark coverage with the latest catalog, and prevents version drift. It also cross-checks this README's test and catalog claims, the ImageFX project context, and the live validator's package/build constants against checked source and native records. A failure caused by stale native or generated artifacts is intentional: rebuild and review them rather than weakening the invariant.
 
 GitHub Actions runs verification on Windows, macOS, and Linux with Python 3.11 and 3.13, and separately rejects modifications to package versions already present in repository history.
 

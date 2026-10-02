@@ -31,6 +31,8 @@ control. It starts bypassed in the demo to preserve existing looks.
 | Glitter | Separate switch, amount, density, grain size/softness, brightness, RGBA color, surface choice, threshold, edge softness, spread |
 | Glitter Motion | Independent drift speed/reverse, direction, flow distortion, wandering, seed, shimmer amount/speed |
 | Glitter Highlights | Star amount, length, rotation, glow amount/radius |
+| Static Glitter | Independent switch, amount, density, pixel radius, softness, brightness, RGBA, surface, threshold, edge softness, spread, seed |
+| Static Highlights | Independent star amount, length, rotation, glow amount/radius |
 | Paper | Fiber strength, grain scale, edge aging |
 | Palette | Independent RGBA for deep ink, wash, particles and paper |
 
@@ -83,6 +85,25 @@ For a quiet silver ink look, start with Amount 0.5, Density 0.4, Size 1.6,
 Brightness 1.4, Shimmer 0.5 and Star Amount 0.1. For gold, set the glitter color
 to approximately RGB (1.0, 0.72, 0.3). These are manual settings.
 
+## Static glitter
+
+**Static Glitter Enabled** adds a separate, fine mineral-grain texture like the
+Calligraphic Shadow glitter, without any drift, wandering or shimmer clock.
+Its grains stay fixed in output/paper space; moving ink and particles reveal
+and hide the grains beneath their masks. Freeze liquid and particle speeds to
+freeze the complete composition. This is not a freeze of the input image/video.
+
+All static settings are independent of animated glitter. The fixed six-pixel
+grid has adjustable grain radius and density; it is denser and finer than the
+animated layer. **Static Glitter Surface** and **Outside Ink** follow the same
+mask rules described above. Static amount, density, brightness or color alpha
+zero removes the layer exactly. Both layers start off and can be combined.
+At Outside Ink = 1, the envelope replaces the chosen surface. A high spread
+with a low threshold can also fill the mask, making surface selections look
+identical. Use Outside Ink = 0 to compare the different ink/wash/particle masks.
+Try Amount 0.6, Density 0.6, Radius 1.0, Brightness 1.35, Stars 0.08 for quiet
+silver pigment, or choose a warm gold RGBA tint.
+
 ## Starting looks
 
 - **Quiet dream:** defaults, then Coverage 0.32 and both speeds 0.12.
@@ -99,6 +120,8 @@ Show Control's **Capture Look** includes this module and its demo switch.
 Parameter cues accept e.g. `ink_dream_flow/Coverage`,
 `ink_dream_flow/Flowamount`, `ink_dream_flow/Inkcolorr`,
 `ink_dream_flow/Glitteramount`, and `ink_dream_flow/Glittercolorr`.
+Static targets include `ink_dream_flow/Staticglitteramount`,
+`ink_dream_flow/Staticglittercolorr` and `ink_dream_flow/Staticglitterseed`.
 Show time drives manual time during an active cue, including pause/resume.
 In show cues, adjust **Liquid Speed** and **Particle Speed** for motion rate;
 the cue clock owns manual time, so the Auto Time scale does not apply there.
@@ -107,9 +130,9 @@ includes every glitter value and its enable switch.
 The cue loader preserves each module's enable expression when resetting effect
 parameters, so captured on/off choices remain live when decks are reused.
 
-`validate_ink_dream_flow.py` creates a temporary test copy, sweeps all 85 writable
-control, checks bypass, alpha, zero endpoints, glitter surface isolation,
-independent glitter clocks and deterministic seeking, and
+`validate_ink_dream_flow.py` creates a temporary test copy, sweeps all 105 writable
+values, checks bypass, alpha, zero endpoints, both glitter layers' surface isolation,
+independent glitter clocks, static time invariance and deterministic seeking, and
 renders at 1080p and 4K. It removes only its own test container and never saves
 the TOE. It is included in `validate_live_suite.py`.
 

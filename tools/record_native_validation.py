@@ -30,6 +30,7 @@ CORE_ASSETS = (
     "touchdesigner/core/CalligraphicShadow.tox",
     "touchdesigner/core/InkOrbitCanvas.tox",
     "touchdesigner/core/InkDreamFlow.tox",
+    "touchdesigner/core/InkBrushFlow.tox",
     "touchdesigner/core/LayerComposite.tox",
     "touchdesigner/core/FxUpdater.tox",
 )

@@ -77,6 +77,24 @@ PARAMETERS = (
     _control("Glitterstarrotation", "Star Highlight Rotation", "Glitter Highlights", 0.0, -180.0, 180.0, uniform="uGlitterStarRotation"),
     _control("Glitterglow", "Glitter Glow Amount", "Glitter Highlights", 0.2, 0.0, 2.0, uniform="uGlitterGlow"),
     _control("Glitterglowradius", "Glitter Glow Radius", "Glitter Highlights", 1.4, 0.5, 2.0, uniform="uGlitterGlowRadius"),
+    dict(name="Staticglitterenabled", label="Static Glitter Enabled", page="Static Glitter", type="toggle", default=False, uniform="uStaticEnabled"),
+    _control("Staticglitteramount", "Static Glitter Amount (0 = Off)", "Static Glitter", 0.6, 0.0, 2.0, uniform="uStaticAmount"),
+    _control("Staticglitterdensity", "Static Glitter Density", "Static Glitter", 0.6, uniform="uStaticDensity"),
+    _control("Staticglittersize", "Static Grain Radius (Pixels)", "Static Glitter", 1.0, 0.1, 2.0, uniform="uStaticSize"),
+    _control("Staticglittersoftness", "Static Grain Softness", "Static Glitter", 0.15, uniform="uStaticSoftness"),
+    _control("Staticglitterbrightness", "Static Glitter Brightness", "Static Glitter", 1.35, 0.0, 8.0, uniform="uStaticBrightness"),
+    dict(name="Staticglittercolor", label="Static Glitter Color / Opacity", page="Static Glitter", type="rgba", default=[0.8, 0.87, 1.0, 1.0], uniform="uStaticColor"),
+    dict(name="Staticglittersurface", label="Static Glitter Surface", page="Static Glitter", type="menu", default="combined",
+         menu_names=["ink", "wash", "particles", "combined"], menu_labels=["Deep Ink", "Diluted Wash", "Pigment Particles", "Ink + Wash + Particles"], uniform="uStaticSurface"),
+    _control("Staticglitterthreshold", "Static Surface Threshold", "Static Glitter", 0.08, uniform="uStaticThreshold"),
+    _control("Staticglitteredge", "Static Surface Edge Softness", "Static Glitter", 0.05, 0.001, 0.5, uniform="uStaticEdge"),
+    _control("Staticglitterspread", "Static Glitter Outside Ink", "Static Glitter", 0.0, uniform="uStaticSpread"),
+    dict(name="Staticglitterseed", label="Static Glitter Seed", page="Static Glitter", type="int", default=137, min=0, max=100000, uniform="uStaticSeed"),
+    _control("Staticglitterstars", "Static Star Amount", "Static Highlights", 0.08, uniform="uStaticStars"),
+    _control("Staticglitterstarlength", "Static Star Length", "Static Highlights", 1.8, 1.0, 3.0, uniform="uStaticStarLength"),
+    _control("Staticglitterstarrotation", "Static Star Rotation", "Static Highlights", 0.0, -180.0, 180.0, uniform="uStaticStarRotation"),
+    _control("Staticglitterglow", "Static Glow Amount", "Static Highlights", 0.1, 0.0, 2.0, uniform="uStaticGlow"),
+    _control("Staticglitterglowradius", "Static Glow Radius", "Static Highlights", 1.4, 0.5, 2.0, uniform="uStaticGlowRadius"),
     _control("Papertexture", "Paper Fiber Strength", "Paper", 0.28, 0.0, 1.0, uniform="uPaperTexture"),
     _control("Papergrain", "Paper Grain Scale", "Paper", 1.0, 0.25, 4.0, uniform="uPaperGrain"),
     _control("Vignette", "Paper Edge Aging", "Paper", 0.18, 0.0, 1.0, uniform="uVignette"),
@@ -106,6 +124,11 @@ uniform float uGlitterFlow, uGlitterJitter, uGlitterSeed, uGlitterShimmer;
 uniform float uGlitterTwinkleSpeed, uGlitterStars, uGlitterStarLength, uGlitterStarRotation;
 uniform float uGlitterGlow, uGlitterGlowRadius;
 uniform vec4 uGlitterColor;
+uniform float uStaticEnabled, uStaticAmount, uStaticDensity, uStaticSize;
+uniform float uStaticSoftness, uStaticBrightness, uStaticSurface, uStaticThreshold;
+uniform float uStaticEdge, uStaticSpread, uStaticSeed, uStaticStars;
+uniform float uStaticStarLength, uStaticStarRotation, uStaticGlow, uStaticGlowRadius;
+uniform vec4 uStaticColor;
 
 float hash21(vec2 p) {
     vec3 q = fract(vec3(p.xyx) * .1031);
@@ -201,6 +224,36 @@ vec3 glitterGrains(vec2 screen, float height, float seed) {
     }
     return lights;
 }
+// Paper-aligned fine mineral grains, inspired by the Calligraphic Shadow
+// texture. No time, drift or shimmer: the ink mask can move beneath them.
+vec3 staticGlitterGrains(vec2 screen, float height, float seed) {
+    vec2 g=screen*height/6.;
+    vec2 cell=floor(g), f=fract(g);
+    float gs=seed+uStaticSeed*.719+91.3;
+    float aa=max(length(fwidth(g))*.55,.008);
+    vec3 lights=vec3(0.);
+    if(uStaticDensity<=0.) return lights;
+    for(int y=-1;y<=1;y++) for(int x=-1;x<=1;x++) {
+        vec2 id=cell+vec2(x,y);
+        float h=hash21(id+gs), h2=hash21(id+gs+37.2);
+        vec2 center=.18+.64*vec2(hash21(id+gs+11.),hash21(id+gs+23.));
+        vec2 d=f-vec2(x,y)-center;
+        float radius=uStaticSize/6.*mix(.4,1.,h2), distance=length(d);
+        float grain=1.-smoothstep(max(0.,radius*(1.-uStaticSoftness)-aa),radius+aa,distance);
+        vec2 starCoord=rot(radians(uStaticStarRotation))*d;
+        float arm=min(radius*uStaticStarLength,.8), thickness=max(radius*.16,aa);
+        float star=(1.-smoothstep(thickness,thickness+aa,abs(starCoord.x)))
+                   *(1.-smoothstep(arm*.2,arm+aa,abs(starCoord.y)));
+        star+=(1.-smoothstep(thickness,thickness+aa,abs(starCoord.y)))
+              *(1.-smoothstep(arm*.2,arm+aa,abs(starCoord.x)));
+        star*=uStaticStars*step(hash21(id+gs+83.4),.12);
+        float haloRadius=max(radius*uStaticGlowRadius,.008);
+        float halo=exp(-dot(d,d)/(haloRadius*haloRadius))
+                   *(1.-smoothstep(.65,.9,distance))*uStaticGlow;
+        lights=max(lights,vec3(grain,star,halo)*step(h,clamp(uStaticDensity,0.,1.)));
+    }
+    return lights;
+}
 void main() {
     vec2 uv=vUV.st;
     vec4 source=texture(sTD2DInputs[0],uv);
@@ -271,9 +324,111 @@ void main() {
         vec4 highlight=vec4(uGlitterColor.rgb*uGlitterBrightness,uGlitterColor.a);
         result=overInk(result,highlight,strength);
     }
+    if(uStaticEnabled>.5 && uStaticAmount>0. && uStaticBrightness>0.) {
+        float inkSurface=uLiquidEnabled>.5 ? ink*uInkAmount*uInkColor.a : 0.;
+        float washSurface=uLiquidEnabled>.5 ? wash*uWashAmount*uWashColor.a*.64 : 0.;
+        float carrier=max(max(inkSurface,washSurface),particleSurface);
+        if(uStaticSurface<.5) carrier=inkSurface;
+        else if(uStaticSurface<1.5) carrier=washSurface;
+        else if(uStaticSurface<2.5) carrier=particleSurface;
+        carrier=mix(carrier,envelope,uStaticSpread);
+        float surface=smoothstep(uStaticThreshold-uStaticEdge,
+                                 uStaticThreshold+uStaticEdge,carrier)*step(.00001,carrier);
+        vec3 lights=staticGlitterGrains(screen,uTD2DInfos[0].res.w,seed);
+        result=overInk(result,vec4(uStaticColor.rgb*uStaticBrightness,uStaticColor.a),
+                       surface*(lights.x+lights.y*.6+lights.z*.2)*uStaticAmount);
+    }
     // Public TOP contract uses straight alpha; transparent background is usable
     // with an Over TOP and never carries hidden paper RGB at alpha zero.
     result.rgb=result.a>1e-6 ? result.rgb/result.a : vec3(0.);
     fragColor=TDOutputSwizzle(mix(source,result,clamp(uMix,0.,1.)));
 }
 """
+
+
+def brush_variant():
+    """Inherit the full Dream controls; add an original fibrous current renderer.
+
+    Cellular seams become curling brush paths through the shared inverse flow.
+    Pigment grains and fine streaks follow those paths. This is deterministic
+    procedural particle imagery, not a copy of the tutorial's simulation/code.
+    """
+    import copy
+    parameters = list(copy.deepcopy(PARAMETERS))
+    defaults = dict(Coverage=.64, Spread=1.2, Marbling=.35, Filaments=28.,
+                    Drybrush=.34, Particledensity=.72, Particlesize=.9,
+                    Particletrail=.65, Particleflow=.9, Particlejitter=.35,
+                    Swirl=.55, Stretch=1., Scale=.85, Rotation=0., Flowamount=.6)
+    for definition in parameters:
+        if definition["page"] == "Ink Dream Flow":
+            definition["page"] = "Ink Brush Flow"
+        if definition["name"] in defaults:
+            definition["default"] = defaults[definition["name"]]
+    parameters.extend((
+        dict(name="Brushenabled", label="Brush Currents Enabled", page="Brush Currents", type="toggle", default=True, uniform="uBrushEnabled"),
+        _control("Brushweb", "Interconnected Current Amount", "Brush Currents", .85, uniform="uBrushWeb"),
+        _control("Brushscale", "Current Network Scale", "Brush Currents", 3.2, 1., 12., uniform="uBrushScale"),
+        _control("Brushwidth", "Current Ribbon Width", "Brush Currents", .14, .015, .35, uniform="uBrushWidth"),
+        _control("Brushlength", "Particle Brush Length", "Brush Currents", .72, uniform="uBrushLength"),
+        _control("Brushfibers", "Fine Brush Fibers", "Brush Currents", .65, uniform="uBrushFibers"),
+        _control("Brushcurl", "Extra Brush Curl", "Brush Currents", .55, 0., 2., uniform="uBrushCurl"),
+        _control("Brushcontrast", "Current Contrast", "Brush Currents", 1.0, .3, 4., uniform="uBrushContrast"),
+    ))
+    shader = SHADER.replace("float hash21(vec2 p)",
+        "uniform float uBrushEnabled, uBrushWeb, uBrushScale, uBrushWidth;\n"
+        "uniform float uBrushLength, uBrushFibers, uBrushCurl, uBrushContrast;\n\nfloat hash21(vec2 p)", 1)
+    helper = r"""
+float brushWeb(vec2 p, float seed) {
+    vec2 g=p*uBrushScale, cell=floor(g), f=fract(g);
+    float nearest=100., second=100.;
+    for(int y=-1;y<=1;y++) for(int x=-1;x<=1;x++) {
+        vec2 id=cell+vec2(x,y);
+        vec2 point=.18+.64*vec2(hash21(id+seed),hash21(id+seed+17.3));
+        float d=length(vec2(x,y)+point-f);
+        if(d<nearest) { second=nearest; nearest=d; }
+        else second=min(second,d);
+    }
+    float ridge=1.-smoothstep(0.,uBrushWidth,second-nearest);
+    return pow(clamp(ridge,0.,1.),uBrushContrast);
+}
+"""
+    shader = shader.replace("void main() {", helper+"\nvoid main() {", 1)
+    shader = shader.replace("vec2 q=flow(moving,t,seed);", """vec2 q=flow(moving,t,seed);
+    if(uBrushEnabled>.5) q+=uBrushCurl*.18*vec2(sin(q.y*3.+t*.23),cos(q.x*3.-t*.19));""", 1)
+    shader = shader.replace("float signal=mix(n,.48*n+.52*bands,uMarbling);", """float signal=mix(n,.48*n+.52*bands,uMarbling);
+    if(uBrushEnabled>.5) signal=mix(signal,.15+.7*brushWeb(q,seed),uBrushWeb);""", 1)
+    shader = shader.replace("float ink=clamp(", """if(uBrushEnabled>.5) broken*=mix(1.,smoothstep(.15,.85,noise2(q*vec2(260.,20.)+seed)),uBrushFibers);
+    float ink=clamp(""", 1)
+    shader = shader.replace("vec2 d=rot(.7)*(f-offset-center);", "vec2 d=rot(.7+(uBrushEnabled>.5 ? uBrushCurl*sin(p.y*3.+seed) : 0.))*(f-offset-center);", 1)
+    shader = shader.replace("d.x/=1.+uParticleTrail;", "d.x/=1.+uParticleTrail*(1.+(uBrushEnabled>.5 ? uBrushLength*4. : 0.));", 1)
+    # Longer flecks need a wider bounded neighborhood than circular grains.
+    shader = shader.replace("for(int y=-1;y<=1;y++) for(int x=-1;x<=1;x++) {", "for(int y=-3;y<=3;y++) for(int x=-3;x<=3;x++) {", 1)
+    shader = shader.replace("float dots=grains(pq,pt,seed);", """float dots=grains(pq,pt,seed);
+        if(uBrushEnabled>.5) {
+            float thread=noise2(flow(p,pt,seed)*vec2(360.,12.)+pt*.03);
+            float fiber=smoothstep(.72,.93,thread)*uParticleDensity;
+            dots=max(dots,fiber*uBrushFibers*.7);
+        }""", 1)
+    return tuple(parameters), shader
+
+
+def pack_scalar_uniforms(shader, definitions):
+    """Pack scalar controls into vec4 slots without limiting the control count.
+
+    TouchDesigner vector sequence rows are finite. Color/XY uniforms retain
+    their dedicated rows; macros preserve the readable shader's scalar names.
+    Returned bindings contain only trusted parameter-name expressions.
+    """
+    import re
+    scalar = [d for d in definitions if d.get("uniform") and d["type"] not in ("xy", "rgb", "rgba")]
+    shader = re.sub(r"uniform\s+float\s+[^;]+;", "", shader)
+    preamble, bindings = [], []
+    for index in range(0, len(scalar), 4):
+        name = "uPacked" + str(index // 4)
+        preamble.append("uniform vec4 " + name + ";")
+        values = []
+        for axis, definition in zip("xyzw", scalar[index:index+4]):
+            preamble.append("#define " + definition["uniform"] + " " + name + "." + axis)
+            values.append("parent().par." + definition["name"] + (".menuIndex" if definition["type"] == "menu" else ""))
+        bindings.append((name, values))
+    return "\n".join(preamble) + "\n" + shader, bindings
