@@ -266,6 +266,8 @@ def _check_manifests() -> tuple[int, set[str], dict[str, str]]:
         ROOT / "touchdesigner" / "core" / "CalligraphicShadow.tox",
         ROOT / "touchdesigner" / "core" / "InkOrbitCanvas.tox",
         ROOT / "touchdesigner" / "core" / "InkDreamFlow.tox",
+        ROOT / "touchdesigner" / "core" / "InkBrushFlow.tox",
+        ROOT / "touchdesigner" / "core" / "InkRadialFlow.tox",
         ROOT / "touchdesigner" / "core" / "LayerComposite.tox",
         ROOT / "touchdesigner" / "core" / "FxUpdater.tox",
     )
@@ -460,6 +462,8 @@ def _check_native_validation(library_version: str) -> None:
         "touchdesigner/core/CalligraphicShadow.tox",
         "touchdesigner/core/InkOrbitCanvas.tox",
         "touchdesigner/core/InkDreamFlow.tox",
+        "touchdesigner/core/InkBrushFlow.tox",
+        "touchdesigner/core/InkRadialFlow.tox",
         "touchdesigner/core/LayerComposite.tox",
         "touchdesigner/core/FxUpdater.tox",
         *(
@@ -665,6 +669,10 @@ def _check_embody_integration() -> None:
         != "/project1/td_imagefx/core/ink_orbit_canvas"
         or network.get("ink_dream_flow")
         != "/project1/td_imagefx/core/ink_dream_flow"
+        or network.get("ink_brush_flow")
+        != "/project1/td_imagefx/core/ink_brush_flow"
+        or network.get("ink_radial_flow")
+        != "/project1/td_imagefx/core/ink_radial_flow"
         or network.get("layer_composite")
         != "/project1/td_imagefx/core/layer_composite"
         or outputs.get("reference_particle_field")
@@ -675,6 +683,10 @@ def _check_embody_integration() -> None:
         != "/project1/imagefx_demo/ink_orbit_canvas/out1_image"
         or outputs.get("ink_dream_flow")
         != "/project1/imagefx_demo/ink_dream_flow/out1_image"
+        or outputs.get("ink_brush_flow")
+        != "/project1/imagefx_demo/ink_brush_flow/out1_image"
+        or outputs.get("ink_radial_flow")
+        != "/project1/imagefx_demo/ink_radial_flow/out1_image"
         or outputs.get("layer_composite")
         != "/project1/imagefx_demo/layer_composite/out1_image"
     ):
@@ -802,6 +814,11 @@ def _check_embody_integration() -> None:
         "validate_reference_video_modules.py",
         "validate_control_surface.py",
         "validate_all_effect_parameters.py",
+        "validate_ink_dream_flow.py",
+        "validate_ink_brush_flow.py",
+        "validate_ink_radial_flow.py",
+        "validate_layer_composite.py",
+        "validate_show_control.py",
     )
     if (
         any(name not in live_suite_validator for name in required_suite_scripts)

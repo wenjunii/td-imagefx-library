@@ -28,6 +28,7 @@ DEMO_TOGGLES = (
     "Calligraphicshadowenabled",
     "Inkorbitenabled",
     "Inkdreamenabled",
+    "Inkbrushenabled",
     "Layercompositeenabled",
     "Inkflowenabled",
     "Particlesenabled",

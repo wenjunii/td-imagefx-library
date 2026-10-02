@@ -45,6 +45,8 @@ INK_ORBIT_CANVAS_TOX = (
 )
 EXTENSION_ROOT = PROJECT_ROOT / "touchdesigner" / "extensions"
 INK_DREAM_FLOW_TOX = PROJECT_ROOT / "touchdesigner" / "core" / "InkDreamFlow.tox"
+INK_BRUSH_FLOW_TOX = PROJECT_ROOT / "touchdesigner" / "core" / "InkBrushFlow.tox"
+INK_RADIAL_FLOW_TOX = PROJECT_ROOT / "touchdesigner" / "core" / "InkRadialFlow.tox"
 LAYER_COMPOSITE_TOX = PROJECT_ROOT / "touchdesigner" / "core" / "LayerComposite.tox"
 CALLBACK_ROOT = PROJECT_ROOT / "touchdesigner" / "callbacks"
 MANAGED_NAMES = ("td_imagefx", "imagefx_demo")
@@ -336,6 +338,12 @@ def install():
         demo_page.appendToggle("Inkdreamenabled", label="Ink Dream Flow Enabled")
         demo.par.Inkdreamenabled.default = False
         demo.par.Inkdreamenabled = False
+        demo_page.appendToggle("Inkbrushenabled", label="Ink Brush Flow Enabled")
+        demo.par.Inkbrushenabled.default = False
+        demo.par.Inkbrushenabled = False
+        demo_page.appendToggle("Inkradialenabled", label="Ink Radial Flow Enabled")
+        demo.par.Inkradialenabled.default = False
+        demo.par.Inkradialenabled = False
         demo_page.appendToggle(
             "Referenceparticlefieldenabled",
             label="Chromatic Particle Field Enabled",
@@ -493,7 +501,19 @@ def install():
         ink_dream_flow.par.Enabled.expr = "parent().par.Inkdreamenabled"
         _repair_effect_shader_paths(ink_dream_flow)
         ink_orbit_canvas.outputConnectors[0].connect(ink_dream_flow.inputConnectors[0])
-        ink_dream_flow.outputConnectors[0].connect(ink_flow.inputConnectors[0])
+        ink_brush_flow = _load_single_tox(demo, INK_BRUSH_FLOW_TOX)
+        ink_brush_flow.name = "ink_brush_flow"
+        ink_brush_flow.nodeX, ink_brush_flow.nodeY = 740, -300
+        ink_brush_flow.par.Enabled.expr = "parent().par.Inkbrushenabled"
+        _repair_effect_shader_paths(ink_brush_flow)
+        ink_dream_flow.outputConnectors[0].connect(ink_brush_flow.inputConnectors[0])
+        ink_radial_flow = _load_single_tox(demo, INK_RADIAL_FLOW_TOX)
+        ink_radial_flow.name = "ink_radial_flow"
+        ink_radial_flow.nodeX, ink_radial_flow.nodeY = 870, -420
+        ink_radial_flow.par.Enabled.expr = "parent().par.Inkradialenabled"
+        _repair_effect_shader_paths(ink_radial_flow)
+        ink_brush_flow.outputConnectors[0].connect(ink_radial_flow.inputConnectors[0])
+        ink_radial_flow.outputConnectors[0].connect(ink_flow.inputConnectors[0])
 
         particles = _load_single_tox(demo, PARTICLE_TOX)
         particles.name = "particle_random_move"
@@ -627,6 +647,8 @@ def install():
             "calligraphic_shadow": calligraphic_shadow.path,
             "ink_orbit_canvas": ink_orbit_canvas.path,
             "ink_dream_flow": ink_dream_flow.path,
+            "ink_brush_flow": ink_brush_flow.path,
+            "ink_radial_flow": ink_radial_flow.path,
             "layer_composite": layer_composite.path,
             "ink_flow": ink_flow.path,
             "particles": particles.path,

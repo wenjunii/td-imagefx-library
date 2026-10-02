@@ -32,6 +32,8 @@ class NativeValidationRecordTests(unittest.TestCase):
             "touchdesigner/core/ReferenceParticleField.tox",
             "touchdesigner/core/CalligraphicShadow.tox",
             "touchdesigner/core/InkOrbitCanvas.tox",
+            "touchdesigner/core/InkBrushFlow.tox",
+            "touchdesigner/core/InkRadialFlow.tox",
         ):
             self.assertIn(relative_path, record_native_validation.CORE_ASSETS)
 
@@ -108,7 +110,7 @@ class NativeValidationRecordTests(unittest.TestCase):
             self.assertEqual(record["catalog"], {"current_effects": 1, "package_versions": 1})
             self.assertEqual(record["touchdesigner"]["build"], "12345")
             self.assertEqual(record["builder"]["path"], record_native_validation.BUILDER_SOURCE)
-            self.assertEqual(len(record["artifacts"]), 16)
+            self.assertEqual(len(record["artifacts"]), len(record_native_validation.CORE_ASSETS)+2)
             self.assertTrue(all(len(item["sha256"]) == 64 for item in record["artifacts"]))
 
     def test_record_rejects_a_build_with_errors(self) -> None:

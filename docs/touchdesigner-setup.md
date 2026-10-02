@@ -248,7 +248,7 @@ python tools/build_gallery.py
 python tools/benchmark_report.py
 ```
 
-The native-validation command accepts only a clean build report and writes `docs/native-validation.json`, binding the named TouchDesigner environment to the size and SHA-256 digest of the library `.toe`, all versioned effect `.tox` files, and the fourteen core `.tox` files.
+The native-validation command accepts only a clean build report and writes `docs/native-validation.json`, binding the named TouchDesigner environment to the size and SHA-256 digest of the library `.toe`, all versioned effect `.tox` files, and the fifteen core `.tox` files.
 
 Compare every changed preview on representative media. Only after intentional visual approval should you replace the SHA-256 baselines:
 

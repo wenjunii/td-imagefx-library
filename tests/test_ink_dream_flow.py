@@ -37,7 +37,10 @@ class InkDreamFlowTests(unittest.TestCase):
 
     def test_independent_layers_and_palette(self):
         names = {d["name"] for d in MODULE["PARAMETERS"]}
-        self.assertTrue({"Liquidenabled", "Particlesenabled", "Flowspeed", "Particlespeed", "Inkcolor", "Washcolor", "Particlecolor", "Papercolor"} <= names)
+        self.assertTrue({"Liquidenabled", "Particlesenabled", "Flowspeed", "Particlespeed", "Inkcolor", "Washcolor", "Particlecolor", "Papercolor",
+                         "Glitterenabled", "Glittersurface", "Glitterspeed", "Glittertwinklespeed", "Glitterseed", "Glittercolor"} <= names)
+        glitter_switch = next(d for d in MODULE["PARAMETERS"] if d["name"] == "Glitterenabled")
+        self.assertFalse(glitter_switch["default"])
         self.assertIn("if(uParticleDensity<=0.) return 0.;", MODULE["SHADER"])
 
     def test_show_cue_accepts_module(self):
@@ -47,6 +50,9 @@ class InkDreamFlowTests(unittest.TestCase):
         self.assertEqual(set(MODULE_TOGGLES.values()), set(TOGGLES) - {"Applyvideofx"})
         cue = dict(new_cue(), kind="parameters", target="ink_dream_flow/Flowamount", value=.75)
         self.assertEqual(validate_cue(cue)["target"], cue["target"])
+        for parameter in ("Glitteramount", "Glittercolorr", "Glitterspeed"):
+            cue = dict(new_cue(), kind="parameters", target="ink_dream_flow/"+parameter, value=.75)
+            self.assertEqual(validate_cue(cue)["target"], cue["target"])
 
     def test_builder_harness_and_suite_include_module(self):
         for name in ("build_project.py", "install_dev_harness.py"):
@@ -91,3 +97,124 @@ class InkDreamFlowTests(unittest.TestCase):
                 self.assertGreaterEqual(summary["duration_seconds"], 0.)
                 if not result["ok"]:
                     self.assertEqual(summary["error"], "cue toggle failed")
+
+    def test_static_glitter_is_separate_and_default_off(self):
+        names = {d["name"]:d for d in MODULE["PARAMETERS"]}
+        self.assertFalse(names["Staticglitterenabled"]["default"])
+        self.assertTrue({"Staticglitteramount", "Staticglitterseed", "Staticglittercolor",
+                         "Staticglittersurface", "Staticglittersize", "Staticglitterstars",
+                         "Staticglittershimmer", "Staticglittertwinklespeed",
+                         "Staticglittershimmercontrast", "Staticglittershimmerfloor",
+                         "Staticglittershimmerrandom"} <= set(names))
+        self.assertEqual(names["Staticglittershimmer"]["default"],0.)
+        static_function = MODULE["SHADER"].split("vec3 staticGlitterGrains",1)[1].split("void main()",1)[0]
+        geometry = static_function.split("float pulse=",1)[0]
+        self.assertNotIn("uTime", geometry)
+        self.assertIn("uTime*uStaticTwinkleSpeed",static_function)
+        self.assertNotIn("uGlitter", static_function)
+
+    def test_brush_inherits_all_parameters_without_mutation(self):
+        import copy
+        original = copy.deepcopy(MODULE["PARAMETERS"])
+        parameters, shader = MODULE["brush_variant"]()
+        self.assertEqual(original, MODULE["PARAMETERS"])
+        inherited = {d["name"]:d for d in parameters}
+        for definition in original:
+            variant = inherited[definition["name"]]
+            for key in ("type", "uniform", "min", "max", "menu_names"):
+                self.assertEqual(variant.get(key), definition.get(key))
+        self.assertIn("softCurrent(q,t,seed)", shader)
+        self.assertIn("currentWisps(pq,pt,seed)", shader)
+        self.assertNotIn("second-nearest",shader)
+        coordinate_function = shader.split("vec2 currentCoordinates",1)[1].split("float softCurrent",1)[0]
+        self.assertNotIn("q=currentCoordinates",coordinate_function)
+        self.assertLess(inherited["Papercolor"]["default"][0],.05)
+        self.assertGreater(inherited["Particlecolor"]["default"][2],.9)
+        self.assertIn("Staticglitterenabled", inherited)
+
+    def test_brush_uniforms_bound_and_used(self):
+        parameters, shader = MODULE["brush_variant"]()
+        declared = set()
+        for declaration in re.findall(r"uniform\s+(?:float|vec[234])\s+([^;]+);",shader):
+            declared.update(n.strip() for n in declaration.split(","))
+        bound = {d["uniform"] for d in parameters if d.get("uniform")}
+        self.assertEqual(declared,bound)
+        for name in bound:
+            self.assertGreaterEqual(len(re.findall(r"\b"+name+r"\b",shader)),2,name)
+
+    def test_packed_bindings_cover_every_scalar_once(self):
+        for parameters, shader in ((MODULE["PARAMETERS"],MODULE["SHADER"]),MODULE["brush_variant"](),MODULE["radial_variant"]()):
+            packed, bindings = MODULE["pack_scalar_uniforms"](shader,parameters)
+            scalar = [d for d in parameters if d.get("uniform") and d["type"] not in ("xy","rgb","rgba")]
+            self.assertEqual(sum(len(values) for _,values in bindings),len(scalar))
+            self.assertLess(len(bindings)+1,32)
+            for definition in scalar:
+                self.assertEqual(len(re.findall(r"#define "+definition["uniform"]+r"\s+uPacked\d+\.[xyzw]",packed)),1)
+                expr = "parent().par."+definition["name"]+(".menuIndex" if definition["type"]=="menu" else "")
+                self.assertEqual(sum(values.count(expr) for _,values in bindings),1)
+            self.assertNotRegex(packed,r"uniform\s+float")
+
+    def test_brush_show_and_harness_routes(self):
+        self.assertEqual(MODULE_TOGGLES["ink_brush_flow"],"Inkbrushenabled")
+        for parameter in ("Brushweb", "Staticglitteramount", "Staticglittershimmer", "Staticglittertwinklespeed", "Glittercolorr", "Particletrail"):
+            cue = dict(new_cue(),kind="parameters",target="ink_brush_flow/"+parameter,value=.7)
+            self.assertEqual(validate_cue(cue)["target"],cue["target"])
+        for name in ("build_project.py","install_dev_harness.py"):
+            text = (ROOT/"touchdesigner/scripts"/name).read_text(encoding="utf-8")
+            self.assertIn("InkBrushFlow.tox",text)
+            self.assertIn("parent().par.Inkbrushenabled",text)
+        suite = (ROOT/"touchdesigner/scripts/validate_live_suite.py").read_text(encoding="utf-8")
+        self.assertIn('("ink_brush_flow", "validate_ink_brush_flow.py")',suite)
+
+    def test_radial_inherits_every_brush_control_without_mutation(self):
+        import copy
+        brush, _ = MODULE["brush_variant"]()
+        before = copy.deepcopy(brush)
+        radial, _ = MODULE["radial_variant"]()
+        self.assertEqual(before, brush)
+        inherited = {d["name"]: d for d in radial}
+        self.assertEqual(len(inherited),len(radial))
+        for definition in brush:
+            variant=inherited[definition["name"]]
+            for key in ("type", "uniform", "min", "max", "norm_min", "norm_max", "menu_names", "menu_labels", "read_only"):
+                self.assertEqual(variant.get(key),definition.get(key),definition["name"]+":"+key)
+        self.assertFalse(inherited["Glitterenabled"]["default"])
+        self.assertFalse(inherited["Staticglitterenabled"]["default"])
+        self.assertEqual(inherited["Staticglittershimmer"]["default"],0.)
+        self.assertEqual(len(radial)-len(brush),10)
+
+    def test_radial_uniforms_and_valid_defaults(self):
+        parameters, shader=MODULE["radial_variant"]()
+        declared=set()
+        for declaration in re.findall(r"uniform\s+(?:float|vec[234])\s+([^;]+);",shader):
+            declared.update(n.strip() for n in declaration.split(","))
+        bound={d["uniform"] for d in parameters if d.get("uniform")}
+        self.assertEqual(declared,bound)
+        for d in parameters:
+            self.assertRegex(d["name"],r"^[A-Z][a-z]+$")
+            if d["type"] in ("float","int"):
+                self.assertLess(d["min"],d["max"])
+                self.assertLessEqual(d["min"],d["default"])
+                self.assertGreaterEqual(d["max"],d["default"])
+            if d.get("uniform"):
+                self.assertGreaterEqual(len(re.findall(r"\b"+d["uniform"]+r"\b",shader)),2,d["name"])
+        self.assertNotIn("absTime",shader)
+        self.assertIn("radialBlend()",shader)
+        self.assertIn("t*uRadialSpeed*6.2831853",shader)
+        self.assertIn("float first=3.*a",shader)
+        self.assertIn("float second=5.*a",shader)
+        self.assertIn("max(length(p),.001)",shader)
+
+    def test_radial_show_harness_and_validation_routes(self):
+        self.assertEqual(MODULE_TOGGLES["ink_radial_flow"],"Inkradialenabled")
+        for parameter in ("Radialenabled","Radialamount","Radialspeed","Centerx","Brushglow","Staticglittershimmer","Glittercolorr"):
+            cue=dict(new_cue(),kind="parameters",target="ink_radial_flow/"+parameter,value=.7)
+            self.assertEqual(validate_cue(cue)["target"],cue["target"])
+        for name in ("build_project.py","install_dev_harness.py"):
+            source=(ROOT/"touchdesigner/scripts"/name).read_text(encoding="utf-8")
+            self.assertIn("InkRadialFlow.tox",source)
+            self.assertIn("parent().par.Inkradialenabled",source)
+            self.assertIn("ink_brush_flow.outputConnectors[0].connect(ink_radial_flow.inputConnectors[0])",source)
+            self.assertIn("ink_radial_flow.outputConnectors[0].connect(ink_flow.inputConnectors[0])",source)
+        suite=(ROOT/"touchdesigner/scripts/validate_live_suite.py").read_text(encoding="utf-8")
+        self.assertIn('("ink_radial_flow", "validate_ink_radial_flow.py")',suite)

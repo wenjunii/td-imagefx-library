@@ -13,17 +13,19 @@ ROOT = Path(__file__).resolve().parents[2]
 REPORT_PATH = ROOT / "build" / "envoy-validation" / "ink-dream-flow.json"
 
 
-def validate(write_report=True):
+def validate(write_report=True, brush=False, radial=False):
     source_path = ROOT / "touchdesigner/scripts/ink_dream_flow.py"
     scope = {}
     exec(compile(source_path.read_text(encoding="utf-8"), str(source_path), "exec"), scope)
-    definitions = scope["PARAMETERS"]
-    module = op("/project1/imagefx_demo/ink_dream_flow")
+    definitions = (scope["radial_variant"]()[0] if radial else
+                   scope["brush_variant"]()[0] if brush else scope["PARAMETERS"])
+    module_name = "ink_radial_flow" if radial else "ink_brush_flow" if brush else "ink_dream_flow"
+    module = op("/project1/imagefx_demo/" + module_name)
     if module is None:
-        raise RuntimeError("Build Ink Dream Flow first")
-    host = op("/project1").create(baseCOMP, "ink_dream_qa")
+        raise RuntimeError("Build " + module_name + " first")
+    host = op("/project1").create(baseCOMP, module_name + "_qa")
     checks, controls = {}, {}
-    report = dict(validator="ink-dream-flow", generated_at=datetime.now(timezone.utc).isoformat(), ok=False)
+    report = dict(validator=module_name.replace("_", "-"), generated_at=datetime.now(timezone.utc).isoformat(), ok=False)
     try:
         test = host.copy(module, name="test")
         fixture = host.create(constantTOP, "source")
@@ -36,7 +38,7 @@ def validate(write_report=True):
         fixture.par.alpha = .65
         fixture.outputConnectors[0].connect(test.inputConnectors[0])
         output = test.op("out1_image")
-        shader = test.op("effect_glsl_ink_dream_flow")
+        shader = test.op("effect_glsl_" + module_name)
         defaults = {}
         for d in definitions:
             if d.get("read_only"):
@@ -78,12 +80,31 @@ def validate(write_report=True):
             "Centerx": (-.3, .4), "Centery": (-.3, .4),
             "Manualtime": (.4, 8.), "Timescale": (0., .002),
             "Flowspeed": (-.5, .8), "Particlespeed": (-.5, .8), "Seed": (1, 89),
+            "Glitterspeed": (-.5, .8), "Glitterdirection": (-90., 45.),
+            "Glitterstarrotation": (-30., 15.), "Glitterseed": (1, 89),
+            "Staticglitterstarrotation": (-30., 15.), "Staticglitterseed": (1, 89),
+            "Staticglittertwinklespeed": (-.4, 1.1),
+            "Radialspeed": (-.5, .8), "Radialspiral": (-.8, .9),
         }
         for par in test.customPars:
             if par.readOnly:
                 checks[par.name + "_readonly"] = par.name == "Time" and bool(par.expr)
                 continue
             reset()
+            if par.name.startswith("Glitter") and par.name != "Glitterenabled":
+                reset(Glitterenabled=True, Glitteramount=1., Glitterdensity=.65,
+                      Glittersize=4., Glitterbrightness=2., Glitterthreshold=.08,
+                      Glitterspread=.15, Glitterstars=.8, Glitterglow=.6)
+            if par.name.startswith("Staticglitter") and par.name != "Staticglitterenabled":
+                reset(Staticglitterenabled=True, Staticglitteramount=1.,
+                      Staticglitterdensity=.75, Staticglittersize=1.8,
+                      Staticglitterbrightness=2., Staticglitterthreshold=.04,
+                      Staticglitterspread=.15, Staticglitterstars=.9, Staticglitterglow=.6,
+                      Staticglittershimmer=.8)
+            if par.name == "Staticglittersurface":
+                # Isolate carrier choice: spread plus a low threshold can
+                # legitimately saturate the mask across a wide composition.
+                set_values(dict(Staticglitterspread=0., Staticglitterthreshold=.12, Staticglitteredge=.08))
             if par.name == "Autotime":
                 test.par.Timescale = 0.0
             if par.name == "Timescale":
@@ -144,14 +165,178 @@ def validate(write_report=True):
         checks["particles_only_visible"] = float(np.max(capture()[:,:,3])) > .1
         reset(Liquidenabled=True, Particlesenabled=False, Background="transparent")
         checks["liquid_only_visible"] = float(np.max(capture()[:,:,3])) > .1
+        reset()
+        without_glitter = capture()
+        set_values(dict(Glitterenabled=False, Glitteramount=2., Glitterdensity=1.,
+                        Glitterbrightness=8., Glitterspread=1., Glitterglow=2.))
+        checks["glitter_disabled_exact_bypass"] = np.array_equal(without_glitter,capture())
+        for name in ("Glitteramount", "Glitterdensity", "Glitterbrightness", "Glittercolora"):
+            reset(Glitterenabled=True, **{name: 0.})
+            checks[name+"_zero_exact_bypass"] = np.array_equal(without_glitter,capture())
+        reset(Glitterenabled=True, Flowspeed=0., Particlespeed=0.,
+              Glitterspeed=0., Glittertwinklespeed=0.)
+        first = capture()
+        test.par.Manualtime = 25.
+        checks["all_glitter_clocks_zero_freeze"] = np.array_equal(first,capture())
+        for label, drift_speed, shimmer_speed in (("shimmer",0.,1.1),("drift",.25,0.)):
+            reset(Glitterenabled=True, Flowspeed=0., Particlespeed=0.,
+                  Glitterspeed=drift_speed, Glittertwinklespeed=shimmer_speed)
+            first = capture()
+            test.par.Manualtime = 25.
+            checks["glitter_"+label+"_animates_independently"] = difference(first,capture()) > 1e-6
+        reset(Glitterenabled=True)
+        first = capture()
+        test.par.Manualtime = 17.
+        checks["glitter_time_animates"] = difference(first,capture()) > 1e-6
+        test.par.Manualtime = defaults["Manualtime"]
+        checks["glitter_seek_repeatable"] = np.array_equal(first,capture())
+        reset(Glitterenabled=True, Liquidenabled=False, Particlesenabled=False,
+              Background="transparent", Glitterthreshold=0., Glitterspread=0.)
+        checks["glitter_without_carrier_preserves_empty_background"] = float(np.max(np.abs(capture()))) == 0.
+        test.par.Glitterspread = 1.
+        standalone_glitter = capture()
+        checks["glitter_only_visible_with_spread"] = float(np.max(standalone_glitter[:,:,3])) > .1
+        checks["glitter_alpha_bounded"] = bool(((standalone_glitter[:,:,3]>=0)&(standalone_glitter[:,:,3]<=1)).all())
+        # Check exact zero-alpha RGB before 8-bit quantization: tiny nonzero
+        # straight-alpha highlights can otherwise round alpha to zero while
+        # their unpremultiplied color stays nonzero (and is ignored by Over).
+        original_format = shader.par.format.eval()
+        try:
+            shader.par.format = "rgba32float"
+            precise = capture(shader)
+            checks["glitter_no_hidden_rgb_at_zero_alpha_float32"] = bool((precise[precise[:,:,3]==0.,:3]==0.).all())
+        finally:
+            shader.par.format = original_format
+        reset(Glitterenabled=True, Liquidenabled=False, Particlesenabled=False,
+              Background="source", Glitterspread=0.)
+        checks["glitter_without_carrier_preserves_source"] = difference(capture(),capture(fixture)) < 1e-7
+        for surface, toggle in (("ink","Liquidenabled"),("wash","Liquidenabled"),("particles","Particlesenabled")):
+            reset(Glitterenabled=True, Glittersurface=surface, Glitterthreshold=0.,
+                  Glitterspread=0., Background="transparent", **{toggle:False})
+            first = capture()
+            test.par.Glitterenabled = False
+            checks["glitter_"+surface+"_respects_layer_switch"] = np.array_equal(first,capture())
+        reset()
+        without_static = capture()
+        set_values(dict(Staticglitterenabled=False, Staticglitteramount=2.,
+                        Staticglitterdensity=1., Staticglitterbrightness=8., Staticglitterspread=1.))
+        checks["static_disabled_exact_bypass"] = np.array_equal(without_static,capture())
+        for parameter in ("Staticglitteramount", "Staticglitterdensity", "Staticglitterbrightness", "Staticglittercolora"):
+            reset(Staticglitterenabled=True, **{parameter:0.})
+            checks[parameter + "_zero_exact_bypass"] = np.array_equal(without_static,capture())
+        reset(Staticglitterenabled=True, Flowspeed=0., Particlespeed=0.)
+        first = capture()
+        test.par.Manualtime = 25.
+        checks["static_shimmer_zero_time_invariant"] = np.array_equal(first,capture())
+        reset(Staticglitterenabled=True, Liquidenabled=False, Particlesenabled=False,
+              Background="transparent", Staticglitterthreshold=0., Staticglitterspread=0.)
+        checks["static_without_carrier_empty"] = float(np.max(np.abs(capture()))) == 0.
+        test.par.Staticglitterspread = 1.
+        first = capture()
+        checks["static_only_visible_with_spread"] = float(np.max(first[:,:,3])) > .1
+        checks["static_alpha_bounded"] = bool(((first[:,:,3]>=0)&(first[:,:,3]<=1)).all())
+        original_format = shader.par.format.eval()
+        try:
+            shader.par.format = "rgba32float"
+            precise = capture(shader)
+            checks["static_no_hidden_rgb_at_zero_alpha_float32"] = bool((precise[precise[:,:,3]==0.,:3]==0.).all())
+        finally:
+            shader.par.format = original_format
+        test.par.Manualtime = 25.
+        checks["static_only_time_invariant"] = np.array_equal(first,capture())
+        # Keep carrier/grain geometry fixed and exercise only brightness.
+        reset(Staticglitterenabled=True, Staticglittershimmer=1.,
+              Staticglittertwinklespeed=1.15, Flowspeed=0., Particlespeed=0.,
+              Liquidenabled=False, Particlesenabled=False, Background="transparent",
+              Staticglitterspread=1., Staticglitterthreshold=0.)
+        original_format = shader.par.format.eval()
+        try:
+            # An 8-bit alpha rounding change is not grain movement.
+            shader.par.format = "rgba32float"
+            first = capture(shader)
+            test.par.Manualtime = 17.
+            second = capture(shader)
+            checks["static_shimmer_animates_independently"] = difference(first,second)>1e-6
+            changed_support=(first[:,:,3]>0.)!=(second[:,:,3]>0.)
+            # Even float32 mix(source,result,1) can cancel sub-epsilon alpha.
+            # Native diagnosis found only <=1.8e-7 halo/core values affected;
+            # retain strict support for visible grains, ignoring float roundoff.
+            support_alpha=np.maximum(first[:,:,3],second[:,:,3])[changed_support]
+            checks["static_shimmer_preserves_grain_support"] = bool(np.all(support_alpha<1e-6))
+            test.par.Manualtime = defaults["Manualtime"]
+            checks["static_shimmer_seek_repeatable"] = np.array_equal(first,capture(shader))
+            test.par.Staticglittertwinklespeed = 0.
+            first = capture(shader)
+            test.par.Manualtime = 25.
+            checks["static_shimmer_speed_zero_freezes"] = np.array_equal(first,capture(shader))
+        finally:
+            shader.par.format = original_format
+        for surface, toggle in (("ink","Liquidenabled"),("wash","Liquidenabled"),("particles","Particlesenabled")):
+            reset(Staticglitterenabled=True, Staticglittersurface=surface, Staticglitterthreshold=0.,
+                  Staticglitterspread=0., Background="transparent", **{toggle:False})
+            first = capture()
+            test.par.Staticglitterenabled = False
+            checks["static_"+surface+"_respects_layer_switch"] = np.array_equal(first,capture())
+        reset(Glitterenabled=True, Staticglitterenabled=False)
+        animated_only = capture()
+        test.par.Staticglitterenabled = True
+        both = capture()
+        checks["both_glitter_layers_combine"] = difference(animated_only,both) > 1e-6
+        test.par.Glitterenabled = False
+        checks["animated_switch_independent_of_static"] = difference(both,capture()) > 1e-6
+        if brush or radial:
+            reset(Brushenabled=False)
+            unbrushed = capture()
+            test.par.Brushenabled = True
+            checks["brush_renderer_is_distinct"] = difference(unbrushed,capture()) > 1e-5
+        if radial:
+            # Off/zero amount exactly returns the inherited renderer, with the
+            # same inherited parameter values (palette defaults may differ).
+            brush_copy=host.copy(op("/project1/imagefx_demo/ink_brush_flow"),name="brush_baseline")
+            fixture.outputConnectors[0].connect(brush_copy.inputConnectors[0])
+            reset(Radialenabled=False)
+            for par in brush_copy.customPars:
+                if not par.readOnly:
+                    par.val=test.par[par.name].eval()
+            baseline=capture(brush_copy.op("out1_image"))
+            checks["radial_off_exact_brush"] = np.array_equal(baseline,capture())
+            test.par.Radialenabled=True
+            test.par.Radialamount=0.
+            checks["radial_zero_exact_brush"] = np.array_equal(baseline,capture())
+            test.par.Radialamount=1.
+            checks["radial_renderer_is_distinct"] = difference(baseline,capture()) > 1e-5
+            # Isolated ring phase: positive motion must progress outward and
+            # negative motion inward, rather than merely reshuffling noise.
+            reset(Background="transparent", Particlesenabled=False, Swirl=0.,
+                  Flowamount=0., Turbulence=0., Wander=0., Drift=0., Radialwarp=0.,
+                  Radialspiral=0., Radialglow=0., Radialatmosphere=0., Radialfalloff=0.,
+                  Marbling=0., Drybrush=0., Granulation=0., Edge=0., Brushglow=0.,
+                  Brushhaze=0., Inkamount=1., Washamount=0., Coverage=.55, Spread=2.,
+                  Manualtime=0., Inkcolorr=1., Inkcolorg=1., Inkcolorb=1.)
+            start=capture()[90,180:308,3]
+            for label,speed,sign in (("outward",.45,1),("inward",-.45,-1)):
+                test.par.Radialspeed=speed
+                test.par.Manualtime=1.
+                later=capture()[90,180:308,3]
+                shifts=list(range(-6,7))
+                losses=[float(np.mean((start[8:-8]-later[8+shift:len(later)-8+shift])**2)) for shift in shifts]
+                best=shifts[int(np.argmin(losses))]
+                checks["radial_"+label+"_phase_direction"] = best*sign>0
+            reset(Flowspeed=0., Particlespeed=0.)
+            first=capture()
+            test.par.Manualtime=20.
+            checks["radial_inherited_clocks_freeze"] = np.array_equal(first,capture())
         checks["all_controls_covered"] = set(controls) == {p.name for p in test.customPars if not p.readOnly}
-        checks["demo_toggle_binding"] = module.par.Enabled.expr == "parent().par.Inkdreamenabled"
-        checks["chain_input"] = module.inputs[0] == op("/project1/imagefx_demo/ink_orbit_canvas/out1_image")
-        checks["chain_output"] = op("/project1/imagefx_demo/ink_flow").inputs[0] == module.op("out1_image")
+        toggle = "Inkradialenabled" if radial else "Inkbrushenabled" if brush else "Inkdreamenabled"
+        upstream = "ink_brush_flow" if radial else "ink_dream_flow" if brush else "ink_orbit_canvas"
+        downstream = "ink_flow" if radial else "ink_radial_flow" if brush else "ink_brush_flow"
+        checks["demo_toggle_binding"] = module.par.Enabled.expr == "parent().par." + toggle
+        checks["chain_input"] = module.inputs[0] == op("/project1/imagefx_demo/" + upstream + "/out1_image")
+        checks["chain_output"] = op("/project1/imagefx_demo/" + downstream).inputs[0] == module.op("out1_image")
         # Check native full-resolution rendering without claiming frame-rate suitability.
         for width, height in ((1920,1080), (3840,2160)):
             fixture.par.resolutionw, fixture.par.resolutionh = width, height
-            reset()
+            reset(Glitterenabled=True, Staticglitterenabled=True)
             rendered = capture()
             checks[str(width) + "x" + str(height)] = rendered.shape[:2] == (height,width)
         report.update(checks=checks, controls=controls, control_count=len(controls), ok=all(checks.values()))
@@ -160,8 +345,9 @@ def validate(write_report=True):
     finally:
         host.destroy()
     if write_report:
-        REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
-        REPORT_PATH.write_text(json.dumps(report,indent=2)+"\n",encoding="utf-8")
+        report_path = REPORT_PATH.with_name(module_name.replace("_", "-") + ".json")
+        report_path.parent.mkdir(parents=True, exist_ok=True)
+        report_path.write_text(json.dumps(report,indent=2)+"\n",encoding="utf-8")
     return report
 
 

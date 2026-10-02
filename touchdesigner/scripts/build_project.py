@@ -5733,6 +5733,7 @@ def _build_reference_video_module(
     color,
     reference_video,
     input_setup=None,
+    packed_scalar_bindings=None,
 ):
     """Build a bounded GPU module, optionally with custom image input routing."""
 
@@ -5804,7 +5805,7 @@ def _build_reference_video_module(
     active_bindings = [
         (definition, custom_pars)
         for definition, custom_pars in parameter_bindings
-        if definition.get("uniform")
+        if definition.get("uniform") and (packed_scalar_bindings is None or definition.get("type") in {"xy", "rgb", "rgba"})
     ]
     glsl.seq.vec.numBlocks = max(
         1,
@@ -5812,7 +5813,7 @@ def _build_reference_video_module(
             1
             for definition, _custom_pars in active_bindings
             if definition.get("type") not in {"rgb", "rgba"}
-        ),
+        ) + len(packed_scalar_bindings or []),
     )
     glsl.seq.color.numBlocks = max(
         1,
@@ -5837,6 +5838,12 @@ def _build_reference_video_module(
             glsl.par[
                 "vec{}valuex".format(current_vector_index)
             ].expr = "parent().par.{}.menuIndex".format(definition["name"])
+
+    for uniform_name, expressions in packed_scalar_bindings or []:
+        glsl.par["vec{}name".format(vector_index)] = uniform_name
+        for axis, expression in zip("xyzw", expressions):
+            glsl.par["vec{}value{}".format(vector_index, axis)].expr = expression
+        vector_index += 1
 
     enable_switch = module.create(switchTOP, "enable_switch")
     source.outputConnectors[0].connect(enable_switch.inputConnectors[0])
@@ -5911,17 +5918,24 @@ def build_ink_orbit_canvas_module(parent_comp):
     )
 
 
-def build_ink_dream_flow_module(parent_comp):
+def build_ink_dream_flow_module(parent_comp, brush=False, radial=False):
     module_path = PROJECT_ROOT / MODULE_SOURCES[0]
     scope = {"__file__": str(module_path), "__name__": "_ink_dream_flow"}
     exec(compile(_read_text(module_path), str(module_path), "exec"), scope)
+    parameters, shader = (scope["radial_variant"]() if radial else
+                          scope["brush_variant"]() if brush else (scope["PARAMETERS"], scope["SHADER"]))
+    shader, bindings = scope["pack_scalar_uniforms"](shader, parameters)
+    name = "ink_radial_flow" if radial else "ink_brush_flow" if brush else "ink_dream_flow"
     return _build_reference_video_module(
         parent_comp,
-        component_name="ink_dream_flow", component_label="Ink Dream Flow",
-        shader_source=scope["SHADER"], parameter_definitions=scope["PARAMETERS"],
-        storage_key="tdimagefx_ink_dream_flow_module",
-        module_id="tdimagefx.core.ink-dream-flow", tox_name="InkDreamFlow.tox",
-        color=(0.16, 0.20, 0.36), reference_video="Timeline 1.mp4",
+        component_name=name, component_label="Ink Radial Flow" if radial else "Ink Brush Flow" if brush else "Ink Dream Flow",
+        shader_source=shader, parameter_definitions=parameters,
+        storage_key="tdimagefx_" + name + "_module",
+        module_id="tdimagefx.core." + name.replace("_", "-"),
+        tox_name="InkRadialFlow.tox" if radial else "InkBrushFlow.tox" if brush else "InkDreamFlow.tox",
+        color=(0.16, 0.20, 0.36),
+        reference_video="Center-radiating particle currents inspired by the supplied image" if radial else "Soft luminous particle currents inspired by the supplied reference output" if brush else "Timeline 1.mp4",
+        packed_scalar_bindings=bindings,
     )
 
 
@@ -6656,6 +6670,8 @@ def build_library(project_comp, manifests, report):
         "Use core/calligraphic_shadow for the dancer-like flowing ink shadow reference effect.\n"
         "Use core/ink_orbit_canvas for procedural wet-ink rings, droplets, and floor perspective.\n"
         "Use core/ink_dream_flow for dreamy marbled liquid, pigment particles, and Xuan paper.\n"
+        "Use core/ink_brush_flow for interconnected fibrous ink and particle currents.\n"
+        "Use core/ink_radial_flow for center-radiating liquid, particle currents and glitter.\n"
         "Use core/layer_composite for two images, top-layer color controls, and optional flicker.\n"
         "Use core/fx_browser to search, filter, favorite, and create effects.\n"
         "Use the promoted Find(), CreateEffect(), CheckUpdates(), and HealthCheck() methods.\n"
@@ -6784,10 +6800,14 @@ def build_library(project_comp, manifests, report):
     ink_dream_flow, ink_dream_flow_path = build_ink_dream_flow_module(core_parent)
     ink_dream_flow.nodeX = 2340
     ink_dream_flow.nodeY = 0
+    ink_brush_flow, ink_brush_flow_path = build_ink_dream_flow_module(core_parent, brush=True)
+    ink_brush_flow.nodeX, ink_brush_flow.nodeY = 2600, 0
+    ink_radial_flow, ink_radial_flow_path = build_ink_dream_flow_module(core_parent, radial=True)
+    ink_radial_flow.nodeX, ink_radial_flow.nodeY = 2860, 0
     layer_composite, layer_composite_path = build_layer_composite_module(core_parent)
-    layer_composite.nodeX, layer_composite.nodeY = 2600, 0
+    layer_composite.nodeX, layer_composite.nodeY = 3120, 0
     browser, browser_path = build_browser(core_parent, manifests, compatibility_confidence)
-    browser.nodeX = 2860
+    browser.nodeX = 3380
     browser.nodeY = 0
 
     library.par.Status = "Ready: {} packages".format(len(manifests))
@@ -6805,6 +6825,8 @@ def build_library(project_comp, manifests, report):
         "calligraphic_shadow": str(calligraphic_shadow_path),
         "ink_orbit_canvas": str(ink_orbit_canvas_path),
         "ink_dream_flow": str(ink_dream_flow_path),
+        "ink_brush_flow": str(ink_brush_flow_path),
+        "ink_radial_flow": str(ink_radial_flow_path),
         "layer_composite": str(layer_composite_path),
         "browser": str(browser_path),
         "updater": str(CORE_ROOT / "FxUpdater.tox"),
@@ -6821,6 +6843,8 @@ def build_library(project_comp, manifests, report):
         calligraphic_shadow_path,
         ink_orbit_canvas_path,
         ink_dream_flow_path,
+        ink_brush_flow_path,
+        ink_radial_flow_path,
         layer_composite_path,
     )
 
@@ -6837,6 +6861,8 @@ def build_demo(
     calligraphic_shadow_path,
     ink_orbit_canvas_path,
     ink_dream_flow_path,
+    ink_brush_flow_path,
+    ink_radial_flow_path,
     layer_composite_path,
 ):
     demo = project_comp.create(baseCOMP, "imagefx_demo")
@@ -6844,7 +6870,7 @@ def build_demo(
     demo.nodeY = 100
     demo.color = (0.32, 0.18, 0.36)
     demo.comment = (
-        "Animated source -> optional Layer Composite -> three optional reference recreations -> optional Ink Dream Flow -> optional ink flow -> optional random particles -> "
+        "Animated source -> optional Layer Composite -> three optional reference recreations -> optional Ink Dream Flow -> optional Ink Brush Flow -> optional Ink Radial Flow -> optional ink flow -> optional random particles -> "
         "optional Glitch Fusion -> optional color adjustment -> optional "
         "Motion Studio -> optional eight-slot video FX. "
         "Output defaults to 1920 x 1080 with 4K UHD and custom presets. "
@@ -6859,6 +6885,16 @@ def build_demo(
         "name": "Inkdreamenabled", "label": "Ink Dream Flow Enabled",
         "type": "toggle", "default": False,
         "description": "Generate dreamy liquid marbling and pigment particles on Xuan paper.",
+    })
+    _append_parameter(demo, demo_page, {
+        "name": "Inkbrushenabled", "label": "Ink Brush Flow Enabled",
+        "type": "toggle", "default": False,
+        "description": "Generate curling fibrous brush and particle currents on Xuan paper.",
+    })
+    _append_parameter(demo, demo_page, {
+        "name": "Inkradialenabled", "label": "Ink Radial Flow Enabled",
+        "type": "toggle", "default": False,
+        "description": "Generate center-emitting liquid rings, particle currents and optional glitter.",
     })
     _append_parameter(
         demo,
@@ -7055,7 +7091,15 @@ def build_demo(
     ink_dream_flow.nodeY = -180
     ink_dream_flow.par.Enabled.expr = "parent().par.Inkdreamenabled"
     ink_orbit_canvas.outputConnectors[0].connect(ink_dream_flow.inputConnectors[0])
-    ink_dream_flow.outputConnectors[0].connect(ink_flow.inputConnectors[0])
+    ink_brush_flow = load_tox_component(demo, ink_brush_flow_path, "ink_brush_flow")
+    ink_brush_flow.nodeX, ink_brush_flow.nodeY = 740, -300
+    ink_brush_flow.par.Enabled.expr = "parent().par.Inkbrushenabled"
+    ink_dream_flow.outputConnectors[0].connect(ink_brush_flow.inputConnectors[0])
+    ink_radial_flow = load_tox_component(demo, ink_radial_flow_path, "ink_radial_flow")
+    ink_radial_flow.nodeX, ink_radial_flow.nodeY = 870, -420
+    ink_radial_flow.par.Enabled.expr = "parent().par.Inkradialenabled"
+    ink_brush_flow.outputConnectors[0].connect(ink_radial_flow.inputConnectors[0])
+    ink_radial_flow.outputConnectors[0].connect(ink_flow.inputConnectors[0])
 
     particles = load_tox_component(
         demo,
@@ -7354,6 +7398,8 @@ def build():
             calligraphic_shadow_path,
             ink_orbit_canvas_path,
             ink_dream_flow_path,
+            ink_brush_flow_path,
+            ink_radial_flow_path,
             layer_composite_path,
         ) = build_library(
             project_comp,
@@ -7372,6 +7418,8 @@ def build():
             calligraphic_shadow_path,
             ink_orbit_canvas_path,
             ink_dream_flow_path,
+            ink_brush_flow_path,
+            ink_radial_flow_path,
             layer_composite_path,
         )
         show_builder_path = PROJECT_ROOT / "touchdesigner" / "scripts" / "build_show_control.py"
