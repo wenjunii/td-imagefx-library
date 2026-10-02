@@ -155,7 +155,9 @@ def validate(write_report=True):
         require({"Glitterenabled", "Glitteramount", "Glittercolorr", "Glitterspeed", "Glittertwinklespeed"} <= set(look["modules"]["ink_dream_flow"]), "Glitter controls missing from captured look")
         checks["ink_dream_glitter_capture_look"] = True
         for module_name in ("ink_dream_flow", "ink_brush_flow"):
-            require({"Staticglitterenabled", "Staticglitteramount", "Staticglittercolorr", "Staticglitterseed"} <= set(look["modules"][module_name]), "Static glitter missing from " + module_name)
+            require({"Staticglitterenabled", "Staticglitteramount", "Staticglittercolorr", "Staticglitterseed",
+                     "Staticglittershimmer", "Staticglittertwinklespeed", "Staticglittershimmercontrast",
+                     "Staticglittershimmerfloor", "Staticglittershimmerrandom"} <= set(look["modules"][module_name]), "Static glitter missing from " + module_name)
         require("Inkbrushenabled" in look["toggles"] and "Brushweb" in look["modules"]["ink_brush_flow"], "Brush routing missing from captured look")
         checks["static_glitter_and_brush_capture_look"] = True
         require("layer_composite" in look["modules"] and "Layercompositeenabled" in look["toggles"] and "layer_files" in look, "Layer Composite missing from captured look")
@@ -261,8 +263,20 @@ def validate(write_report=True):
             require(not np.allclose(first_static,pixels("track1")), "Static cue pixels did not change")
             step(2)
             require(abs(target_module.par.Staticglitteramount.eval()-1.)<.001, "Static cue endpoint failed")
+            # Shimmer uses the same pauseable, seekable cue clock, not absTime.
+            target_module.par.Staticglittershimmer=1.
+            target_module.par.Staticglittertwinklespeed=1.15
+            first_static=pixels("track1")
+            step(2.17)
+            require(not np.allclose(first_static,pixels("track1")), "Static shimmer ignored the cue clock")
+            ext.engine.pause(); paused_static=pixels("track1")
+            step(4.)
+            require(np.array_equal(paused_static,pixels("track1")), "Static shimmer changed while paused")
+            ext.engine.resume(); step(4.2)
+            require(not np.allclose(paused_static,pixels("track1")), "Static shimmer did not resume")
             ext._apply_look(ext.tracks[1]["deck"], {})
             require(not target_module.par.Staticglitterenabled.eval(), "Older cue retained static glitter")
+            require(target_module.par.Staticglittershimmer.eval()==0., "Older cue retained static shimmer")
             checks[module_name+"_static_glitter_cue_and_reset"] = True
 
         ext.engine.stop()

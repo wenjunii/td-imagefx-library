@@ -82,6 +82,7 @@ def validate(write_report=True, brush=False):
             "Glitterspeed": (-.5, .8), "Glitterdirection": (-90., 45.),
             "Glitterstarrotation": (-30., 15.), "Glitterseed": (1, 89),
             "Staticglitterstarrotation": (-30., 15.), "Staticglitterseed": (1, 89),
+            "Staticglittertwinklespeed": (-.4, 1.1),
         }
         for par in test.customPars:
             if par.readOnly:
@@ -96,7 +97,8 @@ def validate(write_report=True, brush=False):
                 reset(Staticglitterenabled=True, Staticglitteramount=1.,
                       Staticglitterdensity=.75, Staticglittersize=1.8,
                       Staticglitterbrightness=2., Staticglitterthreshold=.04,
-                      Staticglitterspread=.15, Staticglitterstars=.9, Staticglitterglow=.6)
+                      Staticglitterspread=.15, Staticglitterstars=.9, Staticglitterglow=.6,
+                      Staticglittershimmer=.8)
             if par.name == "Staticglittersurface":
                 # Isolate carrier choice: spread plus a low threshold can
                 # legitimately saturate the mask across a wide composition.
@@ -223,7 +225,7 @@ def validate(write_report=True, brush=False):
         reset(Staticglitterenabled=True, Flowspeed=0., Particlespeed=0.)
         first = capture()
         test.par.Manualtime = 25.
-        checks["static_glitter_has_no_clock"] = np.array_equal(first,capture())
+        checks["static_shimmer_zero_time_invariant"] = np.array_equal(first,capture())
         reset(Staticglitterenabled=True, Liquidenabled=False, Particlesenabled=False,
               Background="transparent", Staticglitterthreshold=0., Staticglitterspread=0.)
         checks["static_without_carrier_empty"] = float(np.max(np.abs(capture()))) == 0.
@@ -240,6 +242,33 @@ def validate(write_report=True, brush=False):
             shader.par.format = original_format
         test.par.Manualtime = 25.
         checks["static_only_time_invariant"] = np.array_equal(first,capture())
+        # Keep carrier/grain geometry fixed and exercise only brightness.
+        reset(Staticglitterenabled=True, Staticglittershimmer=1.,
+              Staticglittertwinklespeed=1.15, Flowspeed=0., Particlespeed=0.,
+              Liquidenabled=False, Particlesenabled=False, Background="transparent",
+              Staticglitterspread=1., Staticglitterthreshold=0.)
+        original_format = shader.par.format.eval()
+        try:
+            # An 8-bit alpha rounding change is not grain movement.
+            shader.par.format = "rgba32float"
+            first = capture(shader)
+            test.par.Manualtime = 17.
+            second = capture(shader)
+            checks["static_shimmer_animates_independently"] = difference(first,second)>1e-6
+            changed_support=(first[:,:,3]>0.)!=(second[:,:,3]>0.)
+            # Even float32 mix(source,result,1) can cancel sub-epsilon alpha.
+            # Native diagnosis found only <=1.8e-7 halo/core values affected;
+            # retain strict support for visible grains, ignoring float roundoff.
+            support_alpha=np.maximum(first[:,:,3],second[:,:,3])[changed_support]
+            checks["static_shimmer_preserves_grain_support"] = bool(np.all(support_alpha<1e-6))
+            test.par.Manualtime = defaults["Manualtime"]
+            checks["static_shimmer_seek_repeatable"] = np.array_equal(first,capture(shader))
+            test.par.Staticglittertwinklespeed = 0.
+            first = capture(shader)
+            test.par.Manualtime = 25.
+            checks["static_shimmer_speed_zero_freezes"] = np.array_equal(first,capture(shader))
+        finally:
+            shader.par.format = original_format
         for surface, toggle in (("ink","Liquidenabled"),("wash","Liquidenabled"),("particles","Particlesenabled")):
             reset(Staticglitterenabled=True, Staticglittersurface=surface, Staticglitterthreshold=0.,
                   Staticglitterspread=0., Background="transparent", **{toggle:False})

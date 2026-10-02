@@ -460,21 +460,27 @@ Turn **Glitter Enabled** on, then adjust amount, density, pixel size, softness,
 brightness, RGBA tint, surface threshold/spread, independent drift/shimmer,
 random seed, stars and glow. Glitter starts off and is captured in show looks.
 **Static Glitter** and **Static Highlights** add a separate Calligraphic-Shadow-style
-fine-grain layer with no drift or shimmer. Adjust its own amount, density, pixel
+fine-grain layer with no drift. Adjust its own amount, density, pixel
 radius, softness, brightness, RGBA tint, surface, threshold/spread, seed, stars
-and glow. Both glitter layers can run together and start off.
+and glow. **Static Shimmer** adds optional brightness twinkle: amount,
+speed/reverse, sharpness, minimum brightness and phase variation. The grains
+remain fixed; shimmer amount defaults to zero. Both glitter layers can run
+together and start off.
 Use **Background → Input Image / Paper** for your own scenic image or paper;
 reference artwork is not bundled. Show Control's **Capture Look** includes it.
 See the [controls and starting looks](docs/ink-dream-flow.md).
 
 ### Ink Brush Flow
 
-`InkBrushFlow.tox` is a separate ink-wash interpretation of the curling, wispy
-particle currents in the supplied reference video's right panel. It inherits
+`InkBrushFlow.tox` now prioritizes the soft, luminous particle currents in the
+supplied reference video's right panel. Smooth currents, curling/converging
+particle wisps and dark cavities replace hard cell outlines and dry hatching.
+It inherits
 **every Ink Dream Flow parameter**, including both glitter layers, and adds
-**Brush Currents**: current amount/scale/width, particle brush length, fine fibers,
-extra curl and contrast. It uses indigo pigment on warm Xuan paper by default;
+**Brush Currents**: current amount/scale/width, wispy streak length, fine particles,
+curl, contrast, core glow and haze. It uses pale blue-white on deep navy by default;
 all four palette colors and transparent/input backgrounds remain adjustable.
+Ink-brush styling is optional; the module name and cue targets remain compatible.
 Enable **Ink Brush Flow Enabled** on `/project1/imagefx_demo`, then select
 `ink_brush_flow`. Turn off other modules and **Apply Video Effects** for its pure
 look. See [Ink Brush Flow](docs/ink-brush-flow.md) for settings, cue targets and limitations.
@@ -573,6 +579,19 @@ glitter, static time invariance, transparent alpha, every range endpoint and
 values, cue interpolation and older-look reset. With both glitter layers off,
 Dream still matches the previously published renderer exactly. Hardware display
 windows and audio audition were not enabled.
+
+The **2026-10-02 reference-current and static-shimmer recheck** passed all 15
+live validators after loading the rebuilt canonical TOE. It covers Dream's
+110 writable values (583 checks) and Brush's 120 writable values (631 checks).
+The replacement current renderer has no hard cellular seams and defaults to
+soft blue-white wisps on deep navy, with core glow and haze controls. Both
+modules now have five independent static-shimmer values; tests verify pixel
+response, stationary support within float precision, zero-speed freeze and
+repeatable seeking. Show tests also exercise shimmer under cue pause/resume.
+Static shimmer defaults to zero; a native comparison confirmed an exact pixel
+match with the previous still glitter. The original glitter-off Dream look also
+remains unchanged. This validates the tested fixtures, not every possible cue
+chain or sustained multi-projector frame rate; hardware outputs remained disarmed.
 
 For the exact selection-callback regression check, run
 `touchdesigner/scripts/validate_rack_selection.py` in the development harness.

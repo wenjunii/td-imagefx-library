@@ -1,10 +1,13 @@
 # Ink Brush Flow
 
-A separate module based on Ink Dream Flow, with interconnected, curling,
-fibrous particle currents inspired by the **right-hand output** in the supplied
-particle-method video. It retains the Chinese ink-brush/wash series palette,
-paper texture, breathing room and broken pigment edges. The reference video
-is not redistributed; no tutorial code or third-party particle engine is bundled.
+A separate module based on Ink Dream Flow, now prioritizing the **right-hand
+output** in the supplied particle-method video: soft blue-white currents,
+fine curling particle wisps, luminous cores and dark cavities. The previous
+hard cellular seams, dry brush hatching and warm-paper default are replaced.
+Chinese ink-brush styling is optional, not imposed on the reference look.
+The module ID/name stays unchanged for existing networks and cues.
+The reference video is not redistributed; no tutorial code or third-party
+particle engine is bundled.
 
 ## Run
 
@@ -26,45 +29,60 @@ for an Over TOP.
 Every parameter and range in [Ink Dream Flow](ink-dream-flow.md) is retained:
 master bypass/mix, time/seed, composition, independent liquid and particles,
 ink surface, four RGBA palette colors, paper, animated glitter and the separate
-**Static Glitter / Static Highlights** layers. A few defaults differ for the
-brush-current look (wider coverage, finer grains, longer streaks).
+**Static Glitter / Static Highlights / Static Shimmer** layers. Defaults now use
+a deep navy background, pale-blue current/particle colors, finer particles,
+soft edges, matching liquid/particle speeds and no dry brush/granulation.
 Both glitter layers start off; enable either, both, or neither.
 
 ## Brush Currents page
 
 | Parameter | Purpose |
 | --- | --- |
-| Brush Currents Enabled | Switch off the extra brush renderer while retaining the inherited effects |
-| Interconnected Current Amount | Blend the ribbon-network structure into the liquid field |
-| Current Network Scale | Number/spacing of winding cells; higher means finer networks |
-| Current Ribbon Width | Widen/narrow the currents |
-| Particle Brush Length | Lengthen pigment flecks; inherited Particle Streak Length also contributes |
-| Fine Brush Fibers | Add broken ink fibers and fine particle wisps |
-| Extra Brush Curl | Additional curling of the currents and grain orientation |
-| Current Contrast | Sharpen/soften the current network |
+| Particle Currents Enabled | Switch off the extra current renderer while retaining the inherited Dream effects |
+| Soft Current Amount | Blend smooth contour sheets into the liquid and particle masks |
+| Current / Cavity Scale | Set spacing of currents and dark pockets; higher gives finer structures |
+| Soft Current Width | Widen/narrow the softly fading ribbons |
+| Wispy Streak Length | Set the integration span; inherited Particle Streak Length also contributes |
+| Fine Particle Wisps | Blend ordinary grains into short curling, converging particle trails |
+| Current Curl | Bend the field and change the balance of curl versus convergence |
+| Current Contrast | Sharpen/soften ribbon density and strand contrast |
+| Current Core Glow | Brighten luminous liquid cores; values above one can clip to white |
+| Soft Current Haze | Add a softer wash-colored luminous layer around currents |
 
-For subtle traditional ink, use the defaults on warm paper. For a bright
-reference-like look, choose a dark Paper Color and pale blue Ink, Wash and
-Particle colors; lower Granulation/Dry Brush for softer wisps. For particles
-alone, switch Liquid Ink off. These are manual settings, not preset buttons.
+The new defaults provide the dark, luminous reference-inspired look. Reduce
+Core Glow for a quieter look, increase Particle Softness for smoother wisps,
+or increase Current Width/Haze for cloudier currents. For traditional ink,
+choose warm Paper Color and dark Ink/Wash/Particle colors, lower Core Glow
+to zero, and add Granulation/Dry Brush. For particles alone, switch Liquid Ink
+off; the core glow and haze respect that switch. These are manual settings,
+not preset buttons. Old captured looks retain their saved palette/controls;
+reset the module's custom values to get the new defaults, then recapture.
 Size and density are artistic controls, not an explicit simulated particle count.
+
+**Static Shimmer** has the same five controls as Ink Dream Flow: Amount,
+Speed/Reverse, Sharpness, Minimum Brightness and Phase Variation. Grains stay
+stationary while their brightness twinkles. Amount zero restores the old still
+texture; Speed zero freezes its pulse independently. See [static glitter](ink-dream-flow.md#static-glitter).
 
 ## Cue integration and testing
 
-**Capture Look** saves all 113 writable values and the demo toggle. Parameter
+**Capture Look** saves all 120 writable values and the demo toggle. Parameter
 cues can target `ink_brush_flow/Brushweb`, `ink_brush_flow/Brushwidth`,
 `ink_brush_flow/Particleamount`, `ink_brush_flow/Inkcolorr`,
-`ink_brush_flow/Staticglitteramount`, or any other eligible value. Cue time
+`ink_brush_flow/Staticglitteramount`, `ink_brush_flow/Staticglittershimmer`,
+`ink_brush_flow/Brushglow`, or any other eligible value. Cue time
 drives the inherited manual clock, including pause/resume and repeatable seeking.
 
 `validate_ink_brush_flow.py` uses the shared Dream validator to sweep every
 control's accepted values, ranges and rendered response, with additional brush
-isolation. It checks both glitter layers, time freeze/replay, transparent output,
+isolation. It checks both glitter layers and stationary shimmer, time freeze/replay, transparent output,
 master bypass/mix and native 1080p/4K rendering. Tests create and remove their
 own temporary copies; they do not save your project.
 
 This is a bounded deterministic **procedural flow-field renderer**, not a
 physical fluid/particle simulation or an exact reconstruction of the video's
-network. Long streaks and both glitter layers cost more GPU time. Rehearse the
+network. Smooth density contours and bounded curl-field trail sampling replace
+the cellular renderer, without accumulated state or simulation warm-up.
+Fine trail integration and both glitter layers cost more GPU time. Rehearse the
 full cue chain and all connected projectors before selecting show resolution;
 successful 4K rendering is not a guarantee of sustained multi-output frame rate.

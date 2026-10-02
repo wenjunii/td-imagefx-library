@@ -102,9 +102,15 @@ class InkDreamFlowTests(unittest.TestCase):
         names = {d["name"]:d for d in MODULE["PARAMETERS"]}
         self.assertFalse(names["Staticglitterenabled"]["default"])
         self.assertTrue({"Staticglitteramount", "Staticglitterseed", "Staticglittercolor",
-                         "Staticglittersurface", "Staticglittersize", "Staticglitterstars"} <= set(names))
+                         "Staticglittersurface", "Staticglittersize", "Staticglitterstars",
+                         "Staticglittershimmer", "Staticglittertwinklespeed",
+                         "Staticglittershimmercontrast", "Staticglittershimmerfloor",
+                         "Staticglittershimmerrandom"} <= set(names))
+        self.assertEqual(names["Staticglittershimmer"]["default"],0.)
         static_function = MODULE["SHADER"].split("vec3 staticGlitterGrains",1)[1].split("void main()",1)[0]
-        self.assertNotIn("uTime", static_function)
+        geometry = static_function.split("float pulse=",1)[0]
+        self.assertNotIn("uTime", geometry)
+        self.assertIn("uTime*uStaticTwinkleSpeed",static_function)
         self.assertNotIn("uGlitter", static_function)
 
     def test_brush_inherits_all_parameters_without_mutation(self):
@@ -117,7 +123,13 @@ class InkDreamFlowTests(unittest.TestCase):
             variant = inherited[definition["name"]]
             for key in ("type", "uniform", "min", "max", "menu_names"):
                 self.assertEqual(variant.get(key), definition.get(key))
-        self.assertIn("brushWeb(q,seed)", shader)
+        self.assertIn("softCurrent(q,t,seed)", shader)
+        self.assertIn("currentWisps(pq,pt,seed)", shader)
+        self.assertNotIn("second-nearest",shader)
+        coordinate_function = shader.split("vec2 currentCoordinates",1)[1].split("float softCurrent",1)[0]
+        self.assertNotIn("q=currentCoordinates",coordinate_function)
+        self.assertLess(inherited["Papercolor"]["default"][0],.05)
+        self.assertGreater(inherited["Particlecolor"]["default"][2],.9)
         self.assertIn("Staticglitterenabled", inherited)
 
     def test_brush_uniforms_bound_and_used(self):
@@ -144,7 +156,7 @@ class InkDreamFlowTests(unittest.TestCase):
 
     def test_brush_show_and_harness_routes(self):
         self.assertEqual(MODULE_TOGGLES["ink_brush_flow"],"Inkbrushenabled")
-        for parameter in ("Brushweb", "Staticglitteramount", "Glittercolorr", "Particletrail"):
+        for parameter in ("Brushweb", "Staticglitteramount", "Staticglittershimmer", "Staticglittertwinklespeed", "Glittercolorr", "Particletrail"):
             cue = dict(new_cue(),kind="parameters",target="ink_brush_flow/"+parameter,value=.7)
             self.assertEqual(validate_cue(cue)["target"],cue["target"])
         for name in ("build_project.py","install_dev_harness.py"):

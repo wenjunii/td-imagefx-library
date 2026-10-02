@@ -5933,7 +5933,7 @@ def build_ink_dream_flow_module(parent_comp, brush=False):
         module_id="tdimagefx.core." + name.replace("_", "-"),
         tox_name="InkBrushFlow.tox" if brush else "InkDreamFlow.tox",
         color=(0.16, 0.20, 0.36),
-        reference_video="Original ink-brush interpretation of the supplied particle-current reference" if brush else "Timeline 1.mp4",
+        reference_video="Soft luminous particle currents inspired by the supplied reference output" if brush else "Timeline 1.mp4",
         packed_scalar_bindings=bindings,
     )
 
