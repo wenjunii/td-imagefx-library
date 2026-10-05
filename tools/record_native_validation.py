@@ -33,10 +33,11 @@ CORE_ASSETS = (
     "touchdesigner/core/InkBrushFlow.tox",
     "touchdesigner/core/InkRadialFlow.tox",
     "touchdesigner/core/LayerComposite.tox",
+    "touchdesigner/core/FinalCrop.tox",
     "touchdesigner/core/FxUpdater.tox",
 )
 BUILDER_SOURCE = "touchdesigner/scripts/build_project.py"
-MODULE_SOURCES = ("touchdesigner/scripts/ink_dream_flow.py", "touchdesigner/scripts/layer_composite.py")
+MODULE_SOURCES = ("touchdesigner/scripts/ink_dream_flow.py", "touchdesigner/scripts/layer_composite.py", "touchdesigner/scripts/final_crop.py", "touchdesigner/scripts/workflow.py")
 SHOW_SOURCES = ("src/tdimagefx/show.py", "touchdesigner/extensions/ShowControlExt.py", "touchdesigner/scripts/build_show_control.py")
 
 

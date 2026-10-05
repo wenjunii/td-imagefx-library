@@ -15,7 +15,9 @@
       "touchdesigner/extensions/",
       "touchdesigner/scripts/build_project.py",
       "touchdesigner/scripts/ink_dream_flow.py",
-      "touchdesigner/scripts/layer_composite.py"
+      "touchdesigner/scripts/layer_composite.py",
+      "touchdesigner/scripts/final_crop.py",
+      "touchdesigner/scripts/workflow.py"
     ],
     "catalog": {
       "current_effect_ids": 96,
@@ -45,6 +47,8 @@
     "ink_brush_flow": "/project1/td_imagefx/core/ink_brush_flow",
     "ink_radial_flow": "/project1/td_imagefx/core/ink_radial_flow",
     "layer_composite": "/project1/td_imagefx/core/layer_composite",
+    "final_crop": "/project1/td_imagefx/core/final_crop",
+    "workflow": "/project1/imagefx_demo/workflow",
     "update_manager": "/project1/td_imagefx/update_manager",
     "approved_read_scope": [
       "/project1/td_imagefx",
@@ -82,6 +86,7 @@
     "ink_brush_flow": "/project1/imagefx_demo/ink_brush_flow/out1_image",
     "ink_radial_flow": "/project1/imagefx_demo/ink_radial_flow/out1_image",
     "layer_composite": "/project1/imagefx_demo/layer_composite/out1_image",
+    "final_crop": "/project1/imagefx_demo/final_crop/out1_image",
     "rack": "/project1/imagefx_demo/fx_rack/out1_image",
     "browser_preview": "/project1/td_imagefx/core/fx_browser/selected_preview",
     "visual_failure_signals": [
@@ -168,7 +173,7 @@
       "HealthCheck reports 96 current packages and 124 immutable versions with no missing entrypoints.",
       "Managed roots report no operator, warning, or script messages.",
       "All approved demo TOPs exist, cook, have usable resolution, and are neither black nor fully transparent.",
-      "The primary demo output matches its selected HD, 4K UHD, or custom resolution.",
+      "With crop bypassed, the primary demo output matches its selected HD, 4K UHD, or custom resolution; active Crop to Size may reduce it.",
       "No unexplained frame drops, memory spike, or material frame-time regression is introduced.",
       "python tools/verify_repository.py passes."
     ],
@@ -178,6 +183,8 @@
       "ink_brush_flow": "build/envoy-validation/ink-brush-flow.json",
       "ink_radial_flow": "build/envoy-validation/ink-radial-flow.json",
       "layer_composite": "build/envoy-validation/layer-composite.json",
+      "final_crop": "build/envoy-validation/final-crop.json",
+      "workflow": "build/envoy-validation/workflow.json",
       "all_effect_parameters": "build/envoy-validation/all-effect-parameters.json",
       "rack_selection": "build/envoy-validation/rack-selection.json",
       "ink_flow": "build/envoy-validation/ink-flow-module.json",

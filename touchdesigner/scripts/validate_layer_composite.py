@@ -97,7 +97,7 @@ def validate(write_report=True):
                 continue
             if par.isPulse or par.name in transport_names:
                 continue
-            if par.name in ("Backdropfile","Topfile"):
+            if par.name in ("Backdropfile","Topfile","Backdropsource","Topsource"):
                 continue
             reset(Flickerenabled=par.name in flicker_names)
             back.par.resolutionw,back.par.resolutionh=160,90
@@ -171,6 +171,22 @@ def validate(write_report=True):
         checks["file_picker_bindings"] = all(test.op(node).par.file.eval()==str(path) for node,path in (("top_file",top_path),("backdrop_file",back_path)))
         checks["file_priority"] = test.op("top_source").par.index.eval()==2 and test.op("backdrop_source").par.index.eval()==2
         controls["Topfile"]={"path_bound":True}; controls["Backdropfile"]={"path_bound":True}
+        for prefix in ("Backdrop","Top"):
+            values=list(test.par[prefix+"source"].menuNames)
+            indices=[]
+            for value in values:
+                test.par[prefix+"source"]=value
+                indices.append(test.op(prefix.lower()+"_source").par.index.eval())
+            controls[prefix+"source"]={"values":values,"indices":indices}
+            checks[prefix+"_sources_route"] = indices==[2,3,0,2,0]
+        # The processed result can be used as foreground while the backdrop is
+        # transparent, even if an unused file field still contains a path.
+        reset(Backdropsource="transparent",Topsource="effects",Topfile="unused.png",Topfit="stretch")
+        checks["effects_result_as_foreground"] = diff(capture(),b)<.005
+        checks["unused_top_file_not_loaded"] = test.op("top_file").par.file.eval()==""
+        reset(Backdropsource="effects",Topsource="transparent",Backdropfile="unused.png")
+        checks["effects_result_as_backdrop"] = diff(capture(),b)<.005
+        checks["unused_backdrop_file_not_loaded"] = test.op("backdrop_file").par.file.eval()==""
         reset()
         checks["clear_file_restores_input"] = diff(capture(),b)<1e-7
         for prefix in ("Backdrop","Top"):
@@ -198,7 +214,7 @@ def validate(write_report=True):
         checks["pulse_dispatch_configured"] = callback.par.onpulse.eval() and all(name in callback.par.pars.eval().split() for name in pulses)
         checks["all_controls_covered"] = set(controls)=={p.name for p in test.customPars if not p.readOnly and not p.isPulse}
         checks["demo_binding"] = module.par.Enabled.expr=="parent().par.Layercompositeenabled"
-        checks["demo_chain"] = op("/project1/imagefx_demo/reference_particle_field").inputs[0]==module.op("out1_image")
+        checks["demo_chain"] = module.inputs[0]==op("/project1/imagefx_demo/video_fx_router") and op("/project1/imagefx_demo/final_crop").inputs[0]==module.op("out1_image")
         top.outputConnectors[0].connect(test.inputConnectors[1])
         shader.par.resolutionw.expr,shader.par.resolutionh.expr=resolution_exprs
         back.par.resolutionw,back.par.resolutionh=640,360

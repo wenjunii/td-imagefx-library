@@ -375,8 +375,14 @@ def validate(write_report=True):
         "source_time_expression": source.par.vec0valuex.expr,
         "source_time_value": source.par.vec0valuex.eval(),
     }
+    rack = demo.op("fx_rack")
+    rack_enables = [rack.par["Slot{}enable".format(i)] for i in range(1, 9)]
+    saved_rack_enables = [(par, par.val, par.expr, par.mode) for par in rack_enables]
 
     try:
+        # Routing tests require an active effect, independent of off-by-default slots.
+        for par in rack_enables:
+            par.val = True
         # Freeze both generators so route comparisons cannot be contaminated by
         # a later animation frame.
         source.par.vec0valuex.expr = ""
@@ -644,6 +650,8 @@ def validate(write_report=True):
     except Exception as exc:
         report["error"] = "{}: {}".format(type(exc).__name__, exc)
     finally:
+        for par, value, expression, mode in saved_rack_enables:
+            par.val, par.expr, par.mode = value, expression, mode
         demo.par.Particlesenabled = saved["particles_enabled"]
         demo.par.Inkflowenabled = saved["ink_flow_enabled"]
         demo.par.Glitchenabled = saved["glitch_enabled"]

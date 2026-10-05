@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 import importlib.util
 import json
 import tempfile
@@ -39,6 +40,34 @@ def _write_package(
 
 
 class TouchDesignerBuilderPathTests(unittest.TestCase):
+    def test_ink_flow_and_all_rack_slots_start_disabled(self) -> None:
+        ink = next(
+            definition for definition in BUILDER.INK_FLOW_PARAMETER_DEFINITIONS
+            if definition["name"] == "Enabled"
+        )
+        self.assertIs(ink["default"], False)
+        expected = {"Inkflowenabled", "Applyvideofx", "Slot{}enable"}
+        defaults = {}
+        for node in ast.walk(ast.parse(MODULE_PATH.read_text(encoding="utf-8"))):
+            if not isinstance(node, ast.Dict):
+                continue
+            fields = {
+                key.value: value for key, value in zip(node.keys, node.values)
+                if isinstance(key, ast.Constant)
+            }
+            name = fields.get("name")
+            if isinstance(name, ast.Call) and isinstance(name.func, ast.Attribute):
+                name = name.func.value
+            if isinstance(name, ast.Constant) and name.value in expected:
+                defaults[name.value] = ast.literal_eval(fields["default"])
+        self.assertEqual(defaults, {name: False for name in expected})
+        harness = (MODULE_PATH.parent / "install_dev_harness.py").read_text(
+            encoding="utf-8"
+        )
+        for name in ("Inkflowenabled", "Applyvideofx"):
+            self.assertIn(f"demo.par.{name}.default = False", harness)
+            self.assertIn(f"demo.par.{name} = False", harness)
+
     def test_every_latest_manifest_uniform_is_declared_and_referenced(self) -> None:
         manifests = BUILDER.load_manifests()
         self.assertEqual(len(manifests), 96)

@@ -127,7 +127,7 @@ git clone https://github.com/wenjunii/td-imagefx-library.git
 cd td-imagefx-library
 ```
 
-The current source and generated artifacts are synchronized. The recorded Windows build used TouchDesigner `2025.32820` and validated all 96 current effects with 124 versioned effect `.tox` files, sixteen core `.tox` files, one library `.toe`, 96 previews, 96 visual baselines, and 96 benchmark samples. The build report contains zero shader, preview, or builder errors. A fresh repository run completed 221 tests successfully, with four expected Windows symlink-permission skips. Read [TouchDesigner setup](docs/touchdesigner-setup.md) to reproduce the native build.
+The current source and generated artifacts are synchronized. The recorded Windows build used TouchDesigner `2025.32820` and validated all 96 current effects with 124 versioned effect `.tox` files, seventeen core `.tox` files, one library `.toe`, 96 previews, 96 visual baselines, and 96 benchmark samples. The build report contains zero shader, preview, or builder errors. A fresh repository run completed 237 tests successfully, with four expected Windows symlink-permission skips. Read [TouchDesigner setup](docs/touchdesigner-setup.md) to reproduce the native build.
 
 The generated project targets TouchDesigner 2025. Validate the exact TouchDesigner build, operating system, GPU, driver, resolution, pixel format, and color pipeline used by your production system. Python 3.11 or newer is required for repository tooling; it is not required merely to use already-built native components.
 
@@ -209,6 +209,14 @@ unnumbered file. Never approve replacement of `TD_ImageFX_Library.toe`.
 
 ## Use in TouchDesigner
 
+The saved project starts with **Ink Flow Module Enabled**, **Apply Video Effects**,
+and all eight **Slot Enable** switches off. Enable Ink Flow on the demo's
+**Demo** page when needed. To use the rack, turn on **Apply Video Effects** there,
+then enable the desired slots inside `fx_rack` (or press **Enable All**).
+The selected effects and their parameter settings are preserved. The reusable
+Ink Flow and FX Rack components and newly installed harness use the same off defaults;
+loading an existing cue or rack preset still restores its saved enable settings.
+
 ### Output resolution
 
 Select `/project1/imagefx_demo` and open its **Output** custom parameter page.
@@ -219,10 +227,11 @@ Select `/project1/imagefx_demo` and open its **Output** custom parameter page.
 - **Custom**, using the adjustable **Custom Width** and **Custom Height**.
 
 Custom dimensions accept 16 through 8192 pixels per axis. The generated demo
-source and `out1_image` update immediately when the preset or custom values
-change. A replacement Movie File In, Video Device In, or other source TOP keeps
-its own processing resolution through the effect chain, while the final output
-is resized to the selected delivery resolution.
+source updates immediately when the preset or custom values change. A replacement
+Movie File In, Video Device In, or other source TOP keeps its own processing
+resolution through the effect chain. `out1_image` follows the last stage's size:
+Final Crop can change it in Crop to Size mode, while Mask Outside and Fit Crop
+preserve the incoming canvas. Show Control has separate per-output delivery sizes.
 
 4K and large custom sizes increase GPU memory and cook time substantially,
 especially with eight rack slots, particles, ink, Glitch Fusion, Color
@@ -435,10 +444,13 @@ counts first if frame time exceeds the show budget.
 
 Enable **Layer Composite Enabled** on `/project1/imagefx_demo`, then select
 `layer_composite`. The **Images** page has separate backdrop and top image/video file
-pickers. Grade only the top image using tint, hue, saturation, contrast,
+pickers and independent **Source** menus: Auto, Effects Result (Input 1),
+Second TOP Input, Image / Video File, or Transparent. It now defaults to the
+end of the effects chain, before Final Crop. Use **Top Source = Effects Result**
+to put the upstream visual above your backdrop. Grade only the top image using tint, hue, saturation, contrast,
 brightness, exposure, inversion and opacity. Position/scale/rotate it, and
 optionally enable regular, soft-pulse or seeded-random flicker. Flicker defaults
-off. **Preview This Layer** shows the composite before later effects; read-only
+off. **Preview This Layer** shows this stage's composite; read-only
 status fields identify bypassed or missing media. Both layers accept videos with
 independent play/pause, loop, speed/reverse, start/seek, restart and reload controls.
 Manual Time (or the show clock) can drive both layers together. Layer videos are
@@ -446,6 +458,23 @@ visual-only; use show-control audio for sound. Both paths and artistic settings
 are captured into show looks.
 See the [Layer Composite guide](docs/layer-composite.md) for fitting, alpha,
 flicker behavior, cue timing and photosensitivity precautions.
+
+### Flexible workflow and final crop
+
+On `/project1/imagefx_demo`, open **Workflow**, choose **Select Stage to Move**,
+then use **Move Earlier / Later / First / Last**. All 14 stages can be reordered,
+including the eight-slot rack, Layer Composite, and Final Crop. Settings are
+retained; **Reset Default Order** resets only the order. The rack's existing
+slot Up/Down buttons independently reorder its eight effects. **Current Order**
+shows the complete sequence. Capture Look stores this order per show cue.
+
+Enable **Final Crop Enabled**, select `final_crop`, and choose a ratio preset
+(16:9, 9:16, square, 4:3, 3:4, 21:9, 4:5, 5:4, 3:2, 2:3, source, or custom),
+or use **Free / Manual** and the four percentage trims. Anchor X/Y positions
+the aspect crop within those trims. **Crop to Size** changes output dimensions;
+**Mask Outside** and **Fit Crop** keep the input canvas with transparent unused
+regions. Final Crop defaults last but can move earlier too. See the
+[workflow and crop guide](docs/workflow-and-crop.md).
 
 ### Ink Dream Flow
 
@@ -504,6 +533,14 @@ Both glitter layers default off. Turning radial mode off, or its
 blend to zero, gives the inherited brush renderer with the selected palette.
 See [Ink Radial Flow](docs/ink-radial-flow.md) for controls and cue targets.
 
+The **2026-10-04 Workflow/Crop recheck** passed all 18 live validators after a
+fresh reopen, all 237 portable tests (4 expected Windows symlink skips), 39 real
+rack-event checks and 6 real workflow/crop-button checks. The checks cover all
+14 stage positions, settings retention, cue order/crop capture, Layer Composite's
+40 writable values, Final Crop's 11 writable values, and decoded image/video
+playback. [Validation details](docs/control-validation.md) record the scope;
+physical projector/audio outputs were not armed during testing.
+
 The **2026-10-02 Ink Radial Flow recheck** passed all 16 live validators after
 reopening the saved TOE in TouchDesigner 2025.32820. All 130 writable Radial
 values passed 684 checks: rendered response/range endpoints, inherited glitter
@@ -517,14 +554,14 @@ pixel tests, not a sustained multi-projector frame-rate certification.
 The follow-up full-control check also passed 39 actual deferred rack event checks,
 successful browser creation, decoded PNG compositing, 18 layer-video transport
 checks and 9 show-media playback checks. See the
-[2026-10-02 control validation record](docs/control-validation.md) for coverage,
+[current control validation record](docs/control-validation.md) for coverage,
 reproduction instructions and hardware-testing limits.
 
 ### Eight-slot rack
 
 1. Open `/project1/imagefx_demo` after a successful native build.
 2. Choose **HD 1920 x 1080**, **4K UHD 3840 x 2160**, or **Custom** on the **Output** page.
-3. Drag a still or movie into the demo to create a **Movie File In TOP**. Replace the generated `source_image` connection to input 0 of `layer_composite` with your Movie File In TOP. On an older build without Layer Composite, use input 0 of `reference_particle_field` instead.
+3. To feed a still/movie through every stage, replace the generated `source_image` TOP with a **Movie File In TOP named `source_image`**, then press **Reset Default Order** (or any workflow move button) to reconnect the chain. Keep that name: workflow changes and cue decks use it as the input. Alternatively, choose media directly in Layer Composite and move that stage first; its result will feed later effects.
 4. Keep your source connected to `fixture_image_b` if you want its derived clean/alternate image, or replace rack input 1 with a different TOP for transitions, composites, and Difference Key.
 5. On `imagefx_demo`, enable the stages you want: Layer Composite, the three reference modules, Ink Dream Flow, Ink Brush Flow, Ink Radial Flow, Ink Flow, Random Particles, Glitch, Color Adjustment, Motion Studio, and **Apply Video Effects**.
 6. Select the corresponding child module to edit its custom parameters. Use `ink_dream_flow` for marbling, `ink_brush_flow` for curling particle currents, `ink_radial_flow` for center radiation, or `fx_rack` and its **Rack** custom page to choose up to eight additional effects.
@@ -549,7 +586,7 @@ exec(compile(open(script, encoding="utf-8").read(), script, "exec"), scope)
 
 Copying `globals()` is required because rendered-pixel QA uses
 TouchDesigner-provided objects including `op`, `app`, `root`, `textDAT`, and
-`glslTOP`. The runner executes all sixteen tracked validators, continues long
+`glslTOP`. The runner executes all eighteen tracked validators, continues long
 enough to report every failure, writes the ignored
 `build/envoy-validation/live-suite.json` summary plus each validator's normal
 report, and never saves the project. Each successful dispatch records the validator
@@ -588,6 +625,20 @@ export through TouchDesigner's event loop. It returns immediately, restores the
 rack when complete, and writes `build/envoy-validation/control-events.json`.
 Wait for its PASS/FAIL message before starting another validator or editing the
 rack. It does not call callback handlers directly and never saves the project.
+
+To test the five Workflow order buttons and Final Crop's reset through real
+frame-delayed events, run this after the rack event check has completed:
+
+```python
+script = project.folder + "/touchdesigner/scripts/validate_workflow.py"
+scope = dict(globals(), __file__=script, __name__="_workflow_events")
+exec(compile(open(script, encoding="utf-8").read(), script, "exec"), scope)
+scope["validate_deferred"]()
+```
+
+Its six checks run in a temporary demo copy and write
+`build/envoy-validation/workflow-deferred.json`. Wait for its completion message
+before running further live checks; do not save the project while testing.
 
 The reference-module validator also compares its test inventory with the actual
 native controls, so an untested new slider, menu, or toggle fails coverage.
@@ -739,7 +790,7 @@ Run the dependency-free repository check with Python 3.11 or newer:
 python tools/verify_repository.py
 ```
 
-The verifier expects exactly 96 current IDs and 124 immutable manifests. It compiles Python, runs tests, validates manifests and feeds, verifies the recorded hashes of the library `.toe`, all 124 effect `.tox` files, and sixteen core `.tox` files, compares generated gallery/baseline/benchmark coverage with the latest catalog, and prevents version drift. It also cross-checks this README's test and catalog claims, the ImageFX project context, and the live validator's package/build constants against checked source and native records. A failure caused by stale native or generated artifacts is intentional: rebuild and review them rather than weakening the invariant.
+The verifier expects exactly 96 current IDs and 124 immutable manifests. It compiles Python, runs tests, validates manifests and feeds, verifies the recorded hashes of the library `.toe`, all 124 effect `.tox` files, and seventeen core `.tox` files, compares generated gallery/baseline/benchmark coverage with the latest catalog, and prevents version drift. It also cross-checks this README's test and catalog claims, the ImageFX project context, and the live validator's package/build constants against checked source and native records. A failure caused by stale native or generated artifacts is intentional: rebuild and review them rather than weakening the invariant.
 
 GitHub Actions runs verification on Windows, macOS, and Linux with Python 3.11 and 3.13, and separately rejects modifications to package versions already present in repository history.
 

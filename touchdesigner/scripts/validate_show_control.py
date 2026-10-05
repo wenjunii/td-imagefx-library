@@ -170,6 +170,8 @@ def validate(write_report=True):
         checks["ink_radial_every_eligible_value_captured"] = True
         require("layer_composite" in look["modules"] and "Layercompositeenabled" in look["toggles"] and "layer_files" in look, "Layer Composite missing from captured look")
         checks["layer_composite_capture_look"] = True
+        require("final_crop" in look["modules"] and "Finalcropenabled" in look["toggles"] and len(look["order"])==14,"Crop or workflow missing from captured look")
+        checks["crop_and_workflow_capture"] = True
         ext.engine.clock=lambda:clock[0]; ext.engine._last=clock[0]
         for i in range(3): ext.engine.go(i)
         step(clock[0])
@@ -323,6 +325,14 @@ def validate(write_report=True):
         ext._apply_look(deck,{})
         require(layer.par.Topfile.eval()=="" and layer.par.Backdropfile.eval()=="", "Stale layer file on reused deck")
         checks["layer_file_look_and_clear"] = True
+        workflow=deck.op("workflow").module
+        order=list(reversed(workflow.DEFAULT_ORDER))
+        ext._apply_look(deck,{"order":order,"toggles":{"Finalcropenabled":True},"modules":{"final_crop":{"Aspect":"1x1","Left":10.}}})
+        require(workflow.current(deck)==order and deck.op("final_crop").par.Enabled.eval(),"Cue workflow/crop did not restore")
+        require(deck.op("final_crop").par.Left.eval()==10.,"Cue crop value missing")
+        ext._apply_look(deck,{})
+        require(workflow.current(deck)==list(workflow.DEFAULT_ORDER) and not deck.par.Finalcropenabled,"Legacy look reused previous workflow/crop")
+        checks["cue_order_crop_restore_and_legacy_clear"] = True
 
         ext.engine.stop()
         fixture = ROOT/"build"/"envoy-validation"/"show-fixture.wav"

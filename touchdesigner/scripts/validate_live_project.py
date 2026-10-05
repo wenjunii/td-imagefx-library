@@ -24,6 +24,7 @@ OUTPUTS = (
     "/project1/imagefx_demo/ink_brush_flow/out1_image",
     "/project1/imagefx_demo/ink_radial_flow/out1_image",
     "/project1/imagefx_demo/layer_composite/out1_image",
+    "/project1/imagefx_demo/final_crop/out1_image",
     "/project1/imagefx_demo/ink_flow/out1_ink_flow",
     "/project1/imagefx_demo/particle_random_move/out1_particles",
     "/project1/imagefx_demo/glitch_fusion/out1_glitch",
@@ -113,8 +114,9 @@ def _output_diagnostics(path):
         family == "TOP"
         and isinstance(width, int)
         and isinstance(height, int)
-        and width >= 2
-        and height >= 2
+        # Extreme valid crop values may intentionally retain a single pixel.
+        and width >= 1
+        and height >= 1
         and not errors
     )
     return {
@@ -150,6 +152,10 @@ def _resolution_diagnostics(primary_output):
             "custom": (custom_width, custom_height),
         }
         target = targets.get(preset)
+        crop = demo.op("final_crop")
+        if crop is not None and crop.par.Enabled.eval() and crop.par.Outputmode.eval()=="crop":
+            # Crop-sized output deliberately differs from the source canvas.
+            target = tuple(crop.op("crop_math").module.output_size(crop))
         actual = (
             primary_output.get("width"),
             primary_output.get("height"),
