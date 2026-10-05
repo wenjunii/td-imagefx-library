@@ -43,7 +43,7 @@ PREVIEW_ROOT = DOCS_ROOT / "gallery"
 PROJECT_PATH = PROJECT_ROOT / "TD_ImageFX_Library.toe"
 BUILDER_PATH = Path(__file__).resolve()
 LIBRARY_VERSION = "0.3.0"
-MODULE_SOURCES = ("touchdesigner/scripts/ink_dream_flow.py", "touchdesigner/scripts/layer_composite.py")
+MODULE_SOURCES = ("touchdesigner/scripts/ink_dream_flow.py", "touchdesigner/scripts/layer_composite.py", "touchdesigner/scripts/final_crop.py", "touchdesigner/scripts/workflow.py")
 RACK_SLOT_COUNT = 8
 OWNED_PROJECT_NODES = frozenset({"td_imagefx", "imagefx_demo"})
 DEFAULT_TEMPLATE_NODES = {
@@ -1136,7 +1136,7 @@ void main() {
 INK_FLOW_PARAMETER_DEFINITIONS = (
     {
         "name": "Enabled", "label": "Module Enabled", "type": "toggle",
-        "page": "Ink Flow", "default": True,
+        "page": "Ink Flow", "default": False,
         "description": "Return the input unchanged when the entire module is disabled.",
     },
     {
@@ -5019,7 +5019,7 @@ def build_rack(parent_comp, manifests):
             "name": "Slot{}effect".format(index), "label": "Slot {} Effect".format(index), "type": "menu",
             "default": defaults[index - 1], "menu_names": package_ids, "menu_labels": package_labels,
         })
-        _append_parameter(rack, page, {"name": "Slot{}enable".format(index), "label": "Slot {} Enable".format(index), "type": "toggle", "default": True})
+        _append_parameter(rack, page, {"name": "Slot{}enable".format(index), "label": "Slot {} Enable".format(index), "type": "toggle", "default": False})
         _append_parameter(rack, page, {"name": "Slot{}mix".format(index), "label": "Slot {} Mix".format(index), "type": "float", "default": 1.0, "min": 0.0, "max": 1.0})
         _append_parameter(rack, page, {"name": "Slot{}moddepth".format(index), "label": "Slot {} Mod Depth".format(index), "type": "float", "default": 0.0, "min": -1.0, "max": 1.0})
         _append_parameter(rack, page, {"name": "Slot{}modrate".format(index), "label": "Slot {} Mod Rate".format(index), "type": "float", "default": 1.0, "min": 0.0, "max": 60.0})
@@ -5945,7 +5945,7 @@ def build_layer_composite_module(parent_comp):
     exec(compile(_read_text(module_path), str(module_path), "exec"), scope)
 
     def inputs(module, source):
-        source.par.label = "backdrop / canvas resolution"
+        source.par.label = "effects result / canvas resolution"
         foreground = module.create(inTOP, "in2_foreground")
         foreground.par.label = "top image (optional)"
         foreground.nodeX, foreground.nodeY = -600, -160
@@ -5957,7 +5957,9 @@ def build_layer_composite_module(parent_comp):
             ("backdrop", "Backdropfile", source), ("top", "Topfile", foreground),
         )):
             movie = module.create(moviefileinTOP, name + "_file")
-            movie.par.file.expr = "parent().par.{}".format(parameter)
+            movie.par.file.expr = (
+                "parent().par.{}.eval() if parent().op('media_status').module.uses_file(parent(), '{}') else ''"
+            ).format(parameter, name)
             prefix = "Backdrop" if name == "backdrop" else "Top"
             movie.par.playmode.expr = "'sequential' if parent().par.Autotime else 'specify'"
             # Play must remain on in Specify Index mode or TD freezes decoded
@@ -5979,16 +5981,15 @@ def build_layer_composite_module(parent_comp):
             empty.outputConnectors[0].connect(select.inputConnectors[0])
             port.outputConnectors[0].connect(select.inputConnectors[1])
             movie.outputConnectors[0].connect(select.inputConnectors[2])
-            select.par.index.expr = (
-                "2 if parent().par.{}.eval().strip() else "
-                "(1 if len(parent().inputs) > {} else 0)"
-            ).format(parameter, index)
+            source.outputConnectors[0].connect(select.inputConnectors[3])
+            foreground.outputConnectors[0].connect(select.inputConnectors[4])
+            select.par.index.expr = "parent().op('media_status').module.selected(parent(), '{}')".format(name)
             select.nodeX, select.nodeY = -280, -index*140
             nodes.append(select)
         callback = module.create(parameterexecuteDAT, "media_callbacks")
         callback.text = scope["CALLBACKS"]
         callback.par.op = ".."
-        callback.par.pars = "Backdropfile Topfile Backdropin Topin Preview Backdroprestart Toprestart Backdropreload Topreload"
+        callback.par.pars = "Backdropfile Topfile Backdropsource Topsource Backdropin Topin Preview Backdroprestart Toprestart Backdropreload Topreload"
         callback.par.custom = True
         callback.par.builtin = False
         callback.par.valuechange = True
@@ -6015,6 +6016,51 @@ def build_layer_composite_module(parent_comp):
         reference_video="two-image / video layering", input_setup=inputs,
     )
     module.viewer = True
+    module.comment = "Post-effects compositor: choose the effects result or media separately for each layer. Bypass preserves input 1."
+    module.save(str(path), createFolders=True)
+    return module, path
+
+
+def build_final_crop_module(parent_comp):
+    module_path = PROJECT_ROOT / "touchdesigner/scripts/final_crop.py"
+    scope = {"__file__": str(module_path), "__name__": "_final_crop"}
+    exec(compile(_read_text(module_path), str(module_path), "exec"), scope)
+
+    def setup(module, source):
+        runtime = module.create(textDAT, "crop_math")
+        runtime.text = scope["RUNTIME"]
+        callback = module.create(parameterexecuteDAT, "crop_callbacks")
+        callback.text = scope["CALLBACKS"]
+        callback.par.op, callback.par.pars = "..", "Reset Preview"
+        callback.par.custom, callback.par.builtin = True, False
+        callback.par.onpulse = True
+        module.par.Status.expr = "me.op('crop_math').module.status(me)"
+        for name in ("Ratiowidth", "Ratioheight"):
+            module.par[name].enableExpr = "me.par.Aspect == 'custom'"
+        return [source]
+
+    # Keep regular menu bindings; append derived uniforms after construction.
+    module, path = _build_reference_video_module(
+        parent_comp, component_name="final_crop", component_label="Final Crop",
+        shader_source=scope["SHADER"], parameter_definitions=scope["PARAMETERS"],
+        storage_key="tdimagefx_final_crop_module", module_id="tdimagefx.core.final-crop",
+        tox_name="FinalCrop.tox", color=(.24,.38,.22), reference_video="post-composite crop",
+        input_setup=setup,
+    )
+    glsl = module.op("effect_glsl_final_crop")
+    glsl.seq.vec.numBlocks = 3
+    glsl.par.vec1name = "uBounds"
+    for index, axis in enumerate("xyzw"):
+        glsl.par["vec1value"+axis].expr = "parent().op('crop_math').module.current(parent())['uv'][{}]".format(index)
+    glsl.par.vec2name = "uCropSize"
+    for index, axis in enumerate("xy"):
+        glsl.par["vec2value"+axis].expr = "parent().op('crop_math').module.current(parent())['size'][{}]".format(index)
+    glsl.par.resolutionw.expr = "parent().op('crop_math').module.output_size(parent())[0]"
+    glsl.par.resolutionh.expr = "parent().op('crop_math').module.output_size(parent())[1]"
+    module.comment = "Final stage after Layer Composite. Aspect presets and manual trims; crop-sized or fixed-canvas output."
+    module.viewer = True
+    glsl.cook(force=True)
+    if glsl.errors(): raise RuntimeError("Final Crop shader failed: " + str(glsl.errors()))
     module.save(str(path), createFolders=True)
     return module, path
 
@@ -6806,8 +6852,10 @@ def build_library(project_comp, manifests, report):
     ink_radial_flow.nodeX, ink_radial_flow.nodeY = 2860, 0
     layer_composite, layer_composite_path = build_layer_composite_module(core_parent)
     layer_composite.nodeX, layer_composite.nodeY = 3120, 0
+    final_crop, final_crop_path = build_final_crop_module(core_parent)
+    final_crop.nodeX, final_crop.nodeY = 3380, 0
     browser, browser_path = build_browser(core_parent, manifests, compatibility_confidence)
-    browser.nodeX = 3380
+    browser.nodeX = 3640
     browser.nodeY = 0
 
     library.par.Status = "Ready: {} packages".format(len(manifests))
@@ -6828,6 +6876,7 @@ def build_library(project_comp, manifests, report):
         "ink_brush_flow": str(ink_brush_flow_path),
         "ink_radial_flow": str(ink_radial_flow_path),
         "layer_composite": str(layer_composite_path),
+        "final_crop": str(final_crop_path),
         "browser": str(browser_path),
         "updater": str(CORE_ROOT / "FxUpdater.tox"),
     }
@@ -6846,7 +6895,32 @@ def build_library(project_comp, manifests, report):
         ink_brush_flow_path,
         ink_radial_flow_path,
         layer_composite_path,
+        final_crop_path,
     )
+
+
+def build_workflow(demo):
+    source = _read_text(PROJECT_ROOT / "touchdesigner/scripts/workflow.py")
+    scope = {}
+    exec(compile(source, "workflow.py", "exec"), scope)
+    runtime = demo.create(textDAT, "workflow")
+    runtime.text = source
+    order = demo.create(textDAT, "workflow_order")
+    order.text = json.dumps(scope["DEFAULT_ORDER"])
+    page = demo.appendCustomPage("Workflow")
+    _append_parameter(demo, page, dict(name="Stageselection", label="Select Stage to Move", type="menu",
+        default="layer_composite", menu_names=list(scope["DEFAULT_ORDER"]), menu_labels=list(scope["LABELS"])))
+    for name,label in (("Stageup","Move Earlier"),("Stagedown","Move Later"),("Stagefirst","Move First"),
+                       ("Stagelast","Move Last"),("Resetorder","Reset Default Order")):
+        _append_parameter(demo,page,dict(name=name,label=label,type="pulse"))
+    _append_parameter(demo,page,dict(name="Workfloworder",label="Current Order",type="string",default="",read_only=True,animatable=False))
+    _append_parameter(demo,page,dict(name="Orderstatus",label="Order Status",type="string",default="Ready",read_only=True,animatable=False))
+    demo.par.Workfloworder.expr = "me.op('workflow').module.describe(me)"
+    callback = demo.create(parameterexecuteDAT, "workflow_callbacks")
+    callback.text = "def onPulse(par):\n    par.owner.op('workflow').module.onPulse(par)\n"
+    callback.par.op,callback.par.pars = "..","Stageup Stagedown Stagefirst Stagelast Resetorder"
+    callback.par.custom,callback.par.builtin,callback.par.onpulse = True,False,True
+    scope["apply_order"](demo,scope["DEFAULT_ORDER"])
 
 
 def build_demo(
@@ -6864,19 +6938,24 @@ def build_demo(
     ink_brush_flow_path,
     ink_radial_flow_path,
     layer_composite_path,
+    final_crop_path,
 ):
     demo = project_comp.create(baseCOMP, "imagefx_demo")
     demo.nodeX = 100
     demo.nodeY = 100
     demo.color = (0.32, 0.18, 0.36)
     demo.comment = (
-        "Animated source -> optional Layer Composite -> three optional reference recreations -> optional Ink Dream Flow -> optional Ink Brush Flow -> optional Ink Radial Flow -> optional ink flow -> optional random particles -> "
+        "Animated source -> three optional reference recreations -> optional Ink Dream Flow -> optional Ink Brush Flow -> optional Ink Radial Flow -> optional ink flow -> optional random particles -> "
         "optional Glitch Fusion -> optional color adjustment -> optional "
-        "Motion Studio -> optional eight-slot video FX. "
+        "Motion Studio -> optional eight-slot video FX -> optional Layer Composite -> optional Final Crop. "
         "Output defaults to 1920 x 1080 with 4K UHD and custom presets. "
         "Replace source_image with any TOP."
     )
     demo_page = demo.appendCustomPage("Demo")
+    _append_parameter(demo, demo_page, {
+        "name": "Finalcropenabled", "label": "Final Crop Enabled",
+        "type": "toggle", "default": False,
+    })
     _append_parameter(demo, demo_page, {
         "name": "Layercompositeenabled", "label": "Layer Composite Enabled",
         "type": "toggle", "default": False,
@@ -6936,7 +7015,7 @@ def build_demo(
             "name": "Inkflowenabled",
             "label": "Ink Flow Module Enabled",
             "type": "toggle",
-            "default": True,
+            "default": False,
             "description": "Enable the ink styles and water particles configured inside ink_flow.",
         },
     )
@@ -6991,7 +7070,7 @@ def build_demo(
             "name": "Applyvideofx",
             "label": "Apply Video Effects",
             "type": "toggle",
-            "default": True,
+            "default": False,
             "description": "Route the source or particles through the eight-slot rack.",
         },
     )
@@ -7045,10 +7124,9 @@ def build_demo(
         "parent().par.Referenceparticlefieldenabled"
     )
     layer_composite = load_tox_component(demo, layer_composite_path, "layer_composite")
-    layer_composite.nodeX, layer_composite.nodeY = -170, -180
+    layer_composite.nodeX, layer_composite.nodeY = 2500, 0
     layer_composite.par.Enabled.expr = "parent().par.Layercompositeenabled"
-    source.outputConnectors[0].connect(layer_composite.inputConnectors[0])
-    layer_composite.outputConnectors[0].connect(
+    source.outputConnectors[0].connect(
         reference_particle_field.inputConnectors[0]
     )
 
@@ -7197,17 +7275,22 @@ def build_demo(
     video_fx_router.nodeX = 2290
     video_fx_router.nodeY = 0
 
+    video_fx_router.outputConnectors[0].connect(layer_composite.inputConnectors[0])
+    final_crop = load_tox_component(demo, final_crop_path, "final_crop")
+    final_crop.nodeX, final_crop.nodeY = 2740, 0
+    final_crop.par.Enabled.expr = "parent().par.Finalcropenabled"
+    layer_composite.outputConnectors[0].connect(final_crop.inputConnectors[0])
+
     output = demo.create(outTOP, "out1_image")
-    video_fx_router.outputConnectors[0].connect(output.inputConnectors[0])
-    output.nodeX = 2500
+    final_crop.outputConnectors[0].connect(output.inputConnectors[0])
+    output.nodeX = 2980
     output.nodeY = 0
     if output.par["outputresolution"] is not None:
-        output.par.outputresolution = "custom"
-        output.par.resolutionw.expr = _demo_output_resolution_expression("width")
-        output.par.resolutionh.expr = _demo_output_resolution_expression("height")
+        output.par.outputresolution = "useinput"
     output.display = True
     output.render = True
     demo.par.opviewer = output.path
+    build_workflow(demo)
     return demo
 
 
@@ -7401,6 +7484,7 @@ def build():
             ink_brush_flow_path,
             ink_radial_flow_path,
             layer_composite_path,
+            final_crop_path,
         ) = build_library(
             project_comp,
             manifests,
@@ -7421,6 +7505,7 @@ def build():
             ink_brush_flow_path,
             ink_radial_flow_path,
             layer_composite_path,
+            final_crop_path,
         )
         show_builder_path = PROJECT_ROOT / "touchdesigner" / "scripts" / "build_show_control.py"
         show_scope = dict(globals())

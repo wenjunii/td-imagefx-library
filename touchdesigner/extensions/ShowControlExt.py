@@ -184,10 +184,13 @@ class ShowControlExt:
                 if self._safe_parameter(p) and p.name not in {"Enabled", "Autotime", "Manualtime"}
             }
         look["rack"] = json.loads(demo.op("fx_rack").ExportPreset())
+        look["order"] = demo.op("workflow").module.current(demo)
         layer = demo.op("layer_composite")
         look["layer_files"] = self.model.resolve_layer_files(
             {name: layer.par[name].eval() for name in ("Backdropfile", "Topfile")},
             project.folder,
+            selections=look["modules"]["layer_composite"],
+            enabled=look["toggles"]["Layercompositeenabled"],
         )
         cues = copy.deepcopy(self.document["cues"])
         cues[index]["look"] = look
@@ -222,10 +225,14 @@ class ShowControlExt:
         parameter.val = value
 
     def _apply_look(self, deck, look):
-        if set(look) - {"toggles", "modules", "rack", "layer_files"}:
+        if set(look) - {"toggles", "modules", "rack", "layer_files", "order"}:
             raise ValueError("Unknown look fields")
+        workflow = deck.op("workflow").module
+        order = workflow.validate_order(look.get("order", list(workflow.DEFAULT_ORDER)))
         layer_files = self.model.resolve_layer_files(
             look.get("layer_files", {}), Path(self._p("Showfile")).resolve().parent,
+            selections=look.get("modules", {}).get("layer_composite", {}),
+            enabled=look.get("toggles", {}).get("Layercompositeenabled", False),
         )
         for name in self.model.TOGGLES:
             deck.par[name] = False
@@ -259,6 +266,7 @@ class ShowControlExt:
                 module.par.Autotime = False
                 module.par.Manualtime = 0
         deck.op("fx_rack").Reset()
+        workflow.apply_order(deck, order)
 
     def _media_path(self, cue):
         raw = cue["source"]
@@ -291,7 +299,7 @@ class ShowControlExt:
         source.par.resolutionw.expr = "parent().par.Customwidth"
         source.par.resolutionh.expr = "parent().par.Customheight"
         deck.op("test_pattern").outputConnectors[0].connect(source.inputConnectors[0])
-        source.outputConnectors[0].connect(deck.op("layer_composite").inputConnectors[0])
+        deck.op("workflow").module.apply_order(deck, deck.op("workflow").module.current(deck))
         source.outputConnectors[0].connect(deck.op("fixture_image_b").inputConnectors[0])
         return deck
 
@@ -367,7 +375,7 @@ class ShowControlExt:
         layer = deck.op("layer_composite")
         if layer.par.Enabled.eval():
             for field, node_name in (("Backdropfile", "backdrop_file"), ("Topfile", "top_file")):
-                if layer.par[field].eval():
+                if layer.op("media_status").module.uses_file(layer, node_name.removesuffix("_file")):
                     layer.op(node_name).preload()
         deck.op("out1_image").cook(force=True)
         self.ownerComp.op("track{}_source{}".format(track, side)).par.top = deck.op("out1_image").path
@@ -411,7 +419,7 @@ class ShowControlExt:
         if deck is not None and deck.op("layer_composite").par.Enabled.eval():
             layer = deck.op("layer_composite")
             for field, node_name in (("Backdropfile", "backdrop_file"), ("Topfile", "top_file")):
-                if not layer.par[field].eval():
+                if not layer.op("media_status").module.uses_file(layer, node_name.removesuffix("_file")):
                     continue
                 image = layer.op(node_name)
                 image.cook(force=True)
@@ -645,7 +653,11 @@ class ShowControlExt:
                 if cue["kind"] in {"visual", "audio"}:
                     self.model.resolve_layer_files(
                         cue["look"].get("layer_files", {}), Path(self._p("Showfile")).resolve().parent,
+                        selections=cue["look"].get("modules", {}).get("layer_composite", {}),
+                        enabled=cue["look"].get("toggles", {}).get("Layercompositeenabled", False),
                     )
+                    workflow = self.ownerComp.op("deck_template/workflow").module
+                    workflow.validate_order(cue["look"].get("order", list(workflow.DEFAULT_ORDER)))
                     path = self._media_path(cue)
                     if cue["kind"] == "audio" and not path:
                         raise ValueError("Audio cue needs a media file")

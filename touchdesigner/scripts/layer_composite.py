@@ -6,10 +6,15 @@ def control(name, label, page, default, minimum, maximum, **extra):
                 min=minimum, max=maximum, **extra)
 
 
+SOURCE_NAMES = ["auto", "effects", "second", "file", "transparent"]
+SOURCE_LABELS = ["Auto (File / Input)", "Effects Result (Input 1)", "Second TOP Input", "Image / Video File", "Transparent"]
+
 PARAMETERS = (
     dict(name="Enabled", label="Module Enabled", page="Images", type="toggle", default=True),
-    dict(name="Backdropfile", label="Backdrop Image / Video (blank = Input 1)", page="Images", type="file", default="", animatable=False),
-    dict(name="Topfile", label="Top Image / Video (blank = Input 2)", page="Images", type="file", default="", animatable=False),
+    dict(name="Backdropsource", label="Backdrop Source", page="Images", type="menu", default="auto", menu_names=SOURCE_NAMES, menu_labels=SOURCE_LABELS),
+    dict(name="Backdropfile", label="Backdrop Image / Video File", page="Images", type="file", default="", animatable=False),
+    dict(name="Topsource", label="Top Source", page="Images", type="menu", default="auto", menu_names=SOURCE_NAMES, menu_labels=SOURCE_LABELS),
+    dict(name="Topfile", label="Top Image / Video File", page="Images", type="file", default="", animatable=False),
     dict(name="Routingstatus", label="Output Status", page="Images", type="string", default="", read_only=True, animatable=False),
     dict(name="Backdropstatus", label="Backdrop Status", page="Images", type="string", default="", read_only=True, animatable=False),
     dict(name="Topstatus", label="Top Status", page="Images", type="string", default="", read_only=True, animatable=False),
@@ -57,11 +62,29 @@ for _prefix, _label in (("Backdrop", "Backdrop"), ("Top", "Top")):
 
 
 STATUS = r'''
+def source_index(selection, has_file, input_count, port):
+    if selection == 'auto':
+        return 2 if has_file else (1 if input_count > port else 0)
+    if selection == 'file': return 2 if has_file else 0
+    if selection == 'effects': return 3 if input_count > 0 else 0
+    if selection == 'second': return 4 if input_count > 1 else 0
+    return 0
+
+def selected(component, prefix):
+    field = prefix.capitalize()
+    return source_index(component.par[field+'source'].eval(),
+                        bool(component.par[field+'file'].eval().strip()),
+                        len(component.inputs), 0 if prefix == 'backdrop' else 1)
+
+def uses_file(component, prefix):
+    return selected(component, prefix) == 2
+
 def status(component, prefix):
-    field = prefix.capitalize() + 'file'
-    if not component.par[field].eval().strip():
-        port = 0 if prefix == 'backdrop' else 1
-        return 'Using TOP input {}'.format(port+1) if len(component.inputs)>port else 'No file / transparent'
+    index = selected(component, prefix)
+    if index == 0: return 'Transparent (no selected source)'
+    if index != 2:
+        port = (0 if prefix == 'backdrop' else 1) if index == 1 else index-3
+        return 'Using effects result / TOP input 1' if port == 0 else 'Using TOP input 2'
     reader = component.op(prefix + '_file')
     if reader.isInvalid:
         return 'ERROR: file missing or unsupported (check path / codec)'
@@ -75,8 +98,8 @@ def onValueChange(par, prev):
     component = par.owner
     for prefix in ('Backdrop', 'Top'):
         reader = component.op(prefix.lower() + '_file')
-        if par.name == prefix+'file':
-            if par.eval().strip():
+        if par.name in (prefix+'file', prefix+'source'):
+            if component.op('media_status').module.uses_file(component, prefix.lower()):
                 reader.preload()
                 reader.par.cuepulse.pulse()
         elif par.name == prefix+'in' and component.par.Autotime:

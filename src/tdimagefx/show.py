@@ -16,12 +16,12 @@ MAX_SHOW_BYTES = 8 * 1024 * 1024
 MODULES = (
     "reference_particle_field", "calligraphic_shadow", "ink_orbit_canvas",
     "ink_flow", "particle_random_move", "glitch_fusion", "color_adjustment",
-    "motion_studio", "ink_dream_flow", "ink_brush_flow", "ink_radial_flow", "layer_composite",
+    "motion_studio", "ink_dream_flow", "ink_brush_flow", "ink_radial_flow", "layer_composite", "final_crop",
 )
 TOGGLES = (
     "Referenceparticlefieldenabled", "Calligraphicshadowenabled", "Inkorbitenabled",
     "Inkflowenabled", "Particlesenabled", "Glitchenabled", "Coloradjustmentenabled",
-    "Motionenabled", "Applyvideofx", "Inkdreamenabled", "Inkbrushenabled", "Inkradialenabled", "Layercompositeenabled",
+    "Motionenabled", "Applyvideofx", "Inkdreamenabled", "Inkbrushenabled", "Inkradialenabled", "Layercompositeenabled", "Finalcropenabled",
 )
 MODULE_TOGGLES = {
     "reference_particle_field": "Referenceparticlefieldenabled",
@@ -36,15 +36,17 @@ MODULE_TOGGLES = {
     "ink_brush_flow": "Inkbrushenabled",
     "ink_radial_flow": "Inkradialenabled",
     "layer_composite": "Layercompositeenabled",
+    "final_crop": "Finalcropenabled",
 }
 
 
-def resolve_layer_files(values, base_dir):
+def resolve_layer_files(values, base_dir, *, selections=None, enabled=True):
     """Whitelist the two passive media paths in a captured layer look."""
     names = ("Backdropfile", "Topfile")
     if not isinstance(values, dict) or set(values) - set(names):
         raise ValueError("Unknown Layer Composite media fields")
     result = {}
+    selections = selections or {}
     for name in names:
         raw = values.get(name, "")
         if not isinstance(raw, str) or len(raw) > 4096 or "://" in raw or "\x00" in raw:
@@ -55,7 +57,10 @@ def resolve_layer_files(values, base_dir):
         path = Path(raw)
         if not path.is_absolute():
             path = Path(base_dir) / path
-        if not path.is_file():
+        selection = selections.get(name.replace("file", "source"), "auto")
+        if selection not in {"auto", "file", "effects", "second", "transparent"}:
+            raise ValueError("Invalid layer source selection")
+        if enabled and selection in {"auto", "file"} and not path.is_file():
             raise ValueError("Missing layer media: " + path.name)
         result[name] = str(path.resolve())
     return result

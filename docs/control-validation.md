@@ -1,29 +1,54 @@
-# Control validation — 2026-10-02
+# Control validation — 2026-10-04
 
 The saved canonical `TD_ImageFX_Library.toe` was reopened in TouchDesigner
-2025.32820 on Windows (embedded Python 3.11.10). All 16 live validators passed.
+2025.32820 on Windows (embedded Python 3.11.10). All 18 live validators passed.
 The checks exercised native parameter values, ranges, expressions, callbacks,
 rendered pixels, cue behavior and real media frames. They did not manually drag
 every GUI slider or qualify every possible combination of values.
 
 | Area | Result |
 | --- | --- |
-| Full live suite | 16 validators passed; no failed checks |
+| Full live suite | 18 validators passed after reopening the saved TOE; no failed checks |
 | Rack, library, browser and updater | 45 pulse handlers and 42 rack value controls passed |
 | Actual deferred rack events | 39 checks passed across all eight effect menus, both tested mix values, per-slot bypass, global bypass/enable and preset export |
 | Effect packages | All 96 current effects; 511 numeric controls, 116 toggles and 14 reset pulses passed |
 | Ink Dream Flow | 110 writable values; 583 checks passed |
 | Ink Brush Flow | 120 writable values; 631 checks passed |
 | Ink Radial Flow | 130 writable values; 684 checks passed |
-| Layer Composite | 38 writable values, 5 pulse dispatches and 173 checks passed |
-| Show Control | 38 checks passed, including 21 cue-editor values and dispatch wiring for 19 cue/transport/output buttons |
+| Layer Composite | 40 writable values, 5 pulse dispatches and 179 checks passed, including source selection and unused-file unloading |
+| Final Crop | 11 writable values and 46 checks passed: preset/manual crop pixels, range extremes, bypass, fixed-canvas modes and 1080p/4K sizes |
+| Workflow | 78 checks passed across all 14 stages: moves, wiring, retained rack settings, invalid-order rejection and order-dependent pixels |
+| Actual workflow/crop events | 6 checks passed for all 5 order buttons and Reset Crop on real TD frames |
+| Show Control | 40 checks passed, including cue capture/restoration of workflow order and crop, 21 cue-editor values and dispatch wiring for 19 cue/transport/output buttons |
 | Decoded layer images | 4 checks passed for PNG color/alpha, compositing and zero opacity |
 | Layer video playback | 18 checks passed for independent transports, seeking, speed/reverse, pause, loop/end holding, restart/reload, mixed media and missing-file status |
 | Show media playback | 9 checks passed for image/video readiness, advancing frames, pause/resume, embedded stereo audio decoding and layer parameter cues |
-| Portable repository check | 221 tests completed successfully, with 4 expected Windows symlink-permission skips |
-| Native artifacts | Hashes verified for the canonical TOE, 16 core TOXs and 124 immutable package TOXs |
+| Portable repository check | 237 tests completed successfully, with 4 expected Windows symlink-permission skips |
+| Native artifacts | Hashes verified for the canonical TOE, 17 core TOXs and 124 immutable package TOXs |
+
+The startup-default recheck also passed 45 checks after reopening the saved TOE:
+Ink Flow, Apply Video Effects, and all eight rack slots were off; their parameter
+defaults and exported preset state agreed; standalone Ink Flow/FX Rack TOXs also
+loaded disabled. Both the default output and the bypassed rack preserved the
+input pixels. Explicitly loading a cue or preset can still enable its saved effects.
+The particle, glitch, color and motion routing validators now explicitly enable
+rack slots during their effect-comparison checks and restore each slot's value,
+expression and mode afterward; they no longer assume an enabled startup rack.
 
 ## Verification improvements
+
+The full-control follow-up fixes a diagnostic false failure at extreme crop
+values: a valid one-pixel-wide or one-pixel-high TOP is now accepted, while
+zero-sized output still fails. A portable regression covers both cases.
+
+The Workflow/Crop recheck includes portable geometry and ordering tests and two
+native validators.
+The full suite temporarily selects the default module order and bypasses crop
+for legacy neighbor/resolution tests, then restores the user's order and crop
+enable state. Its dedicated workflow validator tests other orders in a copy.
+No test saves the live project, opens an audience output, or auditions audio.
+See [workflow and crop](workflow-and-crop.md) for older-cue migration and the
+difference between crop-sized and fixed-canvas output.
 
 `validate_control_surface.py` now checks that Parameter Execute DATs are active.
 Browser Create must successfully create a component with an output in a temporary

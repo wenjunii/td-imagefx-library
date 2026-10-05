@@ -48,6 +48,7 @@ INK_DREAM_FLOW_TOX = PROJECT_ROOT / "touchdesigner" / "core" / "InkDreamFlow.tox
 INK_BRUSH_FLOW_TOX = PROJECT_ROOT / "touchdesigner" / "core" / "InkBrushFlow.tox"
 INK_RADIAL_FLOW_TOX = PROJECT_ROOT / "touchdesigner" / "core" / "InkRadialFlow.tox"
 LAYER_COMPOSITE_TOX = PROJECT_ROOT / "touchdesigner" / "core" / "LayerComposite.tox"
+FINAL_CROP_TOX = PROJECT_ROOT / "touchdesigner" / "core" / "FinalCrop.tox"
 CALLBACK_ROOT = PROJECT_ROOT / "touchdesigner" / "callbacks"
 MANAGED_NAMES = ("td_imagefx", "imagefx_demo")
 OUTPUT_PRESETS = (
@@ -332,6 +333,9 @@ def install():
             "color adjustment, Motion Studio, and video effects"
         )
         demo_page = demo.appendCustomPage("Demo")
+        demo_page.appendToggle("Finalcropenabled", label="Final Crop Enabled")
+        demo.par.Finalcropenabled.default = False
+        demo.par.Finalcropenabled = False
         demo_page.appendToggle("Layercompositeenabled", label="Layer Composite Enabled")
         demo.par.Layercompositeenabled.default = False
         demo.par.Layercompositeenabled = False
@@ -363,8 +367,8 @@ def install():
         demo.par.Inkorbitenabled.default = False
         demo.par.Inkorbitenabled = False
         demo_page.appendToggle("Inkflowenabled", label="Ink Flow Module Enabled")
-        demo.par.Inkflowenabled.default = True
-        demo.par.Inkflowenabled = True
+        demo.par.Inkflowenabled.default = False
+        demo.par.Inkflowenabled = False
         demo_page.appendToggle("Particlesenabled", label="Random Particles Enabled")
         demo.par.Particlesenabled.default = False
         demo.par.Particlesenabled = False
@@ -384,8 +388,8 @@ def install():
         demo.par.Motionenabled.default = False
         demo.par.Motionenabled = False
         demo_page.appendToggle("Applyvideofx", label="Apply Video Effects")
-        demo.par.Applyvideofx.default = True
-        demo.par.Applyvideofx = True
+        demo.par.Applyvideofx.default = False
+        demo.par.Applyvideofx = False
         output_page = demo.appendCustomPage("Output")
         output_page.appendMenu("Resolutionpreset", label="Resolution Preset")
         demo.par.Resolutionpreset.menuNames = [item[0] for item in OUTPUT_PRESETS]
@@ -458,8 +462,7 @@ def install():
         layer_composite.nodeX, layer_composite.nodeY = -170, -180
         layer_composite.par.Enabled.expr = "parent().par.Layercompositeenabled"
         _repair_effect_shader_paths(layer_composite)
-        source.outputConnectors[0].connect(layer_composite.inputConnectors[0])
-        layer_composite.outputConnectors[0].connect(
+        source.outputConnectors[0].connect(
             reference_particle_field.inputConnectors[0]
         )
 
@@ -613,14 +616,19 @@ def install():
         video_fx_router.nodeX = 2290
         video_fx_router.nodeY = 0
 
+        video_fx_router.outputConnectors[0].connect(layer_composite.inputConnectors[0])
+        final_crop = _load_single_tox(demo, FINAL_CROP_TOX)
+        final_crop.name = "final_crop"
+        final_crop.par.Enabled.expr = "parent().par.Finalcropenabled"
+        _repair_effect_shader_paths(final_crop)
+        layer_composite.outputConnectors[0].connect(final_crop.inputConnectors[0])
+
         output = demo.create(outTOP, "out1_image")
         output.nodeX = 2500
         output.nodeY = 0
-        video_fx_router.outputConnectors[0].connect(output.inputConnectors[0])
+        final_crop.outputConnectors[0].connect(output.inputConnectors[0])
         if output.par["outputresolution"] is not None:
-            output.par.outputresolution = "custom"
-            output.par.resolutionw.expr = _output_resolution_expression("width")
-            output.par.resolutionh.expr = _output_resolution_expression("height")
+            output.par.outputresolution = "useinput"
         output.display = True
         output.render = True
         demo.par.opviewer = output.path
@@ -633,6 +641,7 @@ def install():
         builder = PROJECT_ROOT / "touchdesigner" / "scripts" / "build_project.py"
         context = dict(globals(), __file__=str(builder), __name__="_imagefx_harness_helpers")
         exec(compile(builder.read_text(encoding="utf-8"), str(builder), "exec"), context)
+        context["build_workflow"](demo)
         show_builder = PROJECT_ROOT / "touchdesigner" / "scripts" / "build_show_control.py"
         show_scope = dict(context, __file__=str(show_builder), __name__="_imagefx_harness_show")
         exec(compile(show_builder.read_text(encoding="utf-8"), str(show_builder), "exec"), show_scope)
@@ -650,6 +659,7 @@ def install():
             "ink_brush_flow": ink_brush_flow.path,
             "ink_radial_flow": ink_radial_flow.path,
             "layer_composite": layer_composite.path,
+            "final_crop": final_crop.path,
             "ink_flow": ink_flow.path,
             "particles": particles.path,
             "glitch": glitch.path,

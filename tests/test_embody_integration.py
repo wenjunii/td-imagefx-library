@@ -244,7 +244,7 @@ class EmbodyIntegrationTests(unittest.TestCase):
         self.assertIn('parameter.val = ""', installer)
         self.assertIn('parameter.expr = "me.op(\'../../effects\')"', installer)
         self.assertIn("browser.cook(force=True)", installer)
-        self.assertEqual(installer.count("_repair_effect_shader_paths("), 15)
+        self.assertEqual(installer.count("_repair_effect_shader_paths("), 16)
         self.assertIn("ParticleRandomMove.tox", installer)
         self.assertIn("InkFlowFusion.tox", installer)
         self.assertIn("GlitchFusion.tox", installer)

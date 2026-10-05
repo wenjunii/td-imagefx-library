@@ -1,9 +1,10 @@
 # Layer Composite
 
 Combine a backdrop with a separately graded foreground. Either layer can be an
-image or a video, independently. Both files are optional: blank **Backdrop Image / Video** uses TOP input 1, and blank **Top Image / Video** uses
-TOP input 2. Without a second input or file, the top layer is transparent.
-Local files take priority over connected inputs; clearing a file restores the input.
+image, a video, or the upstream effects result, independently. Each **Source**
+menu offers Auto, Effects Result (Input 1), Second TOP Input, Image / Video File,
+and Transparent. In Auto, a file takes priority; otherwise backdrop uses input 1
+and top uses input 2. Without a second input or file, an Auto top is transparent.
 Media is referenced, not copied into the repository or embedded as media assets.
 
 ## Use it in the project
@@ -17,13 +18,16 @@ Media is referenced, not copied into the repository or embedded as media assets.
 5. Adjust **Top Color**, **Top Placement**, **Flicker** and the two **Playback** pages.
 6. For a plain two-layer composite, disable other demo modules and **Apply Video Effects**.
 
-This module is first in the demo chain, so the existing effects can process the
-combined image. Other enabled modules may intentionally replace or transform it.
+This module now defaults after the effects and rack, before Final Crop. Use the
+demo's **Workflow** page to move it anywhere. **Effects Result** means everything
+before this stage. Set **Top Source = Effects Result** to put your visual effects
+above a backdrop file. Move it first to let later effects process the composite.
+See [workflow and crop](workflow-and-crop.md) for ordering and older-show migration.
 The reusable component is `touchdesigner/core/LayerComposite.tox`.
 
 ## Controls
 
-- **Images:** module enable, two media pickers, independent Stretch / Fit / Fill modes,
+- **Images:** module enable, two source menus and media pickers, independent Stretch / Fit / Fill modes,
   read-only routing/file status and a direct preview button.
 - **Top Color:** opacity (0 = transparent, 1 = full source alpha), RGB tint,
   hue rotation, saturation, contrast, brightness, exposure and color inversion.

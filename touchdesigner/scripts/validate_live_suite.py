@@ -45,6 +45,8 @@ VALIDATORS = (
     ("ink_brush_flow", "validate_ink_brush_flow.py"),
     ("ink_radial_flow", "validate_ink_radial_flow.py"),
     ("layer_composite", "validate_layer_composite.py"),
+    ("final_crop", "validate_final_crop.py"),
+    ("workflow", "validate_workflow.py"),
     ("all_effect_parameters", "validate_all_effect_parameters.py"),
     ("show_control", "validate_show_control.py"),
 )
@@ -94,6 +96,25 @@ def _run_validator(name, filename):
 
 def validate(write_report=True):
     """Run the complete live suite, continue after failures, and summarize it."""
+
+    demo = op("/project1/imagefx_demo")
+    workflow = demo.op("workflow").module if demo is not None and demo.op("workflow") is not None else None
+    if workflow is None:
+        return _validate_default_order(write_report)
+    saved_order = workflow.current(demo)
+    crop = demo.par.Finalcropenabled
+    saved_crop = (crop.val, crop.expr, crop.mode)
+    try:
+        workflow.apply_order(demo, list(workflow.DEFAULT_ORDER))
+        crop.val = False
+        return _validate_default_order(write_report)
+    finally:
+        workflow.apply_order(demo, saved_order)
+        crop.val, crop.expr, crop.mode = saved_crop
+
+
+def _validate_default_order(write_report):
+    """Legacy module tests expect default neighbors; preserve user ordering."""
 
     results = []
     for name, filename in VALIDATORS:

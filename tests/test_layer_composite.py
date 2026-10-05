@@ -64,6 +64,21 @@ class LayerCompositeTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "Missing layer media"):
                 resolve_layer_files({"Backdropfile": "missing.png"}, directory)
 
+    def test_unselected_files_do_not_block_show(self):
+        with tempfile.TemporaryDirectory() as directory:
+            values={"Topfile":"missing.mp4"}
+            self.assertTrue(resolve_layer_files(values,directory,selections={"Topsource":"effects"})["Topfile"].endswith("missing.mp4"))
+            self.assertTrue(resolve_layer_files(values,directory,enabled=False)["Topfile"])
+            with self.assertRaises(ValueError): resolve_layer_files(values,directory,selections={"Topsource":"file"})
+
+    def test_source_routing_exhaustive(self):
+        runtime={}; exec(MODULE["STATUS"],runtime)
+        for port in (0,1):
+            for count in (0,1,2):
+                for has_file in (False,True):
+                    for selection,expected in (("auto",2 if has_file else (1 if count>port else 0)),("file",2 if has_file else 0),("effects",3 if count else 0),("second",4 if count>1 else 0),("transparent",0)):
+                        self.assertEqual(runtime["source_index"](selection,has_file,count,port),expected)
+
     def test_builder_harness_suite_and_record_include_module(self):
         for filename in ("build_project.py", "install_dev_harness.py"):
             source = (ROOT / "touchdesigner/scripts" / filename).read_text(encoding="utf-8")
