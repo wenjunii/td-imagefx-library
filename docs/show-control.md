@@ -43,6 +43,36 @@ Keep a separate backup of both the JSON and its media. Relative media paths are
 resolved against the JSON's directory. Save Show is separate from saving the TOE;
 rebuilding the library resets the built-in demo cue, but not your saved JSON.
 
+### Edit a captured look safely
+
+1. **STOP ALL**, select a Visual cue, then press **Recall Look** (also on the
+   **Look Editor** page). Apply any pending Cue Editor metadata changes first.
+2. Enter `/project1/imagefx_demo/show_control/look_editor`. This temporary
+   workspace has the same module toggles, module parameters, eight-slot rack,
+   Layer Composite files and effect ordering as the captured look. Edit these
+   modules, not the original `imagefx_demo` modules. View `out1_image`, or use the
+   silent **off-air preview** at the bottom of the Show Control panel.
+3. Choose **Update Cue** to replace only that cue's look. Its name, media,
+   timing, track and audio settings are unchanged. Or choose **Save as New Cue**
+   to append a separate copy without modifying the original. The new copy starts
+   **disabled**, with no timestamp and manual next-cue behavior; enable it in
+   Cue Editor and Apply Cue Edits when ready.
+4. **Cancel Changes** discards the temporary draft. The original cue and main
+   design workflow remain untouched. Finish or cancel before selecting another
+   cue, playing/preloading, editing cue details, or loading/saving the show.
+5. **Save Show** after updating/creating a cue to persist it to your local JSON.
+
+Recall previews the cue's saved image/video (including in point, speed and loop)
+at the show's render dimensions, with freely animating effects. It does not
+play audio, start a show clock, or route the draft to audience outputs. It is a
+look preview, not a rehearsal of pre-wait, fade, duration or parameter cues.
+Change the main source and cue timing in Cue Editor after finishing the draft;
+manual rewiring or changes to the draft's internal `media` reader are not saved.
+Layer Composite file controls are captured normally. Drafts are temporary and
+are discarded on TOE reopen/extension reinitialization; **Update/Save New, then
+Save Show** before closing. Recalling an invalid look or missing media leaves
+the stored cue intact. This editor requires a stopped show, not just Pause.
+
 ### Timing
 
 | Control | Meaning |
@@ -91,6 +121,12 @@ parameter automation on its track. Parameter cues must follow the target Visual
 cue; don't rely on simultaneous scheduled entries to establish that dependency.
 
 ## Three projectors / monitors
+
+For **one 4K feed into a 2x2 video-wall processor**, use the dedicated
+`imagefx_demo/wall_output` module instead of Open Audience Canvas. It packs
+projectors 1/2/3 into top-left/top-right/bottom-left and a confidence multiview
+into bottom-right, all at 1920x1080. See [4K wall output](wall-output.md).
+Select its Show Control source mode to retain all cue and output mapping below.
 
 On **Routing**, choose:
 
@@ -161,8 +197,10 @@ audio. See [Audio Device Out CHOP](https://docs.derivative.ca/Audio_Device_Out_C
 `validate_show_control.py` checks cue preparation, rendered mapping controls,
 all routing modes, pause/resume, parameter automation, missing media retention,
 stereo decode/gain/mute, native dimensions, editing and show-file round trips.
-It checks all 21 cue-editor fields, 63 mapping/grade/flip controls, all 19 pulse
-dispatch routes and eight panel-button callbacks. Hardware arm/device/window
+It checks all 21 cue-editor fields, 63 mapping/grade/flip controls, all 23 pulse
+dispatch routes and twelve panel-button callbacks. Recalled-look checks cover
+every captured module/rack/order/layer value, pixel response, update, separate
+copy, cancel, invalid recall, playback guards and persistence. Hardware arm/device/window
 controls receive wiring checks only; no sound or audience window is opened.
 It never opens audience windows, enables audio output or saves the TOE.
 `validate_show_media.py` separately tests image/video decoding, moving frames,
@@ -178,9 +216,18 @@ Load `validate_show_media.py` into a Text DAT inside `show_control`, then call
 that DAT's `module.start()` in the Textport. It schedules its own frame-by-frame
 checks and writes `build/envoy-validation/show-media.json`; do not save this
 temporary QA DAT into your performance TOE. Both validators leave physical
-audio disabled and audience blackout on. The full thirteen-validator synchronous
+audio disabled and audience blackout on. The full nineteen-validator synchronous
 suite includes show-control checks, but asynchronous media QA is a separate run.
-The portable `tests/test_show.py` covers deterministic scheduling and quad math.
+The portable `tests/test_show.py` covers deterministic scheduling and quad math;
+`tests/test_show_look_editor.py` covers draft transaction safety.
+
+`validate_look_editor_media.py` is a separate real-frame test using the same
+generated PNG/MP4 fixtures. Load it into a temporary Text DAT and call
+`module.start()`. It checks all four actual look-edit pulse events, decoded
+image/video previews, advancing frames, loop/speed/in-point bindings, silent
+isolation, missing-media rejection, cancellation and safe restart. It writes
+`build/envoy-validation/look-editor-media.json` and removes its disposable show
+copy. Run it only after stopping the show and finishing any live look draft.
 
 This version is three outputs, planar corner mapping and one stereo bus. It does
 not implement QLab workspace compatibility, groups, OSC/MIDI/timecode input,

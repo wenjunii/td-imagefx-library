@@ -96,7 +96,7 @@ def build_show_control(demo, context):
     for name, label in (
         ("Gocue", "GO"), ("Pause", "Pause All"), ("Resume", "Resume All"), ("Stopcue", "Stop Selected Cue"),
         ("Stopall", "STOP ALL"), ("Preload", "Preload Selected"), ("Preflight", "Check Media Files"),
-        ("Saveshow", "Save Show"), ("Loadshow", "Load Show"), ("Selectcue", "Load Selected Into Editor"),
+        ("Saveshow", "Save Show"), ("Loadshow", "Load Show"), ("Selectcue", "Load Selected Cue Details"),
         ("Openoutputs", "Open Audience Canvas"), ("Closeoutputs", "Close Audience Canvas"),
     ):
         parameter("Transport", name, "pulse", label=label)
@@ -129,6 +129,12 @@ def build_show_control(demo, context):
     parameter("Cue Editor", "Notes", "string", "")
     for name, label in (("Applycue","Apply Cue Edits"),("Capturelook","Capture Demo Effects Into Cue"),("Addcue","Add Cue"),("Duplicatecue","Duplicate Cue"),("Removecue","Remove Cue"),("Cueup","Move Cue Up"),("Cuedown","Move Cue Down")):
         parameter("Cue Editor", name, "pulse", label=label)
+
+    for name, label in (("Recalllook", "Recall Look (Off-Air)"), ("Updatelook", "Update Cue Look"),
+                        ("Savelookasnew", "Save as New Cue"), ("Cancellook", "Cancel Changes")):
+        parameter("Look Editor", name, "pulse", label=label)
+    parameter("Look Editor", "Lookediting", "toggle", False, read_only=True, label="Look Draft Active")
+    parameter("Look Editor", "Lookstatus", "string", "No look draft", read_only=True, label="Look Editor Status")
 
     menu("Routing", "Routingmode", ["identical", "panoramic", "independent"], "identical", label="Three-Output Content Mapping")
     parameter("Routing", "Renderwidth", "int", 1920, 320, 3840, label="Render Width Per Panel")
@@ -262,6 +268,7 @@ def build_show_control(demo, context):
     data.text = json.dumps({"kind": SHOW_KIND, "schema_version": 1, "cues": [sample], "mapping": {}}, indent=2)
     node("tableDAT", "cue_list")
     node("textDAT", "cue_text")
+    node("selectTOP", "look_preview").par.top = "black"
 
     def ui_node(kind, name, x, y, w, h):
         item = node(kind, name)
@@ -273,8 +280,11 @@ def build_show_control(demo, context):
     status = ui_node("textCOMP", "status_display", 20, 794, 1380, 36)
     status.par.text.expr = "parent().par.Transport.eval().upper() + '   ' + format(parent().par.Showtime.eval(), '.2f') + ' s     ' + parent().par.Status.eval()"
     button_actions = (("Gocue","GO"),("Pause","Pause"),("Resume","Resume"),("Stopall","STOP ALL"),("Preload","Preload"),("Addcue","Add cue"),("Applycue","Apply edits"),("Capturelook","Capture look"))
-    for index, (action, label) in enumerate(button_actions):
-        button = ui_node("buttonCOMP", "button_" + action.lower(), 20 + index * 112, 730, 106, 50)
+    look_actions = (("Recalllook", "Recall Look"), ("Updatelook", "Update Cue"),
+                    ("Savelookasnew", "Save as New Cue"), ("Cancellook", "Cancel Changes"))
+    for index, (action, label) in enumerate(button_actions + look_actions):
+        x, y, width = (20 + index * 112, 730, 106) if index < 8 else (20 + (index - 8) * 224, 178, 216)
+        button = ui_node("buttonCOMP", "button_" + action.lower(), x, y, width, 44)
         button.par.label = label
         button.par.fontsize = 16
         button.store("show_action", action)
@@ -295,14 +305,24 @@ def build_show_control(demo, context):
         callback.text = "def onOffToOn(panelValue):\n    parent().parent().SelectRow(parent().fetch('cue_row'))\n    return\n"
     inspector = ui_node("parameterCOMP", "cue_inspector", 920, 20, 500, 750)
     inspector.par.op = ".."
-    inspector.par.pagescope = "Transport 'Cue Editor' Routing 'Output 1' 'Output 2' 'Output 3'"
+    inspector.par.pagescope = "Transport 'Cue Editor' 'Look Editor' Routing 'Output 1' 'Output 2' 'Output 3'"
     inspector.par.pagenames = True
-    help_text = ui_node("textCOMP", "help", 20, 20, 880, 140)
+    preview = ui_node("containerCOMP", "look_preview_panel", 644, 20, 256, 144)
+    preview.par.top = "look_preview"
+    help_text = ui_node("textCOMP", "help", 20, 132, 604, 32)
     help_text.par.fontsize = 16
     help_text.par.wordwrap = True
     help_text.par.alignx = "left"
     help_text.par.aligny = "top"
-    help_text.par.text = "Select cue > edit > Apply edits > Capture look > Preload > GO. Guide: docs/show-control.md"
+    help_text.par.text.expr = "'OFF-AIR LOOK PREVIEW (silent) | ' + ('DRAFT ACTIVE' if parent().par.Lookediting else 'No draft')"
+    for index, line in enumerate(("Recall Look > enter show_control/look_editor",
+                                  "Edit its modules > Update / Save New / Cancel",
+                                  "Save Show writes committed cues to disk.",
+                                  "Guide: docs/show-control.md")):
+        hint = ui_node("textCOMP", "look_help_{}".format(index), 20, 104 - index * 28, 604, 28)
+        hint.par.fontsize = 16
+        hint.par.alignx = "left"
+        hint.par.text = line
 
     context["configure_extension"](show, "ShowControlExt", context["PROJECT_ROOT"] / "touchdesigner" / "extensions" / "ShowControlExt.py")
     callbacks = node("parameterexecuteDAT", "show_parameters")
@@ -316,4 +336,9 @@ def build_show_control(demo, context):
     tick.text = "def onFrameEnd(frame):\n    parent().Tick()\n    return\n"
     show.op("deck_template").allowCooking = False
     show.UpdateMapping()
+    # Build AFTER the snapshot so cue decks never include physical output windows.
+    wall_path = context["PROJECT_ROOT"] / "touchdesigner/scripts/wall_output.py"
+    wall_scope = dict(context, __file__=str(wall_path), __name__="_imagefx_wall_builder")
+    exec(compile(wall_path.read_text(encoding="utf-8"), str(wall_path), "exec"), wall_scope)
+    wall_scope["build_wall_output"](demo, context)
     return show

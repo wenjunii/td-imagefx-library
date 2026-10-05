@@ -27,6 +27,10 @@ class ShowControlExt:
         self._mapping_key = None
         self._ui_time = 0.0
         self._busy = False
+        self._look_edit = None
+        ownerComp.par.Lookediting = False
+        ownerComp.par.Lookstatus = "No look draft; select a visual cue and Recall Look"
+        ownerComp.op("look_preview").par.top = "black"
         # A user may save a working TOE during rehearsal. Never resurrect its
         # dynamic media readers/voices when reopening or reinitializing it.
         ownerComp.par.Audioenabled = False
@@ -55,16 +59,24 @@ class ShowControlExt:
     def _status(self, message):
         self.ownerComp.par.Status = str(message)[:500]
 
-    def _guard_edit(self):
+    def _guard_no_look_edit(self):
+        if self._look_edit is not None:
+            raise ValueError("Update Cue, Save as New Cue, or Cancel Changes before continuing")
+
+    def _guard_edit(self, allow_look_edit=False):
         if self.engine.state != "stopped":
             raise ValueError("Stop All before editing/loading the show")
+        if not allow_look_edit:
+            self._guard_no_look_edit()
 
     def _save_document_dat(self):
         self.ownerComp.op("show_data").text = json.dumps(self.document, indent=2, allow_nan=False)
 
-    def _replace_cues(self, cues):
-        self._guard_edit()
+    def _replace_cues(self, cues, allow_look_edit=False):
+        self._guard_edit(allow_look_edit=allow_look_edit)
         document = self.model.validate_show(dict(self.document, cues=cues))
+        if len(json.dumps(document, ensure_ascii=False, allow_nan=False).encode("utf-8")) > self.model.MAX_SHOW_BYTES:
+            raise ValueError("Show exceeds 8 MiB")
         self.stop_all()
         self.document = document
         self.engine = self.model.CueEngine(document["cues"], self)
@@ -76,6 +88,12 @@ class ShowControlExt:
         if not self.document["cues"]:
             return
         index = max(1, min(index, len(self.document["cues"])))
+        if self._look_edit is not None:
+            target = self._look_index()
+            if index != target + 1:
+                self.ownerComp.par.Selectedcue = target + 1
+                self._status("Finish or cancel the current look draft before selecting another cue")
+                return
         self.ownerComp.par.Selectedcue = index
         cue = self.document["cues"][index - 1]
         names = {
@@ -175,7 +193,15 @@ class ShowControlExt:
         index = int(self._p("Selectedcue")) - 1
         if not 0 <= index < len(self.document["cues"]):
             raise ValueError("Select a cue first")
-        demo = self.ownerComp.parent()
+        look = self._capture_look(self.ownerComp.parent())
+        cues = copy.deepcopy(self.document["cues"])
+        cues[index]["look"] = look
+        self._replace_cues(cues)
+        self.SelectCue(index + 1)
+        self._status("Captured the demo modules and eight-slot rack into this cue")
+
+    def _capture_look(self, demo):
+        """Capture either the main designer or the isolated recalled-look deck."""
         look = {"toggles": {name: bool(demo.par[name]) for name in self.model.TOGGLES}, "modules": {}}
         for name in self.model.MODULES:
             module = demo.op(name)
@@ -192,11 +218,99 @@ class ShowControlExt:
             selections=look["modules"]["layer_composite"],
             enabled=look["toggles"]["Layercompositeenabled"],
         )
+        return look
+
+    def RecallLook(self):
+        """Build a private editable preview; never replace the main demo or a cue."""
+        self._guard_edit()
+        index = int(self._p("Selectedcue")) - 1
+        if not 0 <= index < len(self.document["cues"]):
+            raise ValueError("Select a cue first")
+        cue = copy.deepcopy(self.document["cues"][index])
+        if cue["kind"] != "visual":
+            raise ValueError("Recall Look needs a Visual cue")
+        path = self._media_path(cue)
+        if self.ownerComp.op("look_editor") is not None:
+            raise ValueError("A look_editor component already exists; it will not be overwritten")
+        deck = None
+        try:
+            deck = self._new_deck("look_editor")
+            self._apply_look(deck, cue["look"])
+            self._set_deck_resolution(deck)
+            movie = self._load_deck_media(deck, cue, path)
+            for name in (*self.model.MODULES, "fx_rack"):
+                module = deck.op(name)
+                if getattr(module.par, "Autotime", None) is not None:
+                    module.par.Autotime = True
+            if movie is not None:
+                movie.par.play = True
+            deck.allowCooking = True
+            self._look_edit = {"cue": cue, "deck": deck}
+            self.ownerComp.op("look_preview").par.top = deck.op("out1_image").path
+            self.ownerComp.par.Lookediting = True
+            self.ownerComp.par.Lookstatus = "Editing: {} | {}".format(cue["name"], deck.path)
+            self._status("Off-air draft ready. Edit modules inside show_control/look_editor; then Update, Save New, or Cancel")
+        except Exception:
+            self._look_edit = None
+            self.ownerComp.op("look_preview").par.top = "black"
+            self.ownerComp.par.Lookediting = False
+            if deck is not None:
+                deck.destroy()
+            raise
+
+    def _look_index(self):
+        if self._look_edit is None:
+            raise ValueError("Recall Look before editing a captured look")
+        original = self._look_edit["cue"]
+        for index, cue in enumerate(self.document["cues"]):
+            if cue["id"] == original["id"]:
+                if cue != original:
+                    raise ValueError("Original cue changed outside this editor; cancel and recall it again")
+                return index
+        raise ValueError("Original cue no longer exists; cancel this draft")
+
+    def _finish_look_edit(self):
+        self.ownerComp.op("look_preview").par.top = "black"
+        if self._look_edit is not None:
+            self._look_edit["deck"].destroy()
+        self._look_edit = None
+        self.ownerComp.par.Lookediting = False
+        self.ownerComp.par.Lookstatus = "No look draft; select a visual cue and Recall Look"
+
+    def _commit_look(self, as_new=False):
+        self._guard_edit(allow_look_edit=True)
+        index = self._look_index()
+        look = self._capture_look(self._look_edit["deck"])
         cues = copy.deepcopy(self.document["cues"])
-        cues[index]["look"] = look
-        self._replace_cues(cues)
-        self.SelectCue(index + 1)
-        self._status("Captured the demo modules and eight-slot rack into this cue")
+        if as_new:
+            cue = copy.deepcopy(cues[index])
+            cue.update(id=self.model.new_cue()["id"], name=cue["name"][:153] + " edited",
+                       at=None, follow="manual", enabled=False, look=look)
+            cues.append(cue)
+            selected = len(cues)
+        else:
+            cues[index]["look"] = look
+            selected = index + 1
+        # Failed capture/validation leaves the draft open and the original intact.
+        self._replace_cues(cues, allow_look_edit=True)
+        self._finish_look_edit()
+        self.SelectCue(selected)
+        self._status(("New cue created disabled; enable it in Cue Editor. " if as_new else
+                      "Cue look updated; media and timing unchanged. ") + "Save Show writes it to disk")
+
+    def UpdateLook(self):
+        self._commit_look()
+
+    def SaveLookAsNew(self):
+        self._commit_look(as_new=True)
+
+    def CancelLook(self):
+        self._guard_edit(allow_look_edit=True)
+        if self._look_edit is None:
+            raise ValueError("No look draft to cancel")
+        self._finish_look_edit()
+        self.SelectCue()
+        self._status("Look changes discarded; saved cues and the main demo are unchanged")
 
     @staticmethod
     def _safe_parameter(parameter):
@@ -286,10 +400,15 @@ class ShowControlExt:
         deck = self.ownerComp.op(name)
         if deck is not None:
             return deck
-        deck = self.ownerComp.copy(self.ownerComp.op("deck_template"), name=name)
-        deck.store("imagefx_show_runtime", True)
+        deck = self._new_deck(name)
         deck.nodeX = 300 + track * 220
         deck.nodeY = -500 - side * 140
+        return deck
+
+    def _new_deck(self, name):
+        deck = self.ownerComp.copy(self.ownerComp.op("deck_template"), name=name)
+        deck.store("imagefx_show_runtime", True)
+        deck.nodeX, deck.nodeY = 1100, -500
         deck.allowCooking = True
         deck.op("fx_rack").initializeExtensions()
         deck.allowCooking = False
@@ -304,6 +423,7 @@ class ShowControlExt:
         return deck
 
     def prepare(self, cue):
+        self._guard_no_look_edit()
         if cue["id"] in self.engine.active or any(
             item["cue"]["id"] == cue["id"] for item in self.tracks.values()
         ):
@@ -351,26 +471,8 @@ class ShowControlExt:
         deck.allowCooking = False
         self.prepared[cue["id"]] = {"cue": cue, "deck": deck, "movie": None, "track": track, "side": side}
         self._apply_look(deck, cue["look"])
-        deck.par.Resolutionpreset = "custom"
-        deck.par.Customwidth.max = 16384
-        deck.par.Customwidth.normMax = 16384
-        deck.par.Customwidth = int(self._p("Renderwidth") * ((3-2*self._p("Panoramaoverlap")) if self._p("Routingmode") == "panoramic" else 1))
-        deck.par.Customheight = int(self._p("Renderheight"))
-        movie = deck.op("media")
-        if movie is None and path:
-            movie = deck.create(moviefileinTOP, "media")
-            movie.outputConnectors[0].connect(deck.op("source_image").inputConnectors[1])
-        deck.op("source_image").par.index = int(bool(path))
-        if movie is not None:
-            movie.par.play = False
-            if path:
-                movie.par.file = path
-                movie.par.speed = cue["speed"]
-                movie.par.textendright = "cycle" if cue["loop"] else "hold"
-                movie.par.cuepoint = cue["media_in"]
-                movie.par.cuepointunit = "seconds"
-                movie.par.cuepulse.pulse()
-                movie.preload()
+        self._set_deck_resolution(deck)
+        movie = self._load_deck_media(deck, cue, path)
         deck.allowCooking = True
         layer = deck.op("layer_composite")
         if layer.par.Enabled.eval():
@@ -390,6 +492,31 @@ class ShowControlExt:
             reader.par.moviefileintop = movie.path
             reader.par.play = False
             self._connect_audio(item)
+
+    def _set_deck_resolution(self, deck):
+        deck.par.Resolutionpreset = "custom"
+        deck.par.Customwidth.max = 16384
+        deck.par.Customwidth.normMax = 16384
+        deck.par.Customwidth = int(self._p("Renderwidth") * ((3-2*self._p("Panoramaoverlap")) if self._p("Routingmode") == "panoramic" else 1))
+        deck.par.Customheight = int(self._p("Renderheight"))
+
+    def _load_deck_media(self, deck, cue, path):
+        movie = deck.op("media")
+        if movie is None and path:
+            movie = deck.create(moviefileinTOP, "media")
+            movie.outputConnectors[0].connect(deck.op("source_image").inputConnectors[1])
+        deck.op("source_image").par.index = int(bool(path))
+        if movie is not None:
+            movie.par.play = False
+            if path:
+                movie.par.file = path
+                movie.par.speed = cue["speed"]
+                movie.par.textendright = "cycle" if cue["loop"] else "hold"
+                movie.par.cuepoint = cue["media_in"]
+                movie.par.cuepointunit = "seconds"
+                movie.par.cuepulse.pulse()
+                movie.preload()
+        return movie if path else None
 
     def _connect_audio(self, item):
         # Normalize mono/stereo sources before summing. Additional channels are
@@ -618,6 +745,7 @@ class ShowControlExt:
             item["reader"].par.play = not paused and item["started"] is not None
 
     def Go(self):
+        self._guard_no_look_edit()
         queued = self.engine.go(int(self._p("Selectedcue")) - 1)
         self.SelectCue(min(len(self.document["cues"]), self.engine.selected + 1))
         self._status("GO queued; waiting for pre-wait and media readiness" if queued else "No cue queued (disabled or end of list)")
@@ -628,6 +756,7 @@ class ShowControlExt:
         self.Refresh()
 
     def Resume(self):
+        self._guard_no_look_edit()
         self.engine.resume()
         self.Refresh()
 
@@ -808,6 +937,8 @@ class ShowControlExt:
                 "Addcue": self.AddCue, "Duplicatecue": self.DuplicateCue,
                 "Removecue": self.RemoveCue, "Applycue": self.ApplyCue,
                 "Capturelook": self.CaptureLook, "Saveshow": self.SaveShow,
+                "Recalllook": self.RecallLook, "Updatelook": self.UpdateLook,
+                "Savelookasnew": self.SaveLookAsNew, "Cancellook": self.CancelLook,
                 "Loadshow": self.LoadShow, "Preflight": self.Preflight,
                 "Openoutputs": self.Openoutputs, "Closeoutputs": self.Closeoutputs,
                 "Cueup": lambda: self.MoveCue(-1), "Cuedown": lambda: self.MoveCue(1),

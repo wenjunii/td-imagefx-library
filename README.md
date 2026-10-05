@@ -17,6 +17,13 @@ Three configurable 1080p–4K outputs support identical, panoramic or independen
 content, corner pinning, crop, rotation, gamma/brightness and edge fades.
 Audio and audience outputs start disarmed. Show JSON and media stay local.
 
+For a 2x2 video-wall processor, use `imagefx_demo/wall_output`. It packs a
+3840x2160 stream as P1 left / P2 center / P3 right / confidence monitor in
+top-left / top-right / bottom-left / bottom-right order. Each quadrant is exactly
+1920x1080. The confidence quadrant contains three 16:9 previews, FPS, frame time,
+GPU memory and cue status. See the [4K wall-output guide](docs/wall-output.md).
+The processor display must be explicitly selected; no wall window opens on load.
+
 Open `TD_ImageFX_Library.toe`, enter `imagefx_demo`, then right-click
 `show_control` → **View**. Follow the [show-control guide](docs/show-control.md)
 for cue creation, display layout, audio and rehearsal testing. This is an initial
@@ -24,13 +31,28 @@ native TouchDesigner workstation, not QLab or a show-readiness certification;
 physical output capability and sustained multi-display/audio performance still
 need rehearsal on the actual hardware.
 
+Captured looks are editable: **Recall Look → edit `show_control/look_editor` →
+Update Cue / Save as New Cue / Cancel Changes**. The silent preview is separate
+from the main workflow and audience outputs. Save Show persists committed edits;
+new copies start disabled to avoid accidental triggers.
+
 The show-control audit covers all 21 editor fields, 63 mapping/grade/flip
-controls, 19 pulse dispatch routes and eight panel buttons. Regression checks
+controls, 23 pulse dispatch routes and twelve panel buttons. Regression checks
 protect fade-from-black, running-cue preload, stop/follow cancellation and invalid
 mapping saves. Hardware arm/device/window controls are wiring-tested only; the
 automated suite deliberately does not open audience output or play audible sound.
 
+The **2026-10-05 complete control audit** passed all 19 native validators,
+7 real-frame groups (91 checks), and 263 portable tests (4 expected Windows
+symlink skips). This includes the 4K wall packer and off-air look editor.
+See the [validation record](docs/control-validation.md) for coverage and hardware
+limits, and the repeatable audit commands below.
+
 ## Effect catalog
+
+The rejected 2.5D dance-puppet experiment is not integrated into the production
+TOE or effect counts. Its prototype, artwork, motion models and preview media
+remain local and are not included in this repository update.
 
 Package manifests under `packages/` are authoritative for versions, inputs, parameters, processing requirements, image behavior, provenance, assets, licenses, and compatibility. Discovery surfaces select the highest SemVer for each effect ID. Exact historical versions remain addressable for project locks and reproducible shows.
 
@@ -127,7 +149,7 @@ git clone https://github.com/wenjunii/td-imagefx-library.git
 cd td-imagefx-library
 ```
 
-The current source and generated artifacts are synchronized. The recorded Windows build used TouchDesigner `2025.32820` and validated all 96 current effects with 124 versioned effect `.tox` files, seventeen core `.tox` files, one library `.toe`, 96 previews, 96 visual baselines, and 96 benchmark samples. The build report contains zero shader, preview, or builder errors. A fresh repository run completed 237 tests successfully, with four expected Windows symlink-permission skips. Read [TouchDesigner setup](docs/touchdesigner-setup.md) to reproduce the native build.
+The current source and generated artifacts are synchronized. The recorded Windows build used TouchDesigner `2025.32820` and validated all 96 current effects with 124 versioned effect `.tox` files, seventeen core `.tox` files, one library `.toe`, 96 previews, 96 visual baselines, and 96 benchmark samples. The build report contains zero shader, preview, or builder errors. A fresh repository run completed 263 tests successfully, with four expected Windows symlink-permission skips. Read [TouchDesigner setup](docs/touchdesigner-setup.md) to reproduce the native build.
 
 The generated project targets TouchDesigner 2025. Validate the exact TouchDesigner build, operating system, GPU, driver, resolution, pixel format, and color pipeline used by your production system. Python 3.11 or newer is required for repository tooling; it is not required merely to use already-built native components.
 
@@ -586,7 +608,7 @@ exec(compile(open(script, encoding="utf-8").read(), script, "exec"), scope)
 
 Copying `globals()` is required because rendered-pixel QA uses
 TouchDesigner-provided objects including `op`, `app`, `root`, `textDAT`, and
-`glslTOP`. The runner executes all eighteen tracked validators, continues long
+`glslTOP`. The runner executes all nineteen tracked validators, continues long
 enough to report every failure, writes the ignored
 `build/envoy-validation/live-suite.json` summary plus each validator's normal
 report, and never saves the project. Each successful dispatch records the validator
@@ -609,11 +631,41 @@ exercises all 14 effect-level **Reset** pulse buttons. Together with the
 rendered-pixel module and all-effect sweeps, this covers every writable slider,
 toggle, menu, and pulse control generated by the library.
 
+After that blocking suite, run the consolidated **real-frame audit**. It runs
+seven additional groups in sequence: native rack events, workflow/crop events,
+wall buttons, decoded layer images, layer video transports, show playback and
+the off-air Look Editor. Stop All, finish/cancel any look draft, enable both
+blackouts and keep audio disarmed. Do not edit or save the TOE while it runs.
+
+The blocking suite generates its PNG fixtures. For the video checks, generate
+a local three-second, 30-fps test movie with stereo audio once (requires FFmpeg
+on your PATH; run in a normal terminal from the repository root):
+
+```console
+ffmpeg -n -f lavfi -i testsrc2=size=320x180:rate=30 -f lavfi -i sine=frequency=440:sample_rate=48000 -t 3 -c:v libx264 -pix_fmt yuv420p -c:a aac -ac 2 build/envoy-validation/show-av-fixture.mp4
+```
+
+Then run in the TouchDesigner Textport:
+
+```python
+script = r"C:/absolute/path/to/td-imagefx-library/touchdesigner/scripts/validate_deferred_controls.py"
+scope = dict(globals(), __file__=script, __name__="__main__")
+exec(compile(open(script, encoding="utf-8").read(), script, "exec"), scope)
+```
+
+It returns immediately. Wait for **`[deferred-controls] PASS`** and inspect
+`build/envoy-validation/deferred-controls.json`. It rejects stale report files,
+records validator source hashes, and stops if any check or state restoration
+fails. It uses only generated fixtures; no private media is needed or uploaded.
+Missing fixtures fail before changes begin. A timeout is not a pass: reopen the
+disposable session without saving before another run. The commands below remain
+available for diagnosing individual event checks.
+
 For an additional check of actual event delivery, run this separately after
 the blocking suite has finished:
 
 ```python
-script = project.folder + "/touchdesigner/scripts/validate_control_surface.py"
+script = r"C:/absolute/path/to/td-imagefx-library/touchdesigner/scripts/validate_control_surface.py"
 scope = dict(globals(), __file__=script, __name__="_control_events")
 exec(compile(open(script, encoding="utf-8").read(), script, "exec"), scope)
 scope["validate_deferred"]()
@@ -630,7 +682,7 @@ To test the five Workflow order buttons and Final Crop's reset through real
 frame-delayed events, run this after the rack event check has completed:
 
 ```python
-script = project.folder + "/touchdesigner/scripts/validate_workflow.py"
+script = r"C:/absolute/path/to/td-imagefx-library/touchdesigner/scripts/validate_workflow.py"
 scope = dict(globals(), __file__=script, __name__="_workflow_events")
 exec(compile(open(script, encoding="utf-8").read(), script, "exec"), scope)
 scope["validate_deferred"]()
