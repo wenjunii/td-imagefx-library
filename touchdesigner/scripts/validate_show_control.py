@@ -437,6 +437,76 @@ def validate(write_report=True):
         checks["show_file_roundtrip_and_load_safety"] = True
         checks["invalid_mapping_save_is_transactional"] = True
 
+        # Recall is isolated from both the main designer and audience decks.
+        full_look = ext._capture_look(show.parent())
+        load([cue(name="Editable", source="", track=2, at=12, media_in=.5,
+                  speed=1.5, look=full_look), cue(name="Untouched")])
+        ext.SelectCue(1)
+        original_cues = copy.deepcopy(ext.document["cues"])
+        ext.RecallLook()
+        draft = show.op("look_editor")
+        require(draft is not None and bool(show.par.Lookediting), "Recall did not create a draft")
+        require(draft.op("show_control") is None and draft.op("wall_output") is None, "Draft contains physical output controls")
+        require(ext.document["cues"] == original_cues, "Recall changed stored cues")
+        recalled = ext._capture_look(draft)
+        require(recalled == full_look, "Not every captured effect/rack/order/layer value was recalled")
+        require(ext._capture_look(show.parent()) == full_look, "Recall changed the main designer")
+        for name in (*ext.model.MODULES, "fx_rack"):
+            module = draft.op(name)
+            if getattr(module.par,"Autotime",None) is not None:
+                module.par.Autotime=False; module.par.Manualtime=0
+        draft.par.Coloradjustmentenabled=True
+        draft.op("color_adjustment").par.Invert=0
+        before = pixels("look_preview")
+        draft.op("color_adjustment").par.Invert=1
+        require(not np.allclose(before,pixels("look_preview")), "Draft effect edits did not change preview pixels")
+        require(not ext.audio and not show.op("stereo_output").par.active, "Recall armed audio")
+        require(all(not show.par["Track{}visible".format(i)] for i in (1,2,3)), "Recall sent draft to a track")
+        checks["look_recall_all_values_and_isolated_pixel_preview"] = True
+        ext.SelectCue(2)
+        require(int(show.par.Selectedcue)==1, "Draft selection was not protected")
+        for action in (ext.Go, ext.Preload, ext.SaveShow, ext.LoadShow, ext.CaptureLook, ext.AddCue):
+            try: action()
+            except ValueError: pass
+            else: raise AssertionError("Draft guard failed: " + action.__name__)
+        ext.CancelLook()
+        require(show.op("look_editor") is None and not show.par.Lookediting, "Cancel retained the draft")
+        require(ext.document["cues"]==original_cues, "Cancel changed a cue")
+        require(ext._capture_look(show.parent())==full_look, "Cancel changed the main workflow")
+        checks["look_cancel_selection_and_playback_guards"] = True
+        ext.RecallLook()
+        draft=show.op("look_editor")
+        draft.par.Coloradjustmentenabled=True
+        draft.op("color_adjustment").par.Invert=.75
+        updated=ext._capture_look(draft)
+        ext.UpdateLook()
+        require(ext.document["cues"][0]==dict(original_cues[0],look=updated), "Update changed cue metadata or missed look values")
+        require(ext.document["cues"][1]==original_cues[1], "Update changed another cue")
+        require(show.op("look_editor") is None, "Update retained preview resources")
+        ext.RecallLook(); draft=show.op("look_editor")
+        draft.op("color_adjustment").par.Invert=.25
+        new_look=ext._capture_look(draft)
+        previous=copy.deepcopy(ext.document["cues"])
+        ext.SaveLookAsNew()
+        require(ext.document["cues"][:2]==previous, "Save New modified original cues")
+        new=ext.document["cues"][-1]
+        require(new["look"]==new_look and new["id"]!=previous[0]["id"], "Save New failed")
+        require(not new["enabled"] and new["at"] is None and new["follow"]=="manual", "New copy can auto-trigger")
+        require(int(show.par.Selectedcue)==3, "New cue was not selected")
+        checks["look_update_and_save_new_preserve_metadata_and_original"] = True
+        ext.SaveShow(); edit_saved=copy.deepcopy(ext.document)
+        ext.AddCue(); ext.LoadShow()
+        require(ext.document==edit_saved, "Edited looks did not survive Save/Load Show")
+        checks["edited_look_show_file_roundtrip"] = True
+        load([cue(look={"modules":{"unknown_module":{}}})]); ext.SelectCue(1)
+        invalid_saved=copy.deepcopy(ext.document)
+        try: ext.RecallLook()
+        except ValueError: pass
+        else: raise AssertionError("Invalid recalled look accepted")
+        require(ext.document==invalid_saved and show.op("look_editor") is None and ext._look_edit is None,
+                "Failed recall left partial state")
+        checks["failed_look_recall_cleans_draft_and_preserves_cue"] = True
+
         # Dispatch every visible pulse through its real Parameter Execute DAT.
         # Stub only the extension endpoints in this wiring-only pass; functional
         # cases above exercise the real endpoints without opening hardware.
@@ -445,7 +515,9 @@ def validate(write_report=True):
                    "Saveshow":"SaveShow","Loadshow":"LoadShow","Selectcue":"SelectCue",
                    "Openoutputs":"Openoutputs","Closeoutputs":"Closeoutputs","Applycue":"ApplyCue",
                    "Capturelook":"CaptureLook","Addcue":"AddCue","Duplicatecue":"DuplicateCue",
-                   "Removecue":"RemoveCue","Cueup":"MoveCue","Cuedown":"MoveCue"}
+                   "Removecue":"RemoveCue","Cueup":"MoveCue","Cuedown":"MoveCue",
+                   "Recalllook":"RecallLook","Updatelook":"UpdateLook",
+                   "Savelookasnew":"SaveLookAsNew","Cancellook":"CancelLook"}
         pulses={p.name for p in show.customPars if p.isPulse}
         require(pulses==set(endpoints), "Uncovered show pulse: "+str(pulses.symmetric_difference(endpoints)))
         callbacks=show.op("show_parameters")
@@ -476,7 +548,7 @@ def validate(write_report=True):
         require("Audiodevice" in show.op("stereo_output").par.device.expr and bool(show.par.Audiodevice.menuSource), "Audio device menu not wired")
         coverage["pulse_dispatch"] = sorted(pulses)
         coverage["hardware_wiring_only"] = ["Openoutputs","Closeoutputs","Audioenabled","Audiodevice","Windowx","Windowy"]
-        checks["all_19_show_pulses_and_8_panel_buttons_dispatch"] = True
+        checks["all_23_show_pulses_and_12_panel_buttons_dispatch"] = True
         checks["hardware_controls_wired_without_enabling_outputs"] = True
         load([cue(duration=0,fade=0)])
         ext.engine.go(0); step(0)
@@ -495,6 +567,7 @@ def validate(write_report=True):
         details["error"] = traceback.format_exc()
     finally:
         ext.engine.stop()
+        if ext._look_edit is not None: ext.CancelLook()
         ext.document=original
         ext._replace_cues(original["cues"])
         for name,value in values.items(): show.par[name]=value

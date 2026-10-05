@@ -38,7 +38,7 @@ synchronizes their extension DATs from `touchdesigner/extensions/`, repairs
 legacy absolute Pixel Shader DAT paths inside loaded effects, points every
 library root at the checkout, creates the same managed paths used by the
 canonical project, and exposes HD, 4K UHD, and custom output-resolution
-controls. It also builds the same show-control section as the canonical TOE,
+controls. It also builds the same show-control and 4K wall-output sections as the canonical TOE,
 with audio disabled, blackout on and audience windows closed. It refuses to run
 in `TD_ImageFX_Library.toe`, refuses to
 replace existing managed roots, requires the exact unnumbered
@@ -58,7 +58,7 @@ rebuilds require a separate blank TouchDesigner project.
 
 ## Run the complete live suite
 
-After installing a fresh harness, run all fifteen tracked live validators with one
+After installing a fresh harness, run all nineteen tracked live validators with one
 Textport command:
 
 ```python
@@ -73,6 +73,12 @@ temporary TouchDesigner operators. The suite writes the ignored
 `build/envoy-validation/live-suite.json` summary and all individual reports,
 restores each validator's temporary state, and never saves the harness. A full
 run can take several minutes.
+
+Then use `touchdesigner/scripts/validate_deferred_controls.py` to run the seven
+real-frame button/media groups in sequence. The [main README](../../README.md)
+documents its generated media fixture and Textport command. Use an absolute
+checkout path, not `project.folder`: this ignored harness lives in a different
+directory. Stop All, finish any look draft and keep audio/output disarmed.
 
 Opening the harness does not by itself prove that Envoy is online. Confirm
 Embody's Envoy switch is enabled after every launch and that the active

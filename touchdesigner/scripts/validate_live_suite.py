@@ -49,6 +49,7 @@ VALIDATORS = (
     ("workflow", "validate_workflow.py"),
     ("all_effect_parameters", "validate_all_effect_parameters.py"),
     ("show_control", "validate_show_control.py"),
+    ("wall_output", "validate_wall_output.py"),
 )
 
 
