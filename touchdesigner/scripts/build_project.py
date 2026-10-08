@@ -43,7 +43,7 @@ PREVIEW_ROOT = DOCS_ROOT / "gallery"
 PROJECT_PATH = PROJECT_ROOT / "TD_ImageFX_Library.toe"
 BUILDER_PATH = Path(__file__).resolve()
 LIBRARY_VERSION = "0.3.0"
-MODULE_SOURCES = ("touchdesigner/scripts/ink_dream_flow.py", "touchdesigner/scripts/layer_composite.py", "touchdesigner/scripts/final_crop.py", "touchdesigner/scripts/workflow.py", "touchdesigner/scripts/wall_output.py", "touchdesigner/scripts/wall_output_controller.py")
+MODULE_SOURCES = ("touchdesigner/scripts/ink_dream_flow.py", "touchdesigner/scripts/layer_composite.py", "touchdesigner/scripts/final_crop.py", "touchdesigner/scripts/workflow.py", "touchdesigner/scripts/wall_output.py", "touchdesigner/scripts/wall_output_controller.py", "touchdesigner/scripts/color_switch.py", "touchdesigner/scripts/image_composition.py", "touchdesigner/scripts/source_media.py", "touchdesigner/scripts/look_editor_controls.py", "touchdesigner/scripts/show_review_export.py")
 RACK_SLOT_COUNT = 8
 OWNED_PROJECT_NODES = frozenset({"td_imagefx", "imagefx_demo"})
 DEFAULT_TEMPLATE_NODES = {
@@ -5073,7 +5073,8 @@ def build_rack(parent_comp, manifests):
             rack_inputs[role].outputConnectors[0].connect(slot.inputConnectors[input_index])
             input_routes[str(input_index)] = role
         if slot.par["Enable"] is not None:
-            slot.par.Enable.expr = "parent().par.Slot{}enable".format(index)
+            slot.par.Enable.bindExpr = "parent().par.Slot{}enable".format(index)
+            slot.par.Enable.mode = type(slot.par.Enable.mode).BIND
         if slot.par["Mix"] is not None:
             slot.par.Mix.expr = "parent().ModulatedMix({})".format(index)
         if slot.par["Time"] is not None:
@@ -5089,6 +5090,9 @@ def build_rack(parent_comp, manifests):
     rack_output.display = True
     rack_output.render = True
 
+    workflow_scope = {}
+    exec(_read_text(PROJECT_ROOT / "touchdesigner/scripts/workflow.py"), workflow_scope)
+    workflow_scope["install_rack_gate"](rack)
     configure_extension(rack, "FxRackExt", PROJECT_ROOT / "touchdesigner" / "extensions" / "FxRackExt.py")
     parexec = configure_parameter_callbacks(
         rack,
@@ -6065,6 +6069,31 @@ def build_final_crop_module(parent_comp):
     return module, path
 
 
+def build_color_switch_module(parent_comp):
+    source = PROJECT_ROOT / "touchdesigner/scripts/color_switch.py"
+    scope = {"__file__": str(source), "__name__": "_color_switch"}
+    exec(compile(_read_text(source),str(source),"exec"),scope)
+    def setup(module,source):
+        callbacks = module.create(parameterexecuteDAT,"color_switch_callbacks")
+        callbacks.text = scope["CALLBACKS"]
+        callbacks.par.op,callbacks.par.pars = "..","Sample Preview Previewinput"
+        callbacks.par.custom,callbacks.par.builtin,callbacks.par.onpulse = True,False,True
+        module.par.Minsaturation.enableExpr = "me.par.Matchmode=='hue'"
+        return [source]
+    module,path = _build_reference_video_module(parent_comp,component_name="color_switch",component_label="Color Switch",shader_source=scope["SHADER"],parameter_definitions=scope["PARAMETERS"],storage_key="tdimagefx_color_switch",module_id="tdimagefx.core.color-switch",tox_name="ColorSwitch.tox",color=(.4,.22,.38),reference_video="selective color replacement",input_setup=setup)
+    module.par.opviewer.expr="me.op('out1_image')"
+    module.viewer=True
+    module.save(str(path),createFolders=True)
+    return module,path
+
+
+def build_image_composition_module(parent_comp):
+    source = PROJECT_ROOT / "touchdesigner/scripts/image_composition.py"
+    scope = {"__file__":str(source),"__name__":"_image_composition"}
+    exec(compile(_read_text(source),str(source),"exec"),scope)
+    return scope["build"](parent_comp,globals())
+
+
 def build_browser(parent_comp, manifests, compatibility_confidence="declared"):
     browser = parent_comp.create(baseCOMP, "fx_browser")
     browser.color = (0.14, 0.38, 0.30)
@@ -6854,6 +6883,10 @@ def build_library(project_comp, manifests, report):
     layer_composite.nodeX, layer_composite.nodeY = 3120, 0
     final_crop, final_crop_path = build_final_crop_module(core_parent)
     final_crop.nodeX, final_crop.nodeY = 3380, 0
+    color_switch, color_switch_path = build_color_switch_module(core_parent)
+    color_switch.nodeX, color_switch.nodeY = 3380, -250
+    image_composition, image_composition_path = build_image_composition_module(core_parent)
+    image_composition.nodeX, image_composition.nodeY = 3640, -250
     browser, browser_path = build_browser(core_parent, manifests, compatibility_confidence)
     browser.nodeX = 3640
     browser.nodeY = 0
@@ -6877,6 +6910,8 @@ def build_library(project_comp, manifests, report):
         "ink_radial_flow": str(ink_radial_flow_path),
         "layer_composite": str(layer_composite_path),
         "final_crop": str(final_crop_path),
+        "color_switch": str(color_switch_path),
+        "image_composition": str(image_composition_path),
         "browser": str(browser_path),
         "updater": str(CORE_ROOT / "FxUpdater.tox"),
     }
@@ -6899,17 +6934,25 @@ def build_library(project_comp, manifests, report):
     )
 
 
-def build_workflow(demo):
+def build_source_media(demo):
+    path = PROJECT_ROOT / "touchdesigner/scripts/source_media.py"
+    scope = dict(globals(), __file__=str(path), __name__="_imagefx_source_media")
+    exec(compile(_read_text(path), str(path), "exec"), scope)
+    return scope["install"](demo, demo.op("source_image"), demo.op("source_image_shader"), globals())
+
+
+def build_workflow(demo, branch=False):
     source = _read_text(PROJECT_ROOT / "touchdesigner/scripts/workflow.py")
     scope = {}
     exec(compile(source, "workflow.py", "exec"), scope)
     runtime = demo.create(textDAT, "workflow")
     runtime.text = source
     order = demo.create(textDAT, "workflow_order")
-    order.text = json.dumps(scope["DEFAULT_ORDER"])
+    stages = scope["BRANCH_ORDER"] if branch else scope["DEFAULT_ORDER"]
+    order.text = json.dumps(stages)
     page = demo.appendCustomPage("Workflow")
     _append_parameter(demo, page, dict(name="Stageselection", label="Select Stage to Move", type="menu",
-        default="layer_composite", menu_names=list(scope["DEFAULT_ORDER"]), menu_labels=list(scope["LABELS"])))
+        default="layer_composite", menu_names=list(stages), menu_labels=[dict(zip(scope["DEFAULT_ORDER"],scope["LABELS"]))[name] for name in stages]))
     for name,label in (("Stageup","Move Earlier"),("Stagedown","Move Later"),("Stagefirst","Move First"),
                        ("Stagelast","Move Last"),("Resetorder","Reset Default Order")):
         _append_parameter(demo,page,dict(name=name,label=label,type="pulse"))
@@ -6920,7 +6963,7 @@ def build_workflow(demo):
     callback.text = "def onPulse(par):\n    par.owner.op('workflow').module.onPulse(par)\n"
     callback.par.op,callback.par.pars = "..","Stageup Stagedown Stagefirst Stagelast Resetorder"
     callback.par.custom,callback.par.builtin,callback.par.onpulse = True,False,True
-    scope["apply_order"](demo,scope["DEFAULT_ORDER"])
+    scope["apply_order"](demo,stages)
 
 
 def build_demo(
@@ -6949,9 +6992,14 @@ def build_demo(
         "optional Glitch Fusion -> optional color adjustment -> optional "
         "Motion Studio -> optional eight-slot video FX -> optional Layer Composite -> optional Final Crop. "
         "Output defaults to 1920 x 1080 with 4K UHD and custom presets. "
-        "Replace source_image with any TOP."
+        "Choose images or videos on Source Media; source_image stays connected."
     )
     demo_page = demo.appendCustomPage("Demo")
+    for name,label in (("Colorswitchenabled","Color Switch Enabled"),("Imagecompositionenabled","Two-Image Composition Enabled")):
+        _append_parameter(demo,demo_page,dict(name=name,label=label,type="toggle",default=False))
+    for name,filename,toggle in (("color_switch","ColorSwitch.tox","Colorswitchenabled"),("image_composition","ImageComposition.tox","Imagecompositionenabled")):
+        node=load_tox_component(demo,CORE_ROOT/filename,name)
+        node.par.Enabled.expr="parent().par."+toggle
     _append_parameter(demo, demo_page, {
         "name": "Finalcropenabled", "label": "Final Crop Enabled",
         "type": "toggle", "default": False,
@@ -7112,6 +7160,8 @@ def build_demo(
         raise RuntimeError(
             "Demo source shader failed: {}".format("; ".join(source_errors))
         )
+
+    build_source_media(demo)
 
     reference_particle_field = load_tox_component(
         demo,

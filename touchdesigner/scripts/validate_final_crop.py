@@ -15,6 +15,8 @@ def validate(write_report=True):
     report=dict(ok=False,generated_at=datetime.now(timezone.utc).isoformat())
     try:
         test=host.copy(op('/project1/imagefx_demo/final_crop'),name='test')
+        test.par.Enabled.mode=ParMode.CONSTANT
+        test.par.Enabled.bindExpr=""
         code=host.create(textDAT,'fixture_code')
         code.text='layout(location=0) out vec4 fragColor; void main(){fragColor=TDOutputSwizzle(vec4(vUV.st,.3,.6));}'
         source=host.create(glslTOP,'source')

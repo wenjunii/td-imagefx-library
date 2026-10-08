@@ -170,7 +170,7 @@ def validate(write_report=True):
         checks["ink_radial_every_eligible_value_captured"] = True
         require("layer_composite" in look["modules"] and "Layercompositeenabled" in look["toggles"] and "layer_files" in look, "Layer Composite missing from captured look")
         checks["layer_composite_capture_look"] = True
-        require("final_crop" in look["modules"] and "Finalcropenabled" in look["toggles"] and len(look["order"])==14,"Crop or workflow missing from captured look")
+        require("final_crop" in look["modules"] and "Finalcropenabled" in look["toggles"] and len(look["order"])==len(ext.model.MODULES)+1,"Crop or workflow missing from captured look")
         checks["crop_and_workflow_capture"] = True
         ext.engine.clock=lambda:clock[0]; ext.engine._last=clock[0]
         for i in range(3): ext.engine.go(i)
@@ -225,7 +225,8 @@ def validate(write_report=True):
         require(bool(dream.par.Enabled), "Dream cue toggle did not apply")
         deck = ext.tracks[1]["deck"]
         for name, toggle in ext.model.MODULE_TOGGLES.items():
-            require(deck.op(name).par.Enabled.expr == "parent().par." + toggle, "Lost cue routing expression: " + name)
+            enabled = deck.op(name).par.Enabled
+            require(enabled.mode == type(enabled.mode).BIND and enabled.bindMaster == deck.par[toggle], "Lost two-way cue routing: " + name)
         checks["all_module_cue_routing_expressions_preserved"] = True
         first_dream = pixels("track1")
         ext.engine.go(1); step(0); step(1); step(2)
@@ -519,7 +520,12 @@ def validate(write_report=True):
                    "Recalllook":"RecallLook","Updatelook":"UpdateLook",
                    "Savelookasnew":"SaveLookAsNew","Cancellook":"CancelLook"}
         pulses={p.name for p in show.customPars if p.isPulse}
-        require(pulses==set(endpoints), "Uncovered show pulse: "+str(pulses.symmetric_difference(endpoints)))
+        extra_routes={
+            'look_editor_controls': ('look_editor_controls_callbacks', ('Editlookcontrols','Openlookpreview')),
+            'show_review_export': ('review_export_callbacks', ('Openprojectorreview','Startexport','Cancelexport')),
+        }
+        all_endpoints=set(endpoints)|{name for _,names in extra_routes.values() for name in names}
+        require(pulses==all_endpoints, "Uncovered show pulse: "+str(pulses.symmetric_difference(all_endpoints)))
         callbacks=show.op("show_parameters")
         require(callbacks.par.op.eval()==show and callbacks.par.onpulse and callbacks.par.custom, "Pulse callback not watching custom controls")
         originals={name:getattr(ext,name) for name in set(endpoints.values())}
@@ -531,11 +537,38 @@ def validate(write_report=True):
                 before=len(calls); callbacks.module.onPulse(show.par[name])
                 require(len(calls)==before+1 and calls[-1][0]==method,name+" pulse dispatch failed")
             for node in show.findChildren(depth=1, name="button_*"):
-                method=endpoints[node.fetch("show_action")]
+                action=node.fetch("show_action",None,search=False)
+                if action is None:
+                    require(node.name in {'button_openprojectorreview','button_startexport'},
+                            'Uncovered panel button: '+node.name)
+                    continue
+                method=endpoints[action]
                 before=len(calls); node.op("clicked").module.onOffToOn(None)
                 require(len(calls)==before+1 and calls[-1][0]==method,node.name+" click dispatch failed")
         finally:
             for name, method in originals.items(): setattr(ext,name,method)
+        for runtime_name,(callback_name,names) in extra_routes.items():
+            runtime=show.op(runtime_name).module
+            route=show.op(callback_name)
+            require(bool(route.par.active) and bool(route.par.onpulse) and route.par.op.eval()==show,
+                    callback_name+' is not watching the show')
+            original_handler=runtime.on_pulse
+            routed=[]
+            try:
+                runtime.on_pulse=lambda owner,name:routed.append((owner,name))
+                for name in names:
+                    before=len(routed)
+                    callbacks.module.onPulse(show.par[name])
+                    require(len(routed)==before,name+' should bypass the legacy dispatcher')
+                    route.module.onPulse(show.par[name])
+                    require(len(routed)==before+1 and routed[-1]==(show,name),name+' dedicated pulse dispatch failed')
+                    button=show.op('button_'+name.lower())
+                    if button is not None:
+                        before=len(routed)
+                        button.op('clicked').module.onOffToOn(None)
+                        require(len(routed)==before+1 and routed[-1]==(show,name),name+' panel click dispatch failed')
+            finally:
+                runtime.on_pulse=original_handler
         for row in range(12):
             callback=show.op("cue_row_{}".format(row)).op("clicked")
             require(callback.par.offtoon and callback.par.panelvalue.eval()=="lselect","Cue row callback disconnected")
@@ -548,7 +581,7 @@ def validate(write_report=True):
         require("Audiodevice" in show.op("stereo_output").par.device.expr and bool(show.par.Audiodevice.menuSource), "Audio device menu not wired")
         coverage["pulse_dispatch"] = sorted(pulses)
         coverage["hardware_wiring_only"] = ["Openoutputs","Closeoutputs","Audioenabled","Audiodevice","Windowx","Windowy"]
-        checks["all_23_show_pulses_and_12_panel_buttons_dispatch"] = True
+        checks["all_28_show_pulses_and_14_panel_buttons_dispatch"] = True
         checks["hardware_controls_wired_without_enabling_outputs"] = True
         load([cue(duration=0,fade=0)])
         ext.engine.go(0); step(0)

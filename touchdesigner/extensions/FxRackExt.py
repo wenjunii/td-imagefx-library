@@ -440,7 +440,7 @@ class FxRackExt:
             target = self.ownerComp.op("slot{}".format(next_index))
             if target is not None:
                 return target
-        return self.ownerComp.op("out1_image")
+        return self.ownerComp.op("rack_chain_out") or self.ownerComp.op("out1_image")
 
     @staticmethod
     def _connect(source_connector, target_connector):
@@ -480,7 +480,9 @@ class FxRackExt:
         time_parameter = self._component_parameter(slot, "Time")
         time_scale_parameter = self._component_parameter(slot, "Timescale")
         if enable_parameter is not None:
-            enable_parameter.expr = "parent().par.Slot{}enable".format(index)
+            enable_parameter.bindExpr = "parent().par.Slot{}enable".format(index)
+            enable_parameter.mode = type(enable_parameter.mode).BIND
+            enable_parameter.readOnly = False
         if mix_parameter is not None:
             mix_parameter.expr = "parent().ModulatedMix({})".format(index)
         if time_parameter is not None:
@@ -493,7 +495,7 @@ class FxRackExt:
         # look like artist sliders that silently reject edits. Keep per-effect
         # Time Scale and Reset interactive; clearly lock the fields driven by
         # the rack or supplied as package metadata.
-        editable_system_parameters = {"Timescale", "Reset"}
+        editable_system_parameters = {"Enable", "Timescale", "Reset"}
         for name in SYSTEM_PARAMETER_NAMES - editable_system_parameters:
             parameter = self._component_parameter(slot, name)
             if parameter is not None:

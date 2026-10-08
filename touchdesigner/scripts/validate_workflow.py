@@ -89,7 +89,8 @@ def validate_deferred():
     report=dict(ok=False,generated_at=datetime.now(timezone.utc).isoformat())
     def steps():
         demo.par.Stageselection='layer_composite'
-        for name,index in (('Stagefirst',0),('Stagedown',1),('Stagelast',13),('Stageup',12),('Resetorder',12)):
+        count=len(workflow.DEFAULT_ORDER)
+        for name,index in (('Stagefirst',0),('Stagedown',1),('Stagelast',count-1),('Stageup',count-2),('Resetorder',workflow.DEFAULT_ORDER.index('layer_composite'))):
             demo.par[name].pulse()
             yield; yield
             checks[name]=workflow.current(demo).index('layer_composite')==index and correct_graph(demo,workflow.current(demo))

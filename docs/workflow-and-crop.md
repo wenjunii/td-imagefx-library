@@ -3,7 +3,7 @@
 Open the canonical `TD_ImageFX_Library.toe`, select `/project1/imagefx_demo`,
 and open the **Workflow** custom parameter page.
 
-1. **Select Stage to Move** chooses one of the 14 stages.
+1. **Select Stage to Move** chooses one of the 16 stages.
 2. **Move Earlier / Later** moves it one place; **Move First / Last** moves it
    to an end of the chain.
 3. **Current Order** shows the sequence. The visible network is laid out in
@@ -13,8 +13,13 @@ and open the **Workflow** custom parameter page.
 
 Default: source → Chromatic Particle Field → Calligraphic Shadow → Ink Orbit
 Canvas → Ink Dream Flow → Ink Brush Flow → Ink Radial Flow → Ink Flow Fusion →
-Random Particles → Glitch Fusion → Color Adjustment → Motion Studio → eight-slot
-FX rack → Layer Composite → Final Crop → output.
+Random Particles → Glitch Fusion → Color Adjustment → Color Switch → Motion Studio → eight-slot
+FX rack → Two-Image Composition → Layer Composite → Final Crop → output.
+
+Two-Image Composition has separate 15-stage A/B workflows (everything except
+recursive composition). See the [composition guide](color-switch-composition.md).
+Old captured 14-stage orders are upgraded by inserting the new, disabled stages
+without changing the relative order of the existing stages.
 
 Every stage stays in the chain, even when bypassed, so its position is retained.
 **Apply Video Effects** bypasses the rack at its current position. The rack moves

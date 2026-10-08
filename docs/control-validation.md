@@ -1,5 +1,116 @@
 # Control validation
 
+## Clean release and Show Control review/export — 2026-10-07
+
+The main `TD_ImageFX_Library.toe` was rebuilt from the current sources in
+TouchDesigner 2025.32820 on the RTX 3080 Ti Laptop GPU. It contains the default
+test-pattern cue, no personal show/media, and the updated Color Switch,
+Two-Image Composition, Source Media, synchronized module switches, Look Editor
+shortcuts, Projector Review and silent Export Video controls. The previous
+personal TOE was backed up locally before replacement.
+
+| Coverage | Result |
+| --- | --- |
+| Blocking native suite | All 22 validators passed |
+| Packaged effects | 96 effects; 511 numeric controls, 116 toggles and 14 reset pulses passed |
+| Synchronized switches | 878 two-way binding checks passed across designer, cue and composition workflows, rack master and slots |
+| Real-frame suite | All 9 groups / 139 checks passed, including Source Media and composition playback |
+| Show Control | 21 cue fields, 63 mapping values, 28 pulse routes and 14 panel-button dispatches covered |
+| Look Editor navigation | 64 checks passed, including off-air targets and state preservation |
+| Projector Review / Export | 14 checks passed; feed ordering/blackout, cue/draft/video-source exports, cancellation and original-state preservation |
+| Export decoding | Five clips decoded without errors: 1920x1080 and 3840x2160 H.264, plus 640x360 H.264/Motion JPEG; expected 30 FPS, duration and frame count; no audio streams |
+| Clean saved-file startup | 45 checks passed after reopening: default test cue/no media, no QA/draft/export nodes, no native errors, 1080p source, exact UHD wall, disabled rack/Ink Flow, blackout on, audio off and output windows closed |
+| Portable release suite | 353 tests passed, with 4 expected Windows symlink-permission skips |
+
+The audit now isolates bound-module fixtures from their original workflow, and
+explicitly cooks ordered stateless GLSL passes before taking same-frame pixel
+samples. These corrections prevent copied enable bindings and stale multi-pass
+buffers from producing false failures. Installed two-way bindings are tested
+separately. Review/export testing now uses a disposable Show Control copy, and
+asserts that the original cue document, selection, unsaved editor fields and
+main look remain unchanged. Native provenance includes both new show helpers.
+
+Portable verification is performed on the exact publishable Git index snapshot.
+The rejected dance auditions and their 17 local-only tests are preserved locally
+but excluded from the release, which explains the lower portable count than a
+full working-folder discovery. Test clips, native QA reports, backups and private
+show files remain Git-ignored. Historical results below describe their own
+earlier builds and are not claims about the current release.
+
+The computer-use inspection checks the native Show Control panel, including the
+right-hand inspector at normal text size. Parameter sweeps test ranges, values,
+callbacks and rendered response; they do not manually drag every GUI slider or
+test every combination. No audience output was opened and no audible sound was
+played. Three-projector/processor mapping, stereo listening, codecs for actual
+show media and sustained full-show performance still require hardware rehearsal.
+
+## Source Media in the main project — 2026-10-07
+
+The canonical main TOE now includes a **Source Media** page on `imagefx_demo`.
+The existing `source_image` remains the stable workflow entry. File selection,
+aspect fitting/cropping/stretching, anchor coordinates, letterbox RGBA and video
+transport are available without replacing or reconnecting TOPs. Show cue media
+and timing remain separate; see [Source Media](source-media.md).
+
+The rebuilt project passed **21 live validators**, **9 real-frame groups
+(139 checks)** and full repository verification with **320 local tests** (four
+expected Windows symlink-permission skips). Source Media adds 26 native checks
+and 17 real-frame checks, including alpha, anchor endpoints, HD/4K/custom output,
+decoded PNG/MP4, play/pause, seek/restart/reload, reverse, loop/end hold,
+missing-file status and cue isolation. The initial pixel test fixture was fixed
+to keep its TOP connections within the copied designer COMP; the corrected
+checks pass without relaxing their pixel assertions.
+
+The saved canonical TOE was reopened successfully, its Source Media page was
+inspected, and the visible **Preview Source** pulse opened the expected 1920 x
+1080 source viewer. A credential scan of all 708 tracked/untracked publishable
+files found no high-confidence credential matches.
+
+All 704 pre-existing publishable files were snapshotted to the ignored
+`build/backups/source-media-20261007-132457/` directory before edits. Unrelated
+audition/prototype files remain unchanged and are not included in the native
+workflow. Native artifact/source hashes were refreshed. No GitHub push, audience
+output or audible audio test was performed; codec compatibility and sustained
+multi-projector show performance still require rehearsal with actual media.
+
+## Main-checkout integration — 2026-10-07
+
+Color Switch and Two-Image Composition have also been merged into the original
+main project folder and rebuilt as its canonical `TD_ImageFX_Library.toe`.
+That build passed **20 live validators**, **8 real-frame groups (122 checks)**,
+and repository verification with **306 local tests** (four expected Windows
+symlink-permission skips). The count includes the 17 pre-existing local audition
+tests, without adding the rejected audition to the native workflow.
+
+The original TOE matched its previous native-validation record. It and all
+affected existing files were backed up under the ignored
+`build/backups/color-composition-integration-20261007-125549/` directory. All 26
+pre-existing untracked files remained byte-identical; the existing README audition
+notes were retained. The two new stages and their branch effects start disabled.
+No commit or GitHub push was made, and no audience or audible outputs were tested.
+
+## Color Switch and Two-Image Composition — 2026-10-07
+
+The updated native build passed **20 live validators** and **8 real-frame
+groups (122 checks)** in TouchDesigner 2025.32820. The new modules account for
+284 native checks and 31 real-frame checks: RGB/hue replacement, pure-black
+replacement, alpha, numeric endpoints, menus/toggles, layout/crop/fit pixels,
+HD/4K canvas dimensions, independent A/B effects and rack selection, image/video
+decoding, independent playback, pause, seek, reverse, loop, restart, and cue
+capture/restore/legacy reset. Branch clock values are excluded from saved looks.
+
+The portable verifier passed **289 tests**, with four expected Windows
+symlink-permission skips. It verified 96 current effects, 124 immutable package
+versions, 144 native artifacts, gallery baselines, benchmarks and source hashes.
+A credential scan included all 678 tracked and untracked publishable files and
+found no high-confidence credential matches. Nothing was pushed in this update.
+
+Both new stages and all branch FX start disabled. The original checkout and its
+uncommitted audition work were preserved in place; these changes are isolated
+on `codex/color-switch-composition`. The rejected mocap prototypes are not part
+of the build. No audience outputs or audible audio were enabled. Actual show
+media, three-output rendering cost and projector hardware still need rehearsal.
+
 ## Full controls + GitHub sync audit — 2026-10-05
 
 A fresh load of the canonical TOE in TouchDesigner 2025.32820 passed all
@@ -156,6 +267,14 @@ glitter, and pause/resume its clock. Earlier native render comparisons confirmed
 the existing Dream and Brush outputs were unchanged by adding the radial module.
 
 ## Scope and reports
+
+The focused `validate_module_bindings.py` regression first audits the installed
+two-way links without repairing them, then uses disposable cue copies to check
+every module and rack slot in both directions. It covers independent states,
+capture/recall, A/B branches, reorder, preset/slot reload, and the rack master
+bypass's rendered pixels. The October 7, 2026 in-place main-TOE upgrade passed
+830 focused checks and preserved the current cue document and designer look.
+This focused result is not a new complete native-build certification.
 
 Detailed reports are generated locally in the ignored `build/envoy-validation/`
 folder: `live-suite.json`, `control-surface.json`, `control-events.json`, the

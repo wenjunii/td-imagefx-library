@@ -386,8 +386,21 @@ class PackageReleaseToolTests(unittest.TestCase):
 
 
 class VerifyRepositoryToolTests(unittest.TestCase):
+    def test_native_provenance_includes_new_show_helpers(self) -> None:
+        from tools import record_native_validation
+        import ast
+        builder = Path(__file__).resolve().parents[1] / 'touchdesigner/scripts/build_project.py'
+        tree = ast.parse(builder.read_text(encoding='utf-8'))
+        sources = next(ast.literal_eval(node.value) for node in tree.body
+                       if isinstance(node, ast.Assign) and any(
+                           isinstance(target, ast.Name) and target.id == 'MODULE_SOURCES'
+                           for target in node.targets))
+        self.assertEqual(sources, record_native_validation.MODULE_SOURCES)
+        for name in ('look_editor_controls.py', 'show_review_export.py'):
+            self.assertIn('touchdesigner/scripts/' + name, sources)
+
     def test_public_documentation_matches_checked_source_counts(self) -> None:
-        self.assertEqual(verify_repository._source_test_count(), 263)
+        self.assertEqual(verify_repository._source_test_count(), 353)
         verify_repository._check_public_documentation()
 
     def test_native_artifact_rejects_symlink_before_resolution(self) -> None:

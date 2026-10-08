@@ -8,6 +8,21 @@ The current source contains **96 current effect IDs across 18 categories**, back
 
 Canonical repository: [github.com/wenjunii/td-imagefx-library](https://github.com/wenjunii/td-imagefx-library)
 
+## Color replacement and two-image layouts
+
+**Color Switch** selects an input color and replaces it with another, with
+RGB/hue matching, tolerance, soft selection edges, shading preservation, amount,
+and an input-color sampling button.
+
+**Two-Image Composition** combines two images or silent videos with preset/manual
+split ratios, crop-aspect presets, manual trims, fit/fill, opacity and placement.
+Each source has its **own effect workflow and eight-slot rack**; cue capture and
+off-air look editing retain both. Side-by-side, top/bottom, picture-in-picture,
+overlay and manual layouts are supported. Both modules start disabled.
+See the [color and composition guide](docs/color-switch-composition.md).
+
+The dance-driven backdrop audition is not included in these changes.
+
 ## Show control (rehearsal preview)
 
 The TOE now includes `/project1/imagefx_demo/show_control`: a clickable cue panel
@@ -16,6 +31,13 @@ automation, timestamps, pre/post waits, crossfades, GO, pause/resume and stop.
 Three configurable 1080p–4K outputs support identical, panoramic or independent
 content, corner pinning, crop, rotation, gamma/brightness and edge fades.
 Audio and audience outputs start disarmed. Show JSON and media stay local.
+
+**Projector Review** shows the three final feeds inside Show Control, with
+wall/atlas routing, blackout/window status and enlarged views. **Export Video**
+renders a selected visual cue or off-air look draft to a silent MP4/MOV, with
+duration, FPS and 1080p/4K/custom resolution controls. It uses an isolated copy,
+requires stopped playback/closed output windows, and never overwrites an export.
+See the [review/export instructions](docs/show-control.md#export-a-visual-cue-to-video).
 
 For a 2x2 video-wall processor, use `imagefx_demo/wall_output`. It packs a
 3840x2160 stream as P1 left / P2 center / P3 right / confidence monitor in
@@ -26,25 +48,34 @@ The processor display must be explicitly selected; no wall window opens on load.
 
 Open `TD_ImageFX_Library.toe`, enter `imagefx_demo`, then right-click
 `show_control` → **View**. Follow the [show-control guide](docs/show-control.md)
-for cue creation, display layout, audio and rehearsal testing. This is an initial
+for cue creation, display layout, audio and rehearsal testing. The right-hand
+inspector explicitly excludes built-in container parameters, keeping its dropdown
+arrows and file-picker `+` buttons visible at normal text size. This is an initial
 native TouchDesigner workstation, not QLab or a show-readiness certification;
 physical output capability and sustained multi-display/audio performance still
 need rehearsal on the actual hardware.
 
-Captured looks are editable: **Recall Look → edit `show_control/look_editor` →
-Update Cue / Save as New Cue / Cancel Changes**. The silent preview is separate
+Captured looks are editable from the **Look Editor** tab: **Recall Look →
+Effect Module → Edit Controls → Update Cue / Save as New Cue / Cancel Changes**.
+**Open Preview** opens the full-size recalled look. The menu includes every
+workflow module, workflow switches, and the eight individual rack slots.
+These shortcuts edit only the off-air cue draft, not the main designer. The silent preview is separate
 from the main workflow and audience outputs. Save Show persists committed edits;
 new copies start disabled to avoid accidental triggers.
 
 The show-control audit covers all 21 editor fields, 63 mapping/grade/flip
-controls, 23 pulse dispatch routes and twelve panel buttons. Regression checks
+controls, 28 pulse dispatch routes and fourteen panel buttons. Regression checks
 protect fade-from-black, running-cue preload, stop/follow cancellation and invalid
 mapping saves. Hardware arm/device/window controls are wiring-tested only; the
 automated suite deliberately does not open audience output or play audible sound.
 
-The **2026-10-05 complete control audit** passed all 19 native validators,
-7 real-frame groups (91 checks), and 263 portable tests (4 expected Windows
-symlink skips). This includes the 4K wall packer and off-air look editor.
+The **2026-10-07 clean-release control audit** passed all 22 native validators,
+9 real-frame groups (139 checks), and 353 portable release tests (4 expected
+Windows symlink skips). It covers all 96 effects, 511 numeric controls,
+116 toggles and 14 reset pulses, plus 878 two-way module/rack binding checks.
+The Look Editor navigation passed 64 checks; projector review/export passed
+14 checks and five independently decoded H.264/Motion JPEG clips, including 4K.
+The canonical TOE is a clean default build with no personal cues or media.
 See the [validation record](docs/control-validation.md) for coverage and hardware
 limits, and the repeatable audit commands below.
 
@@ -53,6 +84,9 @@ limits, and the repeatable audit commands below.
 The rejected 2.5D dance-puppet experiment is not integrated into the production
 TOE or effect counts. Its prototype, artwork, motion models and preview media
 remain local and are not included in this repository update.
+
+The rejected dance-driven backdrop audition also remains local and outside this
+release. Neither audition is part of the production workflow or release tests.
 
 Package manifests under `packages/` are authoritative for versions, inputs, parameters, processing requirements, image behavior, provenance, assets, licenses, and compatibility. Discovery surfaces select the highest SemVer for each effect ID. Exact historical versions remain addressable for project locks and reproducible shows.
 
@@ -149,7 +183,7 @@ git clone https://github.com/wenjunii/td-imagefx-library.git
 cd td-imagefx-library
 ```
 
-The current source and generated artifacts are synchronized. The recorded Windows build used TouchDesigner `2025.32820` and validated all 96 current effects with 124 versioned effect `.tox` files, seventeen core `.tox` files, one library `.toe`, 96 previews, 96 visual baselines, and 96 benchmark samples. The build report contains zero shader, preview, or builder errors. A fresh repository run completed 263 tests successfully, with four expected Windows symlink-permission skips. Read [TouchDesigner setup](docs/touchdesigner-setup.md) to reproduce the native build.
+The clean Windows release build used TouchDesigner `2025.32820` and validated all 96 current effects with 124 versioned effect `.tox` files, nineteen core `.tox` files, one library `.toe`, 96 previews, 96 visual baselines, and 96 benchmark samples. That build report contains zero shader, preview, or builder errors. A fresh repository run completed 353 tests successfully, with four expected Windows symlink-permission skips. The release TOE contains clean defaults, not personal cues or media. In-place patches and saved personal cues are not a new full native-build certification; regenerate and validate distributable artifacts before publishing a release. Read [TouchDesigner setup](docs/touchdesigner-setup.md) to reproduce the native build.
 
 The generated project targets TouchDesigner 2025. Validate the exact TouchDesigner build, operating system, GPU, driver, resolution, pixel format, and color pipeline used by your production system. Python 3.11 or newer is required for repository tooling; it is not required merely to use already-built native components.
 
@@ -238,6 +272,16 @@ then enable the desired slots inside `fx_rack` (or press **Enable All**).
 The selected effects and their parameter settings are preserved. The reusable
 Ink Flow and FX Rack components and newly installed harness use the same off defaults;
 loading an existing cue or rack preset still restores its saved enable settings.
+
+Every visual module's **Enabled** switch is linked in both directions to its
+matching switch on `imagefx_demo`. Use either control; each module stays
+independent of the others. The same links work in recalled look drafts and
+the A/B composition workflows, including after cue recall and reordering.
+Inside `fx_rack`, **Master > Rack Enabled** mirrors **Apply Video Effects**;
+switching it off bypasses the rack without clearing the eight slot settings.
+Each loaded effect's **Enable** also mirrors its own rack **Slot Enable**.
+Capture Look or Update Cue stores the current states; existing saved cues are
+not changed until you explicitly update them.
 
 ### Output resolution
 
@@ -448,7 +492,11 @@ deterministic manual time, and provide both master bypass and dry/wet mix:
   Use **Light Luminance** subject masking for bright particles, glitter, or
   light-painted streaks on dark footage, and **Dark Luminance** for dark
   silhouettes on pale backgrounds. Enable **Calligraphic Shadow Enabled**, then select
-  `/project1/imagefx_demo/calligraphic_shadow`.
+  `/project1/imagefx_demo/calligraphic_shadow`. The module's **Enabled** switch
+  and the parent's **Calligraphic Shadow Enabled** switch are linked in both
+  directions. Either switch controls the same state, including in recalled
+  look drafts and the two composition branches. Capture/Update Look records
+  that state; it does not change other previously saved cues automatically.
 - `InkOrbitCanvas.tox` recreates
   `ScreenRecording_07-22-2026 15-38-39_1.mov` as a generative monochrome wet-ink
   floor canvas. Adjust one to twelve rings, zero to twenty-four droplets, orbit
@@ -484,7 +532,7 @@ flicker behavior, cue timing and photosensitivity precautions.
 ### Flexible workflow and final crop
 
 On `/project1/imagefx_demo`, open **Workflow**, choose **Select Stage to Move**,
-then use **Move Earlier / Later / First / Last**. All 14 stages can be reordered,
+then use **Move Earlier / Later / First / Last**. All 16 stages can be reordered,
 including the eight-slot rack, Layer Composite, and Final Crop. Settings are
 retained; **Reset Default Order** resets only the order. The rack's existing
 slot Up/Down buttons independently reorder its eight effects. **Current Order**
@@ -583,9 +631,9 @@ reproduction instructions and hardware-testing limits.
 
 1. Open `/project1/imagefx_demo` after a successful native build.
 2. Choose **HD 1920 x 1080**, **4K UHD 3840 x 2160**, or **Custom** on the **Output** page.
-3. To feed a still/movie through every stage, replace the generated `source_image` TOP with a **Movie File In TOP named `source_image`**, then press **Reset Default Order** (or any workflow move button) to reconnect the chain. Keep that name: workflow changes and cue decks use it as the input. Alternatively, choose media directly in Layer Composite and move that stage first; its result will feed later effects.
+3. Select `imagefx_demo` → **Source Media** and choose **Image / Video File**. Auto uses the file when one is selected and the test pattern otherwise. Use Fit / Letterbox, Fill / Crop, or Stretch; output follows the HD/4K/Custom setting. Play/pause, loop, speed/reverse, seek, restart and reload are on the same page. Keep `source_image` in place: no rewiring or workflow reset is needed. See the [Source Media guide](docs/source-media.md). Cue playback still uses the cue's own media and timing.
 4. Keep your source connected to `fixture_image_b` if you want its derived clean/alternate image, or replace rack input 1 with a different TOP for transitions, composites, and Difference Key.
-5. On `imagefx_demo`, enable the stages you want: Layer Composite, the three reference modules, Ink Dream Flow, Ink Brush Flow, Ink Radial Flow, Ink Flow, Random Particles, Glitch, Color Adjustment, Motion Studio, and **Apply Video Effects**.
+5. On `imagefx_demo`, enable the stages you want: Layer Composite, Two-Image Composition, the three reference modules, Ink Dream Flow, Ink Brush Flow, Ink Radial Flow, Ink Flow, Random Particles, Glitch, Color Adjustment, Color Switch, Motion Studio, and **Apply Video Effects**.
 6. Select the corresponding child module to edit its custom parameters. Use `ink_dream_flow` for marbling, `ink_brush_flow` for curling particle currents, `ink_radial_flow` for center radiation, or `fx_rack` and its **Rack** custom page to choose up to eight additional effects.
 7. Adjust slot enable, mix, order, bypass, reset, and modulation. Leave **Auto Time** enabled for timeline-driven, particle, and feedback motion.
 8. View `out1_image`, then export/import validated JSON rack presets if needed.
@@ -608,7 +656,7 @@ exec(compile(open(script, encoding="utf-8").read(), script, "exec"), scope)
 
 Copying `globals()` is required because rendered-pixel QA uses
 TouchDesigner-provided objects including `op`, `app`, `root`, `textDAT`, and
-`glslTOP`. The runner executes all nineteen tracked validators, continues long
+`glslTOP`. The runner executes all twenty-one tracked validators, continues long
 enough to report every failure, writes the ignored
 `build/envoy-validation/live-suite.json` summary plus each validator's normal
 report, and never saves the project. Each successful dispatch records the validator
@@ -628,13 +676,15 @@ Textport run it calls each verified Parameter Execute DAT's `onPulse` handler
 synchronously, avoiding a false failure caused by pulse events waiting for the
 next frame. The package sweep also
 exercises all 14 effect-level **Reset** pulse buttons. Together with the
-rendered-pixel module and all-effect sweeps, this covers every writable slider,
-toggle, menu, and pulse control generated by the library.
+rendered-pixel module and all-effect sweeps, this exercises numeric endpoints,
+toggles, menus and pulse routes. Context-dependent controls still need sensible
+media and enabled effects; these checks do not test every parameter combination.
 
 After that blocking suite, run the consolidated **real-frame audit**. It runs
-seven additional groups in sequence: native rack events, workflow/crop events,
+nine additional groups in sequence: native rack events, workflow/crop events,
 wall buttons, decoded layer images, layer video transports, show playback and
-the off-air Look Editor. Stop All, finish/cancel any look draft, enable both
+the off-air Look Editor, and Color Switch / Two-Image Composition media and cue
+checks, plus Source Media file decoding and video transport. Stop All, finish/cancel any look draft, enable both
 blackouts and keep audio disarmed. Do not edit or save the TOE while it runs.
 
 The blocking suite generates its PNG fixtures. For the video checks, generate
@@ -772,12 +822,19 @@ buttons, validates range/clamp metadata and finite output, and writes the ignore
 full rack preset, demo routing, resolution, source time, and timeline state in
 a `finally` block and never saves the project.
 
-Inside loaded `slot1` through `slot8` components, **Enable**, **Mix**,
-**Effective Time**, and package-status fields are intentionally read-only
-because the rack owns them. Adjust the corresponding slot controls on
-`fx_rack`; per-effect **Time Scale** remains editable and multiplies the rack's
-global time. This locking prevents rack-driven values from looking like
-malfunctioning local sliders.
+Inside loaded `slot1` through `slot8` components, **Enable** is editable and
+bidirectionally bound to its rack **Slot Enable**. **Mix**, **Effective Time**,
+and package-status fields remain read-only because the rack owns them. Adjust
+Mix on `fx_rack`; per-effect **Time Scale** remains editable and multiplies
+the rack's global time. This locking prevents rack-driven values from looking
+like malfunctioning local sliders.
+
+`touchdesigner/scripts/validate_module_bindings.py` audits installed links
+before making any test changes, then checks both toggle directions, independent
+module states, cue capture/recall, workflow reordering, rack preset/slot reloads,
+and master-bypass pixels on disposable copies. It restores no defaults and
+does not save or edit the operator's cues. Its report is written to the ignored
+`build/envoy-validation/module-toggle-bindings.json`.
 
 ### Searchable browser
 
@@ -842,7 +899,7 @@ Run the dependency-free repository check with Python 3.11 or newer:
 python tools/verify_repository.py
 ```
 
-The verifier expects exactly 96 current IDs and 124 immutable manifests. It compiles Python, runs tests, validates manifests and feeds, verifies the recorded hashes of the library `.toe`, all 124 effect `.tox` files, and seventeen core `.tox` files, compares generated gallery/baseline/benchmark coverage with the latest catalog, and prevents version drift. It also cross-checks this README's test and catalog claims, the ImageFX project context, and the live validator's package/build constants against checked source and native records. A failure caused by stale native or generated artifacts is intentional: rebuild and review them rather than weakening the invariant.
+The verifier expects exactly 96 current IDs and 124 immutable manifests. It compiles Python, runs tests, validates manifests and feeds, verifies the recorded hashes of the library `.toe`, all 124 effect `.tox` files, and nineteen core `.tox` files, compares generated gallery/baseline/benchmark coverage with the latest catalog, and prevents version drift. It also cross-checks this README's test and catalog claims, the ImageFX project context, and the live validator's package/build constants against checked source and native records. A failure caused by stale native or generated artifacts is intentional: rebuild and review them rather than weakening the invariant.
 
 GitHub Actions runs verification on Windows, macOS, and Linux with Python 3.11 and 3.13, and separately rejects modifications to package versions already present in repository history.
 

@@ -304,6 +304,8 @@ def build_show_control(demo, context):
         callback.par.offtoon = True
         callback.text = "def onOffToOn(panelValue):\n    parent().parent().SelectRow(parent().fetch('cue_row'))\n    return\n"
     inspector = ui_node("parameterCOMP", "cue_inspector", 920, 20, 500, 750)
+    inspector.par.builtin = False
+    inspector.par.custom = True
     inspector.par.op = ".."
     inspector.par.pagescope = "Transport 'Cue Editor' 'Look Editor' Routing 'Output 1' 'Output 2' 'Output 3'"
     inspector.par.pagenames = True
@@ -336,9 +338,20 @@ def build_show_control(demo, context):
     tick.text = "def onFrameEnd(frame):\n    parent().Tick()\n    return\n"
     show.op("deck_template").allowCooking = False
     show.UpdateMapping()
+    # Separate navigation callbacks also allow safe in-place upgrades while an
+    # operator has an unsaved look draft (extension initialization clears it).
+    editor_path = context["PROJECT_ROOT"] / "touchdesigner/scripts/look_editor_controls.py"
+    editor_scope = dict(context, __file__=str(editor_path), __name__="_imagefx_look_controls")
+    exec(compile(editor_path.read_text(encoding="utf-8"), str(editor_path), "exec"), editor_scope)
+    workflow = demo.op("workflow").module
+    editor_scope["install"](show, workflow.DEFAULT_ORDER, workflow.LABELS)
     # Build AFTER the snapshot so cue decks never include physical output windows.
     wall_path = context["PROJECT_ROOT"] / "touchdesigner/scripts/wall_output.py"
     wall_scope = dict(context, __file__=str(wall_path), __name__="_imagefx_wall_builder")
     exec(compile(wall_path.read_text(encoding="utf-8"), str(wall_path), "exec"), wall_scope)
     wall_scope["build_wall_output"](demo, context)
+    review_path = context["PROJECT_ROOT"] / "touchdesigner/scripts/show_review_export.py"
+    review_scope = dict(context, __file__=str(review_path), __name__="_imagefx_review_export")
+    exec(compile(review_path.read_text(encoding="utf-8"), str(review_path), "exec"), review_scope)
+    review_scope["install"](show)
     return show

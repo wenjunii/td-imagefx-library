@@ -269,6 +269,8 @@ def _check_manifests() -> tuple[int, set[str], dict[str, str]]:
         ROOT / "touchdesigner" / "core" / "InkBrushFlow.tox",
         ROOT / "touchdesigner" / "core" / "InkRadialFlow.tox",
         ROOT / "touchdesigner" / "core" / "LayerComposite.tox",
+        ROOT / "touchdesigner" / "core" / "ColorSwitch.tox",
+        ROOT / "touchdesigner" / "core" / "ImageComposition.tox",
         ROOT / "touchdesigner" / "core" / "FxUpdater.tox",
     )
     missing = [path.relative_to(ROOT) for path in required_native_assets if not path.is_file()]
@@ -438,7 +440,7 @@ def _check_native_validation(library_version: str) -> None:
     show_sources = ("src/tdimagefx/show.py", "touchdesigner/extensions/ShowControlExt.py", "touchdesigner/scripts/build_show_control.py")
     if record.get("show_sources") != {path: _sha256(ROOT / path) for path in show_sources}:
         raise VerificationError("Native validation is not bound to current show-control sources")
-    module_sources = ("touchdesigner/scripts/ink_dream_flow.py", "touchdesigner/scripts/layer_composite.py", "touchdesigner/scripts/final_crop.py", "touchdesigner/scripts/workflow.py", "touchdesigner/scripts/wall_output.py", "touchdesigner/scripts/wall_output_controller.py")
+    module_sources = ("touchdesigner/scripts/ink_dream_flow.py", "touchdesigner/scripts/layer_composite.py", "touchdesigner/scripts/final_crop.py", "touchdesigner/scripts/workflow.py", "touchdesigner/scripts/wall_output.py", "touchdesigner/scripts/wall_output_controller.py", "touchdesigner/scripts/color_switch.py", "touchdesigner/scripts/image_composition.py", "touchdesigner/scripts/source_media.py", "touchdesigner/scripts/look_editor_controls.py", "touchdesigner/scripts/show_review_export.py")
     if record.get("module_sources") != {path: _sha256(ROOT / path) for path in module_sources}:
         raise VerificationError("Native validation is not bound to current module sources")
     environment = record.get("touchdesigner")
@@ -466,6 +468,8 @@ def _check_native_validation(library_version: str) -> None:
         "touchdesigner/core/InkRadialFlow.tox",
         "touchdesigner/core/LayerComposite.tox",
         "touchdesigner/core/FinalCrop.tox",
+        "touchdesigner/core/ColorSwitch.tox",
+        "touchdesigner/core/ImageComposition.tox",
         "touchdesigner/core/FxUpdater.tox",
         *(
             path.relative_to(ROOT).as_posix()

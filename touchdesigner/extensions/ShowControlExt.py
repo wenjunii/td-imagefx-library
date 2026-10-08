@@ -200,24 +200,37 @@ class ShowControlExt:
         self.SelectCue(index + 1)
         self._status("Captured the demo modules and eight-slot rack into this cue")
 
-    def _capture_look(self, demo):
+    def _capture_look(self, demo, active=True):
         """Capture either the main designer or the isolated recalled-look deck."""
-        look = {"toggles": {name: bool(demo.par[name]) for name in self.model.TOGGLES}, "modules": {}}
+        look = {"toggles": {name: bool(demo.par[name]) for name in self.model.TOGGLES if demo.par[name] is not None}, "modules": {}}
         for name in self.model.MODULES:
             module = demo.op(name)
+            if module is None: continue
             look["modules"][name] = {
                 p.name: p.eval() for p in module.customPars
                 if self._safe_parameter(p) and p.name not in {"Enabled", "Autotime", "Manualtime"}
             }
         look["rack"] = json.loads(demo.op("fx_rack").ExportPreset())
+        if demo.fetch("imagefx_branch", False):
+            # A/B racks inherit the composition clock. Its changing playhead is
+            # not an editable look value and must not make captures differ on
+            # every frame or overwrite the restored timing expression.
+            look["rack"].update(autotime=False, time=0.0)
         look["order"] = demo.op("workflow").module.current(demo)
         layer = demo.op("layer_composite")
         look["layer_files"] = self.model.resolve_layer_files(
             {name: layer.par[name].eval() for name in ("Backdropfile", "Topfile")},
             project.folder,
             selections=look["modules"]["layer_composite"],
-            enabled=look["toggles"]["Layercompositeenabled"],
+            enabled=active and look["toggles"]["Layercompositeenabled"],
         )
+        composition=demo.op("image_composition")
+        if composition is not None:
+            enabled=active and look["toggles"]["Imagecompositionenabled"]
+            look["composition_files"]=self.model.resolve_composition_files(
+                {name:composition.par[name].eval() for name in ("Afile","Bfile")},project.folder,
+                selections=look["modules"]["image_composition"],enabled=enabled)
+            look["branches"]={name:self._capture_look(composition.op(name),enabled and bool(composition.par[name[0].upper()+"visible"])) for name in ("a_effects","b_effects")}
         return look
 
     def RecallLook(self):
@@ -338,36 +351,41 @@ class ShowControlExt:
         parameter = self._validate_assignment(component, name, value)
         parameter.val = value
 
-    def _apply_look(self, deck, look):
-        if set(look) - {"toggles", "modules", "rack", "layer_files", "order"}:
+    def _apply_look(self, deck, look, template=None, active=True):
+        branch=bool(deck.fetch("imagefx_branch",False))
+        self.model.validate_look_media(look,Path(self._p("Showfile")).resolve().parent,active=active,branch=branch)
+        if set(look) - {"toggles", "modules", "rack", "layer_files", "order", "composition_files", "branches"}:
             raise ValueError("Unknown look fields")
         workflow = deck.op("workflow").module
-        order = workflow.validate_order(look.get("order", list(workflow.DEFAULT_ORDER)))
+        order = workflow.validate_order(look.get("order", list(workflow.BRANCH_ORDER if branch else workflow.DEFAULT_ORDER)),branch)
         layer_files = self.model.resolve_layer_files(
             look.get("layer_files", {}), Path(self._p("Showfile")).resolve().parent,
             selections=look.get("modules", {}).get("layer_composite", {}),
-            enabled=look.get("toggles", {}).get("Layercompositeenabled", False),
+            enabled=active and look.get("toggles", {}).get("Layercompositeenabled", False),
         )
         for name in self.model.TOGGLES:
-            deck.par[name] = False
-        template = self.ownerComp.op("deck_template")
+            if deck.par[name] is not None: deck.par[name] = False
+        template = template or self.ownerComp.op("deck_template")
         for module_name in self.model.MODULES:
             module = deck.op(module_name)
+            if module is None: continue
             for parameter in module.customPars:
                 if self._safe_parameter(parameter) and parameter.name not in {"Enabled", "Autotime", "Manualtime"}:
                     parameter.val = template.op(module_name).par[parameter.name].eval()
             # Enabled belongs to the deck's routing, not its saved effect values.
             # Assigning .val here previously replaced the expression with False.
             # Repair it on reused decks too, including decks made by older builds.
+            # workflow.apply_order restores every module's two-way binding
+            # after the saved parent toggle has been applied below.
             module.par.Enabled.expr = "parent().par.{}".format(self.model.MODULE_TOGGLES[module_name])
         for name, value in look.get("toggles", {}).items():
-            if name not in self.model.TOGGLES or not isinstance(value, bool):
+            if name not in self.model.TOGGLES or deck.par[name] is None or not isinstance(value, bool):
                 raise ValueError("Unknown demo toggle")
             deck.par[name] = value
         for name, value in layer_files.items():
             deck.op("layer_composite").par[name] = value
         for module_name, parameters in look.get("modules", {}).items():
-            if module_name not in self.model.MODULES or not isinstance(parameters, dict):
+            if module_name not in self.model.MODULES or deck.op(module_name) is None or not isinstance(parameters, dict):
                 raise ValueError("Unknown module in look")
             for name, value in parameters.items():
                 if name in {"Enabled", "Time", "Autotime", "Manualtime"}:
@@ -376,9 +394,18 @@ class ShowControlExt:
         deck.op("fx_rack").ImportPreset(look.get("rack", self._default_rack))
         for module_name in (*self.model.MODULES, "fx_rack"):
             module = deck.op(module_name)
+            if module is None: continue
             if getattr(module.par, "Autotime", None) is not None:
                 module.par.Autotime = False
-                module.par.Manualtime = 0
+                if branch: module.par.Manualtime.expr="parent(2).par.Time"
+                else: module.par.Manualtime = 0
+        composition=deck.op("image_composition")
+        if composition is not None:
+            enabled=active and bool(deck.par.Imagecompositionenabled)
+            files=self.model.resolve_composition_files(look.get("composition_files",{}),Path(self._p("Showfile")).resolve().parent,selections=look.get("modules",{}).get("image_composition",{}),enabled=enabled)
+            for name,value in files.items(): composition.par[name]=value
+            for name in ("a_effects","b_effects"):
+                self._apply_look(composition.op(name),look.get("branches",{}).get(name,{}),template.op("image_composition/"+name),enabled and bool(composition.par[name[0].upper()+"visible"]))
         deck.op("fx_rack").Reset()
         workflow.apply_order(deck, order)
 
@@ -410,7 +437,21 @@ class ShowControlExt:
         deck.store("imagefx_show_runtime", True)
         deck.nodeX, deck.nodeY = 1100, -500
         deck.allowCooking = True
+        if deck.op("source_media_runtime") is not None:
+            deck.op("source_media_runtime").module
+            # Cue media/transport are authoritative. Never inherit designer media.
+            deck.par.Sourcefile = ""
+            deck.par.Sourcemode = "demo"
         deck.op("fx_rack").initializeExtensions()
+        # Copied Text DAT modules cannot compile under a cooking-disabled deck.
+        # Initialize both independent workflows before putting this standby
+        # deck off-line; subsequent cue application is then safe and atomic.
+        composition = deck.op("image_composition")
+        if composition is not None:
+            for name in ("a_effects", "b_effects"):
+                branch = composition.op(name)
+                branch.op("workflow").module
+                branch.op("fx_rack").initializeExtensions()
         deck.allowCooking = False
         deck.op("source_image").name = "test_pattern"
         source = deck.create(switchTOP, "source_image")
@@ -474,11 +515,7 @@ class ShowControlExt:
         self._set_deck_resolution(deck)
         movie = self._load_deck_media(deck, cue, path)
         deck.allowCooking = True
-        layer = deck.op("layer_composite")
-        if layer.par.Enabled.eval():
-            for field, node_name in (("Backdropfile", "backdrop_file"), ("Topfile", "top_file")):
-                if layer.op("media_status").module.uses_file(layer, node_name.removesuffix("_file")):
-                    layer.op(node_name).preload()
+        for reader in self._look_readers(deck): reader.preload()
         deck.op("out1_image").cook(force=True)
         self.ownerComp.op("track{}_source{}".format(track, side)).par.top = deck.op("out1_image").path
         self.prepared[cue["id"]] = {"cue": cue, "deck": deck, "movie": movie if path else None, "track": track, "side": side}
@@ -540,18 +577,26 @@ class ShowControlExt:
         mixer = self.ownerComp.op("audio_mix")
         gain.outputConnectors[0].connect(mixer.inputConnectors[len(mixer.inputs)])
 
+    def _look_readers(self, deck):
+        layer=deck.op("layer_composite")
+        if layer is not None and layer.par.Enabled.eval():
+            for prefix in ("backdrop","top"):
+                if layer.op("media_status").module.uses_file(layer,prefix): yield layer.op(prefix+"_file")
+        composition=deck.op("image_composition")
+        if composition is not None and composition.par.Enabled.eval():
+            for prefix in ("A","B"):
+                if not composition.par[prefix+"visible"]: continue
+                if composition.op("composition_math").module.selected(composition,prefix)==2: yield composition.op(prefix.lower()+"_file")
+                yield from self._look_readers(composition.op(prefix.lower()+"_effects"))
+
     def ready(self, cue):
         item = self.prepared[cue["id"]]
         deck = item.get("deck")
-        if deck is not None and deck.op("layer_composite").par.Enabled.eval():
-            layer = deck.op("layer_composite")
-            for field, node_name in (("Backdropfile", "backdrop_file"), ("Topfile", "top_file")):
-                if not layer.op("media_status").module.uses_file(layer, node_name.removesuffix("_file")):
-                    continue
-                image = layer.op(node_name)
+        if deck is not None:
+            for image in self._look_readers(deck):
                 image.cook(force=True)
                 if image.isInvalid:
-                    raise ValueError("Layer image could not be decoded: " + field)
+                    raise ValueError("Layer image could not be decoded: " + image.name)
                 if not image.isOpen or not image.isFullyPreRead:
                     return False
         if "reader" in item:
@@ -571,8 +616,8 @@ class ShowControlExt:
         state = self.tracks.get(cue["track"])
         if not state:
             raise ValueError("Parameter cue needs a running visual track")
-        node, name = cue["target"].split("/")
-        component = state["deck"].op("fx_rack/" + node if node.startswith("slot") else node)
+        node, name = self.model.parse_target(cue["target"])
+        component = state["deck"].op(node)
         if component is None:
             raise ValueError("Target effect is not loaded")
         p = getattr(component.par, name, None)
@@ -780,6 +825,7 @@ class ShowControlExt:
         for index, cue in enumerate(self.document["cues"]):
             try:
                 if cue["kind"] in {"visual", "audio"}:
+                    self.model.validate_look_media(cue["look"],Path(self._p("Showfile")).resolve().parent)
                     self.model.resolve_layer_files(
                         cue["look"].get("layer_files", {}), Path(self._p("Showfile")).resolve().parent,
                         selections=cue["look"].get("modules", {}).get("layer_composite", {}),

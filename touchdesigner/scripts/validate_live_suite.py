@@ -32,8 +32,10 @@ REPORT_PATH = PROJECT_ROOT / "build" / "envoy-validation" / "live-suite.json"
 
 VALIDATORS = (
     ("live_project", "validate_live_project.py"),
+    ("module_bindings", "validate_module_bindings.py"),
     ("control_surface", "validate_control_surface.py"),
     ("output_resolution", "validate_output_resolution.py"),
+    ("source_media", "validate_source_media.py"),
     ("rack_selection", "validate_rack_selection.py"),
     ("ink_flow", "validate_ink_flow_module.py"),
     ("random_particles", "validate_particle_module.py"),
@@ -46,6 +48,7 @@ VALIDATORS = (
     ("ink_radial_flow", "validate_ink_radial_flow.py"),
     ("layer_composite", "validate_layer_composite.py"),
     ("final_crop", "validate_final_crop.py"),
+    ("color_composition", "validate_color_composition.py"),
     ("workflow", "validate_workflow.py"),
     ("all_effect_parameters", "validate_all_effect_parameters.py"),
     ("show_control", "validate_show_control.py"),

@@ -25,6 +25,8 @@ OUTPUTS = (
     "/project1/imagefx_demo/ink_radial_flow/out1_image",
     "/project1/imagefx_demo/layer_composite/out1_image",
     "/project1/imagefx_demo/final_crop/out1_image",
+    "/project1/imagefx_demo/color_switch/out1_image",
+    "/project1/imagefx_demo/image_composition/out1_image",
     "/project1/imagefx_demo/ink_flow/out1_ink_flow",
     "/project1/imagefx_demo/particle_random_move/out1_particles",
     "/project1/imagefx_demo/glitch_fusion/out1_glitch",

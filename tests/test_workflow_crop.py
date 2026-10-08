@@ -4,11 +4,13 @@ import random
 import runpy
 import unittest
 from types import SimpleNamespace
+from enum import Enum
 from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 CROP = runpy.run_path(str(ROOT / "touchdesigner/scripts/final_crop.py"))
 FLOW = runpy.run_path(str(ROOT / "touchdesigner/scripts/workflow.py"))
+FakeParMode = Enum("FakeParMode", "CONSTANT BIND")
 
 
 class FinalCropTests(unittest.TestCase):
@@ -74,6 +76,57 @@ class FinalCropTests(unittest.TestCase):
 
 
 class WorkflowTests(unittest.TestCase):
+    def test_module_binding_map_matches_cue_routing(self):
+        from tdimagefx.show import MODULE_TOGGLES
+        self.assertEqual(FLOW["MODULE_TOGGLES"], dict(MODULE_TOGGLES, fx_rack="Applyvideofx"))
+
+    def test_every_module_binds_to_its_own_parent_switch(self):
+        for name, toggle in FLOW["MODULE_TOGGLES"].items():
+            with self.subTest(module=name):
+                master = SimpleNamespace(eval=lambda: False, val=False)
+                enabled = SimpleNamespace(eval=lambda: True, bindExpr="", mode=FakeParMode.CONSTANT)
+                demo = SimpleNamespace(par=SimpleNamespace(**{toggle: master}),
+                    op=lambda path: SimpleNamespace(par=SimpleNamespace(Enabled=enabled)))
+                self.assertTrue(FLOW["bind_module_enabled"](demo, name))
+                self.assertFalse(master.val)
+                self.assertEqual(enabled.bindExpr, "parent().par." + toggle)
+                self.assertEqual(enabled.mode, FakeParMode.BIND)
+                self.assertFalse(enabled.readOnly)
+
+    def test_binding_migration_preserves_each_modules_actual_state(self):
+        for name, toggle in FLOW["MODULE_TOGGLES"].items():
+            for value in (False, True):
+                with self.subTest(module=name, enabled=value):
+                    master = SimpleNamespace(eval=lambda: not value, val=not value)
+                    enabled = SimpleNamespace(eval=lambda: value, mode=FakeParMode.CONSTANT)
+                    demo = SimpleNamespace(par=SimpleNamespace(**{toggle: master}),
+                        op=lambda path: SimpleNamespace(par=SimpleNamespace(Enabled=enabled)))
+                    self.assertTrue(FLOW["bind_module_enabled"](demo, name, preserve_child=True))
+                    self.assertEqual(master.val, value)
+
+    def test_shadow_binding_uses_parent_value_for_build_and_recall(self):
+        master = SimpleNamespace(eval=lambda: False, val=False)
+        enabled = SimpleNamespace(eval=lambda: True, bindExpr="", mode=FakeParMode.CONSTANT)
+        demo = SimpleNamespace(par=SimpleNamespace(Calligraphicshadowenabled=master),
+                               op=lambda name: SimpleNamespace(par=SimpleNamespace(Enabled=enabled)))
+        self.assertTrue(FLOW["bind_shadow_enabled"](demo))
+        self.assertFalse(master.val)
+        self.assertEqual(enabled.bindExpr, "parent().par.Calligraphicshadowenabled")
+        self.assertEqual(enabled.mode, FakeParMode.BIND)
+
+    def test_shadow_binding_migration_preserves_current_child_look(self):
+        master = SimpleNamespace(eval=lambda: False, val=False)
+        enabled = SimpleNamespace(eval=lambda: True, bindExpr="", mode=FakeParMode.CONSTANT)
+        demo = SimpleNamespace(par=SimpleNamespace(Calligraphicshadowenabled=master),
+                               op=lambda name: SimpleNamespace(par=SimpleNamespace(Enabled=enabled)))
+        self.assertTrue(FLOW["bind_shadow_enabled"](demo, preserve_child=True))
+        self.assertTrue(master.val)
+        self.assertEqual(enabled.mode, FakeParMode.BIND)
+
+    def test_shadow_binding_ignores_standalone_or_incomplete_components(self):
+        self.assertFalse(FLOW["bind_shadow_enabled"](SimpleNamespace(par=SimpleNamespace(), op=lambda name: None)))
+        self.assertFalse(FLOW["bind_shadow_enabled"](SimpleNamespace(par=SimpleNamespace(), op=lambda name: object())))
+
     def test_default_order_has_final_layers_and_crop(self):
         from tdimagefx.show import MODULES
         self.assertEqual(set(FLOW["DEFAULT_ORDER"]),set(MODULES)|{"fx_rack"})

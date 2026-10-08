@@ -28,6 +28,10 @@ def validate(write_report=True, brush=False, radial=False):
     report = dict(validator=module_name.replace("_", "-"), generated_at=datetime.now(timezone.utc).isoformat(), ok=False)
     try:
         test = host.copy(module, name="test")
+        # This standalone fixture has no designer toggle. Detach only the
+        # copied Enabled binding; installed two-way links are audited separately.
+        test.par.Enabled.mode = ParMode.CONSTANT
+        test.par.Enabled.bindExpr = ""
         fixture = host.create(constantTOP, "source")
         fixture.par.outputresolution = "custom"
         fixture.par.resolutionw = 320
@@ -293,6 +297,8 @@ def validate(write_report=True, brush=False, radial=False):
             # Off/zero amount exactly returns the inherited renderer, with the
             # same inherited parameter values (palette defaults may differ).
             brush_copy=host.copy(op("/project1/imagefx_demo/ink_brush_flow"),name="brush_baseline")
+            brush_copy.par.Enabled.mode=ParMode.CONSTANT
+            brush_copy.par.Enabled.bindExpr=""
             fixture.outputConnectors[0].connect(brush_copy.inputConnectors[0])
             reset(Radialenabled=False)
             for par in brush_copy.customPars:
@@ -330,7 +336,11 @@ def validate(write_report=True, brush=False, radial=False):
         toggle = "Inkradialenabled" if radial else "Inkbrushenabled" if brush else "Inkdreamenabled"
         upstream = "ink_brush_flow" if radial else "ink_dream_flow" if brush else "ink_orbit_canvas"
         downstream = "ink_flow" if radial else "ink_radial_flow" if brush else "ink_brush_flow"
-        checks["demo_toggle_binding"] = module.par.Enabled.expr == "parent().par." + toggle
+        checks["demo_toggle_binding"] = (
+            module.par.Enabled.mode == type(module.par.Enabled.mode).BIND
+            and module.par.Enabled.bindMaster == module.parent().par[toggle]
+            and not module.par.Enabled.readOnly
+        )
         checks["chain_input"] = module.inputs[0] == op("/project1/imagefx_demo/" + upstream + "/out1_image")
         checks["chain_output"] = op("/project1/imagefx_demo/" + downstream).inputs[0] == module.op("out1_image")
         # Check native full-resolution rendering without claiming frame-rate suitability.

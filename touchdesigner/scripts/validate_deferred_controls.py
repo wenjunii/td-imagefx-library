@@ -27,6 +27,8 @@ JOBS = (
     ("layer_videos", "validate_layer_composite.py", "validate_videos", "layer-composite-videos.json", "scope"),
     ("show_media", "validate_show_media.py", "start", "show-media.json", "show_dat"),
     ("look_media", "validate_look_editor_media.py", "start", "look-editor-media.json", "dat"),
+    ("color_composition", "validate_color_composition.py", "validate_deferred", "color-composition-deferred.json", "scope"),
+    ("source_media", "validate_source_media.py", "validate_deferred", "source-media-deferred.json", "scope"),
 )
 FIXTURES = ("show-image-fixture.png", "show-av-fixture.mp4",
             "layer-top-fixture.png", "layer-backdrop-fixture.png")
@@ -53,7 +55,7 @@ def _summarize(job, report, source_hash):
 
 
 def validate():
-    """Schedule seven real-frame validators; reject unsafe or overlapping runs."""
+    """Schedule nine real-frame validators; reject unsafe or overlapping runs."""
     demo = op("/project1/imagefx_demo")
     if demo is None:
         raise RuntimeError("ImageFX demo is missing")
