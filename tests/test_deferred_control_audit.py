@@ -7,12 +7,12 @@ from touchdesigner.scripts import validate_deferred_controls as audit
 
 
 class DeferredControlAuditTests(unittest.TestCase):
-    def test_all_seven_real_frame_groups_are_included(self):
-        self.assertEqual(len(audit.JOBS), 7)
-        self.assertEqual(len({job[3] for job in audit.JOBS}), 7)
+    def test_all_nine_real_frame_groups_are_included(self):
+        self.assertEqual(len(audit.JOBS), 9)
+        self.assertEqual(len({job[3] for job in audit.JOBS}), 9)
         self.assertEqual({job[0] for job in audit.JOBS}, {
             "rack_events", "workflow_events", "wall_events", "layer_images",
-            "layer_videos", "show_media", "look_media"})
+            "layer_videos", "show_media", "look_media", "color_composition", "source_media"})
 
     def test_good_report_records_source_and_check_count(self):
         result = audit._summarize(audit.JOBS[0], {"ok": True, "checks": {"event": True}}, "abc")

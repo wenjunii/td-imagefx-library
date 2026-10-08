@@ -21,6 +21,8 @@ def validate(write_report=True):
     report = dict(validator="layer-composite", generated_at=datetime.now(timezone.utc).isoformat(), ok=False)
     try:
         test = host.copy(module, name="test")
+        test.par.Enabled.mode = ParMode.CONSTANT
+        test.par.Enabled.bindExpr = ""
         def fixture(name, width, height, expression):
             code = host.create(textDAT, name + "_code")
             code.text = "layout(location=0) out vec4 fragColor; void main(){vec2 uv=vUV.st; fragColor=TDOutputSwizzle("+expression+");}"
@@ -213,8 +215,12 @@ def validate(write_report=True):
         callback=test.op("media_callbacks")
         checks["pulse_dispatch_configured"] = callback.par.onpulse.eval() and all(name in callback.par.pars.eval().split() for name in pulses)
         checks["all_controls_covered"] = set(controls)=={p.name for p in test.customPars if not p.readOnly and not p.isPulse}
-        checks["demo_binding"] = module.par.Enabled.expr=="parent().par.Layercompositeenabled"
-        checks["demo_chain"] = module.inputs[0]==op("/project1/imagefx_demo/video_fx_router") and op("/project1/imagefx_demo/final_crop").inputs[0]==module.op("out1_image")
+        checks["demo_binding"] = (
+            module.par.Enabled.mode == type(module.par.Enabled.mode).BIND
+            and module.par.Enabled.bindMaster == module.parent().par.Layercompositeenabled
+            and not module.par.Enabled.readOnly
+        )
+        checks["demo_chain"] = module.inputs[0]==op("/project1/imagefx_demo/image_composition/out1_image") and op("/project1/imagefx_demo/final_crop").inputs[0]==module.op("out1_image")
         top.outputConnectors[0].connect(test.inputConnectors[1])
         shader.par.resolutionw.expr,shader.par.resolutionh.expr=resolution_exprs
         back.par.resolutionw,back.par.resolutionh=640,360
@@ -243,6 +249,8 @@ def validate_files():
     module=op("/project1/imagefx_demo/layer_composite")
     host=op("/project1").create(baseCOMP,"layer_files_qa")
     test=host.copy(module,name="test")
+    test.par.Enabled.mode=ParMode.CONSTANT
+    test.par.Enabled.bindExpr=""
     test.par.Enabled=True; test.par.Autotime=False; test.par.Flickerenabled=False
     test.par.Topfit="stretch"; test.par.Backdropfit="stretch"
     canvas=host.create(constantTOP,"canvas")
@@ -299,6 +307,8 @@ def validate_videos():
         raise RuntimeError("Generate build/envoy-validation/show-av-fixture.mp4 first")
     host=op("/project1").create(baseCOMP,"layer_video_qa")
     test=host.copy(op("/project1/imagefx_demo/layer_composite"),name="test")
+    test.par.Enabled.mode=ParMode.CONSTANT
+    test.par.Enabled.bindExpr=""
     test.par.Enabled=True; test.par.Autotime=False; test.par.Manualtime=0
     test.par.Topfile=str(path); test.par.Backdropfile=str(path)
     test.par.Flickerenabled=False; test.par.Opacity=.5

@@ -5,6 +5,7 @@ import json
 import math
 import tempfile
 import unittest
+from enum import Enum
 from pathlib import Path
 
 
@@ -23,6 +24,7 @@ def _load_module(name, path):
 
 RACK_MODULE = _load_module("tdimagefx_touchdesigner_rack", EXTENSION_PATH)
 CALLBACK_MODULE = _load_module("tdimagefx_touchdesigner_rack_callbacks", CALLBACK_PATH)
+FakeParMode = Enum("FakeParMode", "CONSTANT BIND")
 
 
 class FakePar:
@@ -30,6 +32,8 @@ class FakePar:
         self.name = name
         self.val = value
         self.expr = ""
+        self.bindExpr = ""
+        self.mode = FakeParMode.CONSTANT
         self.pulse_count = 0
 
     def eval(self):
@@ -333,7 +337,9 @@ class FxRackExtensionTests(unittest.TestCase):
             slot.par["Time"].expr,
             "parent().par.Time * me.par.Timescale",
         )
-        self.assertTrue(slot.par["Enable"].readOnly)
+        self.assertFalse(slot.par["Enable"].readOnly)
+        self.assertEqual(slot.par["Enable"].bindExpr, "parent().par.Slot1enable")
+        self.assertEqual(slot.par["Enable"].mode, FakeParMode.BIND)
         self.assertTrue(slot.par["Mix"].readOnly)
         self.assertTrue(slot.par["Time"].readOnly)
         self.assertFalse(hasattr(slot.par["Timescale"], "readOnly"))
@@ -356,6 +362,13 @@ class FxRackExtensionTests(unittest.TestCase):
         self.assertEqual(self.rack.ModulatedMix(1, time_value=0.5), 1.0)
         self.rack.SetModulation(1, state="off")
         self.assertEqual(self.rack.ModulatedMix(1, time_value=0.5), 0.5)
+
+    def test_last_slot_targets_master_gate_without_bypassing_it(self):
+        self.assertIs(self.rack._next_slot_target(8), self.owner.op("out1_image"))
+        chain = FakeTOP("rack_chain_out")
+        self.owner.operators["rack_chain_out"] = chain
+        self.assertIs(self.rack._next_slot_target(8), chain)
+        self.assertIs(self.rack._next_slot_target(7), self.owner.op("slot8"))
 
         for arguments in (
             {"depth": 1.01},

@@ -42,7 +42,6 @@ COMPONENT_SUFFIXES = {
     "rgba": ("r", "g", "b", "a"),
 }
 READ_ONLY_SLOT_PARAMETERS = {
-    "Enable",
     "Mix",
     "Time",
     "Packageid",
@@ -249,6 +248,18 @@ def _capture(top, slot, stateful=False, pattern_state=False):
             except Exception:
                 pass
     try:
+        # Several snapshots are taken in one TD frame. Force each stateless
+        # pass before reading the rack: a newly loaded, initially bypassed
+        # multi-pass effect can otherwise return its previous cached pixels.
+        # Stateful fixtures retain their explicit history/reset handling below.
+        if slot is not None and not stateful:
+            for node in sorted((n for n in slot.children if n.type == 'glsl' and n.name.startswith('effect_glsl_')),
+                               key=lambda n: int(n.name.rsplit('_', 1)[1])):
+                node.cook(force=True)
+            for name in ('enable_switch', 'out1_image'):
+                node = slot.op(name)
+                if node is not None:
+                    node.cook(force=True)
         for _index in range(2 if stateful else 1):
             top.cook(force=True)
         image = top.numpyArray(delayed=False, writable=False)
@@ -841,6 +852,12 @@ def validate(write_report=True):
                     if slot.par[name] is not None
                 }
                 result["read_only_ok"] = all(result["read_only"].values())
+                result["enable_binding_ok"] = (
+                    not slot.par.Enable.readOnly
+                    and slot.par.Enable.mode == type(slot.par.Enable.mode).BIND
+                    and slot.par.Enable.bindMaster == rack.par.Slot1enable
+                )
+                result["read_only_ok"] = result["read_only_ok"] and result["enable_binding_ok"]
 
                 for definition in manifest.get("parameters", []):
                     parameter_type = definition.get("type")

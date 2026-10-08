@@ -12,6 +12,73 @@ right-click `show_control`, and choose **View** to open its control panel.
 The original ImageFX demo and effects remain available for designing looks.
 Audience windows start closed, Master Blackout starts on, and audio starts off.
 
+The panel uses a 1660x900 design canvas with a 720-unit right-hand inspector at
+normal text size. It displays only the custom show-control parameters; including
+the container's built-in parameters caused dropdown arrows and file-picker `+`
+buttons to be clipped, even when their pages were hidden. Widening the window
+alone did not fix that issue. Maximize the viewer if its outer window extends
+beyond your desktop. The media `+` picker and cue/export dropdowns have been
+checked directly in TouchDesigner after the custom-parameter-only correction.
+
+## Review the projector feeds
+
+The bottom of Show Control has a **Projector Review** strip: projector 1 (left),
+2 (center), and 3 (right). These tap the final output feeds, including mapping
+and blackout, not the main design canvas or off-air draft. On **Projector Review**
+choose **4K Wall Processor** for the 2x2 processor, or **Audience Atlas** for the
+older three-across output. **Enlarge Feed** selects all three or a single
+full-resolution feed; **Open Projector Review** opens only an operator viewer.
+
+Signal Status reports whether the selected output window is open or closed.
+A black feed during blackout is correct. This is a software preview, not proof
+of what the HDMI cable, processor or physical projector is displaying.
+The existing **Look Preview** is still a separate silent, off-air editing view.
+
+## Export a visual cue to video
+
+1. **STOP ALL** and close audience/wall output windows. Export shares the GPU;
+   do it before the performance, not while delivering a show.
+2. Select a Visual cue. On **Export Video**, choose **Selected Saved Cue**, or
+   **Current Look Draft** for recalled, uncommitted edits. Apply metadata and
+   capture the look first when exporting the saved version.
+3. Choose an **Export Folder**, format, resolution, FPS, duration and effect
+   start time. Defaults: silent MP4, 1920x1080, 30 FPS, 10 seconds, start 0.
+   3840x2160, 1280x720 and custom even dimensions (16–4096) are available.
+   Rates: 24, 25, 30, 50 or 60 FPS. Maximum duration: one hour.
+4. Press **Export Video (Silent)**. Progress counts frames. Rendering is
+   frame-stepped, so it can take longer than the finished clip's duration.
+5. Check **Export Status** and **Last Output File**. Each export gets a unique
+   subfolder; existing clips are never overwritten. **Cancel Export** stops
+   the job and retains any partial file, labelled as incomplete.
+
+The default `.imagefx/exports/` folder is local and Git-ignored. A separate cue
+copy is rendered; saved cues, the main workflow and an active draft stay intact.
+The global project frame rate/realtime setting is not changed. Playback or an
+audience window opening during export aborts it. Concurrent exports are rejected.
+
+Export includes the **cue visual and captured effect chain/final crop**, resized
+to the chosen dimensions. It does not export a whole cue sequence, projector
+calibration/blackout, packed 4K wall or audio. Use dimensions matching a cropped
+aspect ratio to avoid stretching. Effect start offsets the effect clock and
+source-video position; feedback/history effects start fresh, without a precomputed
+simulation history. Duration rounds to whole output frames (minimum one).
+
+MP4/H.264 needs a Commercial/Pro license and supported encoding hardware;
+**MOV / Motion JPEG** is also available. TouchDesigner's license resolution
+limits still apply. See the official
+[Movie File Out TOP documentation](https://docs.derivative.ca/Movie_File_Out_TOP).
+
+Developer checks: `show_review_export.py` installs additively, without restarting
+ShowControlExt or rebuilding the user's show. `validate_show_review_export.py`
+requires stopped playback, closed output windows and no draft. It creates
+test cues in a disposable Show Control copy and writes local clips. It verifies
+that the original document, selection, unsaved editor fields and main workflow
+stay unchanged, then restores wall settings and removes only its test copy.
+The clean-release audit exercised H.264 at 1080p/4K/custom size, Motion JPEG,
+draft export, video-source timing and cancellation; all five clips independently
+decoded with the expected dimensions/frame counts and no audio stream. See the
+[control validation record](control-validation.md) for scope and limitations.
+
 ## Create and run cues
 
 1. Click **Add cue**, then select the **Cue Editor** page on the right.
@@ -45,13 +112,29 @@ rebuilding the library resets the built-in demo cue, but not your saved JSON.
 
 ### Edit a captured look safely
 
+Every visual module's own **Enabled** switch is bound bidirectionally to its
+matching switch on the containing workflow. You can use either switch in the
+main designer, a recalled look, or either composition branch. Modules stay
+independent; turning one off does not turn the others off. The links survive
+cue recall and workflow reordering. The rack's **Master > Rack Enabled** mirrors
+**Apply Video Effects**, and every loaded slot's **Enable** mirrors its rack
+**Slot Enable**. Rack master bypass preserves the individual slot settings.
+Existing saved cues retain their captured on/off state until you explicitly
+Capture Look or Update Cue again.
+
 1. **STOP ALL**, select a Visual cue, then press **Recall Look** (also on the
    **Look Editor** page). Apply any pending Cue Editor metadata changes first.
-2. Enter `/project1/imagefx_demo/show_control/look_editor`. This temporary
-   workspace has the same module toggles, module parameters, eight-slot rack,
-   Layer Composite files and effect ordering as the captured look. Edit these
-   modules, not the original `imagefx_demo` modules. View `out1_image`, or use the
-   silent **off-air preview** at the bottom of the Show Control panel.
+2. Stay on **Look Editor**, choose **Effect Module**, then press **Edit Controls**.
+   A parameter window opens for that module in the recalled cue, with its custom
+   parameter tabs visible. Choose **Workflow / Module Switches** for the draft's
+   enable switches and ordering, or **FX Rack / Slot 1–8** for individual slot
+   parameters. **Open Preview** opens the full-size silent off-air output; the
+   small preview at the bottom remains available. These shortcuts never open
+   the original `imagefx_demo` modules. The temporary workspace is still
+   `/project1/imagefx_demo/show_control/look_editor` if you prefer node editing;
+   it contains the captured module settings, rack, Layer Composite files and
+   effect ordering. Controls are disabled until a draft is active, and an empty
+   slot reports an explanatory status instead of opening another workflow.
 3. Choose **Update Cue** to replace only that cue's look. Its name, media,
    timing, track and audio settings are unchanged. Or choose **Save as New Cue**
    to append a separate copy without modifying the original. The new copy starts
@@ -220,6 +303,15 @@ audio disabled and audience blackout on. The full nineteen-validator synchronous
 suite includes show-control checks, but asynchronous media QA is a separate run.
 The portable `tests/test_show.py` covers deterministic scheduling and quad math;
 `tests/test_show_look_editor.py` covers draft transaction safety.
+`tests/test_look_editor_controls.py` covers module/slot navigation, preview
+targeting, useful parameter tabs, empty/stale drafts, and prevention of a
+fallback to the main workflow. Navigation uses a separate embedded helper, so
+it can be installed without reinitializing ShowControlExt or discarding an
+operator's open draft.
+`touchdesigner/scripts/validate_look_editor_controls.py` is a focused native,
+read-only audit for an already-recalled draft: it checks all menu targets and
+preserves the cue document, designer look, and draft values. It does not run
+playback or claim a full-show performance test.
 
 `validate_look_editor_media.py` is a separate real-frame test using the same
 generated PNG/MP4 fixtures. Load it into a temporary Text DAT and call

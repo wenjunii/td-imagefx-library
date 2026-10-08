@@ -49,6 +49,8 @@ INK_BRUSH_FLOW_TOX = PROJECT_ROOT / "touchdesigner" / "core" / "InkBrushFlow.tox
 INK_RADIAL_FLOW_TOX = PROJECT_ROOT / "touchdesigner" / "core" / "InkRadialFlow.tox"
 LAYER_COMPOSITE_TOX = PROJECT_ROOT / "touchdesigner" / "core" / "LayerComposite.tox"
 FINAL_CROP_TOX = PROJECT_ROOT / "touchdesigner" / "core" / "FinalCrop.tox"
+COLOR_SWITCH_TOX = PROJECT_ROOT / "touchdesigner" / "core" / "ColorSwitch.tox"
+IMAGE_COMPOSITION_TOX = PROJECT_ROOT / "touchdesigner" / "core" / "ImageComposition.tox"
 CALLBACK_ROOT = PROJECT_ROOT / "touchdesigner" / "callbacks"
 MANAGED_NAMES = ("td_imagefx", "imagefx_demo")
 OUTPUT_PRESETS = (
@@ -336,6 +338,20 @@ def install():
         demo_page.appendToggle("Finalcropenabled", label="Final Crop Enabled")
         demo.par.Finalcropenabled.default = False
         demo.par.Finalcropenabled = False
+        for name,label in (("Colorswitchenabled","Color Switch Enabled"),("Imagecompositionenabled","Two-Image Composition Enabled")):
+            demo_page.appendToggle(name,label=label)
+            demo.par[name].default=False
+            demo.par[name]=False
+        for name,path,toggle in (("color_switch",COLOR_SWITCH_TOX,"Colorswitchenabled"),("image_composition",IMAGE_COMPOSITION_TOX,"Imagecompositionenabled")):
+            added=_load_single_tox(demo,path)
+            added.name=name
+            added.par.Enabled.expr="parent().par."+toggle
+            _repair_effect_shader_paths(added)
+            for rack_name in ("a_effects/fx_rack","b_effects/fx_rack"):
+                rack=added.op(rack_name)
+                if rack is not None:
+                    _set_library_root(rack,"composition rack")
+                    _sync_extension(rack,"FxRackExt")
         demo_page.appendToggle("Layercompositeenabled", label="Layer Composite Enabled")
         demo.par.Layercompositeenabled.default = False
         demo.par.Layercompositeenabled = False
@@ -641,6 +657,7 @@ def install():
         builder = PROJECT_ROOT / "touchdesigner" / "scripts" / "build_project.py"
         context = dict(globals(), __file__=str(builder), __name__="_imagefx_harness_helpers")
         exec(compile(builder.read_text(encoding="utf-8"), str(builder), "exec"), context)
+        context["build_source_media"](demo)
         context["build_workflow"](demo)
         show_builder = PROJECT_ROOT / "touchdesigner" / "scripts" / "build_show_control.py"
         show_scope = dict(context, __file__=str(show_builder), __name__="_imagefx_harness_show")
@@ -660,6 +677,8 @@ def install():
             "ink_radial_flow": ink_radial_flow.path,
             "layer_composite": layer_composite.path,
             "final_crop": final_crop.path,
+            "color_switch": demo.op("color_switch").path,
+            "image_composition": demo.op("image_composition").path,
             "ink_flow": ink_flow.path,
             "particles": particles.path,
             "glitch": glitch.path,

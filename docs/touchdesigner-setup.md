@@ -93,10 +93,12 @@ ignored report is `build/envoy-validation/all-effect-parameters.json`. The
 script restores rack, demo, source-time, resolution, and timeline state in a
 `finally` block and never saves the project.
 
-Rack-loaded components deliberately show rack-owned **Enable**, **Mix**,
-**Effective Time**, and metadata fields as read-only. Use the slot controls on
-`fx_rack` for enable/mix and the rack's global time controls; each effect's
-editable **Time Scale** multiplies that global time.
+Rack-loaded components expose an editable **Enable** switch linked in both
+directions to the matching rack slot. Rack-owned **Mix**, **Effective Time**,
+and metadata fields are read-only. Use the slot controls on `fx_rack` for mix
+and the rack's global time controls; each effect's editable **Time Scale**
+multiplies that global time. **Master > Rack Enabled** mirrors the containing
+workflow's **Apply Video Effects** switch without clearing the slot settings.
 
 For particle-specific GPU and routing QA, run
 `touchdesigner/scripts/validate_particle_module.py` from the Python Textport.
@@ -344,7 +346,7 @@ resolution and frame-time budget.
 
 The demo also connects deterministic fixtures to every auxiliary rack input, including the second-image bus used by transitions, composites, and clean-reference keys. Replace those fixtures with production TOPs in a real project. Several grading and transform effects intentionally load with neutral parameter values; enter the loaded `slot1` through `slot8` component to adjust its effect-specific custom parameters.
 
-To use your own source in `/project1/imagefx_demo`, drag the still or movie into the network to create a Movie File In TOP, disconnect the generated `source_image` from input 0 of `ink_flow`, and connect the Movie File In TOP there. Keep that source connected to `fixture_image_b` to derive the supplied alternate/clean-reference image, or replace rack input 1 with an independent TOP. View the result at `out1_image`. A Video Device In TOP can replace the Movie File In TOP for a live camera.
+To use your own source, select `/project1/imagefx_demo` → **Source Media** and choose **Image / Video File**. Images and silent video are decoded into the existing `source_image` TOP, with fit/fill/stretch and playback controls; no node replacement or workflow reset is needed. The source and `fixture_image_b` stay connected and the source canvas follows the main Output page's HD/4K/Custom resolution. View `out1_image` for the processed result. See [Source Media](source-media.md). Live camera capture is not part of this file-input section.
 
 Rack, browser, updater, and stateful-effect callback targets are stored as component-relative operator paths. Stateful Feedback TOPs likewise target their package-local state nodes relatively. An imported `FxRack.tox` therefore watches its own slot parameters and retains working temporal history after it is moved or renamed; it does not retain absolute paths from the network that produced the `.tox`.
 

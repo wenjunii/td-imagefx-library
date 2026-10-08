@@ -244,7 +244,7 @@ class EmbodyIntegrationTests(unittest.TestCase):
         self.assertIn('parameter.val = ""', installer)
         self.assertIn('parameter.expr = "me.op(\'../../effects\')"', installer)
         self.assertIn("browser.cook(force=True)", installer)
-        self.assertEqual(installer.count("_repair_effect_shader_paths("), 16)
+        self.assertEqual(installer.count("_repair_effect_shader_paths("), 17)
         self.assertIn("ParticleRandomMove.tox", installer)
         self.assertIn("InkFlowFusion.tox", installer)
         self.assertIn("GlitchFusion.tox", installer)
@@ -257,7 +257,7 @@ class EmbodyIntegrationTests(unittest.TestCase):
         self.assertIn("4K UHD 3840 x 2160", installer)
         self.assertIn("Customwidth", installer)
         self.assertIn("Customheight", installer)
-        self.assertEqual(installer.count("_sync_extension("), 6)
+        self.assertEqual(installer.count("_sync_extension("), 7)
         self.assertIn('_sync_extension(browser, "ImageFXBrowserExt")', installer)
         self.assertIn('_sync_extension(updater, "UpdaterExt")', installer)
         self.assertEqual(installer.count("_sync_callbacks("), 5)
@@ -281,6 +281,7 @@ class EmbodyIntegrationTests(unittest.TestCase):
         self.assertIn("reloads_selected_preview", validator)
         for script_name in (
             "validate_live_project.py",
+            "validate_module_bindings.py",
             "validate_output_resolution.py",
             "validate_rack_selection.py",
             "validate_ink_flow_module.py",

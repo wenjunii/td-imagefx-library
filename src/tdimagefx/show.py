@@ -16,12 +16,12 @@ MAX_SHOW_BYTES = 8 * 1024 * 1024
 MODULES = (
     "reference_particle_field", "calligraphic_shadow", "ink_orbit_canvas",
     "ink_flow", "particle_random_move", "glitch_fusion", "color_adjustment",
-    "motion_studio", "ink_dream_flow", "ink_brush_flow", "ink_radial_flow", "layer_composite", "final_crop",
+    "motion_studio", "ink_dream_flow", "ink_brush_flow", "ink_radial_flow", "layer_composite", "final_crop", "color_switch", "image_composition",
 )
 TOGGLES = (
     "Referenceparticlefieldenabled", "Calligraphicshadowenabled", "Inkorbitenabled",
     "Inkflowenabled", "Particlesenabled", "Glitchenabled", "Coloradjustmentenabled",
-    "Motionenabled", "Applyvideofx", "Inkdreamenabled", "Inkbrushenabled", "Inkradialenabled", "Layercompositeenabled", "Finalcropenabled",
+    "Motionenabled", "Applyvideofx", "Inkdreamenabled", "Inkbrushenabled", "Inkradialenabled", "Layercompositeenabled", "Finalcropenabled", "Colorswitchenabled", "Imagecompositionenabled",
 )
 MODULE_TOGGLES = {
     "reference_particle_field": "Referenceparticlefieldenabled",
@@ -37,7 +37,45 @@ MODULE_TOGGLES = {
     "ink_radial_flow": "Inkradialenabled",
     "layer_composite": "Layercompositeenabled",
     "final_crop": "Finalcropenabled",
+    "color_switch": "Colorswitchenabled",
+    "image_composition": "Imagecompositionenabled",
 }
+
+
+def resolve_composition_files(values, base_dir, *, selections=None, enabled=True):
+    """Resolve only passive A/B media; never allow executable operator paths."""
+    if not isinstance(values,dict) or set(values)-{'Afile','Bfile'}:
+        raise ValueError('Unknown Two-Image Composition media fields')
+    selections=selections or {}; result={}
+    for prefix in ('A','B'):
+        name=prefix+'file'; raw=values.get(name,'')
+        if not isinstance(raw,str) or len(raw)>4096 or '://' in raw or '\x00' in raw:
+            raise ValueError('Composition media must be local file paths')
+        selection=selections.get(prefix+'source','auto')
+        if selection not in {'auto','file','input','transparent'}: raise ValueError('Invalid composition source')
+        if not raw.strip(): result[name]=''; continue
+        path=Path(raw)
+        if not path.is_absolute(): path=Path(base_dir)/path
+        if enabled and selections.get(prefix+'visible',True) and selection in {'auto','file'} and not path.is_file():
+            raise ValueError('Missing composition media: '+path.name)
+        result[name]=str(path.resolve())
+    return result
+
+
+def validate_look_media(look, base_dir, *, active=True, branch=False):
+    """Preflight nested local sources even when the main cue source is blank."""
+    if not isinstance(look,dict): raise ValueError('Look must be an object')
+    modules=look.get('modules',{}); toggles=look.get('toggles',{})
+    resolve_layer_files(look.get('layer_files',{}),base_dir,selections=modules.get('layer_composite',{}),enabled=active and toggles.get('Layercompositeenabled',False))
+    branches=look.get('branches',{})
+    if not isinstance(branches,dict) or set(branches)-{'a_effects','b_effects'}: raise ValueError('Unknown composition branch')
+    if branch and (branches or 'composition_files' in look or 'image_composition' in modules):
+        raise ValueError('Recursive image composition is not allowed')
+    enabled=active and toggles.get('Imagecompositionenabled',False)
+    selection=modules.get('image_composition',{})
+    resolve_composition_files(look.get('composition_files',{}),base_dir,selections=selection,enabled=enabled)
+    for name,child in branches.items():
+        validate_look_media(child,base_dir,active=enabled and selection.get(name[0].upper()+'visible',True),branch=True)
 
 
 def resolve_layer_files(values, base_dir, *, selections=None, enabled=True):
@@ -106,6 +144,18 @@ def new_cue():
     }
 
 
+def parse_target(value):
+    parts=value.split('/')
+    allowed=(*MODULES,'fx_rack',*[f'slot{i}' for i in range(1,9)])
+    if len(parts)==2 and parts[0] in allowed:
+        path='fx_rack/'+parts[0] if parts[0].startswith('slot') else parts[0]
+    elif len(parts)==4 and parts[0]=='image_composition' and parts[1] in {'a_effects','b_effects'} and parts[2] in allowed and parts[2]!='image_composition':
+        path='/'.join(parts[:2])+('/fx_rack/' if parts[2].startswith('slot') else '/')+parts[2]
+    else: raise ValueError('Target must be module/Parameter, slot1..8/Parameter, or image_composition/a_effects|b_effects/module/Parameter')
+    if not re.fullmatch(r'[A-Za-z][A-Za-z0-9]{0,79}',parts[-1]): raise ValueError('Invalid target parameter')
+    return path,parts[-1]
+
+
 def validate_cue(value):
     if not isinstance(value, dict):
         raise ValueError("Cue must be an object")
@@ -139,11 +189,7 @@ def validate_cue(value):
         raise ValueError("Auto-follow requires a duration; zero means indefinite")
     if not isinstance(result["look"], dict):
         raise ValueError("Look must be an object")
-    target = result["target"].split("/")
-    if len(target) != 2 or target[0] not in (*MODULES, "fx_rack", *[f"slot{i}" for i in range(1, 9)]):
-        raise ValueError("Target must be module/Parameter or slot1..8/Parameter")
-    if not re.fullmatch(r"[A-Za-z][A-Za-z0-9]{0,79}", target[1]):
-        raise ValueError("Invalid target parameter")
+    parse_target(result["target"])
     if not isinstance(result["value"], (str, int, float, bool)):
         raise ValueError("Target value must be a scalar")
     if isinstance(result["value"], (int, float)) and not isinstance(result["value"], bool):
