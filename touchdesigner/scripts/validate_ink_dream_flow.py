@@ -24,6 +24,10 @@ def validate(write_report=True, brush=False, radial=False):
     if module is None:
         raise RuntimeError("Build " + module_name + " first")
     host = op("/project1").create(baseCOMP, module_name + "_qa")
+    # Define the copied binding's master before copy() evaluates it. The copied
+    # module is detached below, without leaving a stale missing-master error.
+    toggle_name = "Inkradialenabled" if radial else "Inkbrushenabled" if brush else "Inkdreamenabled"
+    host.appendCustomPage("Fixture").appendToggle(toggle_name)[0].val = True
     checks, controls = {}, {}
     report = dict(validator=module_name.replace("_", "-"), generated_at=datetime.now(timezone.utc).isoformat(), ok=False)
     try:
@@ -89,12 +93,18 @@ def validate(write_report=True, brush=False, radial=False):
             "Staticglitterstarrotation": (-30., 15.), "Staticglitterseed": (1, 89),
             "Staticglittertwinklespeed": (-.4, 1.1),
             "Radialspeed": (-.5, .8), "Radialspiral": (-.8, .9),
+            "Patternrotation": (-35., 50.), "Patternseed": (1, 89),
+            "Patternspeed": (-.5, .8), "Patternstagger": (0., .5),
         }
         for par in test.customPars:
             if par.readOnly:
                 checks[par.name + "_readonly"] = par.name == "Time" and bool(par.expr)
                 continue
             reset()
+            if par.name.startswith("Pattern") and par.name != "Patternenabled":
+                # Own-background mode exposes every RGBA component; a coarser
+                # lattice keeps endpoint changes visible in this 320px fixture.
+                reset(Patternenabled=True, Patternmode="replace", Patterndensity=24.)
             if par.name.startswith("Glitter") and par.name != "Glitterenabled":
                 reset(Glitterenabled=True, Glitteramount=1., Glitterdensity=.65,
                       Glittersize=4., Glitterbrightness=2., Glitterthreshold=.08,
@@ -169,6 +179,49 @@ def validate(write_report=True, brush=False, radial=False):
         checks["particles_only_visible"] = float(np.max(capture()[:,:,3])) > .1
         reset(Liquidenabled=True, Particlesenabled=False, Background="transparent")
         checks["liquid_only_visible"] = float(np.max(capture()[:,:,3])) > .1
+        reset()
+        without_pattern = capture()
+        set_values(dict(Patternenabled=False, Patternamount=1., Patternmode="replace",
+                        Patternwarp=2., Patterndensity=220.))
+        checks["pattern_disabled_exact_bypass"] = np.array_equal(without_pattern,capture())
+        reset(Patternenabled=True, Patternamount=0., Patternmode="replace")
+        checks["pattern_zero_mix_exact_bypass"] = np.array_equal(without_pattern,capture())
+        reset(Patternenabled=True, Patterncolora=0.)
+        checks["pattern_overlay_zero_opacity_exact_bypass"] = np.array_equal(without_pattern,capture())
+        reset(Patternenabled=True, Patternmode="replace", Patternbackgrounda=0.,
+              Liquidenabled=False, Particlesenabled=False, Background="transparent",
+              Patterndensity=24., Patternspeed=0.)
+        first = capture()
+        checks["pattern_alone_visible"] = float(np.max(first[:,:,3])) > .1
+        checks["pattern_alpha_bounded"] = bool(((first[:,:,3]>=0)&(first[:,:,3]<=1)).all())
+        test.par.Manualtime = 25.
+        checks["pattern_speed_zero_freezes_geometry"] = np.array_equal(first,capture())
+        test.par.Patternspeed = .4
+        first = capture()
+        test.par.Manualtime = 17.
+        checks["pattern_independent_motion"] = difference(first,capture()) > 1e-6
+        test.par.Manualtime = 25.
+        checks["pattern_seek_repeatable"] = np.array_equal(first,capture())
+        for prefix in ("Glitter", "Staticglitter"):
+            set_values({prefix+"enabled":True, prefix+"surface":"pattern", prefix+"threshold":.05,
+                        prefix+"density":1., prefix+"spread":0.})
+            checks[prefix+"_highlights_dot_surface"] = difference(first,capture()) > 1e-6
+            set_values({prefix+"enabled":False})
+        for surface, toggle in (("ink","Liquidenabled"),("wash","Liquidenabled"),("particles","Particlesenabled")):
+            reset(Patternenabled=True, Patternsurface=surface, **{toggle:False})
+            first = capture()
+            test.par.Patternenabled = False
+            checks["pattern_"+surface+"_respects_layer_switch"] = np.array_equal(first,capture())
+        # Transparent output must not hide RGB in zero-alpha pixels.
+        reset(Patternenabled=True, Patternmode="replace", Patternbackgrounda=0.,
+              Patterndensity=24., Patterncolorb=.4)
+        original_format = shader.par.format.eval()
+        try:
+            shader.par.format = "rgba32float"
+            precise = capture(shader)
+            checks["pattern_no_hidden_rgb_at_zero_alpha_float32"] = bool((precise[precise[:,:,3]==0.,:3]==0.).all())
+        finally:
+            shader.par.format = original_format
         reset()
         without_glitter = capture()
         set_values(dict(Glitterenabled=False, Glitteramount=2., Glitterdensity=1.,
@@ -346,7 +399,7 @@ def validate(write_report=True, brush=False, radial=False):
         # Check native full-resolution rendering without claiming frame-rate suitability.
         for width, height in ((1920,1080), (3840,2160)):
             fixture.par.resolutionw, fixture.par.resolutionh = width, height
-            reset(Glitterenabled=True, Staticglitterenabled=True)
+            reset(Glitterenabled=True, Staticglitterenabled=True, Patternenabled=True)
             rendered = capture()
             checks[str(width) + "x" + str(height)] = rendered.shape[:2] == (height,width)
         report.update(checks=checks, controls=controls, control_count=len(controls), ok=all(checks.values()))

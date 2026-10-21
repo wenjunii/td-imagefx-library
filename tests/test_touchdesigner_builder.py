@@ -684,6 +684,14 @@ class TouchDesignerBuilderPathTests(unittest.TestCase):
             item["name"]: item
             for item in BUILDER.CALLIGRAPHIC_SHADOW_PARAMETER_DEFINITIONS
         }
+        transparent = calligraphic_definitions["Transparentbackground"]
+        self.assertEqual(transparent["type"], "toggle")
+        self.assertEqual(transparent["page"], "Subject")
+        self.assertFalse(transparent["default"])
+        self.assertEqual(transparent["uniform"], "uTransparentBackground")
+        self.assertIn("mask * clamp(sampleColor.a", BUILDER.CALLIGRAPHIC_SHADOW_SHADER)
+        self.assertIn("premultiplied / alpha", BUILDER.CALLIGRAPHIC_SHADOW_SHADER)
+        self.assertIn("any(lessThan(uv", BUILDER.CALLIGRAPHIC_SHADOW_SHADER)
         self.assertEqual(calligraphic_definitions["Particleamount"]["default"], 0.0)
         self.assertEqual(calligraphic_definitions["Particleamount"]["max"], 1.0)
         self.assertEqual(calligraphic_definitions["Particlespeed"]["min"], -8.0)

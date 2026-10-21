@@ -1,4 +1,4 @@
-"""Final projector review and isolated, frame-stepped silent cue export.
+"""Final projector review, frame-stepped cue export and UHD wall recording.
 
 Installed as a self-contained Text DAT; no external package is needed at playback.
 """
@@ -9,23 +9,63 @@ import re
 import time
 import uuid
 
-ACTIONS = ('Openprojectorreview', 'Startexport', 'Cancelexport')
+WALL_ACTIONS = {
+    'Wallcheckdisplay': 'Checkdisplay',
+    'Wallopen': 'Openwall',
+    'Wallclose': 'Closewall',
+}
+ACTIONS = ('Openprojectorreview', 'Startexport', 'Stopexport', 'Cancelexport', *WALL_ACTIONS)
+# These are aliases, not a second set of hardware settings. Relative bindings
+# continue to resolve correctly when the complete ImageFX demo is copied.
+WALL_BINDINGS = (
+    ('Wallmasterblackout', 'Masterblackout', 'Show Master Blackout'),
+    ('Wallenabled', 'Enabled', 'Enable Projector Feeds'),
+    ('Wallblackout', 'Blackout', 'Wall Projector Blackout (keeps Q4)'),
+    ('Wallsourcemode', 'Sourcemode', 'Wall Source Mode'),
+    ('Wallmastertop', 'Mastertop', 'Master / Panorama TOP Path'),
+    ('Wallprojector1top', 'Projector1top', 'Projector 1 TOP Path'),
+    ('Wallprojector2top', 'Projector2top', 'Projector 2 TOP Path'),
+    ('Wallprojector3top', 'Projector3top', 'Projector 3 TOP Path'),
+    ('Wallfit', 'Fit', 'Source Fit'),
+    ('Walltestpattern', 'Testpattern', 'Numbered Calibration Pattern'),
+    ('Wallmonitorenabled', 'Monitorenabled', 'Enable Confidence Quadrant'),
+    ('Wallshowstats', 'Showstats', 'Show Diagnostics'),
+    ('Walldisplayindex', 'Displayindex', '4K Processor Display Index'),
+    ('Wallallowprimary', 'Allowprimary', 'Allow Primary Display'),
+)
 JOB_KEY = 'imagefx_export_job'
+EXPORT_SOURCES = (
+    ('cue', 'Selected Saved Cue / Offline'),
+    ('draft', 'Current Look Draft / Offline'),
+    ('wall', '2x2 Wall + Confidence / Real-Time'),
+)
+REVIEW_VIEWS = (
+    ('auto', 'Auto / Follow Output Mode'),
+    ('all', 'Three Projectors / Side by Side'),
+    ('wall', '2x2 Video Wall / Full 4K Canvas'),
+    ('1', 'Projector 1 / Left'),
+    ('2', 'Projector 2 / Center'),
+    ('3', 'Projector 3 / Right'),
+    ('confidence', 'Confidence Monitor / Quadrant 4'),
+)
 
 
 def export_settings(source, preset, width, height, fps, duration, start, codec):
-    if source not in ('cue', 'draft') or codec not in ('h264', 'mjpeg'):
+    if source not in dict(EXPORT_SOURCES) or codec not in ('h264', 'mjpeg'):
         raise ValueError('Choose an export source and codec from the menus')
     sizes = {'1080p': (1920, 1080), '4k': (3840, 2160), '720p': (1280, 720)}
-    if preset == 'custom':
+    if preset not in (*sizes, 'custom'):
+        raise ValueError('Choose a resolution preset')
+    if source == 'wall':
+        size = sizes['4k']  # Fixed hardware contract; ignore disabled size fields.
+        start = 0         # Record current playback; never seek the live show.
+    elif preset == 'custom':
         dims = (float(width), float(height))
         if any(not math.isfinite(n) or n != int(n) or n < 16 or n > 4096 or int(n) % 2 for n in dims):
             raise ValueError('Custom width/height must be even integers from 16 to 4096')
         size = tuple(int(n) for n in dims)
     elif preset in sizes:
         size = sizes[preset]
-    else:
-        raise ValueError('Choose a resolution preset')
     fps, duration, start = float(fps), float(duration), float(start)
     if not math.isfinite(fps) or fps not in (24, 25, 30, 50, 60):
         raise ValueError('Export FPS must be 24, 25, 30, 50, or 60')
@@ -71,6 +111,50 @@ def review_path(show, index):
     return target.path if target is not None else show.op('black').path
 
 
+def review_selection(show):
+    selected = show.par.Reviewprojector.eval()
+    if selected == 'auto':
+        return 'wall' if show.par.Reviewroute.eval() == 'wall' else 'all'
+    if selected not in {name for name, _ in REVIEW_VIEWS}:
+        raise ValueError('Choose a Review View from the menu')
+    return selected
+
+
+def review_target(show):
+    """Use the actual packed output, not a second approximation of the wall."""
+    selected = review_selection(show)
+    if selected in ('wall', 'confidence'):
+        path = 'out1_wall_4k' if selected == 'wall' else 'comp_monitor_out'
+        target = show.parent().op('wall_output/' + path)
+    elif selected == 'all':
+        target = show.op('projector_review')
+    else:
+        target = show.op(review_path(show, int(selected)))
+    return target if target is not None else show.op('black')
+
+
+def review_size(show):
+    target = review_target(show)
+    width, height = max(1, target.width), max(1, target.height)
+    scale = min(880.0 / width, 165.0 / height)
+    return max(1, round(width * scale)), max(1, round(height * scale))
+
+
+def review_heading(show):
+    selected = review_selection(show)
+    if selected == 'wall':
+        label = '2x2 VIDEO WALL:  TL=P1  |  TR=P2  |  BL=P3  |  BR=CONFIDENCE'
+    elif selected == 'confidence':
+        label = 'CONFIDENCE MONITOR / QUADRANT 4'
+    elif selected == 'all':
+        label = 'PROJECTOR REVIEW:  1 / LEFT                         2 / CENTER                         3 / RIGHT'
+    else:
+        label = 'PROJECTOR ' + selected + ' / FINAL FEED'
+    if selected in ('wall', 'confidence') and show.par.Reviewroute.eval() != 'wall':
+        label += '  [Direct output active; wall preview only]'
+    return label
+
+
 def window_open(window):
     return bool(window is not None and window.isOpen)
 
@@ -80,25 +164,87 @@ def review_status(show):
     wall = show.parent().op('wall_output')
     if wall_mode and wall is None:
         return '4K WALL UNAVAILABLE — not showing another route'
-    window = wall.op('wall_window') if wall_mode else show.op('audience_window')
-    name = '4K WALL' if wall_mode else 'AUDIENCE ATLAS'
+    candidates = ([wall.op('wall_window')] if wall_mode else
+                  [show.op('audience_window')] + [show.op('direct_window{}'.format(i)) for i in (1, 2, 3)])
+    name = '4K WALL' if wall_mode else 'DIRECT DISPLAYS'
     black = bool(show.par.Masterblackout)
     if wall_mode:
         black = bool(wall.par.Blackout) or not bool(wall.par.Enabled) or (wall.par.Sourcemode == 'show' and black)
     return '{} | {} | {} | Software feed, not hardware confirmation'.format(
-        name, 'WINDOW OPEN' if window_open(window) else 'WINDOW CLOSED',
+        name, 'WINDOW OPEN' if any(window_open(w) for w in candidates) else 'WINDOW CLOSED',
         'BLACKOUT' if black else 'Feed active / per-output settings apply')
 
 
 def _export_windows(show):
     wall = show.parent().op('wall_output')
-    return [show.op('audience_window'), wall.op('wall_window') if wall else None]
+    return ([show.op('audience_window'), wall.op('wall_window') if wall else None] +
+            [show.op('direct_window{}'.format(i)) for i in (1, 2, 3)])
 
 
 def _later(show):
     import td
-    td.run("op(args[0]).op('show_review_export').module.step(op(args[0]))", show.path,
-           delayFrames=2, fromOP=show)
+    job = show.fetch(JOB_KEY, None, search=False)
+    if job:
+        td.run("owner=op(args[0]); runtime=owner.op('show_review_export') if owner else None; "
+               "runtime.module.step(owner, args[1]) if runtime else None",
+               show.path, job['id'], delayFrames=1 if job['settings']['source'] == 'wall' else 2,
+               fromOP=show)
+
+
+def wall_export_target(show):
+    wall = show.parent().op('wall_output')
+    if wall is None:
+        raise ValueError('Wall Output is unavailable')
+    if not bool(wall.par.Monitorenabled):
+        raise ValueError('Enable Confidence Quadrant on Wall Output before recording')
+    target = wall.op('out1_wall_4k')
+    if target is None or target.family != 'TOP':
+        raise ValueError('The packed 2x2 wall TOP is unavailable')
+    target.cook(force=True)
+    if (target.width, target.height) != (3840, 2160):
+        raise ValueError('Wall recording requires a 3840 x 2160 TOP; check license/resolution')
+    errors = target.errors(recurse=True)
+    if errors:
+        raise ValueError('Wall output error: ' + str(errors))
+    return target
+
+
+def export_description(show):
+    if show.par.Exportsource == 'wall':
+        return ('3840 x 2160 fixed | TL=P1 TR=P2 BL=P3 BR=confidence | '
+                'Real-time, silent; run cues with output windows CLOSED. Blackouts are recorded.')
+    return 'Offline cue/draft render | STOP ALL and close output windows | Silent video'
+
+
+def _writer(parent, target, path, settings):
+    import td
+    writer = parent.create(td.moviefileoutTOP, 'export_writer')
+    writer.par.record = False
+    writer.par.file = str(path)
+    wall = settings['source'] == 'wall'
+    writer.par.type = 'movie' if wall else 'stopframemovie'
+    writer.par.videocodec = 'mjpa' if settings['codec'] == 'mjpeg' else settings['codec']
+    writer.par.pause = not wall
+    writer.par.avgbitrate = 20000 if settings['width'] <= 1920 else 50000
+    writer.par.peakbitrate = 30000 if settings['width'] <= 1920 else 70000
+    writer.par.fps = settings['fps']
+    writer.par.outputresolution = 'custom'
+    writer.par.resolutionw, writer.par.resolutionh = settings['width'], settings['height']
+    writer.par.resmult = False
+    writer.par.audiochop = ''
+    if wall:
+        writer.par.limitlength = True
+        # TD's frame unit uses the project rate, not Movie FPS. Seconds keeps
+        # the requested duration correct at (for example) 30 FPS in a 60 Hz project.
+        writer.par.lengthunit = 'seconds'
+        writer.par.length = settings['duration']
+        # TD connections cannot cross COMP boundaries. Reference the live wall
+        # from a local Select TOP instead of attempting an invalid direct wire.
+        source = parent.create(td.selectTOP, 'export_source')
+        source.par.top = target.path
+        target = source
+    target.outputConnectors[0].connect(writer.inputConnectors[0])
+    return writer
 
 
 def _set_time(deck, modules, seconds):
@@ -117,7 +263,9 @@ def start_export(show):
         'Exportsource', 'Exportresolution', 'Exportwidth', 'Exportheight', 'Exportfps',
         'Exportduration', 'Exportstart', 'Exportcodec')]
     settings = export_settings(*values)
-    cue = selected_snapshot(show, settings['source'])
+    is_wall = settings['source'] == 'wall'
+    target = wall_export_target(show) if is_wall else None
+    cue = None if is_wall else selected_snapshot(show, settings['source'])
     if any(window_open(w) for w in _export_windows(show)):
         raise ValueError('Close audience/wall output windows before exporting (shared GPU)')
     folder_text = show.par.Exportfolder.eval().strip()
@@ -128,14 +276,15 @@ def start_export(show):
         folder = Path(show.par.Libraryroot.eval()) / folder
     folder = folder.resolve()
     folder.mkdir(parents=True, exist_ok=True)
-    safe_name = re.sub(r'[^a-zA-Z0-9_-]+', '-', cue['name']).strip('-')[:60] or 'cue'
+    name = 'wall-2x2-confidence' if is_wall else cue['name']
+    safe_name = re.sub(r'[^a-zA-Z0-9_-]+', '-', name).strip('-')[:60] or 'cue'
     suffix = '.mp4' if settings['codec'] == 'h264' else '.mov'
     # A separate unique directory is atomically reserved; never overwrite a file.
     jobdir = folder / (safe_name + '-' + time.strftime('%Y%m%d-%H%M%S') + '-' + uuid.uuid4().hex[:8])
     jobdir.mkdir(exist_ok=False)
     path = jobdir / ('render' + suffix)
     ext = show.ext.ShowControlExt
-    job = dict(settings=settings, cue=cue, path=path, index=0, deck=None, writer=None,
+    job = dict(id=uuid.uuid4().hex, settings=settings, cue=cue, path=path, index=0, deck=None, writer=None,
                stage='loading', deadline=time.monotonic() + 90)
     show.store(JOB_KEY, job)
     show.par.Exportbusy = True
@@ -143,6 +292,22 @@ def start_export(show):
     show.par.Exportstatus = 'Preparing separate render copy (silent)...'
     show.par.Exportresult = str(path)
     try:
+        if is_wall:
+            # Tap the final packed TOP. No copied cue, routing edits, transport
+            # changes, opened windows, or automatic release of blackouts.
+            deck = show.create(td.baseCOMP, 'export_wall_' + job['id'][:8])
+            deck.store('imagefx_show_runtime', True)
+            job['deck'] = deck
+            job['writer'] = _writer(deck, target, path, settings)
+            info = deck.create(td.infoCHOP, 'encoder_info')
+            info.par.op = 'export_writer'
+            job.update(info=info, target=target, dropped=0, stage='recording',
+                       deadline=time.monotonic() + settings['duration'] + 90)
+            job['writer'].par.record = True
+            job['writer'].cook(force=True)
+            show.par.Exportstatus = 'Recording 2x2 wall + confidence — silent, real-time'
+            _later(show)
+            return
         deck = ext._new_deck('export_render_' + uuid.uuid4().hex[:8])
         job['deck'] = deck
         ext._apply_look(deck, cue['look'])
@@ -161,20 +326,7 @@ def start_export(show):
             reader.par.frametimeout = 5000
             reader.par.alwaysloadinitial = True
             reader.preload()
-        writer = deck.create(td.moviefileoutTOP, 'export_writer')
-        job['writer'] = writer
-        writer.par.record = False
-        writer.par.file = str(path)
-        writer.par.type = 'stopframemovie'
-        writer.par.videocodec = 'mjpa' if settings['codec'] == 'mjpeg' else settings['codec']
-        writer.par.pause = True
-        writer.par.avgbitrate = 20000 if settings['width'] <= 1920 else 50000
-        writer.par.peakbitrate = 30000 if settings['width'] <= 1920 else 70000
-        writer.par.fps = settings['fps']
-        writer.par.outputresolution = 'custom'
-        writer.par.resolutionw, writer.par.resolutionh = settings['width'], settings['height']
-        writer.par.audiochop = ''
-        deck.op('out1_image').outputConnectors[0].connect(writer.inputConnectors[0])
+        job['writer'] = _writer(deck, deck.op('out1_image'), path, settings)
         _later(show)
     except Exception:
         finish_export(show, 'FAILED')
@@ -209,16 +361,61 @@ def finish_export(show, outcome):
         show.par.Exportprogress = 1
         show.par.Exportstatus = 'COMPLETE — {} frames, {:.3f}s, silent video'.format(
             job['index'], job['index'] / job['settings']['fps'])
+        if job['settings']['source'] == 'wall':
+            dropped = job.get('dropped', 0)
+            show.par.Exportstatus = show.par.Exportstatus.eval() + ' | 3840x2160 wall + confidence | {} dropped frames{}'.format(
+                dropped, ' — WARNING: review recording for stutter' if dropped else '')
     else:
         show.par.Exportstatus = outcome + ' — partial output retained; not a finished export'
     show.par.Exportresult = str(path)
 
 
-def step(show):
+def _wall_counts(job):
+    job['info'].cook(force=True)
+    for key, channel in (('index', 'total_frames_written'), ('dropped', 'total_frames_dropped')):
+        value = job['info'][channel]
+        if value is None:
+            raise ValueError('Encoder progress channel unavailable: ' + channel)
+        job[key] = int(value[0])
+
+
+def stop_wall_export(show):
     job = show.fetch(JOB_KEY, None, search=False)
-    if not job:
+    if not job or job['settings']['source'] != 'wall':
+        raise ValueError('Stop & Save is only for a running 2x2 wall recording')
+    _wall_counts(job)
+    finish_export(show, 'COMPLETE' if job['index'] else 'CANCELLED: no frames recorded')
+
+
+def _wall_step(show, job):
+    if any(window_open(w) for w in _export_windows(show)):
+        raise ValueError('Close audience/output windows while recording (shared GPU)')
+    if wall_export_target(show) != job['target']:
+        raise ValueError('Wall output changed during recording')
+    writer, settings = job['writer'], job['settings']
+    writer.cook(force=True)
+    if writer.errors():
+        raise ValueError(str(writer.errors()))
+    _wall_counts(job)
+    show.par.Exportprogress = min(1, job['index'] / settings['frames'])
+    show.par.Exportstatus = 'Recording 2x2 wall: {}/{} frames | {} dropped | silent, real-time'.format(
+        job['index'], settings['frames'], job['dropped'])
+    if job['index'] >= settings['frames']:
+        finish_export(show, 'COMPLETE')
+    elif time.monotonic() > job['deadline']:
+        raise ValueError('Wall recorder timed out before its requested frame count')
+    else:
+        _later(show)
+
+
+def step(show, job_id=None):
+    job = show.fetch(JOB_KEY, None, search=False)
+    if not job or (job_id is not None and job['id'] != job_id):
         return
     try:
+        if job['settings']['source'] == 'wall':
+            _wall_step(show, job)
+            return
         ext = show.ext.ShowControlExt
         if ext.engine.state != 'stopped' or any(window_open(w) for w in _export_windows(show)):
             raise ValueError('Export cancelled because show playback/output was opened')
@@ -261,19 +458,30 @@ def step(show):
 
 def on_pulse(show, name):
     try:
-        if name == 'Openprojectorreview':
-            selected = show.par.Reviewprojector.eval()
-            target = show.op('projector_review') if selected == 'all' else show.op(review_path(show, int(selected)))
-            target.openViewer()
+        if name in WALL_ACTIONS:
+            wall = show.parent().op('wall_output')
+            if wall is None:
+                raise ValueError('Wall Output is unavailable in this project')
+            # Keep the existing UHD/display safety checks. Do not open a
+            # Window COMP directly or release either blackout automatically.
+            wall.op('controller').module.action(wall, WALL_ACTIONS[name])
+            show.par.Wallactionstatus = 'Linked to wall_output; opening never clears blackout'
+        elif name == 'Openprojectorreview':
+            review_target(show).openViewer()
         elif name == 'Startexport':
             start_export(show)
         elif name == 'Cancelexport':
             finish_export(show, 'CANCELLED')
+        elif name == 'Stopexport':
+            stop_wall_export(show)
         else:
             return False
         return True
     except Exception as exc:
-        show.par.Exportstatus = str(exc)[:500]
+        if name in WALL_ACTIONS:
+            show.par.Wallactionstatus = str(exc)[:500]
+        else:
+            show.par.Exportstatus = str(exc)[:500]
         return False
 
 
@@ -282,7 +490,7 @@ def startup(show):
     show.unstore(JOB_KEY)
     show.par.Exportbusy = False
     show.par.Exportprogress = 0
-    show.par.Exportstatus = 'Idle — STOP ALL, choose a visual cue, then Export Video'
+    show.par.Exportstatus = 'Idle — choose cue/draft render or 2x2 wall recording'
 
 
 def configure_panel_layout(show):
@@ -313,6 +521,64 @@ def configure_panel_layout(show):
         inspector.par.compress = 1
 
 
+def install_wall_controls(show):
+    """Add a two-way wall control surface without changing output/cue state."""
+    wall = show.parent().op('wall_output')
+    if wall is None:
+        raise ValueError('Install wall_output before the Show Control wall tab')
+    page = next((p for p in show.customPages if p.name == 'Wall Output'), None)
+    if page is None:
+        page = show.appendCustomPage('Wall Output')
+    for alias, target, label in WALL_BINDINGS:
+        master = show.par[target] if target == 'Masterblackout' else wall.par[target]
+        item = show.par[alias]
+        if item is None:
+            item = getattr(page, 'append' + master.style)(alias, label=label)[0]
+        item.label = label
+        item.default = master.default
+        if master.isMenu:
+            item.menuNames, item.menuLabels = master.menuNames, master.menuLabels
+        if master.isInt or master.isFloat:
+            item.min, item.max = master.min, master.max
+            item.normMin, item.normMax = master.normMin, master.normMax
+            item.clampMin, item.clampMax = master.clampMin, master.clampMax
+        item.readOnly = False
+        # Never assign item.val here: on a repeat install it may already be
+        # bound and would write through to the real output controls.
+        item.bindExpr = ('me.par.Masterblackout' if target == 'Masterblackout'
+                         else "me.parent().op('wall_output').par." + target)
+        item.mode = type(item.mode).BIND
+    for name, label in (
+        ('Wallcheckdisplay', 'Check Display / Refresh List'),
+        ('Wallopen', 'OPEN 4K WALL (Perform Mode)'),
+        ('Wallclose', 'CLOSE 4K WALL'),
+    ):
+        if show.par[name] is None:
+            page.appendPulse(name, label=label)
+    for name, target, label in (
+        ('Wallstatus', 'Status', 'Wall / Display Status'),
+        ('Walldisplays', 'Displays', 'Connected Displays'),
+        ('Wallsourcesstatus', 'Sourcesstatus', 'Source Status'),
+    ):
+        item = show.par[name]
+        if item is None:
+            item = page.appendStr(name, label=label)[0]
+        item.expr = "me.parent().op('wall_output').par.{}.eval()".format(target)
+        item.readOnly = True
+    if show.par['Wallactionstatus'] is None:
+        item = page.appendStr('Wallactionstatus', label='Control Status')[0]
+        item.val = 'Linked to wall_output; opening never clears blackout'
+        item.readOnly = True
+    return page
+
+
+def guard_show_actions(text):
+    """Exclude our pulses from the generic dispatcher, preserving other guards."""
+    guard = "    if par.name in parent().op('show_review_export').module.ACTIONS:\n        return\n"
+    text = re.sub(r"    if par\.name in \('Openprojectorreview',[^\n]*\):\n        return\n", '', text)
+    return text if guard in text else text.replace('def onPulse(par):\n', 'def onPulse(par):\n' + guard, 1)
+
+
 def install(show):
     """Add nodes/parameters only; preserves show extension, cue data and drafts."""
     import td
@@ -336,22 +602,33 @@ def install(show):
             item.clampMin = item.clampMax = True
         item.readOnly = readonly
         return item
+    install_wall_controls(show)
     p = page('Projector Review')
-    par(p, 'Reviewroute', 'Output Route', 'Menu', 'wall', menu=[('wall', '4K Wall Processor'), ('atlas', 'Audience Atlas')])
-    par(p, 'Reviewprojector', 'Enlarge Feed', 'Menu', 'all', menu=[('all', 'All Three'), ('1', '1 / Left'), ('2', '2 / Center'), ('3', '3 / Right')])
+    par(p, 'Reviewroute', 'Output Route', 'Menu', 'wall', menu=[('wall', '4K Wall Processor'), ('atlas', 'Direct Displays')], readonly=show.par['Outputmode'] is not None)
+    view = par(p, 'Reviewprojector', 'Review View', 'Menu', 'auto', menu=REVIEW_VIEWS)
+    # Upgrade an existing menu as well as a new one, without losing its selection.
+    selected = view.eval()
+    view.menuNames, view.menuLabels = [x[0] for x in REVIEW_VIEWS], [x[1] for x in REVIEW_VIEWS]
+    view.label, view.default = 'Review View', 'auto'
+    view.val = selected if selected in view.menuNames else 'auto'
     par(p, 'Openprojectorreview', 'Open Projector Review', 'Pulse')
     par(p, 'Reviewstatus', 'Signal Status', 'Str', '', readonly=True).expr = "me.op('show_review_export').module.review_status(me)"
     p = page('Export Video')
-    par(p, 'Exportsource', 'Export Source', 'Menu', 'cue', menu=[('cue', 'Selected Saved Cue'), ('draft', 'Current Look Draft')])
+    source = par(p, 'Exportsource', 'Export Source', 'Menu', 'cue', menu=EXPORT_SOURCES)
+    selected = source.eval()
+    source.menuNames, source.menuLabels = [x[0] for x in EXPORT_SOURCES], [x[1] for x in EXPORT_SOURCES]
+    source.val = selected if selected in source.menuNames else 'cue'
+    par(p, 'Exportinfo', 'Export Mode / Canvas', 'Str', '', readonly=True).expr = "me.op('show_review_export').module.export_description(me)"
     par(p, 'Exportfolder', 'Export Folder', 'Folder', '.imagefx/exports')
     par(p, 'Exportcodec', 'Format', 'Menu', 'h264', menu=[('h264', 'MP4 / H.264 (Commercial/Pro)'), ('mjpeg', 'MOV / Motion JPEG')])
     par(p, 'Exportresolution', 'Resolution', 'Menu', '1080p', menu=[('1080p', '1920 x 1080'), ('4k', '3840 x 2160'), ('720p', '1280 x 720'), ('custom', 'Custom')])
     for name, label, default in [('Exportwidth','Width',1920), ('Exportheight','Height',1080)]:
-        par(p, name, label, 'Int', default, (16,4096)).enableExpr = "not me.par.Exportbusy and me.par.Exportresolution == 'custom'"
+        par(p, name, label, 'Int', default, (16,4096)).enableExpr = "not me.par.Exportbusy and me.par.Exportsource != 'wall' and me.par.Exportresolution == 'custom'"
     par(p, 'Exportfps', 'Frames / Second', 'Menu', '30', menu=[(str(n),str(n)) for n in (24,25,30,50,60)])
     par(p, 'Exportduration', 'Duration (seconds)', 'Float', 10, (.02,3600))
     par(p, 'Exportstart', 'Effect Start (seconds)', 'Float', 0, (0,86400))
     par(p, 'Startexport', 'Export Video (Silent)', 'Pulse').enableExpr = 'not me.par.Exportbusy'
+    par(p, 'Stopexport', 'Stop Wall Recording & Save', 'Pulse').enableExpr = "bool(me.par.Exportbusy) and me.par.Exportsource == 'wall'"
     par(p, 'Cancelexport', 'Cancel Export', 'Pulse').enableExpr = 'bool(me.par.Exportbusy)'
     par(p, 'Exportbusy', 'Export Running', 'Toggle', False, readonly=True)
     par(p, 'Exportprogress', 'Progress', 'Float', 0, (0,1), readonly=True)
@@ -359,6 +636,8 @@ def install(show):
     par(p, 'Exportresult', 'Last Output File', 'Str', '', readonly=True)
     for name in ('Exportsource','Exportfolder','Exportcodec','Exportresolution','Exportfps','Exportduration','Exportstart'):
         show.par[name].enableExpr = 'not me.par.Exportbusy'
+    for name in ('Exportresolution', 'Exportstart'):
+        show.par[name].enableExpr = "not me.par.Exportbusy and me.par.Exportsource != 'wall'"
     def node(kind, name):
         existing = show.op(name)
         if existing is not None:
@@ -379,9 +658,7 @@ def install(show):
     startup_dat.par.start = True
     startup_dat.text = "def onStart():\n    parent().op('show_review_export').module.startup(parent())\n"
     actions = show.op('show_parameters')
-    guard = "    if par.name in {!r}:\n        return\n".format(ACTIONS)
-    if guard not in actions.text:
-        actions.text = actions.text.replace('def onPulse(par):\n', 'def onPulse(par):\n' + guard, 1)
+    actions.text = guard_show_actions(actions.text)
     # Fixed-cost, low-resolution preview taps; no duplicate effect networks.
     for i in (1,2,3):
         feed = node('selectTOP','review_p{}'.format(i))
@@ -399,6 +676,11 @@ def install(show):
     layout.par.scaleres = False
     layout.par.fit = 'fitbest'
     layout.par.outputaspect = 'resolution'
+    selected_preview = node('selectTOP', 'review_selected')
+    selected_preview.par.top.expr = "parent().op('show_review_export').module.review_target(parent()).path"
+    selected_preview.par.outputresolution = 'custom'
+    for axis, index in (('w', 0), ('h', 1)):
+        selected_preview.par['resolution' + axis].expr = "parent().op('show_review_export').module.review_size(parent())[{}]".format(index)
     # Keep all 12 cue rows and the off-air Look Preview visible.
     for i in range(12):
         item = show.op('cue_row_{}'.format(i))
@@ -414,12 +696,15 @@ def install(show):
     for i in range(4):
         show.op('look_help_{}'.format(i)).par.y = 278-i*28
     panel = node('containerCOMP','projector_review_panel')
-    panel.par.x, panel.par.y, panel.par.w, panel.par.h = 20,12,880,165
-    panel.par.top = 'projector_review'
+    panel.par.y = 12
+    panel.par.w.expr = "op('review_selected').width"
+    panel.par.h.expr = "op('review_selected').height"
+    panel.par.x.expr = "20 + (880 - me.par.w) / 2"
+    panel.par.top = 'review_selected'
     label = node('textCOMP','review_heading')
     label.par.x,label.par.y,label.par.w,label.par.h = 20,174,880,22
     label.par.fontsize = 14
-    label.par.text = 'PROJECTOR REVIEW:  1 / LEFT                         2 / CENTER                         3 / RIGHT'
+    label.par.text.expr = "parent().op('show_review_export').module.review_heading(parent())"
     for action,label_text,x in [('Openprojectorreview','Enlarge Projector Review',20), ('Startexport','Export Video',322)]:
         button = node('buttonCOMP','button_'+action.lower())
         button.par.x,button.par.y,button.par.w,button.par.h = x,114,282,28
@@ -437,8 +722,16 @@ def install(show):
     show.op('look_help_2').par.fontsize = 12
     show.op('look_help_3').par.text = ''
     show.op('look_help_3').par.display = False
+    priority = ('Transport', 'Output Mode', 'Wall Output', 'Projection Mapping', 'Cue Editor', 'Look Editor',
+                'Projector Review', 'Export Video', 'Routing',
+                'Output 1', 'Output 2', 'Output 3')
+    existing_pages = [p.name for p in show.customPages]
+    show.sortCustomPages(*([p for p in priority if p in existing_pages] +
+                           [p for p in existing_pages if p not in priority]))
     inspector = show.op('cue_inspector')
-    inspector.par.pagescope = "Transport 'Cue Editor' 'Look Editor' 'Projector Review' 'Export Video' Routing 'Output 1' 'Output 2' 'Output 3'"
+    # Review/export refreshes must keep the mapping navigation installed by
+    # projection_mapping.install(); a hidden tab looks like missing controls.
+    inspector.par.pagescope = "Transport 'Output Mode' 'Wall Output' 'Projection Mapping' 'Cue Editor' 'Look Editor' 'Projector Review' 'Export Video' Routing 'Output 1' 'Output 2' 'Output 3'"
     inspector.par.op = ''
     inspector.cook(force=True)
     inspector.par.op = '..'

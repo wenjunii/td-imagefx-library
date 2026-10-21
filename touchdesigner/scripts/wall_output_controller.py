@@ -90,13 +90,24 @@ def action(wall,name):
         wall.op("wall_window").par.winclose.pulse()
         wall.par.Status="Wall window closed"
     elif name in ("Checkdisplay","Openwall"):
+        show=_show(wall)
+        if name=="Openwall" and show is not None:
+            if show.fetch('imagefx_export_job',None,search=False):
+                wall.par.Status="NOT OPENED: finish/cancel video export or wall recording first"
+                return
+            if show.par['Outputmode'] is not None and show.par.Outputmode != 'wall':
+                wall.par.Status="NOT OPENED: select 4K Wall Processor on Show Control's Output Mode tab"
+                return
         problem=check_display(wall)
         if problem:
             wall.par.Status="NOT OPENED: "+problem
         elif name=="Openwall":
             # Close only the legacy audience window from this demo, not other apps.
             show=_show(wall)
-            if show: show.op("audience_window").par.winclose.pulse()
+            if show:
+                for name in ('audience_window','direct_window1','direct_window2','direct_window3'):
+                    window=show.op(name)
+                    if window is not None: window.par.winclose.pulse()
             wall.op("wall_window").par.performance.pulse()
             wall.par.Status="4K wall opened on display {}".format(int(wall.par.Displayindex))
         else: wall.par.Status="Display check passed: 3840x2160 native. Check processor 2x2 / no overscan."

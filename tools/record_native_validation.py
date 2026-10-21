@@ -39,7 +39,7 @@ CORE_ASSETS = (
     "touchdesigner/core/FxUpdater.tox",
 )
 BUILDER_SOURCE = "touchdesigner/scripts/build_project.py"
-MODULE_SOURCES = ("touchdesigner/scripts/ink_dream_flow.py", "touchdesigner/scripts/layer_composite.py", "touchdesigner/scripts/final_crop.py", "touchdesigner/scripts/workflow.py", "touchdesigner/scripts/wall_output.py", "touchdesigner/scripts/wall_output_controller.py", "touchdesigner/scripts/color_switch.py", "touchdesigner/scripts/image_composition.py", "touchdesigner/scripts/source_media.py", "touchdesigner/scripts/look_editor_controls.py", "touchdesigner/scripts/show_review_export.py")
+MODULE_SOURCES = ("touchdesigner/scripts/ink_dream_flow.py", "touchdesigner/scripts/layer_composite.py", "touchdesigner/scripts/final_crop.py", "touchdesigner/scripts/workflow.py", "touchdesigner/scripts/wall_output.py", "touchdesigner/scripts/wall_output_controller.py", "touchdesigner/scripts/color_switch.py", "touchdesigner/scripts/image_composition.py", "touchdesigner/scripts/source_media.py", "touchdesigner/scripts/look_editor_controls.py", "touchdesigner/scripts/show_review_export.py", "touchdesigner/scripts/show_output_mode.py", "touchdesigner/scripts/projection_mapping.py", "touchdesigner/scripts/projection_polygon.py")
 SHOW_SOURCES = ("src/tdimagefx/show.py", "touchdesigner/extensions/ShowControlExt.py", "touchdesigner/scripts/build_show_control.py")
 
 

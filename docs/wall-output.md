@@ -1,11 +1,29 @@
 # 4K wall output: three projectors + confidence monitor
 
-Open the canonical `TD_ImageFX_Library.toe` and select
-`/project1/imagefx_demo/wall_output`. Its **Sources** and **Wall Output** custom
-parameter pages control the new module. This is downstream of the visual
+To save this exact packed canvas as a movie, use **Show Control → Export Video →
+Export Source → 2x2 Wall + Confidence / Real-Time**. It records a fixed 3840×2160
+MP4 or MOV, including projector mapping and the confidence quadrant. Keep physical
+output windows closed for this rehearsal recording. **Stop Wall Recording & Save**
+finishes early; the duration setting stops automatically. See the
+[wall recording instructions](show-control.md#record-the-complete-2x2-wall-including-confidence-monitor)
+for confidence/blackout settings, frame-drop warnings and silent-video limits.
+
+Open the canonical `TD_ImageFX_Library.toe` and choose **Show Control → Output Mode
+→ 4K Wall Processor**. Use Check Selected Output / Open Selected Output there.
+The **Wall Output** tab contains the advanced processor controls.
+This tab provides linked, two-way controls for the existing
+`/project1/imagefx_demo/wall_output` module; its original **Sources** and
+**Wall Output** pages still work and stay synchronized. The tab includes both
+**Show Master Blackout** and **Wall Projector Blackout**, feed enable, all source
+paths/modes, fit, calibration, confidence display, diagnostics, display selection,
+and Check/Open/Close buttons. Installing/reinstalling the tab never releases
+blackout, opens a window, or changes cues. This is downstream of the visual
 workflow, not an effect that can be moved into a cue's processing chain.
-The existing wide `show_control/audience_atlas` remains available for direct
-multi-display setups; do not use that atlas for the 2x2 processor.
+For separate projector connections choose **Direct Displays** instead. It uses
+three independently assigned display windows with the rendered resolution from
+each Output 1/2/3 page. Mode changes close outputs and never change cue routing.
+The existing wide `show_control/audience_atlas` remains as a compatibility TOP;
+do not use that atlas for the 2x2 processor.
 
 ## Fixed pixel map
 
@@ -41,6 +59,12 @@ upstream render is 4K. Existing Show Control output sizes should normally be
 1920x1080 for this processor. SelectTOPs, movie inputs and camera/render outputs
 are valid sources; missing/non-TOP/local feedback paths fall back to black and
 are reported. Do not connect wall output back into any upstream source graph.
+
+**Show Control → Projection Mapping** controls shape, crop, masks and soft edges
+for each projector in every source mode. Show Control feeds are not mapped a
+second time; other sources are mapped after panel extraction/fit. The confidence
+quadrant stays unmasked and its previews show the final mapped feeds. The wall's
+numbered calibration pattern also respects mapping. See [mapping controls](projection-mapping.md).
 
 Video remains live: the module does not cache frames or alter cue timing/audio.
 Decode media through existing ImageFX/Show Control or your own Movie File In TOPs.

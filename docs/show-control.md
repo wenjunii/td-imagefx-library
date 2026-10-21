@@ -22,17 +22,79 @@ checked directly in TouchDesigner after the custom-parameter-only correction.
 
 ## Review the projector feeds
 
-The bottom of Show Control has a **Projector Review** strip: projector 1 (left),
-2 (center), and 3 (right). These tap the final output feeds, including mapping
-and blackout, not the main design canvas or off-air draft. On **Projector Review**
-choose **4K Wall Processor** for the 2x2 processor, or **Audience Atlas** for the
-older three-across output. **Enlarge Feed** selects all three or a single
-full-resolution feed; **Open Projector Review** opens only an operator viewer.
+The bottom of Show Control has a **Projector Review** preview of the final output,
+including mapping and blackout, not the main design canvas or off-air draft.
+On **Projector Review → Review View** choose:
+
+- **Auto / Follow Output Mode** (default): the full 2×2 canvas in wall mode,
+  or three side-by-side projector feeds in direct mode.
+- **2x2 Video Wall / Full 4K Canvas**: the actual packed `out1_wall_4k` output,
+  with P1 top-left, P2 top-right, P3 bottom-left and confidence bottom-right.
+- **Three Projectors / Side by Side**, a single **Projector 1/2/3**, or
+  **Confidence Monitor / Quadrant 4**.
+
+Both the inline preview and **Enlarge Projector Review / Open Projector Review**
+follow this choice. The inline image is aspect-preserving and downscaled;
+enlarge opens the full-resolution source in an operator viewer. It never opens
+a physical output window. Selecting the wall view while Direct Displays is active
+is labeled as a wall preview only; it does not switch your physical Output Mode.
+Existing saved review selections are preserved when reinstalling the controls.
 
 Signal Status reports whether the selected output window is open or closed.
 A black feed during blackout is correct. This is a software preview, not proof
 of what the HDMI cable, processor or physical projector is displaying.
 The existing **Look Preview** is still a separate silent, off-air editing view.
+
+## Output Mode
+
+Use **Show Control → Output Mode**, the second tab after Transport:
+
+- **Direct Displays (separate projectors)** opens one borderless window per
+  assigned projector. Set **Direct P1/P2/P3 Display** to the display indices
+  shown under Connected Displays; `-1` leaves that output unused. Use Windows
+  extended-desktop mode. Each window fills its selected display. Set rendered
+  width/height on **Output 1 / Output 2 / Output 3** (1080p, 4K or custom).
+  The Check result reports render size and display size; differing sizes are
+  scaled to fit the display window, not a change to the Windows video timing.
+- **4K Wall Processor (2x2 + confidence)** uses one 3840×2160 display, with
+  TL=P1, TR=P2, BL=P3, BR=confidence. Each tile stays 1920×1080. Select the
+  processor display here; the **Wall Output** tab retains its advanced controls.
+
+Press **Check Selected Output**, then **OPEN SELECTED OUTPUT** when ready.
+**CLOSE ALL OUTPUTS** closes both delivery routes, including the legacy atlas.
+Transport's existing Open/Close buttons now use these same actions. Changing
+mode or active direct display/resolution settings closes the windows and
+requires an explicit reopen. Opening does not clear show/wall blackout, and it
+is blocked during an offline export. The operator's primary display is protected
+unless explicitly allowed; duplicate direct display assignments are rejected.
+
+This selects physical delivery only: cue tracks, saved looks and
+Identical/Panoramic/Independent content routing are unchanged. You can assign
+cue tracks/projector content later. Mode and physical display indices live in
+the TOE, not in cue looks or Save Show JSON. The legacy `audience_atlas` TOP
+remains available for compatibility, but the Direct mode no longer requires a
+single three-across desktop window. No display is selected or opened by default.
+
+## Wall Output controls
+
+The **Wall Output** tab puts the 4K processor controls directly in Show Control.
+These are two-way links to `wall_output`, not a separate output pipeline. It
+includes feed enable, both show/wall blackouts, source routing and TOP paths,
+fit, calibration pattern, confidence quadrant, diagnostics, display selection,
+and the existing safe **Check Display**, **OPEN 4K WALL**, and **CLOSE 4K WALL**
+actions. The original wall module remains usable and stays synchronized.
+
+For cue playback choose **Wall Source Mode = Show Control**. For a picture in
+Projector Review, **Enable Projector Feeds** must be on and both **Show Master
+Blackout** and **Wall Projector Blackout** must be off (per-output blackout/level
+also applies). Releasing blackout affects the real projector feeds too; check
+your venue before doing it. Opening a window never clears either blackout.
+The confidence quadrant can remain visible while projector feeds are black.
+
+Relative TOP paths on this tab are relative to `wall_output`, just like its
+original controls. Wall hardware settings are saved with the TOE, not cue looks
+or Save Show JSON. See [4K wall setup](wall-output.md) for display assignment and
+the fixed quadrant map. Adding the tab does not open or arm any display.
 
 ## Export a visual cue to video
 
@@ -56,7 +118,7 @@ copy is rendered; saved cues, the main workflow and an active draft stay intact.
 The global project frame rate/realtime setting is not changed. Playback or an
 audience window opening during export aborts it. Concurrent exports are rejected.
 
-Export includes the **cue visual and captured effect chain/final crop**, resized
+The **cue/draft** export includes the **cue visual and captured effect chain/final crop**, resized
 to the chosen dimensions. It does not export a whole cue sequence, projector
 calibration/blackout, packed 4K wall or audio. Use dimensions matching a cropped
 aspect ratio to avoid stretching. Effect start offsets the effect clock and
@@ -67,6 +129,46 @@ MP4/H.264 needs a Commercial/Pro license and supported encoding hardware;
 **MOV / Motion JPEG** is also available. TouchDesigner's license resolution
 limits still apply. See the official
 [Movie File Out TOP documentation](https://docs.derivative.ca/Movie_File_Out_TOP).
+
+### Record the complete 2x2 wall, including confidence monitor
+
+On **Show Control → Export Video → Export Source**, select
+**2x2 Wall + Confidence / Real-Time**. This records the actual
+`wall_output/out1_wall_4k` TOP at **3840×2160**, with four 1920×1080 quadrants:
+top-left P1, top-right P2, bottom-left P3, bottom-right confidence monitor.
+Projector mapping, masks, edges, calibration patterns and blackouts are baked
+into the file. The confidence preview and current diagnostics are recorded too.
+
+1. Keep physical output windows **closed** while recording (shared GPU).
+2. Set up the three feeds/cues and check **Projector Review → 2x2 Video Wall**.
+   Enable **Wall Output → Enable Confidence Quadrant**. Turn **Show Diagnostics**
+   on if you want the statistics text included. Clear blackouts only when ready;
+   the recorder never changes them for you.
+3. Choose the export folder, MP4/H.264 or MOV/Motion JPEG, FPS, and maximum duration.
+   Wall resolution is fixed at UHD. The offline resolution/size/start-time
+   fields are disabled and ignored; the **Export Mode / Canvas** readout confirms it.
+4. Press **Export Video (Silent)**. It records the wall as it currently plays.
+   You can run/advance/pause cues during recording; it does not start or rewind
+   cues automatically. To capture the lead-in, start recording before **GO**.
+5. Recording finishes at the selected length. **Stop Wall Recording & Save**
+   finalizes a shorter usable file. **Cancel Export** keeps any partial file
+   but labels it incomplete. Check **Export Status** and **Last Output File**.
+
+This mode is **real-time rehearsal capture**, not an offline render of the full
+show timeline. Encoding may reduce FPS; inspect the reported dropped-frame count
+and review the movie before using it. Low render FPS cannot be turned into smooth
+motion by selecting a higher export FPS. Opening an output window, disabling the
+confidence quadrant, or a wall/encoder error aborts the capture. No display is
+opened, no show/cue/calibration data is saved, no global clock is changed, and no
+audio is exported. The file contains the confidence text as recorded, not live
+statistics when played later. Play the complete 4K file 1:1 into a processor in
+2×2 mode; do not send this packed file to a single projector.
+
+Developer check: `validate_wall_export.py` records local MP4/MOV test clips from
+disposable show/wall copies, exercises fixed sizing, confidence validation,
+Stop & Save, cancel, cleanup and state preservation. It writes the report to
+`build/envoy-validation/wall-export.json`; decode the exported files to confirm
+frame counts and quadrant placement. It never opens a physical output.
 
 Developer checks: `show_review_export.py` installs additively, without restarting
 ShowControlExt or rebuilding the user's show. `validate_show_review_export.py`
@@ -223,6 +325,19 @@ Render Width/Height control processing resolution. Each **Output 1–3** page ha
 its own final width/height (defaults 1920×1080, up to 3840×2160), four corner pins,
 source crop, rotation, horizontal/vertical flip, brightness, gamma, blackout, and
 four edge fades. **Output Calibration Grid** shows red/green/blue grids.
+For organized controls, use **Projection Mapping → Projector to Adjust → Open
+Mapping Controls**. Its Shape / Mask / Edges / Output pages are two-way links to
+these same settings. New rectangle, ellipse and image masks have position, size,
+rotation, inversion, level and softness controls. All-edge feather and blend
+curve supplement the existing individual fades. Calibration is saved with the
+show, not a cue look. See [projection mapping and masks](projection-mapping.md).
+The Projection Mapping page and individual projector panels include section
+resets, plus complete calibration resets. Full reset includes output resolution
+and grade but preserves routing and blackout. **Save Mapping + Cues to Show File**
+uses the same JSON saver as **Save Show** (Stop All first). Applied custom mask
+points are embedded in that show; mask images stay external. **Load Show**
+restores the complete saved calibration and safely disarms the outputs/audio.
+
 Corner order is bottom-left, bottom-right, top-right, top-left in normalized
 coordinates. Invalid/crossed corner quads and reversed/empty crops retain the
 last valid transform/crop and report a Mapping Status error; correct them before

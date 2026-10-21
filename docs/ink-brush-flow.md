@@ -34,6 +34,11 @@ ink surface, four RGBA palette colors, paper, animated glitter and the separate
 a deep navy background, pale-blue current/particle colors, finer particles,
 soft edges, matching liquid/particle speeds and no dry brush/granulation.
 Both glitter layers start off; enable either, both, or neither.
+The **Dot Pattern / Dot Pattern Motion** pages add a separately switchable
+flowing-dot sheet with 24 adjustable values, including RGBA components. Choose
+overlay/masked dots or dots on their own background; Brush's current field
+drives **Follow Module Flow**. Both glitter layers can highlight the dots.
+See the [shared pattern controls](ink-dream-flow.md#flowing-dot-pattern).
 
 ## Brush Currents page
 
@@ -67,7 +72,8 @@ texture; Speed zero freezes its pulse independently. See [static glitter](ink-dr
 
 ## Cue integration and testing
 
-**Capture Look** saves all 120 writable values and the demo toggle. Parameter
+The module has 144 writable values. **Capture Look** saves eligible effect
+values and the demo toggle, with time managed by the cue clock. Parameter
 cues can target `ink_brush_flow/Brushweb`, `ink_brush_flow/Brushwidth`,
 `ink_brush_flow/Particleamount`, `ink_brush_flow/Inkcolorr`,
 `ink_brush_flow/Staticglitteramount`, `ink_brush_flow/Staticglittershimmer`,

@@ -43,6 +43,32 @@ class InkDreamFlowTests(unittest.TestCase):
         self.assertFalse(glitter_switch["default"])
         self.assertIn("if(uParticleDensity<=0.) return 0.;", MODULE["SHADER"])
 
+    def test_dot_pattern_inherits_with_stable_glitter_menus(self):
+        for definitions, shader in ((MODULE["PARAMETERS"],MODULE["SHADER"]),MODULE["brush_variant"](),MODULE["radial_variant"]()):
+            controls = {d["name"]:d for d in definitions}
+            self.assertFalse(controls["Patternenabled"]["default"])
+            self.assertEqual(controls["Patternmode"]["default"], "overlay")
+            self.assertEqual(controls["Patternsurface"]["menu_names"], ["full","ink","wash","particles","combined"])
+            self.assertEqual(len([n for n in controls if n.startswith("Pattern")]), 18)
+            for name in ("Glittersurface","Staticglittersurface"):
+                self.assertEqual(controls[name]["menu_names"], ["ink","wash","particles","combined","pattern"])
+            self.assertIn("float patternTime=uTime*uPatternSpeed;", shader)
+            self.assertIn("if(uPatternEnabled>.5 && uPatternAmount>0.)", shader)
+            self.assertLess(shader.index("// Dot pattern layer"), shader.index("if(uGlitterEnabled>.5"))
+            self.assertIn("smoothstep(.55,1.4",shader)
+            for parameter in ("Patternamount", "Patternspeed", "Patterncolorr"):
+                for module in ("ink_dream_flow", "ink_brush_flow", "ink_radial_flow"):
+                    cue = dict(new_cue(),kind="parameters",target=module+"/"+parameter,value=.7)
+                    self.assertEqual(validate_cue(cue)["target"],cue["target"])
+
+    def test_dot_pattern_lighting_precedes_glitter(self):
+        _, brush = MODULE["brush_variant"]()
+        _, radial = MODULE["radial_variant"]()
+        for shader in (brush,radial):
+            self.assertLess(shader.index("// Premultiplied emission"),shader.index("// Dot pattern layer"))
+            self.assertIn("patternCoord=mix(p,currentCoordinates(p,patternTime,seed),uPatternFlow)",shader)
+        self.assertLess(radial.index("if(uLiquidEnabled>.5 && radialBlend()>0."),radial.index("// Dot pattern layer"))
+
     def test_show_cue_accepts_module(self):
         self.assertIn("ink_dream_flow", MODULES)
         self.assertIn("Inkdreamenabled", TOGGLES)

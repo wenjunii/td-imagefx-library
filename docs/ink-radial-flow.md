@@ -22,10 +22,17 @@ Enabled** bypasses the entire module; **Effect Mix** blends with the input.
 
 ## Every inherited control retained
 
-All 120 writable Ink Brush Flow values and their ranges are present: timing,
+All 144 writable Ink Brush Flow values and their ranges are present: timing,
 seed, composition, liquid, pigment particles, ink surface, paper, four palette
 colors, all ten Brush Currents controls, animated glitter, static glitter, static
-highlights and the five Static Shimmer controls. No controls were removed.
+highlights, the five Static Shimmer controls and the 24 dot-pattern values.
+No controls were removed.
+
+**Dot Pattern / Dot Pattern Motion** retain the shared color, spacing, shape,
+folding, clock, composite and surface controls. **Follow Module Flow** uses the
+radial module's coordinate deformation; selecting an ink/wash surface confines
+the dots to the radiating ribbons. Both glitter layers can highlight this
+pattern. See the [shared pattern controls](ink-dream-flow.md#flowing-dot-pattern).
 
 Both glitter layers start off. Enable **Glitter Enabled** for drifting sparkles,
 or **Static Glitter Enabled** for stationary grains. Static Shimmer Amount
@@ -72,7 +79,7 @@ ring frequency. Particle-only rendering is available with Liquid Ink off.
 
 ## Show cues and validation
 
-The module has 130 writable values. **Capture Look** saves eligible effect
+The module has 154 writable values. **Capture Look** saves eligible effect
 values plus the demo enable toggle; Auto/Manual Time and module enable are
 managed by the cue clock and routing rather than duplicated in the look.
 Parameter cues can target `ink_radial_flow/Radialspeed`,

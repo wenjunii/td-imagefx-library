@@ -122,7 +122,8 @@ MODULES = (
             "Autotime": False, "Timescale": 1.0, "Manualtime": 0.71,
             "Mix": 1.0, "Speed": 0.36, "Maskmode": "dark",
             "Threshold": 0.38, "Softness": 0.12, "Sourceopacity": 1.0,
-            "Paperamount": 0.86, "Shadowopacity": 0.96, "Offsetx": -0.18,
+            "Paperamount": 0.86, "Transparentbackground": False,
+            "Shadowopacity": 0.96, "Offsetx": -0.18,
             "Offsety": 0.04, "Stretch": 1.35, "Curl": 0.055,
             "Turbulence": 0.11, "Noisescale": 3.8, "Strokeweight": 2.4,
             "Traillength": 1.0, "Trailsamples": 7, "Diffusion": 0.34,
@@ -484,6 +485,127 @@ def _validate_particle_shadow_edges(component, output, base):
     return {"checks": checks, "differences": differences, "endpoint_finite": endpoint_finite}
 
 
+def _validate_transparent_shadow(component, output, base):
+    """Exercise RGBA cutouts, empty/hidden pixels, and alpha-aware mixing."""
+    saved = {name: component.par[name].eval() for name in base}
+    upstream = component.inputs[0]
+    parent_comp = component.parent()
+    fixture = parent_comp.create(glslTOP, "transparent_shadow_qa_fixture")
+    shader = parent_comp.create(textDAT, "transparent_shadow_qa_shader")
+    shader.text = '''layout(location = 0) out vec4 fragColor;
+void main() {
+    vec2 p = vUV.st;
+    float a = (1.0 - smoothstep(0.16, 0.19, abs(p.x - 0.56)))
+        * (1.0 - smoothstep(0.22, 0.25, abs(p.y - 0.5)));
+    a *= mix(0.45, 1.0, step(0.5, p.y));
+    fragColor = TDOutputSwizzle(vec4(0.8, 0.22, 0.09, a));
+}'''
+    fixture.par.pixeldat = fixture.relativePath(shader)
+    fixture.par.outputresolution = "custom"
+    fixture.par.resolutionw = 320
+    fixture.par.resolutionh = 180
+    checks = {}
+    try:
+        fixture.outputConnectors[0].connect(component.inputConnectors[0])
+        _set_values(component, base)
+        _set_values(component, {
+            "Transparentbackground": True, "Maskmode": "alpha",
+            "Particleamount": 0.0, "Glitteramount": 0.0,
+            "Sourceopacity": 1.0, "Shadowopacity": 0.0, "Mix": 1.0,
+        })
+        source = _capture(fixture)
+        isolated = _capture(output)
+        covered = source[:, :, 3] > 0.01
+        empty = source[:, :, 3] == 0.0
+        checks["transparent_subject_preserves_input_alpha"] = bool(
+            np.max(np.abs(isolated[:, :, 3] - source[:, :, 3])) < 0.005
+        )
+        checks["transparent_subject_preserves_edge_rgb"] = bool(
+            np.max(np.abs(isolated[covered, :3] - source[covered, :3])) < 0.01
+        )
+        checks["transparent_empty_pixels_have_zero_rgb"] = bool(
+            np.max(np.abs(isolated[empty])) < 0.005
+        )
+        component.par.Sourceopacity = 0.4
+        faded = _capture(output)
+        checks["transparent_subject_visibility_controls_alpha"] = bool(
+            np.max(np.abs(faded[:, :, 3] - source[:, :, 3] * 0.4)) < 0.005
+        )
+        component.par.Sourceopacity = 0.0
+        component.par.Shadowopacity = 1.0
+        shadow = _capture(output)
+        checks["transparent_ink_has_alpha_beyond_source"] = bool(
+            np.count_nonzero(shadow[empty, 3] > 0.05) > 100
+        )
+        for name in ("Paperamount", "Papercolorr", "Papercolorg", "Papercolorb", "Papercolora"):
+            component.par[name] = 0.0
+        checks["transparent_mode_ignores_paper_settings"] = (
+            _difference(shadow, _capture(output)) < 1e-6
+        )
+        component.par.Particleamount = 1.0
+        component.par.Particlecolorr = 0.4
+        component.par.Particlecolorg = 0.7
+        component.par.Particlecolorb = 1.0
+        particles = _capture(output)
+        checks["transparent_particles_have_coverage"] = bool(
+            np.count_nonzero(particles[:, :, 3] > 0.05) > 100
+            and _difference(shadow, particles) > 0.001
+        )
+        component.par.Particleopacity = 0.0
+        component.par.Glitteramount = 1.0
+        glitter = _capture(output)
+        checks["transparent_glitter_has_coverage"] = bool(
+            np.count_nonzero(glitter[:, :, 3] > 0.01) > 100
+        )
+        component.par.Glitteramount = 0.0
+        checks["transparent_all_layers_off_is_empty"] = (
+            float(np.max(np.abs(_capture(output)))) < 1e-6
+        )
+        component.par.Particleamount = 0.0
+        component.par.Mix = 0.5
+        half = _capture(output)
+        expected_alpha = (source[:, :, 3] + shadow[:, :, 3]) * 0.5
+        expected_rgb = (source[:, :, :3] * source[:, :, 3:4]
+                        + shadow[:, :, :3] * shadow[:, :, 3:4]) * 0.5
+        checks["transparent_mix_uses_premultiplied_interpolation"] = bool(
+            np.max(np.abs(half[:, :, 3] - expected_alpha)) < 0.008
+            and np.max(np.abs(half[:, :, :3] * half[:, :, 3:4] - expected_rgb)) < 0.015
+        )
+        component.par.Mix = 0.0
+        checks["transparent_mix_zero_is_exact_bypass"] = (
+            _difference(source, _capture(output)) < 1e-6
+        )
+        component.par.Mix = 1.0
+        component.par.Transparentbackground = False
+        component.par.Paperamount = 1.0
+        component.par.Papercolora = 1.0
+        opaque = _capture(output)
+        checks["transparent_toggle_restores_opaque_paper"] = bool(
+            float(np.min(opaque[:, :, 3])) > 0.99
+        )
+        component.par.Transparentbackground = True
+        for name, rgb in (("hidden_black", "0.0, 0.0, 0.0"), ("hidden_white", "1.0, 1.0, 1.0")):
+            shader.text = "layout(location = 0) out vec4 fragColor; void main() { fragColor = TDOutputSwizzle(vec4(" + rgb + ", 0.0)); }"
+            for mode in ("dark", "light", "alpha"):
+                _set_values(component, {
+                    "Maskmode": mode, "Threshold": 0.0, "Softness": 0.5,
+                    "Particleamount": 0.7, "Glitteramount": 2.0,
+                    "Sourceopacity": 1.0, "Particleopacity": 1.0,
+                    "Particlespread": 1.0, "Glitterspread": 1.0,
+                    "Glitterthreshold": 0.0, "Glittersoftness": 0.5,
+                })
+                image = _capture(output)
+                checks["transparent_{}_{}_stays_empty".format(name, mode)] = bool(
+                    np.isfinite(image).all() and float(np.max(np.abs(image))) < 1e-6
+                )
+    finally:
+        upstream.outputConnectors[0].connect(component.inputConnectors[0])
+        fixture.destroy()
+        shader.destroy()
+        _set_values(component, saved)
+    return {"checks": checks}
+
+
 def _validate_module(demo, definition, operators):
     component = operators["component"]
     output = operators["output"]
@@ -532,8 +654,12 @@ def _validate_module(demo, definition, operators):
         definition["sliders"],
     )
     particle_edges = None
+    transparent_edges = None
     if definition["name"] == "calligraphic_shadow":
         particle_edges = _validate_particle_shadow_edges(
+            component, output, definition["base"]
+        )
+        transparent_edges = _validate_transparent_shadow(
             component, output, definition["base"]
         )
     _set_values(component, definition["base"])
@@ -599,7 +725,10 @@ def _validate_module(demo, definition, operators):
         ),
         "every_numeric_control_is_covered": numeric_controls == expected_numeric,
         "every_menu_is_covered": native_menus == set(definition["menus"]),
-        "every_toggle_is_covered": native_toggles == {"Enabled", "Autotime"},
+        "every_toggle_is_covered": native_toggles == (
+            {"Enabled", "Autotime", "Transparentbackground"}
+            if transparent_edges is not None else {"Enabled", "Autotime"}
+        ),
         "every_numeric_control_changes_output": all(
             value is not None and value > 1.0e-8
             for value in slider_differences.values()
@@ -643,6 +772,8 @@ def _validate_module(demo, definition, operators):
     }
     if particle_edges is not None:
         checks.update(particle_edges["checks"])
+    if transparent_edges is not None:
+        checks.update(transparent_edges["checks"])
     return {
         "module_id": definition["id"],
         "checks": checks,
@@ -653,6 +784,7 @@ def _validate_module(demo, definition, operators):
         "slider_ranges": slider_ranges,
         "slider_endpoint_values": endpoints,
         "particle_shadow_edges": particle_edges,
+        "transparent_shadow_edges": transparent_edges,
         "native_control_inventory": {
             "numeric": sorted(expected_numeric),
             "menus": sorted(native_menus),
