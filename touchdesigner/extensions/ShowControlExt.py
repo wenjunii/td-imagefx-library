@@ -852,8 +852,10 @@ class ShowControlExt:
             raise ValueError("Show file must end in .json")
         mapping = {
             p.name: p.eval() for p in self.ownerComp.customPars
-            if p.page.name in {"Routing", "Output 1", "Output 2", "Output 3"} and self._safe_parameter(p)
+            if self._mapping_parameter(p)
         }
+        for name, value in mapping.items():
+            self._validate_mapping_assignment(name, value)
         self._mapping_matrices(mapping)
         document = self.model.validate_show(dict(self.document, mapping=mapping))
         if len(json.dumps(document, ensure_ascii=False, allow_nan=False).encode("utf-8")) > self.model.MAX_SHOW_BYTES:
@@ -867,7 +869,7 @@ class ShowControlExt:
         atomic_write_json(path, document)
         self.document = document
         self._save_document_dat()
-        self._status("Show saved; media stays in its original local files")
+        self._status("Show saved with all 3 projector mappings and cues; media/mask images stay in their original local files")
 
     def LoadShow(self):
         self._guard_edit()
@@ -876,27 +878,42 @@ class ShowControlExt:
         if path.stat().st_size > self.model.MAX_SHOW_BYTES:
             raise ValueError("Show file exceeds 8 MiB")
         document = self.model.validate_show(load_json(path))
-        allowed = {p.name for p in self.ownerComp.customPars if p.page.name in {"Routing", "Output 1", "Output 2", "Output 3"} and self._safe_parameter(p)}
-        if set(document["mapping"]) - allowed:
+        parameters = {p.name:p for p in self.ownerComp.customPars if self._mapping_parameter(p)}
+        if set(document["mapping"]) - set(parameters):
             raise ValueError("Show contains unknown mapping controls")
-        for name, value in document["mapping"].items():
-            self._validate_assignment(self.ownerComp, name, value)
-        self._mapping_matrices(document["mapping"])
+        # Loading is a complete calibration restore, not a patch over the last
+        # show. Resolve missing legacy controls to defaults before validation.
+        mapping = {name:document["mapping"].get(name,p.default) for name,p in parameters.items()}
+        for name, value in mapping.items():
+            self._validate_mapping_assignment(name, value)
+        self._mapping_matrices(mapping)
         self._replace_cues(document["cues"])
-        for name, value in document["mapping"].items():
-            self._assign(self.ownerComp, name, value)
-        self.document = document
         self.ownerComp.par.Masterblackout = True
         self.ownerComp.par.Audioenabled = False
+        for name, value in mapping.items():
+            parameters[name].val = value
+        self.UpdateMapping()
+        polygon = self.ownerComp.op('projection_polygon')
+        editor = self.ownerComp.op('polygon_editor')
+        if polygon is not None and editor is not None:
+            polygon.module.open_editor(self.ownerComp,polygon.module.state_for(editor)['target'],open_window=False)
+        self.document = document
         self._save_document_dat()
         self.SelectCue(1)
         self._status("Show loaded safely: blackout on, audio off")
 
     def Openoutputs(self):
-        self.ownerComp.op("audience_window").par.winopen.pulse()
+        controller = self.ownerComp.op("show_output_mode")
+        if controller is None:
+            raise ValueError("Install Output Mode before opening physical outputs")
+        controller.module.on_pulse(self.ownerComp, "Openoutput")
 
     def Closeoutputs(self):
-        self.ownerComp.op("audience_window").par.winclose.pulse()
+        controller = self.ownerComp.op("show_output_mode")
+        if controller is not None:
+            controller.module.on_pulse(self.ownerComp, "Closealloutputs")
+        else:
+            self.ownerComp.op("audience_window").par.winclose.pulse()
 
     def Edit(self):
         ui.openCOMPEditor(self.ownerComp)
@@ -918,8 +935,30 @@ class ShowControlExt:
             self.engine.state = "paused"
             self.pause(True)
 
+    def _mapping_parameter(self, parameter):
+        if parameter.page.name not in {'Routing', 'Output 1', 'Output 2', 'Output 3'}:
+            return False
+        return self._safe_parameter(parameter) or parameter.name in {
+            'Output1maskfile', 'Output2maskfile', 'Output3maskfile',
+            'Output1maskpolygon', 'Output2maskpolygon', 'Output3maskpolygon'}
+
+    def _validate_mapping_assignment(self, name, value):
+        if name in {'Output1maskpolygon', 'Output2maskpolygon', 'Output3maskpolygon'}:
+            runtime = self.ownerComp.op('projection_polygon')
+            if runtime is None or not isinstance(value,str):
+                raise ValueError('Polygon mapping requires a valid coordinate list')
+            runtime.module.decode_polygon(value)
+            return self.ownerComp.par[name]
+        if name in {'Output1maskfile', 'Output2maskfile', 'Output3maskfile'}:
+            runtime = self.ownerComp.op('projection_mapping')
+            if runtime is None:
+                raise ValueError('Install Projection Mapping before loading image masks')
+            runtime.module.mask_file_value(value)
+            return self.ownerComp.par[name]
+        return self._validate_assignment(self.ownerComp, name, value)
+
     def UpdateMapping(self):
-        values = tuple((p.name, p.eval()) for p in self.ownerComp.customPars if p.page.name in {"Routing", "Output 1", "Output 2", "Output 3"} and self._safe_parameter(p))
+        values = tuple((p.name, p.eval()) for p in self.ownerComp.customPars if self._mapping_parameter(p))
         if values == self._mapping_key:
             self.ownerComp.par.Mappingstatus = "Mapping valid"
             return
@@ -934,8 +973,11 @@ class ShowControlExt:
                 for col, axis in enumerate("xyz"):
                     shader.par["vec{}value{}".format(row, axis)] = matrix[row * 3 + col]
             prefix = "Output{}".format(output)
-            for axis, edge in zip("xyzw", ("left", "bottom", "right", "top")):
+            data = self.ownerComp.op('projection_crop_data')
+            for column, (axis, edge) in enumerate(zip("xyzw", ("left", "bottom", "right", "top"))):
                 crop = self._p(prefix + "crop" + edge)
+                if data is not None:
+                    data[output-1, column] = crop
                 if edge in {"left", "right"} and self._p("Routingmode") == "panoramic":
                     overlap = self._p("Panoramaoverlap")
                     crop = ((output - 1) * (1 - overlap) + crop) / (3 - 2 * overlap)

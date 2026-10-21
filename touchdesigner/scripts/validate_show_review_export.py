@@ -48,7 +48,7 @@ def start(root=None):
         wall.par.Blackout=False
         wall.par.Enabled=True
         wall.par.Testpattern=False
-        s.par.Reviewroute='wall'
+        s.par.Outputmode='wall'
         for i in (1,2,3):
             top=s.op('review_p'+str(i)); top.cook(force=True)
             arr=top.numpyArray(delayed=False)
@@ -67,11 +67,11 @@ def start(root=None):
             assert top.numpyArray(delayed=False)[:,:,:3].max()==0
         STATE['checks'].append('wall blackout is visible in every preview')
         for i in (1,2,3):
-            s.par.Reviewroute='atlas'
+            s.par.Outputmode='direct'
             assert r.review_path(s,i)==s.op('out{}_projector'.format(i)).path
-        STATE['checks'].append('atlas taps post-mapping outputs')
+        STATE['checks'].append('direct displays tap post-mapping outputs')
         for name,value in STATE['wall_pars'].items(): wall.par[name]=value
-        s.par.Reviewroute='wall'
+        s.par.Outputmode='wall'
         cue=e.model.new_cue()
         cue.update(name='Review export validation',look=e._capture_look(s.parent()))
         cue['look']['toggles']={key:False for key in cue['look']['toggles']}

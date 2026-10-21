@@ -43,7 +43,7 @@ PREVIEW_ROOT = DOCS_ROOT / "gallery"
 PROJECT_PATH = PROJECT_ROOT / "TD_ImageFX_Library.toe"
 BUILDER_PATH = Path(__file__).resolve()
 LIBRARY_VERSION = "0.3.0"
-MODULE_SOURCES = ("touchdesigner/scripts/ink_dream_flow.py", "touchdesigner/scripts/layer_composite.py", "touchdesigner/scripts/final_crop.py", "touchdesigner/scripts/workflow.py", "touchdesigner/scripts/wall_output.py", "touchdesigner/scripts/wall_output_controller.py", "touchdesigner/scripts/color_switch.py", "touchdesigner/scripts/image_composition.py", "touchdesigner/scripts/source_media.py", "touchdesigner/scripts/look_editor_controls.py", "touchdesigner/scripts/show_review_export.py")
+MODULE_SOURCES = ("touchdesigner/scripts/ink_dream_flow.py", "touchdesigner/scripts/layer_composite.py", "touchdesigner/scripts/final_crop.py", "touchdesigner/scripts/workflow.py", "touchdesigner/scripts/wall_output.py", "touchdesigner/scripts/wall_output_controller.py", "touchdesigner/scripts/color_switch.py", "touchdesigner/scripts/image_composition.py", "touchdesigner/scripts/source_media.py", "touchdesigner/scripts/look_editor_controls.py", "touchdesigner/scripts/show_review_export.py", "touchdesigner/scripts/show_output_mode.py", "touchdesigner/scripts/projection_mapping.py", "touchdesigner/scripts/projection_polygon.py")
 RACK_SLOT_COUNT = 8
 OWNED_PROJECT_NODES = frozenset({"td_imagefx", "imagefx_demo"})
 DEFAULT_TEMPLATE_NODES = {
@@ -3546,6 +3546,7 @@ uniform float uMaskMode;
 uniform float uThreshold;
 uniform float uSoftness;
 uniform float uSourceOpacity;
+uniform float uTransparentBackground;
 uniform float uPaperAmount;
 uniform float uShadowOpacity;
 uniform vec2 uOffset;
@@ -3603,16 +3604,23 @@ float calligraphyNoise(vec2 position) {
 }
 
 float calligraphyRawMask(vec2 uv) {
+    // Transparent cutouts must not repeat the edge or treat hidden RGB as ink.
+    if (uTransparentBackground > 0.5
+            && (any(lessThan(uv, vec2(0.0))) || any(greaterThan(uv, vec2(1.0))))) {
+        return 0.0;
+    }
     vec4 sampleColor = texture(sTD2DInputs[0], clamp(uv, 0.0, 1.0));
     float luma = dot(sampleColor.rgb, vec3(0.2126, 0.7152, 0.0722));
     float signal = uMaskMode < 0.5
         ? 1.0 - luma
         : (uMaskMode < 1.5 ? luma : sampleColor.a);
-    return smoothstep(
+    float mask = smoothstep(
         uThreshold - max(uSoftness, 0.001),
         uThreshold + max(uSoftness, 0.001),
         signal
     );
+    return uTransparentBackground > 0.5
+        ? mask * clamp(sampleColor.a, 0.0, 1.0) : mask;
 }
 
 float calligraphyExpandedMask(vec2 uv, vec2 texel, float radius) {
@@ -3794,6 +3802,36 @@ void main() {
         * clamp(uGlitterAmount, 0.0, 2.0)
         * uGlitterColor.a;
 
+    if (uTransparentBackground > 0.5) {
+        // Compose internally in premultiplied space, then return straight RGBA
+        // to match Layer Composite. Paper controls deliberately do not apply.
+        float mixAmount = clamp(uMix, 0.0, 1.0);
+        if (mixAmount <= 0.0) {
+            fragColor = TDOutputSwizzle(source);
+            return;
+        }
+        float inkAlpha = clamp(inkMask * (1.0 - particleAmount) * uInkColor.a, 0.0, 1.0);
+        float subjectAlpha = clamp(source.a * uSourceOpacity, 0.0, 1.0);
+        vec3 premultiplied = uInkColor.rgb * inkAlpha * (1.0 - subjectAlpha)
+            + source.rgb * subjectAlpha;
+        float alpha = subjectAlpha + inkAlpha * (1.0 - subjectAlpha);
+        vec3 particleTone = mix(
+            uParticleColor.rgb, vec3(1.0), clamp(uParticleGlow, 0.0, 2.0) * 0.24
+        );
+        float particleAlpha = clamp(particleMask, 0.0, 1.0);
+        premultiplied = premultiplied * (1.0 - particleAlpha) + particleTone * particleAlpha;
+        premultiplied += particleTone * particleMask * max(uParticleGlow - 1.0, 0.0) * 0.35;
+        alpha = particleAlpha + alpha * (1.0 - particleAlpha);
+        float glitterAlpha = clamp(glitterMask * twinkle, 0.0, 1.0);
+        premultiplied += uGlitterColor.rgb * glitterMask * twinkle;
+        alpha = glitterAlpha + alpha * (1.0 - glitterAlpha);
+        premultiplied = mix(source.rgb * source.a, premultiplied, mixAmount);
+        alpha = mix(source.a, alpha, mixAmount);
+        vec3 straightColor = alpha > 0.000001 ? premultiplied / alpha : vec3(0.0);
+        fragColor = TDOutputSwizzle(vec4(straightColor, alpha));
+        return;
+    }
+
     vec3 paper = mix(source.rgb, uPaperColor.rgb, clamp(uPaperAmount * uPaperColor.a, 0.0, 1.0));
     float solidInkMask = inkMask * (1.0 - particleAmount);
     vec3 inked = mix(paper, uInkColor.rgb, solidInkMask * uInkColor.a);
@@ -3826,6 +3864,7 @@ CALLIGRAPHIC_SHADOW_PARAMETER_DEFINITIONS = (
     {"name": "Threshold", "label": "Mask Threshold", "type": "float", "page": "Subject", "default": 0.38, "min": 0.0, "max": 1.0, "uniform": "uThreshold", "description": "Set the subject extraction threshold."},
     {"name": "Softness", "label": "Mask Softness", "type": "float", "page": "Subject", "default": 0.12, "min": 0.001, "max": 0.5, "uniform": "uSoftness", "description": "Soften the extracted subject edge."},
     {"name": "Sourceopacity", "label": "Subject Visibility", "type": "float", "page": "Subject", "default": 1.0, "min": 0.0, "max": 1.0, "uniform": "uSourceOpacity", "description": "Composite the original subject above its ink shadow."},
+    {"name": "Transparentbackground", "label": "Transparent Background", "type": "toggle", "page": "Subject", "default": False, "uniform": "uTransparentBackground", "description": "Keep cutout images transparent, include ink/particle/glitter alpha, and ignore paper replacement. Use Source Alpha masking for a complete cutout silhouette; Subject Visibility zero gives a shadow-only layer."},
     {"name": "Paperamount", "label": "Paper Replacement", "type": "float", "page": "Subject", "default": 0.86, "min": 0.0, "max": 1.0, "uniform": "uPaperAmount", "description": "Replace the source background with the paper color."},
     {"name": "Shadowopacity", "label": "Ink Shadow Opacity", "type": "float", "page": "Shadow Flow", "default": 0.96, "min": 0.0, "max": 1.0, "uniform": "uShadowOpacity", "description": "Set the calligraphic shadow density."},
     {"name": "Offset", "label": "Shadow Direction", "type": "xy", "page": "Shadow Flow", "default": [-0.18, 0.04], "min": -1.0, "max": 1.0, "uniform": "uOffset", "description": "Set the principal ink-shadow direction."},

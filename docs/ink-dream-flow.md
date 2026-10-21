@@ -28,6 +28,8 @@ control. It starts bypassed in the demo to preserve existing looks.
 | Liquid Flow | Separate liquid switch, deformation, speed/reverse, direction, drift, vortex curl, turbulence, wandering |
 | Ink Surface | Marbling, filament frequency, deep ink, diluted wash, bleeding edges, pigment pooling, granulation, dry brush |
 | Particles | Separate particle switch, opacity, density, size, softness, speed/reverse, random wandering, flow distortion, spread, streak length |
+| Dot Pattern | Separate switch/mix, overlay or own background, surface mask, density, radius, softness, ellipse aspect, row stagger, dot/background RGBA |
+| Dot Pattern Motion | Fold deformation/frequency, independent speed/reverse, grid rotation, module-flow following, depth shading, repeatable fold seed |
 | Glitter | Separate switch, amount, density, grain size/softness, brightness, RGBA color, surface choice, threshold, edge softness, spread |
 | Glitter Motion | Independent drift speed/reverse, direction, flow distortion, wandering, seed, shimmer amount/speed |
 | Glitter Highlights | Star amount, length, rotation, glow amount/radius |
@@ -59,7 +61,7 @@ Speed edits can jump phase; animate Manual Time for a continuous speed ramp.
 
 Glitter starts **off**. On `/project1/imagefx_demo/ink_dream_flow`, open the
 **Glitter** page and turn **Glitter Enabled** on. **Glitter Surface** selects
-deep ink, diluted wash, pigment particles, or their combination. It respects
+deep ink, diluted wash, pigment particles, the dot pattern, or their combination. It respects
 those layers' switches, strength and color alpha. **Surface Threshold** selects
 stronger regions; **Surface Edge Softness** softens that selection.
 **Glitter Outside Ink** spreads highlights into the composition envelope: at
@@ -97,6 +99,44 @@ original still texture. Freeze liquid/particle speeds, both animated-glitter
 clocks (if enabled), and either set Static Shimmer Amount or its Speed to zero
 to freeze the generated composition.
 This is not a freeze of the input image/video.
+
+## Flowing dot pattern
+
+The **Dot Pattern** and **Dot Pattern Motion** pages add orderly, staggered rows
+of dots warped into flowing sheets, inspired by the supplied pink-on-black
+reference. This is a procedural texture, not an embedded image or a particle
+simulation. It is available in **Ink Dream Flow, Ink Brush Flow and Ink Radial
+Flow**, with all existing liquid, particle and glitter controls retained.
+
+1. Enable the desired module, then enable **Flowing Dot Pattern Enabled**.
+2. For the reference-like view, set **Dot Pattern Composite** to **Pattern + Own
+   Background** and **Dot Pattern Surface** to **Full Frame**. The default dot
+   color is pink-magenta and its own background is nearly black.
+3. For dots on the existing ink instead, choose **Overlay Existing Animation**
+   and **Ink + Wash + Particles** (or an individual surface).
+4. Adjust **Dot Rows / Density**, **Dot Radius / Cell**, **Dot Edge Softness**,
+   **Dot Aspect / Ellipse** and **Alternating Row Offset**. Offset 0 gives a
+   rectangular grid; 0.5 gives staggered rows. Density is an artistic spacing
+   value, not a simulated particle count; composition scale/stretch also affect it.
+5. On **Dot Pattern Motion**, adjust fold strength/frequency, rotation, depth
+   shading and seed. **Follow Module Flow** adds the module's own deformation.
+   Strong folding can deliberately stretch dots into streaks; reduce deformation,
+   frequency or flow-following for rounder, more separated dots.
+
+**Dot Pattern Mix** crossfades the whole pattern layer; zero or the enable switch
+off exactly preserves the previous effect. **Dot Color / Opacity** controls the
+dots; **Pattern Background / Opacity** only applies in the own-background mode.
+Set background alpha to zero for isolated straight-alpha dots. In overlay mode,
+dot opacity zero removes the pattern without changing the underlying animation.
+Both glitter layers render afterward: choose **Dot Pattern** as their surface,
+or the combined surface, to add sparkle to the dots. Keep **Outside Ink** at
+zero to constrain highlights to the selected surface.
+
+**Dot Motion Speed / Reverse** has its own clock: zero freezes dot geometry,
+negative values reverse motion. Ink/particle surface masks may still move.
+Disable Auto Time and choose Manual Time to freeze the entire generated
+composition. Cue pause/resume and seeking also control this clock. All pattern
+controls are captured in looks; older looks default to pattern off.
 
 All static settings are independent of animated glitter. The fixed six-pixel
 grid has adjustable grain radius and density; it is denser and finer than the
@@ -145,9 +185,10 @@ includes every glitter value and its enable switch.
 The cue loader preserves each module's enable expression when resetting effect
 parameters, so captured on/off choices remain live when decks are reused.
 
-`validate_ink_dream_flow.py` creates a temporary test copy, sweeps all 110 writable
+`validate_ink_dream_flow.py` creates a temporary test copy, sweeps all 134 writable
 values, checks bypass, alpha, zero endpoints, both glitter layers' surface isolation,
-independent glitter clocks, stationary shimmer support, zero-speed freeze and deterministic seeking, and
+independent glitter clocks, stationary shimmer support, dot-pattern surfaces/colors,
+exact pattern-off/zero bypass, zero-speed freeze and deterministic seeking, and
 renders at 1080p and 4K. It removes only its own test container and never saves
 the TOE. It is included in `validate_live_suite.py`.
 

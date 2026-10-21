@@ -354,4 +354,12 @@ def build_show_control(demo, context):
     review_scope = dict(context, __file__=str(review_path), __name__="_imagefx_review_export")
     exec(compile(review_path.read_text(encoding="utf-8"), str(review_path), "exec"), review_scope)
     review_scope["install"](show)
+    mode_path = context["PROJECT_ROOT"] / "touchdesigner/scripts/show_output_mode.py"
+    mode_scope = dict(context, __file__=str(mode_path), __name__="_imagefx_output_mode")
+    exec(compile(mode_path.read_text(encoding="utf-8"), str(mode_path), "exec"), mode_scope)
+    mode_scope["install"](show)
+    mapping_path = context["PROJECT_ROOT"] / "touchdesigner/scripts/projection_mapping.py"
+    mapping_scope = dict(context, __file__=str(mapping_path), __name__="_imagefx_projection_mapping")
+    exec(compile(mapping_path.read_text(encoding="utf-8"), str(mapping_path), "exec"), mapping_scope)
+    mapping_scope["install"](show, MAPPING_SHADER)
     return show

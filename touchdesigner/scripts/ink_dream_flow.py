@@ -53,6 +53,26 @@ PARAMETERS = (
     _control("Particleflow", "Particle Flow Distortion", "Particles", 0.65, 0.0, 1.0, uniform="uParticleFlow"),
     _control("Particlespread", "Particles Outside Liquid", "Particles", 0.28, 0.0, 1.0, uniform="uParticleSpread"),
     _control("Particletrail", "Particle Streak Length", "Particles", 0.2, 0.0, 1.0, uniform="uParticleTrail"),
+    dict(name="Patternenabled", label="Flowing Dot Pattern Enabled", page="Dot Pattern", type="toggle", default=False, uniform="uPatternEnabled"),
+    _control("Patternamount", "Dot Pattern Mix (0 = Off)", "Dot Pattern", 1.0, uniform="uPatternAmount"),
+    dict(name="Patternmode", label="Dot Pattern Composite", page="Dot Pattern", type="menu", default="overlay",
+         menu_names=["overlay", "replace"], menu_labels=["Overlay Existing Animation", "Pattern + Own Background"], uniform="uPatternMode"),
+    dict(name="Patternsurface", label="Dot Pattern Surface", page="Dot Pattern", type="menu", default="full",
+         menu_names=["full", "ink", "wash", "particles", "combined"], menu_labels=["Full Frame", "Deep Ink", "Diluted Wash", "Pigment Particles", "Ink + Wash + Particles"], uniform="uPatternSurface"),
+    _control("Patterndensity", "Dot Rows / Density", "Dot Pattern", 128.0, 8.0, 220.0, uniform="uPatternDensity"),
+    _control("Patternsize", "Dot Radius / Cell", "Dot Pattern", 0.3, 0.02, 0.48, uniform="uPatternSize"),
+    _control("Patternsoftness", "Dot Edge Softness", "Dot Pattern", 0.08, uniform="uPatternSoftness"),
+    _control("Patternstretch", "Dot Aspect / Ellipse", "Dot Pattern", 1.0, 0.4, 2.0, uniform="uPatternStretch"),
+    _control("Patternstagger", "Alternating Row Offset", "Dot Pattern", 0.5, uniform="uPatternStagger"),
+    dict(name="Patterncolor", label="Dot Color / Opacity", page="Dot Pattern", type="rgba", default=[1.0, 0.035, 0.63, 1.0], uniform="uPatternColor"),
+    dict(name="Patternbackground", label="Pattern Background / Opacity", page="Dot Pattern", type="rgba", default=[0.004, 0.002, 0.009, 1.0], uniform="uPatternBackground"),
+    _control("Patternwarp", "Fold Deformation", "Dot Pattern Motion", 0.45, 0.0, 2.0, uniform="uPatternWarp"),
+    _control("Patternfoldscale", "Fold Frequency", "Dot Pattern Motion", 4.4, 0.25, 8.0, uniform="uPatternFoldScale"),
+    _control("Patternspeed", "Dot Motion Speed / Reverse", "Dot Pattern Motion", 0.2, -3.0, 3.0, uniform="uPatternSpeed"),
+    _control("Patternrotation", "Dot Grid Rotation", "Dot Pattern Motion", 0.0, -180.0, 180.0, uniform="uPatternRotation"),
+    _control("Patternflow", "Follow Module Flow", "Dot Pattern Motion", 0.1, uniform="uPatternFlow"),
+    _control("Patternshading", "Fold Depth Shading", "Dot Pattern Motion", 0.75, uniform="uPatternShading"),
+    dict(name="Patternseed", label="Dot Fold Seed", page="Dot Pattern Motion", type="int", default=83, min=0, max=100000, uniform="uPatternSeed"),
     dict(name="Glitterenabled", label="Glitter Enabled", page="Glitter", type="toggle", default=False, uniform="uGlitterEnabled"),
     _control("Glitteramount", "Glitter Amount (0 = Off)", "Glitter", 0.7, 0.0, 2.0, uniform="uGlitterAmount"),
     _control("Glitterdensity", "Glitter Density", "Glitter", 0.45, uniform="uGlitterDensity"),
@@ -61,7 +81,7 @@ PARAMETERS = (
     _control("Glitterbrightness", "Glitter Brightness (0 = Off)", "Glitter", 1.4, 0.0, 8.0, uniform="uGlitterBrightness"),
     dict(name="Glittercolor", label="Glitter Color / Opacity", page="Glitter", type="rgba", default=[0.76, 0.9, 1.0, 1.0], uniform="uGlitterColor"),
     dict(name="Glittersurface", label="Glitter Surface", page="Glitter", type="menu", default="combined",
-         menu_names=["ink", "wash", "particles", "combined"], menu_labels=["Deep Ink", "Diluted Wash", "Pigment Particles", "Ink + Wash + Particles"], uniform="uGlitterSurface"),
+         menu_names=["ink", "wash", "particles", "combined", "pattern"], menu_labels=["Deep Ink", "Diluted Wash", "Pigment Particles", "Ink + Wash + Particles + Dots", "Dot Pattern"], uniform="uGlitterSurface"),
     _control("Glitterthreshold", "Surface Threshold", "Glitter", 0.12, uniform="uGlitterThreshold"),
     _control("Glitteredge", "Surface Edge Softness", "Glitter", 0.08, 0.001, 0.5, uniform="uGlitterEdge"),
     _control("Glitterspread", "Glitter Outside Ink", "Glitter", 0.0, uniform="uGlitterSpread"),
@@ -85,7 +105,7 @@ PARAMETERS = (
     _control("Staticglitterbrightness", "Static Glitter Brightness", "Static Glitter", 1.35, 0.0, 8.0, uniform="uStaticBrightness"),
     dict(name="Staticglittercolor", label="Static Glitter Color / Opacity", page="Static Glitter", type="rgba", default=[0.8, 0.87, 1.0, 1.0], uniform="uStaticColor"),
     dict(name="Staticglittersurface", label="Static Glitter Surface", page="Static Glitter", type="menu", default="combined",
-         menu_names=["ink", "wash", "particles", "combined"], menu_labels=["Deep Ink", "Diluted Wash", "Pigment Particles", "Ink + Wash + Particles"], uniform="uStaticSurface"),
+         menu_names=["ink", "wash", "particles", "combined", "pattern"], menu_labels=["Deep Ink", "Diluted Wash", "Pigment Particles", "Ink + Wash + Particles + Dots", "Dot Pattern"], uniform="uStaticSurface"),
     _control("Staticglitterthreshold", "Static Surface Threshold", "Static Glitter", 0.08, uniform="uStaticThreshold"),
     _control("Staticglitteredge", "Static Surface Edge Softness", "Static Glitter", 0.05, 0.001, 0.5, uniform="uStaticEdge"),
     _control("Staticglitterspread", "Static Glitter Outside Ink", "Static Glitter", 0.0, uniform="uStaticSpread"),
@@ -122,6 +142,11 @@ uniform float uParticlesEnabled, uParticleAmount, uParticleDensity, uParticleSiz
 uniform float uParticleSoftness, uParticleSpeed, uParticleJitter, uParticleFlow;
 uniform float uParticleSpread, uParticleTrail, uPaperTexture, uPaperGrain, uVignette;
 uniform vec4 uInkColor, uWashColor, uParticleColor, uPaperColor;
+uniform float uPatternEnabled, uPatternAmount, uPatternMode, uPatternSurface;
+uniform float uPatternDensity, uPatternSize, uPatternSoftness, uPatternStretch;
+uniform float uPatternStagger, uPatternWarp, uPatternFoldScale, uPatternSpeed;
+uniform float uPatternRotation, uPatternFlow, uPatternShading, uPatternSeed;
+uniform vec4 uPatternColor, uPatternBackground;
 uniform float uGlitterEnabled, uGlitterAmount, uGlitterDensity, uGlitterSize;
 uniform float uGlitterSoftness, uGlitterBrightness, uGlitterSurface, uGlitterThreshold;
 uniform float uGlitterEdge, uGlitterSpread, uGlitterSpeed, uGlitterDirection;
@@ -231,6 +256,37 @@ vec3 glitterGrains(vec2 screen, float height, float seed) {
     }
     return lights;
 }
+// An ordered staggered lattice on a smoothly folded sheet, not random noise.
+// Inverse mapping bends whole rows together. Derivative antialiasing keeps the
+// small dots stable as density, aspect ratio and output resolution change.
+vec2 flowingDots(vec2 coord, float pt, float seed) {
+    vec2 z=rot(radians(uPatternRotation))*coord;
+    float phase=seed*.037+uPatternSeed*.173;
+    vec2 wave=z*uPatternFoldScale;
+    float fold=sin(wave.y+sin(wave.x*.73+phase)+pt*.43+phase);
+    float crossFold=sin(wave.x*.81+sin(wave.y*.67-phase)-pt*.37);
+    z+=vec2(fold,crossFold)*uPatternWarp*.24;
+    z+=pt*vec2(.035,-.023);
+    float light=.5+.5*sin(wave.y*.8-wave.x*.35+fold*.9+phase+pt*.21);
+    float shade=mix(1.,.12+.88*pow(light,.8),uPatternShading);
+    float radius=uPatternSize*mix(1.,.58+.42*light,uPatternShading);
+    vec2 g=z*uPatternDensity*.5;
+    float aa=max(length(fwidth(g))*.35,.003);
+    float dots=0.;
+    // Nearest periodic column on each adjacent row: fixed three-sample cost,
+    // including full-cell row offsets, without missing boundary dots.
+    for(int y=-1;y<=1;y++) {
+        float row=floor(g.y)+float(y);
+        float shift=mod(row,2.)*uPatternStagger;
+        vec2 d=vec2((fract(g.x-shift)-.5)/uPatternStretch,g.y-row-.5);
+        float edge=length(d);
+        dots=max(dots,1.-smoothstep(max(0.,radius*(1.-uPatternSoftness)-aa),radius+aa,edge));
+    }
+    // Fade unresolved lattice frequencies instead of generating hard moire.
+    dots=mix(dots,clamp(3.14159265*radius*radius*uPatternStretch,0.,1.),
+             smoothstep(.55,1.4,max(length(dFdx(g)),length(dFdy(g)))));
+    return vec2(dots,shade);
+}
 // Paper-aligned fine mineral grains, inspired by the Calligraphic Shadow
 // texture. Centers never move. Optional Calligraphic-style shimmer changes
 // brightness only; the ink mask can move independently beneath the grains.
@@ -322,13 +378,33 @@ void main() {
         particleSurface=dots*particleMask*uParticleAmount*uParticleColor.a;
         result=overInk(result,uParticleColor,dots*particleMask*uParticleAmount);
     }
+    // Dot pattern layer (after module lighting, before both glitter layers).
+    float patternSurface=0.;
+    if(uPatternEnabled>.5 && uPatternAmount>0.) {
+        float patternTime=uTime*uPatternSpeed;
+        vec2 patternCoord=mix(p,flow(p,patternTime,seed),uPatternFlow);
+        vec2 dots=flowingDots(patternCoord,patternTime,seed);
+        float inkSurface=uLiquidEnabled>.5 ? ink*uInkAmount*uInkColor.a : 0.;
+        float washSurface=uLiquidEnabled>.5 ? wash*uWashAmount*uWashColor.a*.64 : 0.;
+        float carrier=1.;
+        if(uPatternSurface>.5 && uPatternSurface<1.5) carrier=inkSurface;
+        else if(uPatternSurface<2.5 && uPatternSurface>1.5) carrier=washSurface;
+        else if(uPatternSurface<3.5 && uPatternSurface>2.5) carrier=particleSurface;
+        else if(uPatternSurface>3.5) carrier=max(max(inkSurface,washSurface),particleSurface);
+        vec4 patternBase=result;
+        if(uPatternMode>.5) patternBase=vec4(uPatternBackground.rgb*uPatternBackground.a,uPatternBackground.a);
+        vec4 patterned=overInk(patternBase,vec4(uPatternColor.rgb*dots.y,uPatternColor.a),dots.x*carrier);
+        result=mix(result,patterned,uPatternAmount);
+        patternSurface=dots.x*carrier*uPatternColor.a*uPatternAmount;
+    }
     if(uGlitterEnabled>.5 && uGlitterAmount>0. && uGlitterBrightness>0.) {
         float inkSurface=uLiquidEnabled>.5 ? ink*uInkAmount*uInkColor.a : 0.;
         float washSurface=uLiquidEnabled>.5 ? wash*uWashAmount*uWashColor.a*.64 : 0.;
-        float carrier=max(max(inkSurface,washSurface),particleSurface);
+        float carrier=max(max(max(inkSurface,washSurface),particleSurface),patternSurface);
         if(uGlitterSurface<.5) carrier=inkSurface;
         else if(uGlitterSurface<1.5) carrier=washSurface;
         else if(uGlitterSurface<2.5) carrier=particleSurface;
+        else if(uGlitterSurface>3.5) carrier=patternSurface;
         carrier=mix(carrier,envelope,uGlitterSpread);
         float surface=smoothstep(uGlitterThreshold-uGlitterEdge,
                                  uGlitterThreshold+uGlitterEdge,carrier)*step(.00001,carrier);
@@ -340,10 +416,11 @@ void main() {
     if(uStaticEnabled>.5 && uStaticAmount>0. && uStaticBrightness>0.) {
         float inkSurface=uLiquidEnabled>.5 ? ink*uInkAmount*uInkColor.a : 0.;
         float washSurface=uLiquidEnabled>.5 ? wash*uWashAmount*uWashColor.a*.64 : 0.;
-        float carrier=max(max(inkSurface,washSurface),particleSurface);
+        float carrier=max(max(max(inkSurface,washSurface),particleSurface),patternSurface);
         if(uStaticSurface<.5) carrier=inkSurface;
         else if(uStaticSurface<1.5) carrier=washSurface;
         else if(uStaticSurface<2.5) carrier=particleSurface;
+        else if(uStaticSurface>3.5) carrier=patternSurface;
         carrier=mix(carrier,envelope,uStaticSpread);
         float surface=smoothstep(uStaticThreshold-uStaticEdge,
                                  uStaticThreshold+uStaticEdge,carrier)*step(.00001,carrier);
@@ -488,14 +565,16 @@ float currentWisps(vec2 p, float t, float seed) {
             float current=softCurrent(pq,pt,seed)*envelope;
             particleMask=mix(particleMask,mix(pow(current,.5),envelope,uParticleSpread),uBrushWeb);
         }""", 1)
-    shader = shader.replace("    if(uGlitterEnabled>.5", """    if(uBrushEnabled>.5 && uLiquidEnabled>.5) {
+    shader = shader.replace("vec2 patternCoord=mix(p,flow(p,patternTime,seed),uPatternFlow);", """vec2 patternCoord=mix(p,flow(p,patternTime,seed),uPatternFlow);
+        if(uBrushEnabled>.5) patternCoord=mix(p,currentCoordinates(p,patternTime,seed),uPatternFlow);""", 1)
+    shader = shader.replace("    // Dot pattern layer", """    if(uBrushEnabled>.5 && uLiquidEnabled>.5) {
         // Premultiplied emission supplies the reference's bright soft cores;
         // alpha still comes from the liquid and remains zero for empty layers.
         float core=pow(wet,3.)*uInkAmount*uInkColor.a*uBrushGlow*3.;
         float haze=pow(wash,1.8)*uWashAmount*uWashColor.a*uBrushHaze;
         result.rgb+=uInkColor.rgb*core+uWashColor.rgb*haze;
     }
-    if(uGlitterEnabled>.5""", 1)
+    // Dot pattern layer""", 1)
     return tuple(parameters), shader
 
 
@@ -597,12 +676,12 @@ vec3 currentPotential(vec2 p, float t, float seed) {""")
     ambient=mix(ambient,uInkColor.rgb,opening*.82);
     paper=mix(paper,ambient*paperTone*(1.-uVignette*rim*.3),atmosphere);
     vec4 result=vec4(paper*uPaperColor.a,uPaperColor.a);""")
-    replace_once("    if(uGlitterEnabled>.5", """    if(uLiquidEnabled>.5 && radialBlend()>0. && uRadialGlow>0.) {
+    replace_once("    // Dot pattern layer", """    if(uLiquidEnabled>.5 && radialBlend()>0. && uRadialGlow>0.) {
         float core=exp(-dot(p,p)/max(uRadialCore*uRadialCore,.001));
         vec4 light=vec4(uInkColor.rgb*(1.+uRadialGlow),uInkColor.a);
         result=overInk(result,light,core*uRadialGlow*uInkAmount*radialBlend());
     }
-    if(uGlitterEnabled>.5""")
+    // Dot pattern layer""")
     return tuple(parameters), shader
 
 

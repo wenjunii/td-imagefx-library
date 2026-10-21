@@ -8,6 +8,18 @@ The current source contains **96 current effect IDs across 18 categories**, back
 
 Canonical repository: [github.com/wenjunii/td-imagefx-library](https://github.com/wenjunii/td-imagefx-library)
 
+## Flowing dot patterns
+
+**Ink Dream Flow, Ink Brush Flow and Ink Radial Flow** now each include
+**Dot Pattern** and **Dot Pattern Motion** pages: curved, staggered dot sheets
+with adjustable colors/opacity, density, size, softness, ellipse shape,
+row offset, folding, rotation, depth shading, seed and independent speed/reverse.
+Overlay the existing animation, mask dots to ink/wash/particles, or select
+**Pattern + Own Background** with **Full Frame** for a pink-on-black look like
+the reference. Animated and static glitter can use **Dot Pattern** as their
+surface. The new layer starts off and is included in captured show looks.
+See [pattern controls and examples](docs/ink-dream-flow.md#flowing-dot-pattern).
+
 ## Color replacement and two-image layouts
 
 **Color Switch** selects an input color and replaces it with another, with
@@ -33,13 +45,49 @@ content, corner pinning, crop, rotation, gamma/brightness and edge fades.
 Audio and audience outputs start disarmed. Show JSON and media stay local.
 
 **Projector Review** shows the three final feeds inside Show Control, with
-wall/atlas routing, blackout/window status and enlarged views. **Export Video**
+automatic Output Mode routing, blackout/window status and enlarged views. **Export Video**
 renders a selected visual cue or off-air look draft to a silent MP4/MOV, with
 duration, FPS and 1080p/4K/custom resolution controls. It uses an isolated copy,
 requires stopped playback/closed output windows, and never overwrites an export.
+**Export Source → 2x2 Wall + Confidence / Real-Time** additionally records the
+complete 3840×2160 processor canvas (P1/P2/P3 plus confidence monitor). It keeps
+live cue playback and mapping intact, includes **Stop Wall Recording & Save**,
+and reports encoder dropped frames. Physical output windows must stay closed;
+this is silent rehearsal capture, not an offline whole-show render.
 See the [review/export instructions](docs/show-control.md#export-a-visual-cue-to-video).
 
-For a 2x2 video-wall processor, use `imagefx_demo/wall_output`. It packs a
+**Review View → 2x2 Video Wall / Full 4K Canvas** previews the exact packed
+processor output, including the confidence quadrant. Auto chooses this view for
+wall mode; side-by-side and individual-projector views remain available. Enlarge
+opens the full-resolution operator viewer without opening a projector window.
+
+**Show Control → Output Mode** offers **Direct Displays** (one window per
+assigned projector, with per-output render sizes) or **4K Wall Processor**
+(one fixed 2×2 UHD frame). Check/Open/Close controls are explicit, preview follows
+the selected mode, and changing mode closes the windows without changing cues
+or releasing blackout. All display assignments start unassigned; set them when
+the venue hardware is connected. See [output setup](docs/show-control.md#output-mode).
+
+**Show Control → Wall Output** now exposes the processor settings directly in
+the cue panel: both show/wall blackouts, feed enable, sources/fit, calibration,
+confidence/diagnostics, display selection and Check/Open/Close buttons. These
+are two-way links to `imagefx_demo/wall_output`; either control surface updates
+the other. Adding the tab does not release blackout or open a display.
+
+**Show Control → Projection Mapping** selects a projector and opens organized
+Shape, Mask, Edges and Output controls: corner pinning, crop, rectangle/ellipse/
+image masks, inversion, mask feather, per-edge fades and blend curves.
+**Draw Custom Mask (Mouse)** opens a click/drag polygon editor: up to 32 points,
+concave outlines, edge insertion, delete/undo, soft edges and inversion. Drafts
+stay off-air until Apply Mask; Save Show persists the applied polygon. It works
+with direct displays and all wall source modes, keeps the confidence quadrant
+unmasked, and stores calibration with Save Show. See [projection mapping](docs/projection-mapping.md).
+Each mapping section has a reset, with full resets for the selected projector
+or all three. **Save Mapping + Cues to Show File** is a shortcut to Save Show;
+applied polygons and all projector calibration are restored by Load Show.
+Resets leave routing, cues, output mode and blackouts unchanged.
+
+For a 2x2 video-wall processor, this module packs a
 3840x2160 stream as P1 left / P2 center / P3 right / confidence monitor in
 top-left / top-right / bottom-left / bottom-right order. Each quadrant is exactly
 1920x1080. The confidence quadrant contains three 16:9 previews, FPS, frame time,
@@ -63,18 +111,24 @@ These shortcuts edit only the off-air cue draft, not the main designer. The sile
 from the main workflow and audience outputs. Save Show persists committed edits;
 new copies start disabled to avoid accidental triggers.
 
-The show-control audit covers all 21 editor fields, 63 mapping/grade/flip
-controls, 28 pulse dispatch routes and fourteen panel buttons. Regression checks
+The show-control audit covers all 21 editor fields, the original 63 mapping/grade/flip
+controls plus the expanded masking/reset controls, 48 pulse dispatch routes and
+fourteen panel buttons. Regression checks
 protect fade-from-black, running-cue preload, stop/follow cancellation and invalid
 mapping saves. Hardware arm/device/window controls are wiring-tested only; the
 automated suite deliberately does not open audience output or play audible sound.
 
-The **2026-10-07 clean-release control audit** passed all 22 native validators,
-9 real-frame groups (139 checks), and 353 portable release tests (4 expected
+The **2026-10-20 clean-release control audit** passed all 27 native validators,
+11 real-frame groups (196 checks), and 462 portable release tests (4 expected
 Windows symlink skips). It covers all 96 effects, 511 numeric controls,
-116 toggles and 14 reset pulses, plus 878 two-way module/rack binding checks.
+116 toggles and 14 reset pulses, plus 830 two-way module/rack binding checks.
 The Look Editor navigation passed 64 checks; projector review/export passed
 14 checks and five independently decoded H.264/Motion JPEG clips, including 4K.
+The wall recorder passed completion, Stop & Save and Cancel checks; three finished
+UHD clips decoded with correct projector quadrants and confidence diagnostics.
+The 30 FPS real-time test reported five startup drops; its warning is retained,
+so sustained recording and venue performance still require rehearsal.
+The audit also fixed review/export refresh hiding the Projection Mapping tab.
 The canonical TOE is a clean default build with no personal cues or media.
 See the [validation record](docs/control-validation.md) for coverage and hardware
 limits, and the repeatable audit commands below.
@@ -183,7 +237,7 @@ git clone https://github.com/wenjunii/td-imagefx-library.git
 cd td-imagefx-library
 ```
 
-The clean Windows release build used TouchDesigner `2025.32820` and validated all 96 current effects with 124 versioned effect `.tox` files, nineteen core `.tox` files, one library `.toe`, 96 previews, 96 visual baselines, and 96 benchmark samples. That build report contains zero shader, preview, or builder errors. A fresh repository run completed 353 tests successfully, with four expected Windows symlink-permission skips. The release TOE contains clean defaults, not personal cues or media. In-place patches and saved personal cues are not a new full native-build certification; regenerate and validate distributable artifacts before publishing a release. Read [TouchDesigner setup](docs/touchdesigner-setup.md) to reproduce the native build.
+The clean Windows release build used TouchDesigner `2025.32820` and validated all 96 current effects with 124 versioned effect `.tox` files, nineteen core `.tox` files, one library `.toe`, 96 previews, 96 visual baselines, and 96 benchmark samples. That build report contains zero shader, preview, or builder errors. A fresh repository run completed 462 tests successfully, with four expected Windows symlink-permission skips. The release TOE contains clean defaults, not personal cues or media. In-place patches and saved personal cues are not a new full native-build certification; regenerate and validate distributable artifacts before publishing a release. Read [TouchDesigner setup](docs/touchdesigner-setup.md) to reproduce the native build.
 
 The generated project targets TouchDesigner 2025. Validate the exact TouchDesigner build, operating system, GPU, driver, resolution, pixel format, and color pipeline used by your production system. Python 3.11 or newer is required for repository tooling; it is not required merely to use already-built native components.
 
@@ -489,6 +543,17 @@ deterministic manual time, and provide both master bypass and dry/wet mix:
   separate surface accent with adjustable granular density, grain size,
   threshold/softness, shimmer, independent drift speed, spread, star
   highlights, intensity, and tint; **Glitter Amount = 0** is an exact bypass.
+  For transparent PNGs (or video with an alpha channel), turn on **Subject →
+  Transparent Background** and select **Subject Mask → Source Alpha** to use
+  the entire cutout. The source, ink trails, particles, and glitter then retain
+  transparency for layering; paper replacement/color are ignored in this mode.
+  Set **Subject Visibility = 0** for a shadow-only layer. Dark/Light Luminance
+  masking can still limit which visible parts cast trails, and hidden RGB in
+  fully transparent pixels never casts a shadow. The option defaults to Off
+  so existing cues keep their original appearance. A black TOP viewer can be
+  transparent: check its alpha channel or composite over another image. When
+  using **Source Media → Fit / Letterbox**, set **Letterbox Color / Alpha → A**
+  to `0` too, otherwise the input's added letterbox bars remain opaque.
   Use **Light Luminance** subject masking for bright particles, glitter, or
   light-painted streaks on dark footage, and **Dark Luminance** for dark
   silhouettes on pale backgrounds. Enable **Calligraphic Shadow Enabled**, then select
@@ -597,7 +662,7 @@ Enable **Ink Radial Flow Enabled** on `/project1/imagefx_demo`, then select
 look. **Composition Center** positions the center; **Radial Flow** adds enable,
 radial/brush blend, ring frequency, outward speed/inward reverse, spiral and
 organic wandering. **Radial Light** adds opening radius, central light,
-palette atmosphere and outer fade. It has 130 writable values; show looks
+palette atmosphere and outer fade. It has 154 writable values; show looks
 capture eligible effect controls, with timing managed by the cue clock.
 Both glitter layers default off. Turning radial mode off, or its
 blend to zero, gives the inherited brush renderer with the selected palette.
@@ -656,7 +721,9 @@ exec(compile(open(script, encoding="utf-8").read(), script, "exec"), scope)
 
 Copying `globals()` is required because rendered-pixel QA uses
 TouchDesigner-provided objects including `op`, `app`, `root`, `textDAT`, and
-`glslTOP`. The runner executes all twenty-one tracked validators, continues long
+`glslTOP`. The runner executes all 27 blocking validator groups, including
+Output Mode, Projector Review, projection mapping, every mapping reset and
+custom polygon masks. It continues long
 enough to report every failure, writes the ignored
 `build/envoy-validation/live-suite.json` summary plus each validator's normal
 report, and never saves the project. Each successful dispatch records the validator
@@ -681,10 +748,11 @@ toggles, menus and pulse routes. Context-dependent controls still need sensible
 media and enabled effects; these checks do not test every parameter combination.
 
 After that blocking suite, run the consolidated **real-frame audit**. It runs
-nine additional groups in sequence: native rack events, workflow/crop events,
+eleven additional groups in sequence: native rack events, workflow/crop events,
 wall buttons, decoded layer images, layer video transports, show playback and
 the off-air Look Editor, and Color Switch / Two-Image Composition media and cue
-checks, plus Source Media file decoding and video transport. Stop All, finish/cancel any look draft, enable both
+checks, Source Media file decoding and video transport, and the Output Mode
+and Projection Mapping native button events. Stop All, finish/cancel any look draft, enable both
 blackouts and keep audio disarmed. Do not edit or save the TOE while it runs.
 
 The blocking suite generates its PNG fixtures. For the video checks, generate

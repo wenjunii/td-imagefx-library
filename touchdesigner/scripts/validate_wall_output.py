@@ -9,6 +9,51 @@ ROOT=Path(__file__).resolve().parents[2]
 REPORT=ROOT/'build/envoy-validation/wall-output.json'
 
 
+def _show_wall_fixture(host):
+    """Small isolated show panel; never bind a QA alias to the live wall."""
+    original=op('/project1/imagefx_demo/show_control')
+    show=host.create(containerCOMP,'show_control')
+    show.appendCustomPage('Transport').appendToggle('Masterblackout')[0].val=True
+    runtime=show.create(textDAT,'show_review_export')
+    runtime.text=original.op('show_review_export').text
+    runtime.module.install_wall_controls(show)
+    show.copy(original.op('review_export_callbacks'),name='review_export_callbacks')
+    show.copy(original.op('show_parameters'),name='show_parameters')
+    return show,runtime.module
+
+
+def _check_show_wall_bindings(host,wall,checks):
+    show,runtime=_show_wall_fixture(host)
+    wall_before={p.name:p.eval() for p in wall.customPars if not p.isPulse}
+    for alias,target,_ in runtime.WALL_BINDINGS:
+        master=show.par[target] if target=='Masterblackout' else wall.par[target]
+        item=show.par[alias]
+        values=(list(master.menuNames) if master.isMenu else
+                [False,True] if master.isToggle else
+                [-1,0,31] if master.isInt else ['../source1','../source2'])
+        checks['show_bind_target_'+alias]=item.bindMaster==master
+        checks['show_default_'+alias]=item.default==master.default
+        for i,value in enumerate(values):
+            item.val=value
+            checks['show_to_wall_{}_{}'.format(alias,i)]=master.eval()==value
+            master.val=values[(i+1)%len(values)]
+            checks['wall_to_show_{}_{}'.format(alias,i)]=item.eval()==master.eval()
+        if master.isMenu:
+            checks['show_menu_'+alias]=item.menuNames==master.menuNames and item.menuLabels==master.menuLabels
+        if master.isInt:
+            checks['show_range_'+alias]=(item.min,item.max,item.clampMin,item.clampMax)==(master.min,master.max,master.clampMin,master.clampMax)
+    before={p.name:p.eval() for p in show.customPars if not p.isPulse}
+    count=len(show.customPars)
+    runtime.install_wall_controls(show)
+    checks['show_reinstall_preserves_values']=before=={p.name:p.eval() for p in show.customPars if not p.isPulse}
+    checks['show_reinstall_no_duplicates']=len(show.customPars)==count and sum(p.name=='Wall Output' for p in show.customPages)==1
+    checks['show_readonly_status']=all(show.par[n].readOnly for n in ('Wallstatus','Walldisplays','Wallsourcesstatus','Wallactionstatus'))
+    checks['show_wall_tab_visible']="'Wall Output'" in op('/project1/imagefx_demo/show_control/cue_inspector').par.pagescope.eval()
+    checks['show_install_keeps_window_closed']=not wall.op('wall_window').isOpen
+    for name,value in wall_before.items():
+        if not wall.par[name].readOnly: wall.par[name].val=value
+
+
 def validate(write_report=True):
     wall=op('/project1/imagefx_demo/wall_output')
     checks={}
@@ -144,6 +189,7 @@ def validate(write_report=True):
         checks['all_wall_operator_diagnostics_clean']=not fixture.errors(recurse=True)
         checks['defaults_blackout_unassigned']=wall.par.Blackout.default and wall.par.Displayindex.default==-1
         checks['no_wall_in_cue_deck']=op('/project1/imagefx_demo/show_control/deck_template/wall_output') is None
+        _check_show_wall_bindings(host,fixture,checks)
         # Export a labeled calibration contact for visual review, not audience output.
         fixture.par.Blackout=False; fixture.par.Testpattern=True; fixture.par.Sourcemode='independent'
         fixture.op('out1_wall_4k').cook(force=True)
@@ -164,6 +210,7 @@ def validate_deferred():
     """Deliver native pulse events on actual TD frames; never arm an output."""
     host=op('/project1').create(baseCOMP,'wall_events_qa')
     wall=host.copy(op('/project1/imagefx_demo/wall_output'),name='wall_output')
+    show,runtime=_show_wall_fixture(host)
     checks={}
     def steps():
         wall.par.Displayindex=-1
@@ -180,6 +227,21 @@ def validate_deferred():
         wall.par.Allowprimary=True
         yield; yield
         checks['changing_display_policy_closes_window']='Closed after display' in wall.par.Status.eval()
+        # Observe actual parameter pulse delivery through Show Control; the
+        # existing controller still enforces the -1 (unassigned) display gate.
+        control=wall.op('controller')
+        control.text += "\n_original_action=action\ndef action(wall,name):\n    wall.store('qa_actions',wall.fetch('qa_actions',[],search=False)+[name])\n    return _original_action(wall,name)\n"
+        for alias,target in runtime.WALL_ACTIONS.items():
+            show.par[alias].pulse()
+            yield; yield
+            checks['show_native_'+alias]=('closed' in wall.par.Status.eval() if target=='Closewall' else 'NOT OPENED' in wall.par.Status.eval())
+        checks['show_buttons_dispatch_exactly_once']=wall.fetch('qa_actions',[],search=False)==list(runtime.WALL_ACTIONS.values())
+        checks['show_buttons_keep_blackout']=bool(wall.par.Blackout) and bool(show.par.Masterblackout)
+        checks['show_buttons_keep_window_closed']=not wall.op('wall_window').isOpen
+        show.par.Wallallowprimary=False
+        yield; yield
+        checks['show_display_policy_alias_closes_window']='Closed after display' in wall.par.Status.eval()
+        checks['show_callbacks_no_errors']=not show.errors(recurse=True)
     sequence=steps()
     report=dict(ok=False,generated_at=datetime.now(timezone.utc).isoformat(),hardware_output_tested=False)
     def finish():

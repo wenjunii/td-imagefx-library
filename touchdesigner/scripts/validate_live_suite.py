@@ -53,10 +53,15 @@ VALIDATORS = (
     ("all_effect_parameters", "validate_all_effect_parameters.py"),
     ("show_control", "validate_show_control.py"),
     ("wall_output", "validate_wall_output.py"),
+    ("output_mode", "validate_output_mode.py"),
+    ("projector_review", "validate_projector_review.py"),
+    ("projection_mapping", "validate_projection_mapping.py"),
+    ("projection_resets", "validate_projection_mapping.py", "validate_resets"),
+    ("projection_polygon", "validate_projection_polygon.py"),
 )
 
 
-def _run_validator(name, filename):
+def _run_validator(name, filename, entry_point="validate"):
     script_path = SCRIPT_ROOT / filename
     if not script_path.is_file():
         raise RuntimeError("Missing live validator: {}".format(script_path))
@@ -70,9 +75,9 @@ def _run_validator(name, filename):
     )
     source = script_path.read_text(encoding="utf-8")
     exec(compile(source, str(script_path), "exec"), scope)
-    validator = scope.get("validate")
+    validator = scope.get(entry_point)
     if not callable(validator):
-        raise RuntimeError("{} does not expose validate()".format(filename))
+        raise RuntimeError("{} does not expose {}()".format(filename, entry_point))
 
     started = time.perf_counter()
     result = validator(write_report=True)
@@ -84,11 +89,13 @@ def _run_validator(name, filename):
     summary = {
         "name": name,
         "script": filename,
+        "entry_point": entry_point,
         "ok": result.get("ok") is True and not failed_checks,
         "failed_checks": failed_checks,
         "generated_at": result.get("generated_at"),
         "duration_seconds": round(time.perf_counter() - started, 3),
         "source_sha256": hashlib.sha256(source.encode("utf-8")).hexdigest(),
+        "check_count": len(result.get("checks", {})),
     }
     if not summary["ok"]:
         details = result.get("details") or {}
@@ -121,14 +128,17 @@ def _validate_default_order(write_report):
     """Legacy module tests expect default neighbors; preserve user ordering."""
 
     results = []
-    for name, filename in VALIDATORS:
+    for specification in VALIDATORS:
+        name, filename = specification[:2]
+        entry_point = specification[2] if len(specification) == 3 else "validate"
         print("[validate_live_suite] Running {}...".format(name))
         try:
-            result = _run_validator(name, filename)
+            result = _run_validator(name, filename, entry_point)
         except Exception as error:
             result = {
                 "name": name,
                 "script": filename,
+                "entry_point": entry_point,
                 "ok": False,
                 "failed_checks": [],
                 "error": "{}: {}".format(type(error).__name__, error),

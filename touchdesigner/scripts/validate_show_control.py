@@ -34,7 +34,11 @@ def validate(write_report=True):
     show.initializeExtensions()
     ext = show.ext.ShowControlExt
     original = copy.deepcopy(ext.document)
-    values = {p.name: p.eval() for p in show.customPars if not p.isPulse}
+    # Wall aliases in this show-only copy still target the original sibling
+    # wall. They are exercised in the isolated wall validator, not restored
+    # through the live output during this cue-only audit.
+    values = {p.name: p.eval() for p in show.customPars
+              if not p.isPulse and not p.readOnly and p.page.name not in ('Wall Output', 'Output Mode')}
     tick_active = show.op("show_tick").par.active.eval()
     show.op("show_tick").par.active = False
     checks, details = {}, {}
@@ -150,11 +154,17 @@ def validate(write_report=True):
         load([cue(track=1,duration=0,fade=0),cue(track=2,duration=0,fade=0),cue(track=3,duration=0,fade=0)])
         show.par.Selectedcue=1; ext.CaptureLook()
         look = ext.document["cues"][0]["look"]
+        require("Transparentbackground" in look["modules"]["calligraphic_shadow"],
+                "Shadow transparency missing from captured look")
+        checks["calligraphic_transparency_capture_look"] = True
         require("ink_dream_flow" in look["modules"] and "Inkdreamenabled" in look["toggles"], "Ink Dream Flow missing from captured look")
         checks["ink_dream_flow_capture_look"] = True
         require({"Glitterenabled", "Glitteramount", "Glittercolorr", "Glitterspeed", "Glittertwinklespeed"} <= set(look["modules"]["ink_dream_flow"]), "Glitter controls missing from captured look")
         checks["ink_dream_glitter_capture_look"] = True
         for module_name in ("ink_dream_flow", "ink_brush_flow", "ink_radial_flow"):
+            require({"Patternenabled", "Patternamount", "Patternmode", "Patternsurface",
+                     "Patterndensity", "Patterncolorr", "Patternbackgrounda", "Patternspeed",
+                     "Patternseed"} <= set(look["modules"][module_name]), "Dot pattern missing from " + module_name)
             require({"Staticglitterenabled", "Staticglitteramount", "Staticglittercolorr", "Staticglitterseed",
                      "Staticglittershimmer", "Staticglittertwinklespeed", "Staticglittershimmercontrast",
                      "Staticglittershimmerfloor", "Staticglittershimmerrandom"} <= set(look["modules"][module_name]), "Static glitter missing from " + module_name)
@@ -289,6 +299,43 @@ def validate(write_report=True):
             require(not target_module.par.Staticglitterenabled.eval(), "Older cue retained static glitter")
             require(target_module.par.Staticglittershimmer.eval()==0., "Older cue retained static shimmer")
             checks[module_name+"_static_glitter_cue_and_reset"] = True
+
+            ext.engine.stop()
+            pattern_look = {"toggles": {toggle:True}, "modules": {module_name:{
+                "Patternenabled":True, "Patternamount":0., "Patternmode":"replace",
+                "Patterndensity":24., "Patternspeed":.4, "Patterncolorr":.9,
+                "Flowspeed":0., "Particlespeed":0.}}}
+            load([cue(duration=0,fade=0,look=pattern_look),
+                  cue(kind="parameters",target=module_name+"/Patternamount",value=1.,duration=2)])
+            ext.engine.go(0); step(0)
+            target_module = ext.tracks[1]["deck"].op(module_name)
+            require(target_module.par.Enabled.eval() and target_module.par.Patternenabled.eval(), "Pattern cue enable failed")
+            first_pattern = pixels("track1")
+            ext.engine.go(1); step(0); step(1)
+            require(abs(target_module.par.Patternamount.eval()-.5)<.001, "Pattern cue midpoint failed")
+            require(not np.allclose(first_pattern,pixels("track1")), "Pattern cue pixels did not change")
+            step(2)
+            require(abs(target_module.par.Patternamount.eval()-1.)<.001, "Pattern cue endpoint failed")
+            ext.engine.pause(); paused_pattern=pixels("track1")
+            step(4.)
+            require(np.array_equal(paused_pattern,pixels("track1")), "Pattern moved while cue paused")
+            ext.engine.resume(); step(4.2)
+            require(not np.allclose(paused_pattern,pixels("track1")), "Pattern did not resume")
+            ext._apply_look(ext.tracks[1]["deck"], {})
+            require(not target_module.par.Patternenabled.eval(), "Older cue retained pattern on reused deck")
+            checks[module_name+"_dot_pattern_cue_pause_resume_and_reset"] = True
+
+        ext.engine.stop()
+        transparent_look = {"toggles": {"Calligraphicshadowenabled": True},
+                            "modules": {"calligraphic_shadow": {
+                                "Transparentbackground": True, "Maskmode": "alpha"}}}
+        load([cue(duration=0, fade=0, look=transparent_look)])
+        ext.engine.go(0); step(0)
+        shadow = ext.tracks[1]["deck"].op("calligraphic_shadow")
+        require(shadow.par.Transparentbackground.eval(), "Shadow alpha cue did not apply")
+        ext._apply_look(ext.tracks[1]["deck"], {})
+        require(not shadow.par.Transparentbackground.eval(), "Older look retained transparent background")
+        checks["calligraphic_transparency_cue_and_older_look_reset"] = True
 
         ext.engine.stop()
         radial_look={"toggles":{"Inkradialenabled":True},"modules":{"ink_radial_flow":{
@@ -522,7 +569,10 @@ def validate(write_report=True):
         pulses={p.name for p in show.customPars if p.isPulse}
         extra_routes={
             'look_editor_controls': ('look_editor_controls_callbacks', ('Editlookcontrols','Openlookpreview')),
-            'show_review_export': ('review_export_callbacks', ('Openprojectorreview','Startexport','Cancelexport')),
+            'show_output_mode': ('output_mode_callbacks', ('Checkoutput','Openoutput','Closealloutputs')),
+            'projection_mapping': ('projection_mapping_callbacks', show.op('projection_mapping').module.ACTIONS),
+            'show_review_export': ('review_export_callbacks', ('Openprojectorreview','Startexport','Stopexport','Cancelexport',
+                                                               'Wallcheckdisplay','Wallopen','Wallclose')),
         }
         all_endpoints=set(endpoints)|{name for _,names in extra_routes.values() for name in names}
         require(pulses==all_endpoints, "Uncovered show pulse: "+str(pulses.symmetric_difference(all_endpoints)))
@@ -581,7 +631,7 @@ def validate(write_report=True):
         require("Audiodevice" in show.op("stereo_output").par.device.expr and bool(show.par.Audiodevice.menuSource), "Audio device menu not wired")
         coverage["pulse_dispatch"] = sorted(pulses)
         coverage["hardware_wiring_only"] = ["Openoutputs","Closeoutputs","Audioenabled","Audiodevice","Windowx","Windowy"]
-        checks["all_28_show_pulses_and_14_panel_buttons_dispatch"] = True
+        checks["all_{}_show_pulses_and_14_panel_buttons_dispatch".format(len(pulses))] = True
         checks["hardware_controls_wired_without_enabling_outputs"] = True
         load([cue(duration=0,fade=0)])
         ext.engine.go(0); step(0)
