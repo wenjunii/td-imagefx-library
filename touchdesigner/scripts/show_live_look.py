@@ -1,6 +1,33 @@
 """Idempotent live-draft audition and cue-notes controls; no cue data mutations."""
 
 
+def install_cue_notes_column(show):
+    """Keep notes beside their cue, inside the existing 880-unit list area."""
+    import td
+    for name, label, x, width in (
+            ('cue_column_heading', 'CUE / TYPE / TRACK / STATE', 20, 490),
+            ('notes_column_heading', 'NOTES (edit in Cue Notes)', 520, 380)):
+        heading = show.op(name) or show.create(td.textCOMP, name)
+        heading.par.x, heading.par.y, heading.par.w, heading.par.h = x, 676, width, 20
+        heading.par.text, heading.par.fontsize = label, 12
+        heading.par.alignx = 'left'
+    for row in range(12):
+        cue = show.op('cue_row_{}'.format(row))
+        cue.par.x, cue.par.y, cue.par.w, cue.par.h = 20, 651 - row * 23, 490, 21
+        cue.par.fontsize = 13
+        cue.par.label.expr = 'parent().CueLabel({}, compact=True)'.format(row)
+        notes = show.op('cue_notes_{}'.format(row))
+        if notes is None:
+            notes = show.create(td.buttonCOMP, 'cue_notes_{}'.format(row))
+        notes.par.x, notes.par.y, notes.par.w, notes.par.h = 520, cue.par.y, 380, 21
+        notes.par.fontsize = 12
+        notes.par.label.expr = 'parent().CueRowNotes({})'.format(row)
+        notes.store('cue_row', row)
+        callback = notes.op('clicked') or notes.create(td.panelexecuteDAT, 'clicked')
+        callback.par.panels, callback.par.panelvalue, callback.par.offtoon = '..', 'lselect', True
+        callback.text = "def onOffToOn(panelValue):\n    parent().parent().SelectRow(parent().fetch('cue_row'))\n"
+
+
 def install(show):
     import td
 
@@ -39,6 +66,7 @@ def install(show):
     parameter('Cue Notes', 'Pulse', 'Opencuenotes', 'Open Cue Notes')
     hint = parameter('Cue Notes', 'Str', 'Noteshelp', 'Notes Help')
     hint.val, hint.readOnly = 'Save Cue Notes applies metadata only. Save Show writes committed notes to JSON.', True
+    install_cue_notes_column(show)
 
     for output in (1, 2, 3):
         source = show.op('output_source{}'.format(output))

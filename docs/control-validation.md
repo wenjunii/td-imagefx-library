@@ -1,5 +1,112 @@
 # Control validation
 
+## Full control revalidation and publication — 2026-10-23
+
+The clean main TOE containing the Continue/Follow fix and per-cue Notes column
+was tested again in TouchDesigner 2025.32820 on the RTX 3080 Ti Laptop GPU.
+
+- **28 blocking groups / 5,412 checks passed**, including all module bindings,
+  parameter endpoints, effect selection, pulse routes, mapping and reset controls.
+- **15 real-frame groups / 385 checks passed**, including 52 live-look/notes
+  checks and 35 Continue/Follow checks. Custom ink cue playback, crossfades,
+  animation speed, notes pagination and selection all passed.
+- **14 cue/draft export checks** and **7 wall-recorder checks** passed. Five
+  cue/draft/movie exports and three completed UHD wall recordings were decoded
+  independently; dimensions, frame counts, non-black images, projector quadrant
+  order and confidence diagnostics were correct. Stop and Cancel also passed.
+- **548 portable publication tests passed**, with four expected Windows
+  symlink-permission skips. Credentials, native-artifact provenance, all 96
+  preview baselines and benchmark checks passed; 124 package versions remain
+  immutable. Rejected dance prototypes stay local and are not part of this release.
+- Reopening the canonical saved TOE passed **20 startup checks** with zero
+  native diagnostics. All **4,093 embedded text DATs** passed credential scanning;
+  the show remained stopped, blackouts on, audio/windows off and personal show
+  data unchanged. The final Show Control panel was visually inspected.
+
+Performance caveat: the short UHD H.264 30-fps recording still reported **10
+dropped frames**, while the 25-fps MJPEG and early-stop fixtures reported zero.
+The largest preparation step in this rerun was **7.476 ms** (an earlier run
+reached 65.4 ms). These are functional checks, not a sustained show-performance
+certification. Physical projector/processor connections and audible stereo output
+were not tested; rehearse the actual media, output and recording workload.
+
+The saved personal show and canonical TOE were not modified by the tests.
+A local safety backup is under `build/backups/pre-full-validation-20261023-1935/`.
+Fresh native reports are in `build/envoy-validation/live-suite.json`,
+`deferred-controls.json`, `show-review-export.json`, `cue-export-media.json`,
+`wall-export.json`, `wall-export-media.json` and `cue-notes-reopen.json`.
+Test fixtures and private show
+files remain outside the publication set.
+
+## Per-cue Notes column — 2026-10-23
+
+Show Control now displays saved notes beside each visible cue. The two columns
+stay aligned through 12-row pagination and reordering; clicking a note selects
+that cue. Long/multiline notes use a single-line preview without modifying the
+full saved text. Save Cue Notes refreshes the row without resetting playback or
+committing the live-look draft. The show JSON format is unchanged.
+
+- Eight new portable regressions cover row identity, empty/long/Unicode notes,
+  pagination, reordering, compact cue labels and refresh behavior. All **548
+  public-source tests passed**, with four expected Windows symlink skips.
+- The rebuilt main TOE was inspected with the computer-use skill in
+  TouchDesigner 2025.32820. Both columns fit inside the existing cue-list area,
+  with the right-hand parameter inspector and Look Editor toolbar unobstructed.
+- **75 blocking checks** passed across Show Control and navigation; **15
+  real-frame groups / 385 checks** passed, including **52 live-look/notes checks**
+  and the retained **35 Continue/Follow checks**. Audio stayed disarmed and
+  physical projection windows stayed closed.
+- Repository verification, credential scanning, native-artifact provenance,
+  all 96 preview baselines and benchmark checks passed. All 124 immutable
+  package versions were preserved. Existing local changes and rejected dance
+  prototypes were retained and excluded from the publication set.
+- Reopening the canonical saved TOE passed **20 startup checks**, including
+  all twelve notes cells/callbacks, the embedded Continue/Follow fix, safe
+  output defaults, unchanged personal show data, zero native diagnostics and
+  a credential scan of all 4,093 embedded text DATs.
+
+The canonical main TOE was rebuilt with clean defaults. The saved personal show
+JSON is byte-for-byte unchanged and backed up under
+`build/backups/pre-cue-notes-20261023-183940/`. Native reports are in
+`build/envoy-validation/cue-notes-blocking.json`, `show-live-look.json`, and
+`deferred-controls.json`; saved-file checks are in `cue-notes-reopen.json`.
+
+## Continue / Follow queue regression — 2026-10-23
+
+Automatic cue requests now distinguish temporary track/deck reservations from
+real errors. A cue targeting a busy crossfade remains WAIT, then prepares and
+plays when the track is free. Media errors still show ERROR. Manual GO and
+Preload retain their explicit busy-track warning.
+
+- **20 new portable regressions** cover Continue chains, Follow timing,
+  timestamps, independent tracks, reserved standby decks, long fades, decoding
+  timeouts, Pause/Resume, Stop Selected, Stop All and Go Back cancellation.
+- **35 real-frame TouchDesigner checks passed** in an isolated test show.
+  Red/green/blue pixel checks verify the active image survives resource waiting,
+  crossfades contain both images, and the final cue renders its own source.
+  Follow respects Duration, Post-Wait and the next cue's Pre-Wait, pauses its
+  clock, cancels when its parent is stopped, and recovers from a busy track.
+- The public-source verification snapshot passed **540 portable tests**, with
+  four expected Windows symlink-permission skips, plus credential, native
+  provenance, package, gallery and benchmark checks. Local rejected dance
+  prototypes were excluded without modifying or deleting them.
+- The main TOE and nineteen core TOXs were rebuilt with TouchDesigner
+  2025.32820; all 96 current effects built without shader/preview/builder errors.
+  The 124 published package versions were preserved.
+- The complete regression rerun passed **28 blocking groups / 5,412 checks**
+  and **15 real-frame groups / 376 checks**, including the 35 new queue checks.
+- Reopening the saved canonical TOE passed **17 startup checks**, including the
+  embedded queue fix, safe output defaults, unchanged personal show, zero native
+  diagnostics and a credential scan of all 4,055 embedded text DATs. The report
+  is `build/envoy-validation/continue-reopen.json`.
+
+The computer-use skill was used to build and test inside TouchDesigner. The
+personal show JSON remains byte-for-byte unchanged, with a local backup under
+`build/backups/pre-continue-fix-20261023/`. Native regression details are in
+`build/envoy-validation/show-continue.json`. Audio stayed disarmed and physical
+output windows stayed closed. These checks do not certify sustained projector
+or processor performance or resolve the recording limits documented below.
+
 ## Live-look and playback release audit — 2026-10-23
 
 Rebuilt the canonical TOE and all nineteen core TOXs with TouchDesigner

@@ -81,6 +81,32 @@ def validate():
         ids = {node.name: node.id for node in qa.children}
         scope['install'](qa); scope['install'](qa)
         check('idempotent_installer_preserves_nodes', ids == {node.name: node.id for node in qa.children})
+        check('notes_column_stays_inside_cue_list', all(
+            qa.op('cue_row_%d' % i).par.x + qa.op('cue_row_%d' % i).par.w < qa.op('cue_notes_%d' % i).par.x
+            and qa.op('cue_notes_%d' % i).par.x + qa.op('cue_notes_%d' % i).par.w <= 900
+            and qa.op('cue_notes_%d' % i).par.y == qa.op('cue_row_%d' % i).par.y
+            for i in range(12)))
+        check('notes_column_clears_look_toolbar', qa.op('cue_notes_11').par.y >= 390)
+        note_cues = [dict(ext.model.new_cue(), name='Cue %d' % (i+1), notes='Note %d' % (i+1)) for i in range(15)]
+        note_cues[0]['notes'] = 'Stand by LX\n第二行 / wait for dancer'
+        note_cues[1]['notes'] = 'Long note ' * 100
+        load(note_cues); ext.SelectCue(1); ext.Refresh()
+        check('row_notes_are_cue_specific', qa.op('cue_notes_0').par.label.eval() == 'Stand by LX 第二行 / wait for dancer'
+              and qa.op('cue_notes_2').par.label.eval() == 'Note 3')
+        check('long_note_preview_preserves_original', qa.op('cue_notes_1').par.label.eval().endswith('…')
+              and ext.document['cues'][1]['notes'] == note_cues[1]['notes'])
+        qa.par.Cuepage = 2; ext.Refresh()
+        check('notes_follow_page_and_clear_empty_rows', qa.op('cue_notes_0').par.label.eval() == 'Note 13'
+              and qa.op('cue_notes_2').par.label.eval() == 'Note 15' and qa.op('cue_notes_3').par.label.eval() == '')
+        qa.op('cue_notes_1').op('clicked').module.onOffToOn(None)
+        check('notes_cell_selects_matching_cue', int(qa.par.Selectedcue) == 14 and qa.par.Cuenotes.eval() == 'Note 14')
+        qa.par.Cuenotes = 'Edited note'; ext.SaveCueNotes()
+        check('save_notes_refreshes_matching_row', qa.op('cue_notes_1').par.label.eval() == 'Edited note'
+              and ext.document['cues'][13]['notes'] == 'Edited note')
+        ext.MoveCue(-1)
+        check('notes_stay_attached_after_reorder', qa.op('cue_notes_0').par.label.eval() == 'Edited note'
+              and qa.op('cue_notes_1').par.label.eval() == 'Note 13')
+        qa.par.Cuepage = 1
         check('startup_live_preview_is_off', not qa.par.Looklive)
         qa.par.Renderwidth, qa.par.Renderheight = 320, 180
         qa.par.Masterblackout, qa.par.Audioenabled = False, False
@@ -206,6 +232,7 @@ def validate():
         engine_id, elapsed = id(ext.engine), ext.engine.elapsed
         ext.SaveCueNotes()
         check('notes_can_save_during_playback', id(ext.engine) == engine_id and ext.engine.state == 'running' and ext.engine.elapsed == elapsed)
+        check('row_notes_refresh_during_playback', qa.op('cue_notes_0').par.label.eval() == 'Notes during playback')
         check('no_hardware_outputs_opened', not any(w.isOpen for w in qa.op('show_output_mode').module.windows(qa) if w))
         check('audio_stays_off', not qa.par.Audioenabled)
         check('original_show_unchanged', original.op('show_data').text == document)

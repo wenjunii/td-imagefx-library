@@ -34,6 +34,7 @@ JOBS = (
     ("cue_playback", "validate_cue_playback.py", "start", "cue-playback.json", "dat_hd"),
     ("look_animation", "validate_look_animation.py", "start", "look-animation.json", "dat_hd"),
     ("show_live_look", "validate_show_live_look.py", "start", "show-live-look.json", "dat"),
+    ("show_continue", "validate_show_continue.py", "start", "show-continue.json", "dat"),
 )
 FIXTURES = ("show-image-fixture.png", "show-av-fixture.mp4",
             "layer-top-fixture.png", "layer-backdrop-fixture.png")

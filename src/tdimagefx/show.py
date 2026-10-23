@@ -292,6 +292,10 @@ def inverse_quad(corners):
     return tuple(matrix[i][8] for i in range(8)) + (1.0,)
 
 
+class CuePreparationBusy(ValueError):
+    """A temporary track/deck reservation, not a broken cue or media file."""
+
+
 class CueEngine:
     """Pause-aware show clock; backend owns loading, playback, and rendering."""
 
@@ -304,6 +308,7 @@ class CueEngine:
         self.selected = 0
         self.triggered = set()
         self.pending = {}
+        self._waiting_preparation = {}
         self.active = {}
         self.follows = []
         self.errors = {}
@@ -311,7 +316,7 @@ class CueEngine:
         self._suppress_follows = set()
         self._last = clock()
 
-    def go(self, index=None, *, replay=False):
+    def go(self, index=None, *, replay=False, wait_for_resources=False):
         if self.state == "paused":
             raise ValueError("Resume before GO")
         index = self.selected if index is None else index
@@ -326,12 +331,22 @@ class CueEngine:
         replay = replay or (cue["id"] in self._suppress_follows and cue["id"] in self.active)
         if not replay and (cue["id"] in self.pending or cue["id"] in self.active):
             raise ValueError("Cue is already pending or running")
-        if replay:
-            self.backend.prepare_replay(cue)
-            self.active.pop(cue["id"], None)
-            self.errors.pop(cue["id"], None)
+        try:
+            if replay:
+                self.backend.prepare_replay(cue)
+            else:
+                self.backend.prepare(cue)
+        except CuePreparationBusy:
+            if not wait_for_resources:
+                raise
+            # Auto-continue/follow/timestamps are one-shot triggers. Reserve
+            # the request as WAIT and retry only this explicit temporary state.
+            self._waiting_preparation[cue["id"]] = replay
         else:
-            self.backend.prepare(cue)
+            self._waiting_preparation.pop(cue["id"], None)
+        if replay:
+            self.active.pop(cue["id"], None)
+        self.errors.pop(cue["id"], None)
         if self.state == "stopped":
             self.state = "running"
             self._last = self.clock()
@@ -381,6 +396,7 @@ class CueEngine:
         self.state = "stopped"
         self.triggered.clear()
         self.pending.clear()
+        self._waiting_preparation.clear()
         self.active.clear()
         self.follows.clear()
         self.errors.clear()
@@ -396,6 +412,7 @@ class CueEngine:
         self.triggered.add(cue["id"])
         self.backend.stop_cue(cue)
         self.pending.pop(cue["id"], None)
+        self._waiting_preparation.pop(cue["id"], None)
         self.active.pop(cue["id"], None)
         self.follows = [entry for entry in self.follows if entry[2] != cue["id"]]
 
@@ -418,6 +435,19 @@ class CueEngine:
                 continue  # A preceding Stop cue cancelled this pending cue.
             cue = self.cues[index]
             try:
+                if cue_id in self._waiting_preparation:
+                    try:
+                        if self._waiting_preparation[cue_id]:
+                            self.backend.prepare_replay(cue)
+                        else:
+                            self.backend.prepare(cue)
+                    except CuePreparationBusy:
+                        continue
+                    self._waiting_preparation.pop(cue_id)
+                    # Resource waiting is not media decoding. A legitimate
+                    # long crossfade must not consume the 30s readiness timeout.
+                    queued = self.elapsed
+                    self.pending[cue_id] = (index, due, queued)
                 if self.elapsed < due:
                     continue
                 if not self.backend.ready(cue):
@@ -439,6 +469,7 @@ class CueEngine:
             except Exception as exc:
                 self.errors[cue_id] = str(exc)
                 self.pending.pop(cue_id, None)
+                self._waiting_preparation.pop(cue_id, None)
                 self.backend.stop_cue(cue)
         self.backend.tick(self.elapsed)
         for cue_id, (index, started) in list(self.active.items()):
@@ -455,7 +486,7 @@ class CueEngine:
             index += 1
         if 0 <= index < len(self.cues) and self.cues[index]["id"] not in self.triggered:
             try:
-                self.go(index)
+                self.go(index, wait_for_resources=True)
             except Exception as exc:
                 cue_id = self.cues[index]["id"]
                 self.triggered.add(cue_id)

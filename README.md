@@ -125,7 +125,9 @@ the existing projection mapping, Direct/4K Wall output and Projector Review.
 Blackouts still apply. **Stop Live Look** leaves the draft open; Update/Save New/
 Cancel and STOP ALL disarm the audition. Nothing changes the cue until Update.
 **Cue Notes → Save Cue Notes** stores per-cue notes without restarting playback
-or committing a look draft. **Save Show** persists committed edits and notes;
+or committing a look draft. Saved notes appear next to each cue in the **Notes**
+column; select either cell to edit that cue's full note in **Cue Notes**.
+**Save Show** persists committed edits and notes;
 new copies start disabled to avoid accidental triggers.
 Updating a cue now retains a **saved/frozen preview** and captures the current
 procedural animation phase plus its running/frozen state. Recall Look reopens
@@ -153,14 +155,23 @@ protect fade-from-black, running-cue preload, stop/follow cancellation and inval
 mapping saves. Hardware arm/device/window controls are wiring-tested only; the
 automated suite deliberately does not open audience output or play audible sound.
 
-The **2026-10-23 follow-up audit** passed all 28 blocking groups (5,412 checks),
-14 real-frame groups (341 checks), and 520 portable release tests (four expected
+**Continue / Follow fix (2026-10-23):** an automatic next cue now stays **WAIT**
+while its track is crossfading or its standby deck is reserved, then plays when
+available. Other tracks continue independently. Follow still requires a nonzero
+Duration and respects Post-Wait plus the next cue's Pre-Wait. Pause and Stop
+also control queued requests; missing media still reports ERROR. The fix adds
+20 portable regressions and 35 native rendered-image checks.
+
+The **2026-10-23 full revalidation** passed all 28 blocking groups (5,412 checks),
+15 real-frame groups (385 checks), and 548 portable release tests (four expected
 Windows symlink skips). The 1080p checks cover custom ink Recall/GO, unchanged
 on-air pixels during standby preparation, crossfade endpoints/midpoints,
-continuous Animation Speed, Update Cue Look, live-draft routing and cue notes.
+continuous Animation Speed, Update Cue Look, live-draft routing, Continue/Follow
+and per-cue Notes rows (including pagination, selection and saved full text).
 The clean TOE and all core TOXs were rebuilt; personal shows remain local.
 Preparation is frame-budgeted but an indivisible GPU/decode operation can still
-exceed a frame: the audit measured a maximum 65.4 ms preparation step. Preload
+exceed a frame: this rerun measured a maximum 7.5 ms preparation step, while an
+earlier run reached 65.4 ms. Preload
 before a timed entrance and rehearse the actual three-channel workload.
 The short UHD wall recording test also reported 10 dropped frames at 30-fps
 H.264 (zero in the 25-fps MJPEG fixture); see the
@@ -285,7 +296,7 @@ git clone https://github.com/wenjunii/td-imagefx-library.git
 cd td-imagefx-library
 ```
 
-The clean Windows release build used TouchDesigner `2025.32820` and validated all 96 current effects with 124 versioned effect `.tox` files, nineteen core `.tox` files, one library `.toe`, 96 previews, 96 visual baselines, and 96 benchmark samples. That build report contains zero shader, preview, or builder errors. A fresh repository run completed 520 tests successfully, with four expected Windows symlink-permission skips. The release TOE contains clean defaults, not personal cues or media. In-place patches and saved personal cues are not a new full native-build certification; regenerate and validate distributable artifacts before publishing a release. Read [TouchDesigner setup](docs/touchdesigner-setup.md) to reproduce the native build.
+The clean Windows release build used TouchDesigner `2025.32820` and validated all 96 current effects with 124 versioned effect `.tox` files, nineteen core `.tox` files, one library `.toe`, 96 previews, 96 visual baselines, and 96 benchmark samples. That build report contains zero shader, preview, or builder errors. A fresh repository run completed 548 tests successfully, with four expected Windows symlink-permission skips. The release TOE contains clean defaults, not personal cues or media. In-place patches and saved personal cues are not a new full native-build certification; regenerate and validate distributable artifacts before publishing a release. Read [TouchDesigner setup](docs/touchdesigner-setup.md) to reproduce the native build.
 
 The generated project targets TouchDesigner 2025. Validate the exact TouchDesigner build, operating system, GPU, driver, resolution, pixel format, and color pipeline used by your production system. Python 3.11 or newer is required for repository tooling; it is not required merely to use already-built native components.
 
@@ -796,13 +807,15 @@ toggles, menus and pulse routes. Context-dependent controls still need sensible
 media and enabled effects; these checks do not test every parameter combination.
 
 After that blocking suite, run the consolidated **real-frame audit**. It runs
-fourteen additional groups in sequence: native rack events, workflow/crop events,
+fifteen additional groups in sequence: native rack events, workflow/crop events,
 wall buttons, decoded layer images, layer video transports, show playback and
 the off-air Look Editor, and Color Switch / Two-Image Composition media and cue
 checks, Source Media file decoding and video transport, and the Output Mode
 and Projection Mapping native button events. It also checks 1080p custom ink
 Recall/GO/crossfade pixels, saved animation phases and continuous speed, and
-live-draft projection routing, cue notes and blackout boundaries.
+live-draft projection routing, cue notes and blackout boundaries. Continue/Follow
+tests cover busy-crossfade waiting, duration/post-wait/pre-wait timing,
+pause/resume, cancellation and rendered images.
 Stop All, finish/cancel any look draft, enable both
 blackouts and keep audio disarmed. Do not edit or save the TOE while it runs.
 

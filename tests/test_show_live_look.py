@@ -26,7 +26,7 @@ class LiveLookTests(unittest.TestCase):
         self.deck.op.return_value.path = '/show/look_editor/out1_image'
         self.ext.ownerComp.op.return_value = self.deck
         self.ext._look_edit = dict(cue=copy.deepcopy(self.cue), deck=self.deck)
-        self.values = dict(Selectedcue=1, Looklivetrack=2, Routingmode='independent',
+        self.values = dict(Selectedcue=1, Cuepage=1, Looklivetrack=2, Routingmode='independent',
                            Output1track=1, Output2track=2, Output3track=3,
                            Masterblackout=True, Notes='Line one\n第二行')
         self.ext._p = lambda name: self.values[name]
@@ -75,6 +75,7 @@ class LiveLookTests(unittest.TestCase):
         self.assertEqual(engine.cues[0]['notes'], self.values['Notes'])
         self.assertEqual(self.ext._look_index(), 0)
         self.ext._save_document_dat.assert_called_once()
+        self.assertEqual(self.ext.CueRowNotes(0), 'Line one 第二行')
 
     def test_notes_can_be_saved_while_running(self):
         self.ext._look_edit = None
@@ -89,6 +90,65 @@ class LiveLookTests(unittest.TestCase):
             with self.assertRaises(ValueError): self.ext.SaveCueNotes()
             self.assertEqual(self.ext.document, original)
         self.ext._save_document_dat.assert_not_called()
+
+    def test_row_notes_are_specific_to_each_cue(self):
+        self.ext.document['cues'] = [dict(show.new_cue(), notes=text)
+                                     for text in ('Wait for LX 12', 'Start on music', '')]
+        self.assertEqual([self.ext.CueRowNotes(i) for i in range(3)],
+                         ['Wait for LX 12', 'Start on music', '—'])
+        self.assertEqual(self.ext.CueRowNotes(3), '')
+
+    def test_note_preview_preserves_full_multiline_unicode_text(self):
+        self.cue['notes'] = '  Stand by\r\n第二行\t /  hold for dancer  '
+        original = copy.deepcopy(self.ext.document)
+        self.assertEqual(self.ext.CueRowNotes(0), 'Stand by 第二行 / hold for dancer')
+        self.assertEqual(self.ext.document, original)
+        self.assertNotEqual(self.ext.CueRowNotes(0), self.values['Notes'])
+
+    def test_long_note_preview_is_truncated_but_saved_text_is_untouched(self):
+        self.cue['notes'] = 'A' * 4000
+        self.assertEqual(self.ext.CueRowNotes(0), 'A' * 51 + '…')
+        self.assertEqual(len(self.cue['notes']), 4000)
+
+    def test_wide_characters_fit_the_row_preview(self):
+        self.cue['notes'] = '第二行' * 30
+        self.assertEqual(self.ext.CueRowNotes(0), self.cue['notes'][:25] + '…')
+        self.cue['notes'] = 'e\u0301' * 52
+        self.assertEqual(self.ext.CueRowNotes(0), self.cue['notes'])
+
+    def test_page_change_and_invalid_rows_do_not_leak_other_cue_notes(self):
+        self.ext.document['cues'] = [dict(show.new_cue(), notes='Note {}'.format(i)) for i in range(15)]
+        self.values['Cuepage'] = 2
+        self.assertEqual([self.ext.CueRowNotes(i) for i in range(4)], ['Note 12', 'Note 13', 'Note 14', ''])
+        for row in (-1, 12):
+            self.assertEqual(self.ext.CueRowNotes(row), '')
+            self.assertEqual(self.ext.CueLabel(row), '')
+
+    def test_notes_follow_cue_when_reordered(self):
+        self.ext.document['cues'] = [dict(show.new_cue(), notes='First'), dict(show.new_cue(), notes='Second')]
+        self.ext.document['cues'].reverse()
+        self.assertEqual([self.ext.CueRowNotes(i) for i in (0, 1)], ['Second', 'First'])
+
+    def test_compact_cue_label_retains_number_track_and_transport_state(self):
+        self.cue['name'] = 'A very long cue name that should not hide state'
+        self.ext.engine.pending[self.cue['id']] = object()
+        label = self.ext.CueLabel(0, compact=True)
+        self.assertIn('> 001', label)
+        self.assertIn('…', label)
+        self.assertTrue(label.endswith('| visual / track 1 | WAIT'))
+
+    def test_refresh_updates_both_columns_and_clears_unused_rows(self):
+        self.cue['notes'] = 'Ready for dancer'
+        nodes = {name: Mock() for name in ('cue_list', 'cue_text')}
+        nodes.update({'cue_row_{}'.format(i): Mock() for i in range(12)})
+        nodes.update({'cue_notes_{}'.format(i): Mock() for i in range(12)})
+        self.ext.ownerComp.op = nodes.get
+        self.ext.prepared = {}
+        ShowControlExt.Refresh(self.ext)
+        self.assertEqual(nodes['cue_row_0'].par.label, self.ext.CueLabel(0, compact=True))
+        self.assertEqual(nodes['cue_notes_0'].par.label, 'Ready for dancer')
+        self.assertEqual(nodes['cue_notes_11'].par.label, '')
+        self.assertEqual(nodes['cue_row_11'].par.label, '')
 
 
 if __name__ == '__main__':
