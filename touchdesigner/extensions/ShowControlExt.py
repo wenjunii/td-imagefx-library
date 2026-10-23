@@ -157,13 +157,39 @@ class ShowControlExt:
         if index <= len(self.document["cues"]):
             self.SelectCue(index)
 
-    def CueLabel(self, row):
+    def CueLabel(self, row, compact=False):
         index = (int(self._p("Cuepage")) - 1) * 12 + row
-        if index >= len(self.document["cues"]):
+        if not 0 <= row < 12 or not 0 <= index < len(self.document["cues"]):
             return ""
         cue = self.document["cues"][index]
         state = "ERROR" if cue["id"] in self.engine.errors else "PLAY" if cue["id"] in self.engine.active else "WAIT" if cue["id"] in self.engine.pending else "disabled" if not cue["enabled"] else "ready"
-        return "{} {:03d}   {}   | {} / track {} | {}".format(">" if int(self._p("Selectedcue")) == index + 1 else "", index + 1, cue["name"][:48], cue["kind"], cue["track"], state)
+        name = self._row_preview(cue["name"], 24) if compact else cue["name"][:48]
+        return "{} {:03d}   {}   | {} / track {} | {}".format(">" if int(self._p("Selectedcue")) == index + 1 else "", index + 1, name, cue["kind"], cue["track"], state)
+
+    @staticmethod
+    def _row_preview(value, columns):
+        """Single-line display only; never shorten the saved note or cue name."""
+        import unicodedata
+        text = " ".join(value.split())
+        widths = [0 if unicodedata.combining(c) else
+                  2 if unicodedata.east_asian_width(c) in {"W", "F"} else 1
+                  for c in text]
+        if sum(widths) <= columns:
+            return text
+        used, result = 0, []
+        for char, width in zip(text, widths):
+            if used + width > columns - 1:
+                break
+            result.append(char)
+            used += width
+        return "".join(result).rstrip() + "…"
+
+    def CueRowNotes(self, row):
+        """Committed notes aligned with the visible cue page, not the editor buffer."""
+        index = (int(self._p("Cuepage")) - 1) * 12 + row
+        if not 0 <= row < 12 or not 0 <= index < len(self.document["cues"]):
+            return ""
+        return self._row_preview(self.document["cues"][index]["notes"], 52) or "—"
 
     def ApplyCue(self):
         self._guard_edit()
@@ -717,6 +743,10 @@ class ShowControlExt:
             raise ValueError("Cue is already running or held; stop it before preloading again")
         try:
             self._prepare(cue)
+        except self.model.CuePreparationBusy:
+            # No resources were changed. In particular, do not disturb the
+            # on-air/standby decks while an automatic request waits its turn.
+            raise
         except Exception:
             self.stop_cue(cue)
             raise
@@ -782,11 +812,11 @@ class ShowControlExt:
             return
         state = self.tracks.get(track, {"side": 1})
         if state.get("fading"):
-            raise ValueError("Wait for this track's crossfade to finish before loading another cue")
+            raise self.model.CuePreparationBusy("Wait for this track's crossfade to finish before loading another cue")
         side = 1 - state["side"]
         for item in self.prepared.values():
             if item.get("track") == track and item.get("side") == side:
-                raise ValueError("Track standby is occupied; Stop All before replacing its prepared cue")
+                raise self.model.CuePreparationBusy("Track standby is occupied; start or stop its prepared cue first")
         deck = self._deck(track, side)
         # The previous occupant of this standby may still be selected after a
         # completed fade. Keep all partially-applied values off the output graph.
@@ -1431,8 +1461,11 @@ class ShowControlExt:
         self.ownerComp.par.Transport = self.engine.state
         for row in range(12):
             button = self.ownerComp.op("cue_row_{}".format(row))
+            notes = self.ownerComp.op("cue_notes_{}".format(row))
             if button is not None:
-                button.par.label = self.CueLabel(row)
+                button.par.label = self.CueLabel(row, compact=notes is not None)
+            if notes is not None:
+                notes.par.label = self.CueRowNotes(row)
 
     def Action(self, name):
         try:

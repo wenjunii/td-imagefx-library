@@ -26,7 +26,12 @@ Select a cue and click **Cue Notes** (or open the **Cue Notes** tab). Enter up t
 4000 characters in **Notes**, then press **Save Cue Notes**. This changes only
 that cue's notes: playback, timing and the Look Editor draft are untouched.
 It also works while the show is running. The legacy Notes field on Cue Editor
-is linked to the same value. Notes appear beneath the live-look controls.
+is linked to the same value. A **Notes** column beside each cue shows its saved
+notes on every cue-list page. Click either the cue or its note to select that
+cue. Long or multiline notes are shortened to a one-line preview; the full text
+remains in **Cue Notes**. A dash means that cue has no saved notes. Press **Save
+Cue Notes** to refresh the row after editing; changing selection does not save
+an unfinished edit. The selected cue's note also appears beneath the live-look controls.
 Press **Save Show** when stopped and outside a draft to persist committed notes
 in the show JSON. Unsaved note text is replaced when selecting another cue.
 
@@ -335,6 +340,15 @@ the stored cue intact. This editor requires a stopped show, not just Pause.
 | Next Cue Behavior | Manual: no automatic next cue. Continue: trigger next after this cue starts + post-wait. Follow: trigger next after this cue finishes + post-wait. Follow requires a nonzero duration. |
 | Hold Visual At End | Freeze the final visual rather than clearing that track at cue duration. Embedded audio stops at that point. |
 | Media In / Loop / Speed | Start offset in seconds, looping, and video speed. Standalone audio uses its original speed. |
+
+If an automatic next cue targets a track that is still crossfading (or whose
+standby deck is reserved), its row stays **WAIT** until that track is available.
+It then prepares and starts automatically. This also applies to Follow and
+timestamp triggers. Other tracks are not blocked. Pre-wait remains measured
+from the original request; resource waiting does not consume the media-decoding
+timeout. Pause holds the queue; Stop Selected, Stop All and Go Back can cancel
+it. Missing files or decoding failures still show **ERROR**. Manual GO/Preload
+during a busy crossfade still reports that the track is busy without queuing.
 
 Timed cues and auto-follow fire at most once in a run. Stop All resets that
 history. Stop Selected also disarms that cue's future timestamp/auto-follow for
