@@ -981,7 +981,14 @@ class FxRackExt:
         package = state["package"]
         slot = self.ownerComp.op("slot{}".format(index))
         if package is not None:
-            slot = self.LoadSlot(index, package["id"], package["version"])
+            # A captured look is a complete snapshot of an immutable package.
+            # Reuse it when all effect parameters are supplied; reloading the
+            # same TOX in all three racks used to stall every cue preparation.
+            # Compact/partial presets still reload so omitted values return to
+            # package defaults rather than leaking from the preceding look.
+            complete = slot is not None and set(self._effect_parameters(slot)) <= set(state["parameters"])
+            if not complete or self.ownerComp.fetch("slot{}_package".format(index), None) != package:
+                slot = self.LoadSlot(index, package["id"], package["version"])
             self._set_parameter("Slot{}effect".format(index), package["id"])
         else:
             self.ClearSlot(index)

@@ -176,9 +176,27 @@ class InkDreamFlowTests(unittest.TestCase):
             self.assertLess(len(bindings)+1,32)
             for definition in scalar:
                 self.assertEqual(len(re.findall(r"#define "+definition["uniform"]+r"\s+uPacked\d+\.[xyzw]",packed)),1)
-                expr = "parent().par."+definition["name"]+(".menuIndex" if definition["type"]=="menu" else "")
+                expr = definition.get("uniform_expression") or "parent().par."+definition["name"]+(".menuIndex" if definition["type"]=="menu" else "")
                 self.assertEqual(sum(values.count(expr) for _,values in bindings),1)
             self.assertNotRegex(packed,r"uniform\s+float")
+
+    def test_animation_speed_is_neutral_and_shared_by_all_variants(self):
+        for name, (parameters, shader) in zip(
+            ("ink_dream_flow", "ink_brush_flow", "ink_radial_flow"),
+            ((MODULE["PARAMETERS"], MODULE["SHADER"]), MODULE["brush_variant"](), MODULE["radial_variant"]()),
+        ):
+            controls = {d["name"]: d for d in parameters}
+            speed = controls["Animationspeed"]
+            self.assertEqual((speed["default"], speed["min"], speed["max"]), (1., 0., 10.))
+            self.assertEqual(speed["page"], "Timing")
+            self.assertNotIn("uniform", speed)  # Existing uniform layout is unchanged.
+            _, bindings = MODULE["pack_scalar_uniforms"](shader, parameters)
+            expression = controls["Time"]["uniform_expression"]
+            self.assertEqual(sum(values.count(expression) for _, values in bindings), 1)
+            self.assertEqual(expression, "parent().op('animation_clock').module.sample(parent())")
+            self.assertNotIn("absTime", shader)
+            cue = dict(new_cue(), kind="parameters", target=name + "/Animationspeed", value=.5)
+            self.assertEqual(validate_cue(cue)["value"], .5)
 
     def test_brush_show_and_harness_routes(self):
         self.assertEqual(MODULE_TOGGLES["ink_brush_flow"],"Inkbrushenabled")

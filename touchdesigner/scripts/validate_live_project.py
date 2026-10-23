@@ -397,6 +397,14 @@ def validate(write_report=True):
         "schema_version": 1,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "project_id": "td-imagefx-library",
+        "checks": {
+            "catalog_health": health_ok,
+            "managed_roots_error_free": roots_ok,
+            "all_outputs_usable": outputs_ok,
+            "output_resolution": resolution["ok"],
+            "rack_selection": rack["ok"],
+            "browser_startup": browser["ok"],
+        },
         "ok": (
             health_ok
             and roots_ok

@@ -22,11 +22,16 @@ Enabled** bypasses the entire module; **Effect Mix** blends with the input.
 
 ## Every inherited control retained
 
-All 144 writable Ink Brush Flow values and their ranges are present: timing,
+All writable Ink Brush Flow values and their ranges are present: timing,
 seed, composition, liquid, pigment particles, ink surface, paper, four palette
 colors, all ten Brush Currents controls, animated glitter, static glitter, static
 highlights, the five Static Shimmer controls and the 24 dot-pattern values.
 No controls were removed.
+**Timing → Animation Speed (1 = Original)** also scales the radial animation,
+particles, dots and shimmer together, without changing their individual speed
+controls. Default 1× preserves existing looks; 0.5× is half speed and 2× is double.
+Rate changes keep the current composition; 0× holds it until speed is increased.
+See the [shared timing controls](ink-dream-flow.md#controls) for range and phase behavior.
 
 **Dot Pattern / Dot Pattern Motion** retain the shared color, spacing, shape,
 folding, clock, composite and surface controls. **Follow Module Flow** uses the

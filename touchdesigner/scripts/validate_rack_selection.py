@@ -252,6 +252,14 @@ def validate(write_report=True):
         and not output_errors
         and not output_warnings
     )
+    report["checks"] = {
+        "callback_wiring": callback_diagnostics.get("ok") is True,
+        "all_eight_slots": len(slots) == SLOT_COUNT and all(item["ok"] for item in slots),
+        "state_restored": state_restored and restoration_error is None,
+        "rack_error_free": not rack_errors and not rack_warnings,
+        "output_error_free": not output_errors and not output_warnings,
+        "no_validation_exception": report.get("error") is None,
+    }
 
     if write_report:
         REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)

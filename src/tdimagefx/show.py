@@ -65,6 +65,7 @@ def resolve_composition_files(values, base_dir, *, selections=None, enabled=True
 def validate_look_media(look, base_dir, *, active=True, branch=False):
     """Preflight nested local sources even when the main cue source is blank."""
     if not isinstance(look,dict): raise ValueError('Look must be an object')
+    validate_look_animation(look, branch=branch)
     modules=look.get('modules',{}); toggles=look.get('toggles',{})
     resolve_layer_files(look.get('layer_files',{}),base_dir,selections=modules.get('layer_composite',{}),enabled=active and toggles.get('Layercompositeenabled',False))
     branches=look.get('branches',{})
@@ -113,6 +114,47 @@ def number(value, label, minimum=0.0, maximum=86400.0):
     return result
 
 
+def validate_look_animation(look, *, branch=False):
+    """Optional procedural starting phases; old shows still start at zero."""
+    if not isinstance(look, dict):
+        raise ValueError("Look must be an object")
+    animation = look.get("animation", {})
+    if not isinstance(animation, dict) or set(animation) - {*MODULES, "fx_rack"}:
+        raise ValueError("Unknown look animation module")
+    for name, clock in animation.items():
+        if (not isinstance(clock, dict) or not {"time", "running"} <= set(clock)
+                or set(clock) - {"time", "running", "render_time"}):
+            raise ValueError("Look animation needs time and running")
+        number(clock["time"], name + " animation time", -1.0e9, 1.0e9)
+        if not isinstance(clock["running"], bool):
+            raise ValueError("Look animation running must be boolean")
+        if "render_time" in clock:
+            if name not in {"ink_dream_flow", "ink_brush_flow", "ink_radial_flow"}:
+                raise ValueError("Continuous render time is only supported by ink flow modules")
+            number(clock["render_time"], name + " render time", -1.0e12, 1.0e12)
+    branches = look.get("branches", {})
+    if not isinstance(branches, dict) or set(branches) - {"a_effects", "b_effects"}:
+        raise ValueError("Unknown composition branch")
+    if branch and branches:
+        raise ValueError("Recursive image composition is not allowed")
+    for child in branches.values():
+        validate_look_animation(child, branch=True)
+
+
+def animation_time(animation, name, elapsed, scale=1.0):
+    """Evaluate a previously validated look clock for playback or export."""
+    clock = animation.get(name, {})
+    return clock.get("time", 0.0) + (elapsed * scale if clock.get("running", True) else 0.0)
+
+
+INK_CLOCK_KEY = "imagefx_ink_animation_clock"
+
+
+def ink_render_time(raw, speed, anchor=None):
+    """Read an ink phase without cooking an inactive TouchDesigner module."""
+    return raw * speed if anchor is None else anchor['phase'] + (raw - anchor['raw']) * anchor['speed']
+
+
 def timestamp(value):
     """Parse seconds or HH:MM:SS.mmm; blank means manual GO."""
     if value is None or value == "":
@@ -140,7 +182,7 @@ def new_cue():
         "fade": 1.0, "follow": "manual", "postwait": 0.0, "loop": False,
         "media_in": 0.0, "speed": 1.0, "gain": 0.7, "hold": True, "movie_audio": False,
         "target": "calligraphic_shadow/Particleamount", "value": 1.0,
-        "easing": "smooth", "look": {}, "notes": "",
+        "easing": "smooth", "look": {}, "notes": "", "blackout_scope": "all",
     }
 
 
@@ -169,7 +211,8 @@ def validate_cue(value):
         if not isinstance(result[field], str) or len(result[field]) > limit or "\x00" in result[field]:
             raise ValueError(f"Invalid {field}")
     for field, choices in (
-        ("kind", {"visual", "audio", "parameters", "stop", "wait"}),
+        ("kind", {"visual", "audio", "parameters", "stop", "wait", "blackout"}),
+        ("blackout_scope", {"all", "track"}),
         ("follow", {"manual", "continue", "follow"}),
         ("easing", {"linear", "smooth"}),
     ):
@@ -189,6 +232,7 @@ def validate_cue(value):
         raise ValueError("Auto-follow requires a duration; zero means indefinite")
     if not isinstance(result["look"], dict):
         raise ValueError("Look must be an object")
+    validate_look_animation(result["look"])
     parse_target(result["target"])
     if not isinstance(result["value"], (str, int, float, bool)):
         raise ValueError("Target value must be a scalar")
@@ -263,9 +307,11 @@ class CueEngine:
         self.active = {}
         self.follows = []
         self.errors = {}
+        self.navigation_index = None
+        self._suppress_follows = set()
         self._last = clock()
 
-    def go(self, index=None):
+    def go(self, index=None, *, replay=False):
         if self.state == "paused":
             raise ValueError("Resume before GO")
         index = self.selected if index is None else index
@@ -275,16 +321,47 @@ class CueEngine:
         if not cue["enabled"]:
             self.selected = min(index + 1, len(self.cues))
             return False
-        if cue["id"] in self.pending or cue["id"] in self.active:
+        # Forward GO after Go Back may revisit a superseded but logically
+        # active cue. Give it a fresh standby rather than rejecting the row.
+        replay = replay or (cue["id"] in self._suppress_follows and cue["id"] in self.active)
+        if not replay and (cue["id"] in self.pending or cue["id"] in self.active):
             raise ValueError("Cue is already pending or running")
-        self.backend.prepare(cue)
+        if replay:
+            self.backend.prepare_replay(cue)
+            self.active.pop(cue["id"], None)
+            self.errors.pop(cue["id"], None)
+        else:
+            self.backend.prepare(cue)
         if self.state == "stopped":
             self.state = "running"
             self._last = self.clock()
         self.triggered.add(cue["id"])
         self.pending[cue["id"]] = (index, self.elapsed + cue["prewait"], self.elapsed)
         self.selected = min(index + 1, len(self.cues))
+        self.navigation_index = index
+        self._suppress_follows.discard(cue["id"])
         return True
+
+    def go_back(self):
+        """Replay the preceding enabled row without stopping the current output.
+
+        This is cue navigation, not a rewind of the show clock or other tracks.
+        Pending forward cues and follows are disarmed to avoid bouncing forward.
+        """
+        if self.state == "paused":
+            raise ValueError("Resume before Go Back")
+        anchor = self.selected if self.navigation_index is None else self.navigation_index
+        index = anchor - 1
+        while index >= 0 and not self.cues[index]["enabled"]:
+            index -= 1
+        if index < 0:
+            return False
+        for cue_id, (pending_index, _due, _queued) in list(self.pending.items()):
+            if pending_index != index:
+                self.stop_cue(pending_index)
+        self.follows.clear()
+        self._suppress_follows.update(self.active)
+        return self.go(index, replay=True)
 
     def pause(self):
         if self.state == "running":
@@ -307,6 +384,8 @@ class CueEngine:
         self.active.clear()
         self.follows.clear()
         self.errors.clear()
+        self.navigation_index = None
+        self._suppress_follows.clear()
         self._last = self.clock()
 
     def stop_cue(self, index):
@@ -355,7 +434,7 @@ class CueEngine:
                 self.backend.start(cue, self.elapsed)
                 self.pending.pop(cue_id)
                 self.active[cue_id] = (index, self.elapsed)
-                if cue["follow"] == "continue":
+                if cue["follow"] == "continue" and cue_id not in self._suppress_follows:
                     self.follows.append((self.elapsed + cue["postwait"], index + 1, cue_id))
             except Exception as exc:
                 self.errors[cue_id] = str(exc)
@@ -367,7 +446,7 @@ class CueEngine:
             if (cue["duration"] > 0 and self.elapsed - started >= cue["duration"]) or (cue["duration"] == 0 and cue["kind"] in {"parameters", "stop"}):
                 self.backend.finish(cue)
                 self.active.pop(cue_id)
-                if cue["follow"] == "follow":
+                if cue["follow"] == "follow" and cue_id not in self._suppress_follows:
                     self.follows.append((self.elapsed + cue["postwait"], index + 1, cue_id))
 
     def _auto_go(self, index):

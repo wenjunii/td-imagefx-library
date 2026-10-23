@@ -30,7 +30,9 @@ def validate(write_report=True):
     checks["menu_labels"] = show.par.Lookmodule.menuLabels == [row[2] for row in runtime.TARGETS]
     for name in ("Lookmodule", "Editlookcontrols", "Openlookpreview"):
         parameter = show.par[name]
-        checks["draft_enable/" + name] = parameter.enable and parameter.enableExpr == "bool(me.par.Lookediting)"
+        expected = ("bool(me.par.Lookediting) or me.op('look_result') is not None"
+                    if name == "Openlookpreview" else "bool(me.par.Lookediting)")
+        checks["draft_enable/" + name] = parameter.enable and parameter.enableExpr == expected
     callback = show.op("look_editor_controls_callbacks")
     checks["pulse_callback"] = (bool(callback.par.active) and bool(callback.par.onpulse)
                                 and callback.par.pars.eval() == "Editlookcontrols Openlookpreview")

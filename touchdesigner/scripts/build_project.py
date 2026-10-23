@@ -45,6 +45,7 @@ BUILDER_PATH = Path(__file__).resolve()
 LIBRARY_VERSION = "0.3.0"
 MODULE_SOURCES = ("touchdesigner/scripts/ink_dream_flow.py", "touchdesigner/scripts/layer_composite.py", "touchdesigner/scripts/final_crop.py", "touchdesigner/scripts/workflow.py", "touchdesigner/scripts/wall_output.py", "touchdesigner/scripts/wall_output_controller.py", "touchdesigner/scripts/color_switch.py", "touchdesigner/scripts/image_composition.py", "touchdesigner/scripts/source_media.py", "touchdesigner/scripts/look_editor_controls.py", "touchdesigner/scripts/show_review_export.py", "touchdesigner/scripts/show_output_mode.py", "touchdesigner/scripts/projection_mapping.py", "touchdesigner/scripts/projection_polygon.py")
 RACK_SLOT_COUNT = 8
+MODULE_SOURCES += ("touchdesigner/scripts/show_live_look.py", "touchdesigner/extensions/FxRackExt.py")
 OWNED_PROJECT_NODES = frozenset({"td_imagefx", "imagefx_demo"})
 DEFAULT_TEMPLATE_NODES = {
     "geo1": "geo",
@@ -5777,6 +5778,7 @@ def _build_reference_video_module(
     reference_video,
     input_setup=None,
     packed_scalar_bindings=None,
+    module_setup=None,
 ):
     """Build a bounded GPU module, optionally with custom image input routing."""
 
@@ -5801,6 +5803,8 @@ def _build_reference_video_module(
             "absTime.seconds * me.par.Timescale "
             "if me.par.Autotime else me.par.Manualtime"
         )
+    if module_setup is not None:
+        module_setup(module)
     module.store(
         storage_key,
         {
@@ -5979,6 +5983,7 @@ def build_ink_dream_flow_module(parent_comp, brush=False, radial=False):
         color=(0.16, 0.20, 0.36),
         reference_video="Center-radiating particle currents inspired by the supplied image" if radial else "Soft luminous particle currents inspired by the supplied reference output" if brush else "Timeline 1.mp4",
         packed_scalar_bindings=bindings,
+        module_setup=scope["install_animation_clock"],
     )
 
 

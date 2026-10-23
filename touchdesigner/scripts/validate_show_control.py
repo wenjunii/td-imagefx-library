@@ -68,6 +68,16 @@ def validate(write_report=True):
         ext.engine._last = 0
 
     def step(now):
+        # This validator uses a synthetic clock inside one TD frame. Drain
+        # preparation explicitly; validate_cue_playback.py independently checks
+        # the real-frame warm-up/readiness gate and off-air transition pixels.
+        for _ in range(300):
+            loading = [item for item in ext.prepared.values() if item.get('loading')]
+            if not loading: break
+            for item in loading:
+                if 'warm_frame' in item: item['warm_frame'] = absTime.frame - 1
+            ext._service_preloads()
+        require(not any(item.get('loading') for item in ext.prepared.values()), 'Synthetic preparation timed out')
         clock[0] = now
         ext.engine.tick()
         ext.UpdateMapping()
@@ -440,6 +450,7 @@ def validate(write_report=True):
                   "Hold": ("hold", False), "Speed": ("speed", 1.5), "Gain": ("gain", .35),
                   "Target": ("target", "calligraphic_shadow/Particleamount"),
                   "Targetvalue": ("value", "0.4"), "Easing": ("easing", "linear"),
+                  "Blackoutscope": ("blackout_scope", "track"),
                   "Notes": ("notes", "QA: no physical output")}
         for name, (_, value) in editor.items(): show.par[name] = value
         ext.ApplyCue()
@@ -457,7 +468,7 @@ def validate(write_report=True):
         for name in ("Prewait", "Duration", "Fade", "Postwait", "Mediain"):
             require(show.par[name].normMax < show.par[name].max, name + " slider must have a useful rehearsal range")
         coverage["editor_values"] = sorted(editor)
-        checks["all_21_cue_editor_values_roundtrip"] = True
+        checks["all_{}_cue_editor_values_roundtrip".format(len(editor))] = True
         load([cue(name="Row {}".format(i)) for i in range(1,26)])
         show.par.Cuepage=2; ext.SelectRow(11)
         require(int(show.par.Selectedcue)==24 and "Row 24" in ext.CueLabel(11), "Cue paging/selection failed")
@@ -526,14 +537,14 @@ def validate(write_report=True):
         draft=show.op("look_editor")
         draft.par.Coloradjustmentenabled=True
         draft.op("color_adjustment").par.Invert=.75
-        updated=ext._capture_look(draft)
+        updated=ext._capture_look(draft,capture_animation=True)
         ext.UpdateLook()
         require(ext.document["cues"][0]==dict(original_cues[0],look=updated), "Update changed cue metadata or missed look values")
         require(ext.document["cues"][1]==original_cues[1], "Update changed another cue")
-        require(show.op("look_editor") is None, "Update retained preview resources")
+        require(show.op("look_editor") is None and show.op("look_result") is not None, "Update did not retain a saved result")
         ext.RecallLook(); draft=show.op("look_editor")
         draft.op("color_adjustment").par.Invert=.25
-        new_look=ext._capture_look(draft)
+        new_look=ext._capture_look(draft,capture_animation=True)
         previous=copy.deepcopy(ext.document["cues"])
         ext.SaveLookAsNew()
         require(ext.document["cues"][:2]==previous, "Save New modified original cues")
@@ -558,14 +569,16 @@ def validate(write_report=True):
         # Dispatch every visible pulse through its real Parameter Execute DAT.
         # Stub only the extension endpoints in this wiring-only pass; functional
         # cases above exercise the real endpoints without opening hardware.
-        endpoints={"Gocue":"Go","Pause":"Pause","Resume":"Resume","Stopall":"Stopall",
+        endpoints={"Gocue":"Go","Goback":"GoBack","Pause":"Pause","Resume":"Resume","Stopall":"Stopall",
                    "Stopcue":"Stopcue","Preload":"Preload","Preflight":"Preflight",
                    "Saveshow":"SaveShow","Loadshow":"LoadShow","Selectcue":"SelectCue",
                    "Openoutputs":"Openoutputs","Closeoutputs":"Closeoutputs","Applycue":"ApplyCue",
-                   "Capturelook":"CaptureLook","Addcue":"AddCue","Duplicatecue":"DuplicateCue",
+                   "Capturelook":"CaptureLook","Addcue":"AddCue","Addblackout":"AddBlackout","Duplicatecue":"DuplicateCue",
                    "Removecue":"RemoveCue","Cueup":"MoveCue","Cuedown":"MoveCue",
                    "Recalllook":"RecallLook","Updatelook":"UpdateLook",
-                   "Savelookasnew":"SaveLookAsNew","Cancellook":"CancelLook"}
+                   "Savelookasnew":"SaveLookAsNew","Cancellook":"CancelLook",
+                   "Showlooklive":"ShowLiveLook","Stoplooklive":"StopLiveLook",
+                   "Savecuenotes":"SaveCueNotes","Opencuenotes":"OpenCueNotes"}
         pulses={p.name for p in show.customPars if p.isPulse}
         extra_routes={
             'look_editor_controls': ('look_editor_controls_callbacks', ('Editlookcontrols','Openlookpreview')),
@@ -578,6 +591,9 @@ def validate(write_report=True):
         require(pulses==all_endpoints, "Uncovered show pulse: "+str(pulses.symmetric_difference(all_endpoints)))
         callbacks=show.op("show_parameters")
         require(callbacks.par.op.eval()==show and callbacks.par.onpulse and callbacks.par.custom, "Pulse callback not watching custom controls")
+        # Native tree edits may reinitialize the extension. Stub the instance
+        # actually used by the UI, never a retired Python reference.
+        ext = show.ext.ShowControlExt
         originals={name:getattr(ext,name) for name in set(endpoints.values())}
         calls=[]
         try:
@@ -631,7 +647,7 @@ def validate(write_report=True):
         require("Audiodevice" in show.op("stereo_output").par.device.expr and bool(show.par.Audiodevice.menuSource), "Audio device menu not wired")
         coverage["pulse_dispatch"] = sorted(pulses)
         coverage["hardware_wiring_only"] = ["Openoutputs","Closeoutputs","Audioenabled","Audiodevice","Windowx","Windowy"]
-        checks["all_{}_show_pulses_and_14_panel_buttons_dispatch".format(len(pulses))] = True
+        checks["all_{}_show_pulses_and_{}_panel_buttons_dispatch".format(len(pulses), len(show.findChildren(depth=1, name="button_*")))] = True
         checks["hardware_controls_wired_without_enabling_outputs"] = True
         load([cue(duration=0,fade=0)])
         ext.engine.go(0); step(0)
@@ -639,7 +655,7 @@ def validate(write_report=True):
         try:
             restart.initializeExtensions()
             require(not restart.par.Audioenabled and bool(restart.par.Masterblackout), "Restart did not disarm output")
-            require(not any(node.fetch("imagefx_show_runtime",False,search=False) for node in restart.children), "Restart retained old media readers/decks")
+            require(not any(node.fetch("imagefx_show_runtime",False,search=False) for node in restart.children), "Restart retained old media readers/decks before deferred warm-up")
             require(all(not restart.par["Track{}visible".format(i)] for i in (1,2,3)), "Restart retained a live visual track")
             checks["restart_clears_runtime_media_and_disarms"] = True
         finally:

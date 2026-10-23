@@ -7,6 +7,7 @@ import json
 import math
 import sys
 import time
+import uuid
 from pathlib import Path
 
 
@@ -24,33 +25,61 @@ class ShowControlExt:
         self.tracks = {}
         self.audio = {}
         self.automations = {}
+        self._level_fades = {}
         self._mapping_key = None
         self._ui_time = 0.0
         self._busy = False
         self._look_edit = None
+        self._look_preview_cue_id = None
+        self.StopLiveLook()
+        # TD can reinitialize an extension after an operator-tree edit. Keep
+        # only a committed, locked image across that same-session event. The
+        # startup value and owner id prevent a saved/copied TOE resurrecting it.
+        session = ownerComp.fetch("imagefx_saved_preview_session", None, search=False)
+        if not isinstance(session, dict):
+            session = {}
+        preview = ownerComp.op("look_result")
+        preview_index = next((i for i, cue in enumerate(self.document["cues"])
+                              if session and cue["id"] == session.get("cue")), None)
+        keep_preview = (isinstance(session, dict) and session.get("owner") == ownerComp.id
+                        and preview_index is not None and preview is not None and preview.isTOP
+                        and preview.lock and preview.fetch("imagefx_saved_preview", False, search=False))
+        if keep_preview:
+            self._look_preview_cue_id = session["cue"]
         ownerComp.par.Lookediting = False
-        ownerComp.par.Lookstatus = "No look draft; select a visual cue and Recall Look"
-        ownerComp.op("look_preview").par.top = "black"
+        ownerComp.par.Lookstatus = ("Saved preview (frozen); Recall Look to edit again" if keep_preview else
+                                   "No look draft; select a visual cue and Recall Look")
+        ownerComp.op("look_preview").par.top = preview.path if keep_preview else "black"
         # A user may save a working TOE during rehearsal. Never resurrect its
         # dynamic media readers/voices when reopening or reinitializing it.
         ownerComp.par.Audioenabled = False
         ownerComp.par.Masterblackout = True
         for node in list(ownerComp.children):
-            if node.fetch("imagefx_show_runtime", False, search=False):
+            if node.fetch("imagefx_show_runtime", False, search=False) and not (keep_preview and node == preview):
                 node.destroy()
         for track in (1, 2, 3):
             ownerComp.par["Track{}visible".format(track)] = False
             ownerComp.par["Track{}blend".format(track)] = 0
+            ownerComp.par["Track{}level".format(track)] = 1
             for side in (0, 1):
-                ownerComp.op("track{}_source{}".format(track, side)).par.top = "black"
+                source_top = ownerComp.op("track{}_source{}".format(track, side))
+                source_top.lock = False
+                source_top.par.top = "black"
         template = ownerComp.op("deck_template")
         template.allowCooking = True
         template.op("fx_rack").initializeExtensions()
         self._default_rack = json.loads(template.op("fx_rack").ExportPreset())
         template.allowCooking = False
+        # Allocate the six reusable A/B decks while the show is disarmed. A
+        # first GO must not copy thousands of operators on the presentation
+        # thread while another track is on air.
+        # Finish extension initialization before mutating the copied networks.
+        # Warming them inside __init__ caused repeated initialization during
+        # preload in native testing, replacing the prepared deck with defaults.
+        run("args[0]._warm_decks()", self, delayFrames=1)
         ownerComp.par.Audioenabled = False
         ownerComp.par.Masterblackout = True
-        self.SelectCue(1)
+        self.SelectCue(preview_index + 1 if keep_preview else 1)
         self.Refresh()
 
     def _p(self, name):
@@ -72,11 +101,17 @@ class ShowControlExt:
     def _save_document_dat(self):
         self.ownerComp.op("show_data").text = json.dumps(self.document, indent=2, allow_nan=False)
 
-    def _replace_cues(self, cues, allow_look_edit=False):
-        self._guard_edit(allow_look_edit=allow_look_edit)
+    def _validated_cues(self, cues):
         document = self.model.validate_show(dict(self.document, cues=cues))
         if len(json.dumps(document, ensure_ascii=False, allow_nan=False).encode("utf-8")) > self.model.MAX_SHOW_BYTES:
             raise ValueError("Show exceeds 8 MiB")
+        return document
+
+    def _replace_cues(self, cues, allow_look_edit=False):
+        self._guard_edit(allow_look_edit=allow_look_edit)
+        document = self._validated_cues(cues)
+        if not allow_look_edit:
+            self._clear_look_result()
         self.stop_all()
         self.document = document
         self.engine = self.model.CueEngine(document["cues"], self)
@@ -96,12 +131,15 @@ class ShowControlExt:
                 return
         self.ownerComp.par.Selectedcue = index
         cue = self.document["cues"][index - 1]
+        if getattr(self, "_look_preview_cue_id", None) not in (None, cue["id"]):
+            self._clear_look_result()
         names = {
             "Cuename": "name", "Cuekind": "kind", "Mediafile": "source", "Track": "track",
             "Prewait": "prewait", "Duration": "duration", "Fade": "fade", "Follow": "follow",
             "Postwait": "postwait", "Loop": "loop", "Mediain": "media_in", "Speed": "speed",
             "Gain": "gain", "Hold": "hold", "Target": "target", "Easing": "easing",
             "Cueenabled": "enabled", "Notes": "notes", "Movieaudio": "movie_audio",
+            "Blackoutscope": "blackout_scope",
         }
         self._busy = True
         try:
@@ -140,6 +178,7 @@ class ShowControlExt:
             "Postwait": "postwait", "Loop": "loop", "Mediain": "media_in", "Speed": "speed",
             "Gain": "gain", "Hold": "hold", "Target": "target", "Easing": "easing",
             "Cueenabled": "enabled", "Notes": "notes", "Movieaudio": "movie_audio",
+            "Blackoutscope": "blackout_scope",
         }
         for parameter, field in names.items():
             cue[field] = self._p(parameter)
@@ -153,11 +192,90 @@ class ShowControlExt:
         self.SelectCue(index + 1)
         self._status("Cue saved in workspace; Save Show writes it to disk")
 
+    def SaveCueNotes(self):
+        """Metadata-only edit: never restart transport, reload media or commit a look."""
+        index = int(self._p("Selectedcue")) - 1
+        if not 0 <= index < len(self.document["cues"]):
+            raise ValueError("Select a cue first")
+        if self._look_edit is not None:
+            index = self._look_index()
+        cues = copy.deepcopy(self.document["cues"])
+        cues[index]["notes"] = self._p("Notes")
+        validated = self._validated_cues(cues)
+        cue = self.document["cues"][index]
+        cue["notes"] = validated["cues"][index]["notes"]
+        for engine_cue in self.engine.cues:
+            if engine_cue["id"] == cue["id"]:
+                engine_cue["notes"] = cue["notes"]
+        if self._look_edit is not None:
+            self._look_edit["cue"]["notes"] = cue["notes"]
+        self._save_document_dat()
+        self.Refresh()
+        self._status("Cue notes updated without changing playback or the look. Save Show writes them to disk.")
+
+    def OpenCueNotes(self):
+        self.ownerComp.currentPage = "Cue Notes"
+        self.ownerComp.openParameters()
+
+    def CueNotesLabel(self):
+        index = int(self._p("Selectedcue")) - 1
+        if not 0 <= index < len(self.document["cues"]):
+            return "No cue selected"
+        cue = self.document["cues"][index]
+        return "{:03d} | {}".format(index + 1, cue["name"])
+
+    def ProjectionSource(self, track):
+        """Preview replaces a logical track BEFORE mapping and safety blackouts."""
+        fallback = "track{}".format(int(track))
+        draft = self._look_edit
+        enabled = getattr(self.ownerComp.par, "Looklive", None)
+        if (enabled is None or not enabled.eval() or draft is None
+                or self.engine.state != "stopped" or int(self._p("Looklivetrack")) != int(track)):
+            return fallback
+        deck = draft["deck"]
+        if deck is None or deck != self.ownerComp.op("look_editor"):
+            return fallback
+        top = deck.op("out1_image")
+        return top.path if top is not None else fallback
+
+    def ShowLiveLook(self):
+        self._guard_edit(allow_look_edit=True)
+        self._look_index()
+        self.ownerComp.par.Looklive = True
+        self._status("LIVE DRAFT on track {}; cue unchanged until Update Cue. Output blackouts still apply.".format(self._p("Looklivetrack")))
+
+    def StopLiveLook(self):
+        if getattr(self.ownerComp.par, "Looklive", None) is not None:
+            self.ownerComp.par.Looklive = False
+
+    def LiveLookStatus(self):
+        enabled = getattr(self.ownerComp.par, "Looklive", None)
+        if enabled is None or not enabled.eval() or self._look_edit is None:
+            return "OFF-AIR | Show Live Look to audition; Update Cue to keep changes"
+        track = int(self._p("Looklivetrack"))
+        routing = self._p("Routingmode")
+        outputs = [i for i in (1, 2, 3) if (int(self._p("Output{}track".format(i))) if routing == "independent" else 1) == track]
+        destinations = ",".join(str(i) for i in outputs) or "none (check Routing)"
+        return "LIVE DRAFT (not saved) | Track {} > P{} | {}".format(
+            track, destinations, "MASTER BLACKOUT ON" if self._p("Masterblackout") else "output mapping/blackouts apply")
+
     def AddCue(self):
         cues = copy.deepcopy(self.document["cues"])
         cues.append(self.model.new_cue())
         self._replace_cues(cues)
         self.SelectCue(len(cues))
+
+    def AddBlackout(self):
+        self._guard_edit()
+        cues = copy.deepcopy(self.document["cues"])
+        index = min(max(0, int(self._p("Selectedcue"))), len(cues))
+        cue = self.model.new_cue()
+        cue.update(name="Blackout", kind="blackout", duration=0.0,
+                   track=int(self._p("Track")), blackout_scope="all")
+        cues.insert(index, cue)
+        self._replace_cues(cues)
+        self.SelectCue(index + 1)
+        self._status("Blackout inserted after selected cue; set scope/fade then Apply Cue. Audio is unchanged.")
 
     def DuplicateCue(self):
         index = int(self._p("Selectedcue")) - 1
@@ -193,15 +311,15 @@ class ShowControlExt:
         index = int(self._p("Selectedcue")) - 1
         if not 0 <= index < len(self.document["cues"]):
             raise ValueError("Select a cue first")
-        look = self._capture_look(self.ownerComp.parent())
+        look = self._capture_look(self.ownerComp.parent(), capture_animation=True)
         cues = copy.deepcopy(self.document["cues"])
         cues[index]["look"] = look
         self._replace_cues(cues)
         self.SelectCue(index + 1)
         self._status("Captured the demo modules and eight-slot rack into this cue")
 
-    def _capture_look(self, demo, active=True):
-        """Capture either the main designer or the isolated recalled-look deck."""
+    def _capture_look(self, demo, active=True, capture_animation=False):
+        """Static controls for comparisons; commits also capture effective clocks."""
         look = {"toggles": {name: bool(demo.par[name]) for name in self.model.TOGGLES if demo.par[name] is not None}, "modules": {}}
         for name in self.model.MODULES:
             module = demo.op(name)
@@ -216,6 +334,23 @@ class ShowControlExt:
             # not an editable look value and must not make captures differ on
             # every frame or overwrite the restored timing expression.
             look["rack"].update(autotime=False, time=0.0)
+        if capture_animation:
+            clocks = {}
+            inherited = bool(demo.fetch("imagefx_branch", False))
+            saved = demo.fetch("imagefx_look_animation", {}, search=False)
+            for name in (*self.model.MODULES, "fx_rack"):
+                module = demo.op(name)
+                if module is not None and getattr(module.par, "Autotime", None) is not None:
+                    clocks[name] = {"time": float(module.par.Time.eval()),
+                                    "running": saved.get(name, {}).get("running", True) if inherited
+                                    else bool(module.par.Autotime)}
+                    if name in {"ink_dream_flow", "ink_brush_flow", "ink_radial_flow"}:
+                        renderer_clock = module.op("animation_clock")
+                        if renderer_clock is not None:
+                            clocks[name]["render_time"] = self.model.ink_render_time(
+                                clocks[name]["time"], float(module.par.Animationspeed.eval()),
+                                module.fetch(self.model.INK_CLOCK_KEY, None, search=False))
+            look["animation"] = clocks
         look["order"] = demo.op("workflow").module.current(demo)
         layer = demo.op("layer_composite")
         look["layer_files"] = self.model.resolve_layer_files(
@@ -230,7 +365,7 @@ class ShowControlExt:
             look["composition_files"]=self.model.resolve_composition_files(
                 {name:composition.par[name].eval() for name in ("Afile","Bfile")},project.folder,
                 selections=look["modules"]["image_composition"],enabled=enabled)
-            look["branches"]={name:self._capture_look(composition.op(name),enabled and bool(composition.par[name[0].upper()+"visible"])) for name in ("a_effects","b_effects")}
+            look["branches"]={name:self._capture_look(composition.op(name),enabled and bool(composition.par[name[0].upper()+"visible"]),capture_animation=capture_animation) for name in ("a_effects","b_effects")}
         return look
 
     def RecallLook(self):
@@ -245,6 +380,7 @@ class ShowControlExt:
         path = self._media_path(cue)
         if self.ownerComp.op("look_editor") is not None:
             raise ValueError("A look_editor component already exists; it will not be overwritten")
+        self._clear_look_result()
         deck = None
         try:
             deck = self._new_deck("look_editor")
@@ -254,11 +390,18 @@ class ShowControlExt:
             for name in (*self.model.MODULES, "fx_rack"):
                 module = deck.op(name)
                 if getattr(module.par, "Autotime", None) is not None:
-                    module.par.Autotime = True
+                    # The saved phase is independent of wall-clock uptime.
+                    clock = cue["look"].get("animation", {}).get(name, {})
+                    module.store("imagefx_look_time_origin", absTime.seconds)
+                    module.store("imagefx_look_time_phase", clock.get("time", 0.0))
+                    module.par.Time.expr = "me.fetch('imagefx_look_time_phase', 0) + (absTime.seconds - me.fetch('imagefx_look_time_origin', 0)) * me.par.Timescale if me.par.Autotime else me.par.Manualtime"
+                    module.par.Autotime = clock.get("running", True)
             if movie is not None:
                 movie.par.play = True
             deck.allowCooking = True
             self._look_edit = {"cue": cue, "deck": deck}
+            if getattr(self.ownerComp.par, "Looklivetrack", None) is not None:
+                self.ownerComp.par.Looklivetrack = cue["track"]
             self.ownerComp.op("look_preview").par.top = deck.op("out1_image").path
             self.ownerComp.par.Lookediting = True
             self.ownerComp.par.Lookstatus = "Editing: {} | {}".format(cue["name"], deck.path)
@@ -282,18 +425,51 @@ class ShowControlExt:
                 return index
         raise ValueError("Original cue no longer exists; cancel this draft")
 
-    def _finish_look_edit(self):
-        self.ownerComp.op("look_preview").par.top = "black"
+    def _clear_look_result(self):
+        result = self.ownerComp.op("look_result")
+        if result is not None and result.fetch("imagefx_saved_preview", False, search=False):
+            self.ownerComp.op("look_preview").par.top = "black"
+            result.destroy()
+        self._look_preview_cue_id = None
+        self.ownerComp.store("imagefx_saved_preview_session", None)
+        if self._look_edit is None:
+            self.ownerComp.par.Lookstatus = "No look draft; select a visual cue and Recall Look"
+
+    def _snapshot_look(self, deck):
+        """Keep one locked TOP, not an entire live effect network, after commit."""
+        import td
+        result = self.ownerComp.create(td.selectTOP, "look_result")
+        result.store("imagefx_show_runtime", True)
+        result.store("imagefx_saved_preview", True)
+        try:
+            source = deck.op("out1_image")
+            result.par.top = source.path
+            result.cook(force=True)
+            result.lock = True
+            if (result.width, result.height) != (source.width, source.height):
+                raise ValueError("Could not retain the look preview; draft remains open")
+            return result
+        except Exception:
+            result.destroy()
+            raise
+
+    def _finish_look_edit(self, preview=None):
+        self.StopLiveLook()
+        self.ownerComp.op("look_preview").par.top = preview.path if preview is not None else "black"
         if self._look_edit is not None:
             self._look_edit["deck"].destroy()
         self._look_edit = None
         self.ownerComp.par.Lookediting = False
-        self.ownerComp.par.Lookstatus = "No look draft; select a visual cue and Recall Look"
+        self.ownerComp.par.Lookstatus = ("Saved preview (frozen); Recall Look to edit again" if preview is not None else
+                                         "No look draft; select a visual cue and Recall Look")
 
     def _commit_look(self, as_new=False):
         self._guard_edit(allow_look_edit=True)
         index = self._look_index()
-        look = self._capture_look(self._look_edit["deck"])
+        if self.ownerComp.op("look_result") is not None:
+            raise ValueError("A look_result component already exists; it will not be overwritten")
+        self._look_edit["deck"].op("out1_image").cook(force=True)
+        look = self._capture_look(self._look_edit["deck"], capture_animation=True)
         cues = copy.deepcopy(self.document["cues"])
         if as_new:
             cue = copy.deepcopy(cues[index])
@@ -305,8 +481,20 @@ class ShowControlExt:
             cues[index]["look"] = look
             selected = index + 1
         # Failed capture/validation leaves the draft open and the original intact.
-        self._replace_cues(cues, allow_look_edit=True)
-        self._finish_look_edit()
+        # Validate before creating/removing any TOPs (native tree changes can
+        # invalidate an extension even when a transaction is rejected).
+        self._validated_cues(cues)
+        preview = self._snapshot_look(self._look_edit["deck"])
+        try:
+            self._replace_cues(cues, allow_look_edit=True)
+        except Exception:
+            preview.destroy()
+            raise
+        self._finish_look_edit(preview=preview)
+        self._look_preview_cue_id = cues[selected - 1]["id"]
+        self.ownerComp.store("imagefx_saved_preview_session", {"owner": self.ownerComp.id,
+                                                               "cue": self._look_preview_cue_id})
+        self.ownerComp.storeStartupValue("imagefx_saved_preview_session", None)
         self.SelectCue(selected)
         self._status(("New cue created disabled; enable it in Cue Editor. " if as_new else
                       "Cue look updated; media and timing unchanged. ") + "Save Show writes it to disk")
@@ -352,10 +540,18 @@ class ShowControlExt:
         parameter.val = value
 
     def _apply_look(self, deck, look, template=None, active=True):
+        # Look Editor is off-air; playback consumes the same operations over
+        # successive frames via _service_preloads instead of blocking GO.
+        for _ in self._apply_look_steps(deck, look, template, active):
+            pass
+
+    def _apply_look_steps(self, deck, look, template=None, active=True):
         branch=bool(deck.fetch("imagefx_branch",False))
         self.model.validate_look_media(look,Path(self._p("Showfile")).resolve().parent,active=active,branch=branch)
-        if set(look) - {"toggles", "modules", "rack", "layer_files", "order", "composition_files", "branches"}:
+        if set(look) - {"toggles", "modules", "rack", "layer_files", "order", "composition_files", "branches", "animation"}:
             raise ValueError("Unknown look fields")
+        animation = copy.deepcopy(look.get("animation", {}))
+        deck.store("imagefx_look_animation", animation)
         workflow = deck.op("workflow").module
         order = workflow.validate_order(look.get("order", list(workflow.BRANCH_ORDER if branch else workflow.DEFAULT_ORDER)),branch)
         layer_files = self.model.resolve_layer_files(
@@ -378,6 +574,7 @@ class ShowControlExt:
             # workflow.apply_order restores every module's two-way binding
             # after the saved parent toggle has been applied below.
             module.par.Enabled.expr = "parent().par.{}".format(self.model.MODULE_TOGGLES[module_name])
+            yield
         for name, value in look.get("toggles", {}).items():
             if name not in self.model.TOGGLES or deck.par[name] is None or not isinstance(value, bool):
                 raise ValueError("Unknown demo toggle")
@@ -391,23 +588,46 @@ class ShowControlExt:
                 if name in {"Enabled", "Time", "Autotime", "Manualtime"}:
                     raise ValueError("Look may not override cue-owned timing/routing")
                 self._assign(deck.op(module_name), name, value)
+            yield
         deck.op("fx_rack").ImportPreset(look.get("rack", self._default_rack))
+        yield
         for module_name in (*self.model.MODULES, "fx_rack"):
             module = deck.op(module_name)
             if module is None: continue
             if getattr(module.par, "Autotime", None) is not None:
+                clock = animation.get(module_name, {})
+                phase = clock.get("time", 0.0)
                 module.par.Autotime = False
-                if branch: module.par.Manualtime.expr="parent(2).par.Time"
-                else: module.par.Manualtime = 0
+                # Main-workflow manual sliders are intentionally bounded; cue
+                # copies also need to represent long-running/reverse phases.
+                module.par.Manualtime.min, module.par.Manualtime.max = -1.0e9, 1.0e9
+                if branch and clock.get("running", True):
+                    parent_phase = deck.parent().parent().fetch("imagefx_look_animation", {}, search=False).get("image_composition", {}).get("time", 0.0)
+                    module.par.Manualtime.expr = "{} + (parent(2).par.Time - {}) * me.par.Timescale".format(phase, parent_phase)
+                else:
+                    module.par.Manualtime = phase
+                if module_name in {"ink_dream_flow", "ink_brush_flow", "ink_radial_flow"}:
+                    renderer_clock = module.op("animation_clock")
+                    if renderer_clock is not None:
+                        # New looks retain their continuous position. Old looks
+                        # used raw time * speed, so reset's legacy default keeps
+                        # their appearance, including preloaded/reused decks.
+                        # Preparing a deck intentionally disables cooking; do
+                        # not compile its DAT module just to restore storage.
+                        speed = float(module.par.Animationspeed.eval())
+                        module.store(self.model.INK_CLOCK_KEY, dict(raw=float(phase),
+                            phase=float(clock.get("render_time", phase * speed)), speed=speed))
+                        module.storeStartupValue(self.model.INK_CLOCK_KEY, None)
         composition=deck.op("image_composition")
         if composition is not None:
             enabled=active and bool(deck.par.Imagecompositionenabled)
             files=self.model.resolve_composition_files(look.get("composition_files",{}),Path(self._p("Showfile")).resolve().parent,selections=look.get("modules",{}).get("image_composition",{}),enabled=enabled)
             for name,value in files.items(): composition.par[name]=value
             for name in ("a_effects","b_effects"):
-                self._apply_look(composition.op(name),look.get("branches",{}).get(name,{}),template.op("image_composition/"+name),enabled and bool(composition.par[name[0].upper()+"visible"]))
+                yield from self._apply_look_steps(composition.op(name),look.get("branches",{}).get(name,{}),template.op("image_composition/"+name),enabled and bool(composition.par[name[0].upper()+"visible"]))
         deck.op("fx_rack").Reset()
         workflow.apply_order(deck, order)
+        yield
 
     def _media_path(self, cue):
         raw = cue["source"]
@@ -431,6 +651,32 @@ class ShowControlExt:
         deck.nodeX = 300 + track * 220
         deck.nodeY = -500 - side * 140
         return deck
+
+    def _warm_decks(self):
+        if not self.ownerComp.valid or getattr(self.ownerComp.ext, "ShowControlExt", None) is not self:
+            return  # A queued callback from an explicitly reinitialized copy.
+        if self.tracks or self.prepared:
+            return  # Never do startup work over a cue already being prepared.
+        for track in (1, 2, 3):
+            for side in (0, 1):
+                deck = self._deck(track, side)
+                # Prime the large procedural ink shaders at a small resolution
+                # while startup is off-air. Their first cold compile must not
+                # land on the presentation thread during a later cue change.
+                width, height = deck.par.Customwidth.eval(), deck.par.Customheight.eval()
+                preset = deck.par.Resolutionpreset.eval()
+                try:
+                    deck.par.Resolutionpreset = "custom"
+                    deck.par.Customwidth, deck.par.Customheight = 320, 180
+                    deck.allowCooking = True
+                    for name in ("ink_dream_flow", "ink_brush_flow", "ink_radial_flow"):
+                        shader = deck.op(name + "/effect_glsl_" + name)
+                        if shader is not None:
+                            shader.cook(force=True)
+                finally:
+                    deck.allowCooking = False
+                    deck.par.Customwidth, deck.par.Customheight = width, height
+                    deck.par.Resolutionpreset = preset
 
     def _new_deck(self, name):
         deck = self.ownerComp.copy(self.ownerComp.op("deck_template"), name=name)
@@ -475,6 +721,39 @@ class ShowControlExt:
             self.stop_cue(cue)
             raise
 
+    def prepare_replay(self, cue):
+        """Load a fresh standby while keeping a previously held instance on air."""
+        self._guard_no_look_edit()
+        track = self.tracks.get(cue["track"])
+        if cue["kind"] == "visual" and track and track.get("fading"):
+            raise ValueError("Wait for this track's crossfade to finish before Go Back")
+        # An explicitly preloaded target is already a fresh standby.
+        if cue["id"] in self.prepared:
+            return
+        alias = "replay_" + uuid.uuid4().hex
+        held = track if track and track["cue"]["id"] == cue["id"] else None
+        voice = self.audio.pop(cue["id"], None)
+        held_cue = held["cue"] if held else None
+        voice_cue = voice["cue"] if voice else None
+        if held:
+            held["cue"] = dict(held_cue, id=alias)
+        if voice:
+            voice["cue"] = dict(voice_cue, id=alias)
+            self.audio[alias] = voice
+        try:
+            self._prepare(cue)
+            if voice and cue["kind"] == "audio":
+                self.prepared[cue["id"]]["replay_voice"] = alias
+        except Exception:
+            self.stop_cue(cue)
+            if held:
+                held["cue"] = held_cue
+            if voice:
+                self.audio.pop(alias, None)
+                voice["cue"] = voice_cue
+                self.audio[cue["id"]] = voice
+            raise
+
     def _prepare(self, cue):
         if cue["id"] in self.prepared:
             return
@@ -509,16 +788,39 @@ class ShowControlExt:
             if item.get("track") == track and item.get("side") == side:
                 raise ValueError("Track standby is occupied; Stop All before replacing its prepared cue")
         deck = self._deck(track, side)
+        # The previous occupant of this standby may still be selected after a
+        # completed fade. Keep all partially-applied values off the output graph.
+        source_top = self.ownerComp.op("track{}_source{}".format(track, side))
+        source_top.lock = False
+        source_top.par.top = "black"
         deck.allowCooking = False
-        self.prepared[cue["id"]] = {"cue": cue, "deck": deck, "movie": None, "track": track, "side": side}
-        self._apply_look(deck, cue["look"])
+        item = {"cue": cue, "deck": deck, "movie": None, "track": track, "side": side,
+                "deck_id": deck.id, "loading": True, "error": None}
+        self.prepared[cue["id"]] = item
+        item["steps"] = self._prepare_visual_steps(item, path)
+
+    def _prepare_visual_steps(self, item, path):
+        cue, deck = item["cue"], item["deck"]
+        yield from self._apply_look_steps(deck, cue["look"])
         self._set_deck_resolution(deck)
         movie = self._load_deck_media(deck, cue, path)
+        item["movie"] = movie
+        yield
         deck.allowCooking = True
         for reader in self._look_readers(deck): reader.preload()
+        yield
+        # Decode and compile before publishing the deck. The old cue remains
+        # selected throughout preparation, including shader/media warm-up.
+        while not self._media_ready(item):
+            yield
         deck.op("out1_image").cook(force=True)
-        self.ownerComp.op("track{}_source{}".format(track, side)).par.top = deck.op("out1_image").path
-        self.prepared[cue["id"]] = {"cue": cue, "deck": deck, "movie": movie if path else None, "track": track, "side": side}
+        item["warm_frame"] = absTime.frame
+        yield
+        while absTime.frame <= item["warm_frame"]:
+            yield
+        errors = deck.errors(recurse=True)
+        if errors:
+            raise ValueError("Prepared look has operator errors: " + str(errors)[:300])
         if path and cue["movie_audio"]:
             if len(self.audio) >= 8:
                 raise ValueError("Eight audio voices already loaded")
@@ -529,6 +831,33 @@ class ShowControlExt:
             reader.par.moviefileintop = movie.path
             reader.par.play = False
             self._connect_audio(item)
+
+    def _service_preloads(self):
+        # One shared 4ms CPU budget, not one budget per track. An indivisible
+        # decoder/GPU operation can take longer; ready is never advertised early.
+        deadline = time.perf_counter() + 0.004
+        for item in list(self.prepared.values()):
+            if not item.get("loading") or item.get("error"):
+                continue
+            try:
+                while time.perf_counter() < deadline:
+                    next(item["steps"])
+                    # Warm-up must span actual TD frames, not just generator steps.
+                    if item.get("warm_frame") == absTime.frame:
+                        break
+            except StopIteration:
+                item.pop("steps", None)
+                item["loading"] = False
+                self._status("Ready: " + item["cue"]["name"] + "; GO starts the prepared look")
+            except Exception as exc:
+                item["error"] = str(exc)
+                item["loading"] = False
+                item.pop("steps", None)
+                self._halt_deck(item)
+                self._release_audio(item["cue"]["id"])
+                self._status("Preload error: " + str(exc))
+            if time.perf_counter() >= deadline:
+                break
 
     def _set_deck_resolution(self, deck):
         deck.par.Resolutionpreset = "custom"
@@ -591,6 +920,16 @@ class ShowControlExt:
 
     def ready(self, cue):
         item = self.prepared[cue["id"]]
+        if item.get("error"):
+            raise ValueError(item["error"])
+        if item.get("loading"):
+            return False
+        deck = item.get("deck")
+        if deck is not None and item.get("deck_id") is not None and deck.id != item["deck_id"]:
+            raise ValueError("Prepared deck was replaced; stop and preload this cue again")
+        return self._media_ready(item)
+
+    def _media_ready(self, item):
         deck = item.get("deck")
         if deck is not None:
             for image in self._look_readers(deck):
@@ -634,10 +973,27 @@ class ShowControlExt:
             track = cue["track"]
             old = self.tracks.get(track)
             self.ownerComp.op("track{}_source{}".format(track, item["side"])).par.top = item["deck"].op("out1_image").path
+            if float(self._p("Track{}level".format(track))) <= 1e-6:
+                # A blackout is a visual boundary. Raising the level while
+                # crossfading old->new would reveal the old end frame again.
+                # Retire that deck and fade black->new, using only the cue's
+                # freshly prepared media in-point and saved animation phase.
+                if old is not None:
+                    self._release_audio(old["cue"]["id"])
+                    self._halt_deck(old)
+                    if old.get("old") is not None:
+                        self._release_audio(old["old"]["cue"]["id"])
+                        self._halt_deck(old["old"])
+                old = None
+                self._level_fades.pop(track, None)
+                self.ownerComp.par["Track{}level".format(track)] = 1
             if old is None:
-                self.ownerComp.op("track{}_source{}".format(track, 1-item["side"])).par.top = "black"
+                previous = self.ownerComp.op("track{}_source{}".format(track, 1-item["side"]))
+                previous.lock = False
+                previous.par.top = "black"
             item.update(started=elapsed, fading=cue["fade"] > 0, old=old, finished=False)
             self.tracks[track] = item
+            self._fade_track_level(track, 1.0, cue, elapsed)
             if item["movie"] is not None:
                 item["movie"].par.play = True
             if cue["id"] in self.audio:
@@ -646,8 +1002,12 @@ class ShowControlExt:
             # Remove automation ownership when a new visual replaces the track.
             self.automations = {key: value for key, value in self.automations.items() if value["cue"]["track"] != track}
         elif kind == "audio":
+            self._release_audio(item.get("replay_voice"))
             item["started"] = elapsed
             item["reader"].par.play = True
+        elif kind == "blackout":
+            for track in ((1, 2, 3) if cue["blackout_scope"] == "all" else (cue["track"],)):
+                self._fade_track_level(track, 0.0, cue, elapsed)
         elif kind == "parameters":
             parameter, old = self._target(cue)
             self.automations = {key: value for key, value in self.automations.items() if value["parameter"] != parameter}
@@ -662,7 +1022,23 @@ class ShowControlExt:
                     self.stop_cue(audio["cue"])
         self.prepared.pop(cue["id"], None)
 
+    def _fade_track_level(self, track, target, cue, elapsed):
+        if not hasattr(self, "_level_fades"):
+            self._level_fades = {}
+        name = "Track{}level".format(track)
+        self._level_fades[track] = {"cue": cue, "old": float(self._p(name)),
+                                    "target": target, "started": elapsed}
+        if cue["fade"] == 0:
+            self.ownerComp.par[name] = target
+            self._level_fades.pop(track)
+
     def tick(self, elapsed):
+        for track, fade in list(getattr(self, "_level_fades", {}).items()):
+            cue = fade["cue"]
+            progress = self.model.ease((elapsed - fade["started"]) / cue["fade"], cue["easing"])
+            self.ownerComp.par["Track{}level".format(track)] = fade["old"] + (fade["target"] - fade["old"]) * progress
+            if progress >= 1:
+                self._level_fades.pop(track)
         for track, item in self.tracks.items():
             if item.get("finished"):
                 continue
@@ -682,7 +1058,10 @@ class ShowControlExt:
                     for module in (*self.model.MODULES, "fx_rack"):
                         component = active["deck"].op(module)
                         if getattr(component.par, "Manualtime", None) is not None:
-                            component.par.Manualtime = local_time
+                            scale = getattr(component.par, "Timescale", None)
+                            component.par.Manualtime = self.model.animation_time(
+                                active["deck"].fetch("imagefx_look_animation", {}, search=False), module,
+                                local_time, float(scale.eval()) if scale is not None else 1.0)
         for item in self.audio.values():
             if item["started"] is not None:
                 cue = item["cue"]
@@ -719,6 +1098,11 @@ class ShowControlExt:
             item = self.tracks.get(cue["track"])
             if item and item["cue"]["id"] == cue["id"]:
                 if cue["hold"]:
+                    # A disabled COMP can invalidate textures selected outside
+                    # it. Cache the live image before halting its network.
+                    source_top = self.ownerComp.op("track{}_source{}".format(cue["track"], item["side"]))
+                    source_top.cook(force=True)
+                    source_top.lock = True
                     self._halt_deck(item)
                     if item.get("old"):
                         self._release_audio(item["old"]["cue"]["id"])
@@ -731,6 +1115,13 @@ class ShowControlExt:
                     self._stop_track(cue["track"])
         elif cue["kind"] == "audio":
             self.stop_cue(cue)
+        elif cue["kind"] == "blackout":
+            # Duration may be shorter than Fade; finish at black, but never
+            # override a newer visual cue that has already taken ownership.
+            for track, fade in list(getattr(self, "_level_fades", {}).items()):
+                if fade["cue"]["id"] == cue["id"]:
+                    self.ownerComp.par["Track{}level".format(track)] = 0
+                    self._level_fades.pop(track)
 
     def _stop_track(self, track):
         item = self.tracks.pop(track, None)
@@ -741,9 +1132,13 @@ class ShowControlExt:
                 self._release_audio(item["old"]["cue"]["id"])
                 self._halt_deck(item["old"])
         self.ownerComp.par["Track{}visible".format(track)] = False
+        self.ownerComp.par["Track{}level".format(track)] = 1
+        getattr(self, "_level_fades", {}).pop(track, None)
         # Otherwise the next fade can expose an old deck after STOP ALL.
         for side in (0, 1):
-            self.ownerComp.op("track{}_source{}".format(track, side)).par.top = "black"
+            source_top = self.ownerComp.op("track{}_source{}".format(track, side))
+            source_top.lock = False
+            source_top.par.top = "black"
         self.automations = {key: value for key, value in self.automations.items() if value["cue"]["track"] != track}
 
     def stop_cue(self, cue):
@@ -757,9 +1152,14 @@ class ShowControlExt:
         elif track and track.get("old") and track["old"]["cue"]["id"] == cue["id"]:
             old = track["old"]
             self._halt_deck(old)
-            self.ownerComp.op("track{}_source{}".format(cue["track"], old["side"])).par.top = "black"
+            source_top = self.ownerComp.op("track{}_source{}".format(cue["track"], old["side"]))
+            source_top.lock = False
+            source_top.par.top = "black"
             track["old"] = None
         self.automations.pop(cue["id"], None)
+        for track, fade in list(getattr(self, "_level_fades", {}).items()):
+            if fade["cue"]["id"] == cue["id"]:
+                self._level_fades.pop(track)  # Freeze level; stopping blackout must not reveal content.
 
     def _release_audio(self, cue_id):
         item = self.audio.pop(cue_id, None)
@@ -769,6 +1169,7 @@ class ShowControlExt:
                     item[key].destroy()
 
     def stop_all(self):
+        self.StopLiveLook()
         for item in list(self.audio.values()):
             self.stop_cue(item["cue"])
         for track in (1, 2, 3):
@@ -783,7 +1184,14 @@ class ShowControlExt:
         for item in self.tracks.values():
             for active in (item, item.get("old")):
                 if active and not active.get("finished"):
+                    source_top = self.ownerComp.op("track{}_source{}".format(active["cue"]["track"], active["side"]))
+                    if paused:
+                        active["pause_source_lock"] = bool(source_top.lock)
+                        source_top.cook(force=True)
+                        source_top.lock = True
                     active["deck"].allowCooking = not paused
+                    if not paused:
+                        source_top.lock = active.pop("pause_source_lock", False)
                     if active.get("movie") is not None:
                         active["movie"].par.play = not paused
         for item in self.audio.values():
@@ -798,6 +1206,14 @@ class ShowControlExt:
 
     def Pause(self):
         self.engine.pause()
+        self.Refresh()
+
+    def GoBack(self):
+        self._guard_no_look_edit()
+        queued = self.engine.go_back()
+        if queued:
+            self.SelectCue(min(len(self.document["cues"]), self.engine.selected + 1))
+        self._status("Go Back queued; previous cue restarts after preload/pre-wait" if queued else "No previous enabled cue")
         self.Refresh()
 
     def Resume(self):
@@ -818,7 +1234,7 @@ class ShowControlExt:
         index = int(self._p("Selectedcue")) - 1
         if 0 <= index < len(self.document["cues"]):
             self.prepare(self.document["cues"][index])
-            self._status("Prepared selected cue; GO waits for media readiness")
+            self._status("Preparing selected cue off-air; GO waits until the look and media are ready")
 
     def Preflight(self):
         problems = []
@@ -921,6 +1337,7 @@ class ShowControlExt:
     def Tick(self):
         try:
             selected_before = self.engine.selected
+            self._service_preloads()
             self.engine.tick()
             if self.engine.selected != selected_before:
                 self.SelectCue(self.engine.selected + 1)
@@ -1020,9 +1437,9 @@ class ShowControlExt:
     def Action(self, name):
         try:
             actions = {
-                "Gocue": self.Go, "Pause": self.Pause, "Resume": self.Resume,
+                "Gocue": self.Go, "Goback": self.GoBack, "Pause": self.Pause, "Resume": self.Resume,
                 "Stopall": self.Stopall, "Stopcue": self.Stopcue, "Preload": self.Preload,
-                "Addcue": self.AddCue, "Duplicatecue": self.DuplicateCue,
+                "Addcue": self.AddCue, "Addblackout": self.AddBlackout, "Duplicatecue": self.DuplicateCue,
                 "Removecue": self.RemoveCue, "Applycue": self.ApplyCue,
                 "Capturelook": self.CaptureLook, "Saveshow": self.SaveShow,
                 "Recalllook": self.RecallLook, "Updatelook": self.UpdateLook,
@@ -1031,6 +1448,8 @@ class ShowControlExt:
                 "Openoutputs": self.Openoutputs, "Closeoutputs": self.Closeoutputs,
                 "Cueup": lambda: self.MoveCue(-1), "Cuedown": lambda: self.MoveCue(1),
                 "Selectcue": self.SelectCue,
+                "Showlooklive": self.ShowLiveLook, "Stoplooklive": self.StopLiveLook,
+                "Savecuenotes": self.SaveCueNotes, "Opencuenotes": self.OpenCueNotes,
             }
             if name not in actions:
                 raise ValueError("Unknown action")

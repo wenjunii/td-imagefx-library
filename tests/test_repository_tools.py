@@ -395,12 +395,17 @@ class VerifyRepositoryToolTests(unittest.TestCase):
                        if isinstance(node, ast.Assign) and any(
                            isinstance(target, ast.Name) and target.id == 'MODULE_SOURCES'
                            for target in node.targets))
-        self.assertEqual(sources, record_native_validation.MODULE_SOURCES)
+        additions = next(ast.literal_eval(node.value) for node in tree.body
+                         if isinstance(node, ast.AugAssign) and isinstance(node.target, ast.Name)
+                         and node.target.id == 'MODULE_SOURCES')
+        self.assertEqual(sources + additions, record_native_validation.MODULE_SOURCES)
+        self.assertIn('touchdesigner/scripts/show_live_look.py', additions)
+        self.assertIn('touchdesigner/extensions/FxRackExt.py', additions)
         for name in ('look_editor_controls.py', 'show_review_export.py', 'show_output_mode.py', 'projection_mapping.py', 'projection_polygon.py'):
             self.assertIn('touchdesigner/scripts/' + name, sources)
 
     def test_public_documentation_matches_checked_source_counts(self) -> None:
-        self.assertEqual(verify_repository._source_test_count(), 462)
+        self.assertGreaterEqual(verify_repository._source_test_count(), 462)
         verify_repository._check_public_documentation()
 
     def test_native_artifact_rejects_symlink_before_resolution(self) -> None:

@@ -20,6 +20,56 @@ alone did not fix that issue. Maximize the viewer if its outer window extends
 beyond your desktop. The media `+` picker and cue/export dropdowns have been
 checked directly in TouchDesigner after the custom-parameter-only correction.
 
+## Cue notes
+
+Select a cue and click **Cue Notes** (or open the **Cue Notes** tab). Enter up to
+4000 characters in **Notes**, then press **Save Cue Notes**. This changes only
+that cue's notes: playback, timing and the Look Editor draft are untouched.
+It also works while the show is running. The legacy Notes field on Cue Editor
+is linked to the same value. Notes appear beneath the live-look controls.
+Press **Save Show** when stopped and outside a draft to persist committed notes
+in the show JSON. Unsaved note text is replaced when selecting another cue.
+
+## Go Back and blackout cues
+
+After a completed blackout, GO and Go Back fade in only the destination cue
+from its own media in-point and saved animation phase. The previous cue's end
+frame is removed from the transition, not revealed underneath the incoming cue.
+Normal transitions between visible cues continue to crossfade.
+
+The top toolbar includes **Go Back**. It restarts the previous enabled cue
+before the last cue you fired (skipping disabled rows); it does not reverse a
+video or rewind the show clock. Before the first GO it uses the selected row
+as the starting point. At the first enabled cue it does nothing. Resume first
+if paused, and let an in-progress crossfade finish before returning to a visual.
+The current output stays on air while the previous visual prepares off-air.
+The cue's pre-wait and fade still apply. Pending forward cues and scheduled
+auto-follows are cancelled so they cannot immediately jump forward again;
+future timestamp cues keep using the existing show clock. Other visual tracks
+and audio continue. Go Back is not a whole-show undo or a snapshot restore.
+
+To insert a blackout:
+
+1. **Stop All**, select the row before the blackout, then click **Add blackout**.
+2. On **Cue Editor**, choose **Blackout Scope → All Visual Tracks** (default)
+   or **Selected Track Only**, and set **Track** for the latter.
+3. Set **Fade Seconds** (`0` = instant), pre-wait/timestamp and other cue timing,
+   then **Apply edits**. **Duration = 0** keeps it active indefinitely. A finite
+   duration completes at black and can auto-follow; it does not restore video.
+4. Select the blackout row and press **GO**, or let its timestamp/follow fire.
+   **Save Show** includes the blackout cue and its settings in the show JSON.
+
+Blackout affects the visual tracks before output mapping, in both direct-display
+and 2×2 wall modes. It leaves audio playing and keeps confidence-monitor labels
+and diagnostics available (its projector previews show black). In identical or
+panoramic routing all projectors use Track 1; use independent routing for
+individual projector blackout. The next visual on a blacked-out track fades
+that track back up; other tracks stay black. Stopping a blackout cue freezes its
+current level rather than unexpectedly revealing content. Master Blackout,
+per-output blackout and calibration-grid safety/settings remain independent;
+turn calibration grids off for normal show playback. Use Stop All or audio
+controls separately when you also want silence.
+
 ## Review the projector feeds
 
 The bottom of Show Control has a **Projector Review** preview of the final output,
@@ -197,7 +247,7 @@ decoded with the expected dimensions/frame counts and no audio stream. See the
    videos follow the cue clock; embedded audio from those two layers is not routed.
    Use the main movie-audio route or an audio cue for sound. A fresh
    cue with no captured look has effects off and no retained layer files.
-5. Select a cue row and click **Preload**. Release Master Blackout for rehearsal,
+5. Select a cue row and click **Preload**, then wait for **Ready**. Release Master Blackout for rehearsal,
    then click **GO**. GO advances selection to the next row; it does not stop
    other tracks or audio cues. Use the Cue List Page control for lists over 12.
 6. **Pause** freezes the show clock, effects, video and audio. **Resume** resumes
@@ -237,19 +287,35 @@ Capture Look or Update Cue again.
    it contains the captured module settings, rack, Layer Composite files and
    effect ordering. Controls are disabled until a draft is active, and an empty
    slot reports an explanatory status instead of opening another workflow.
-3. Choose **Update Cue** to replace only that cue's look. Its name, media,
-   timing, track and audio settings are unchanged. Or choose **Save as New Cue**
+3. Optionally press **Show Live Look** to audition your changes on projection.
+   **Look Editor → Live Look Target Track** starts at the cue's track and can
+   select track 1–3. Routing still applies: Independent sends it to outputs
+   assigned to that track; Identical/Panoramic use track 1. Both Direct and 4K
+   Wall modes use these same mapped feeds. Projector Review shows the audition.
+   The status says **LIVE DRAFT (not saved)**. Mapping, masks, grading, and
+   master/per-projector/wall blackouts remain active; this does not open output
+   windows or enable audio. Release the appropriate blackouts yourself when
+   ready. **Stop Live Look** returns to normal program output without discarding
+   the draft. Editing requires a stopped show, so that output is normally black.
+4. Choose **Update Cue** to replace only that cue's look. Its name, media,
+   timing, track and audio settings are unchanged. The preview remains on the
+   saved frame, marked **SAVED / FROZEN**; **Open Preview** stays available.
+   **Recall Look** reopens an editable copy. Or choose **Save as New Cue**
    to append a separate copy without modifying the original. The new copy starts
    **disabled**, with no timestamp and manual next-cue behavior; enable it in
    Cue Editor and Apply Cue Edits when ready.
-4. **Cancel Changes** discards the temporary draft. The original cue and main
+5. **Cancel Changes** discards the temporary draft. The original cue and main
    design workflow remain untouched. Finish or cancel before selecting another
    cue, playing/preloading, editing cue details, or loading/saving the show.
-5. **Save Show** after updating/creating a cue to persist it to your local JSON.
+6. **Save Show** after updating/creating a cue to persist it to your local JSON.
+
+Update Cue, Save as New Cue, Cancel Changes, STOP ALL, and TOE startup turn live
+audition off. Updating stores the look; press GO after finishing the draft to
+play the committed cue. Live audition is never restored from a saved show.
 
 Recall previews the cue's saved image/video (including in point, speed and loop)
-at the show's render dimensions, with freely animating effects. It does not
-play audio, start a show clock, or route the draft to audience outputs. It is a
+at the show's render dimensions, with effects running or frozen as captured. It does not
+play audio or start a show clock. It stays off-air until **Show Live Look**. It is a
 look preview, not a rehearsal of pre-wait, fade, duration or parameter cues.
 Change the main source and cue timing in Cue Editor after finishing the draft;
 manual rewiring or changes to the draft's internal `media` reader are not saved.
@@ -283,6 +349,42 @@ all GPU loads. Each visual track has two decks; finish a crossfade before loadin
 another cue on that same track. There can be up to eight loaded audio voices.
 Preloading a running or held cue is rejected without changing its output; stop
 that cue before preloading it again. A first cue after Stop All fades from black.
+
+Preparation is staged across frames on the inactive deck. Unchanged rack
+packages are reused; shader/media warm-up finishes before the deck is connected
+to the track. GO on a not-yet-ready cue waits, while the previous cue continues.
+Preload ahead of time for a show: a cold decoder or shader compilation can still
+take longer than a frame. Set Fade above zero (for example 0.5–1 second) for a
+smooth crossfade; a zero Fade remains a hard cut by design.
+
+Cue playback multiplies its local animation clock by each module's saved
+Time Scale. Zero freezes and negative values reverse the procedural animation.
+Recall Look uses the same starting phase instead of absolute app uptime.
+Capture Look, Update Cue and Save as New Cue store each module's effective
+animation phase and running/frozen state, including both composition branches
+and the rack clock. Thus saving a procedural ink look does not restart its
+pattern at zero. A running animation continues from the saved phase on Recall
+or GO; turning **Auto Time** off in the draft preserves its **Manual Time**.
+Offline cue/draft export uses the same phase and Time Scale. Cue Media In and
+video transport settings are not changed by capturing an effect's phase.
+For Ink Dream/Brush/Radial Flow, captures also save the continuous rendered
+position (`render_time`). This preserves the look after live Animation Speed
+changes, which no longer seek to a different composition. Older captures without
+that field retain their former `time × Animation Speed` starting position.
+Older show files remain supported and use phase zero until updated. This stores
+procedural clocks, not a full GPU feedback/simulation cache: stateful third-party
+feedback effects may still require warm-up or prerendering for an exact repeat.
+
+Run `touchdesigner/scripts/validate_look_animation.py` in a Text DAT and call
+`module.start()` for the isolated saved-preview/Recall/GO pixel regression on
+the three ink modules, reverse/export clocks and A/B branch phase offsets.
+The report is `build/envoy-validation/look-animation.json`.
+Static controls, palette, dot pattern and both glitter layers are verified with
+rendered pixels, not only a parameter round trip. Run
+`touchdesigner/scripts/validate_cue_playback.py` as a Text DAT and call
+`module.start(1920, 1080)` for the real-frame off-air regression; its report is
+`build/envoy-validation/cue-playback.json`. It does not open audience windows,
+enable sound, modify the user's show file, or certify physical-projector timing.
 
 ### Change parameters during a cue
 
