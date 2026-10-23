@@ -66,6 +66,7 @@ def validate(write_report=True, brush=False, radial=False):
         def reset(**values):
             set_values(defaults)
             set_values(values)
+            test.op('animation_clock').module.reset(test)
 
         def capture(node=output):
             node.cook(force=True)
@@ -87,6 +88,7 @@ def validate(write_report=True, brush=False, radial=False):
             "Rotation": (-45., 60.), "Direction": (-90., 45.),
             "Centerx": (-.3, .4), "Centery": (-.3, .4),
             "Manualtime": (.4, 8.), "Timescale": (0., .002),
+            "Animationspeed": (.5, 2.),
             "Flowspeed": (-.5, .8), "Particlespeed": (-.5, .8), "Seed": (1, 89),
             "Glitterspeed": (-.5, .8), "Glitterdirection": (-90., 45.),
             "Glitterstarrotation": (-30., 15.), "Glitterseed": (1, 89),
@@ -140,8 +142,14 @@ def validate(write_report=True, brush=False, radial=False):
                     capture()
             images, accepted = [], []
             for value in values:
+                if par.name == 'Animationspeed':
+                    reset()
+                    before_speed = capture()
                 par.val = value
                 accepted.append(par.eval() == value)
+                if par.name == 'Animationspeed':
+                    checks['speed_change_no_jump_' + str(value)] = np.array_equal(before_speed, capture())
+                    test.par.Manualtime = 4.7
                 images.append(capture())
             changes = [difference(images[i], images[j]) for i in range(len(images)) for j in range(i+1, len(images))]
             controls[par.name] = dict(values=values, accepted=accepted, differences=changes)
@@ -158,6 +166,42 @@ def validate(write_report=True, brush=False, radial=False):
         checks["time_animates"] = difference(first, capture()) > 1e-6
         test.par.Manualtime = defaults["Manualtime"]
         checks["time_seek_repeatable"] = np.array_equal(first,capture())
+        # A rate edit preserves the frame; only subsequent clock deltas scale.
+        # Compare against direct Time rendering at the expected new phase.
+        binding = scope["install_animation_speed"](test)
+        speed_expression = binding.expr
+        for case, enabled in (
+            ("liquid_particles", {}),
+            ("dot_pattern", dict(Patternenabled=True, Patternmode="replace")),
+            ("moving_glitter", dict(Glitterenabled=True, Glitterspread=1.)),
+            ("static_shimmer", dict(Staticglitterenabled=True, Staticglittershimmer=1., Staticglitterspread=1.)),
+        ):
+            for multiplier in (0., .25, .5, 1., 2., 4., 10.):
+                reset(**enabled)
+                before_speed = capture()
+                unchanged = {p.name: p.eval() for p in test.customPars if p.name != "Animationspeed"}
+                test.par.Animationspeed = multiplier
+                checks["animation_speed_{}_{}_no_jump".format(case, multiplier)] = np.array_equal(before_speed, capture())
+                checks["animation_speed_{}_{}_preserves_values".format(case, multiplier)] = unchanged == {p.name: p.eval() for p in test.customPars if p.name != "Animationspeed"}
+                test.par.Manualtime = 4.7
+                actual = capture()
+                binding.expr = "parent().par.Time"
+                test.par.Manualtime = 3.7 + multiplier
+                expected = capture()
+                binding.expr = speed_expression
+                test.par.Manualtime = 4.7
+                checks["animation_speed_{}_{}_matches_clock".format(case, multiplier)] = np.array_equal(expected, actual)
+                checks["animation_speed_{}_{}_seek_repeatable".format(case, multiplier)] = np.array_equal(actual, capture())
+            before_speed = capture()
+            test.par.Animationspeed = 0.
+            first = capture()
+            checks["animation_speed_zero_holds_current_" + case] = np.array_equal(before_speed, first)
+            test.par.Manualtime = 25.
+            checks["animation_speed_zero_freezes_" + case] = np.array_equal(first, capture())
+            test.par.Animationspeed = 1.
+            checks["animation_speed_resume_no_jump_" + case] = np.array_equal(first, capture())
+            test.par.Manualtime = 26.
+            checks["animation_speed_resume_moves_" + case] = difference(first, capture()) > 1e-6
         reset(Autotime=True, Timescale=0.0)
         checks["timescale_zero_resolves_zero"] = test.par.Time.eval() == 0.0
         reset(Flowspeed=0.0, Particlespeed=0.0)

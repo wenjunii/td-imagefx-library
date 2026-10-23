@@ -1,5 +1,61 @@
 # Control validation
 
+## Live-look and playback release audit — 2026-10-23
+
+Rebuilt the canonical TOE and all nineteen core TOXs with TouchDesigner
+2025.32820. The build has zero builder, shader or preview errors; all 96 gallery
+baselines still match. The 124 published package versions were preserved.
+
+- **28 blocking groups / 5,412 checks passed**, including 1,268 two-way module
+  bindings. The 96-package sweep covers 511 numeric controls, 116 toggles and
+  14 package reset pulses. Ink Dream / Brush / Radial Flow passed 843 / 891 /
+  944 checks respectively, including Animation Speed and glitter/pattern controls.
+- **14 real-frame groups / 341 checks passed**. New cases compare custom ink
+  Recall/GO output at 1920×1080 against independent renders, verify standby
+  preparation does not replace the on-air image, and test crossfade frames.
+  The animation audit passed 87 checks; live-draft output, cue notes and GO/Go
+  Back across blackouts passed 43. Navigation also passed 25 blocking checks.
+- Show Control covers **22 cue editor fields, 54 pulse dispatch routes and 19
+  panel buttons**. Output hardware actions are intercepted; tests do not open
+  audience windows or play audible sound. The UI and stored values are tested
+  together with rendered pixels, not treated as equivalent evidence.
+- Cue/draft export passed 14 checks. Five H.264/MJPEG files were independently
+  decoded at 1080p, UHD and custom sizes. All had the expected frame count and
+  non-black video, with no audio stream.
+- The UHD wall recorder passed seven functional checks, including early Stop
+  & Save and Cancel. Three completed files decoded with correct P1/P2/P3
+  quadrants, confidence previews and diagnostics, and animated content.
+- A final explicit File > Open of `TD_ImageFX_Library.toe` passed **19 startup
+  checks**: stopped transport, blackouts on, audio/windows/live audition off,
+  clean cue, intact bindings/clocks, no native errors and unchanged personal
+  show. All **4,055 embedded text DATs** passed the credential scan. The Show
+  Control panel was visually inspected after reopening. TouchDesigner retains
+  the internal display name `TD_ImageFX_Library.1.toe`; no numbered TOE exists
+  on disk, and the canonical artifact hash remained unchanged.
+- **520 portable publication tests passed**, with four expected Windows
+  symlink-permission skips. The staged publication snapshot excludes the local,
+  rejected dance prototypes. Repository, credential, immutable-package,
+  native-artifact provenance, gallery and benchmark checks passed.
+
+Performance is not certified by these functional passes. GO/preload dispatch
+took 0.036–0.090 ms in the generated 1080p fixture, but the longest indivisible
+preparation step took **65.4 ms**. The 30-fps H.264 UHD wall fixture reported
+**10 dropped frames**; the 25-fps MJPEG and early-stop fixtures reported zero.
+Warnings are retained. Preload ahead of an entrance, let startup finish, and
+rehearse sustained output/recording with the actual show media and hardware.
+
+The computer-use skill was used for the native build and TouchDesigner checks.
+Personal show JSON was preserved byte-for-byte; backups remain local under
+`build/backups/pre-release-validation-20261023/`. The publication TOE contains
+only the clean test-pattern cue. Physical projectors, processor, HDMI delivery
+and speaker output were not tested. No credentials or personal media are in
+the publication set. The local reports are `live-suite.json`,
+`deferred-controls.json`, `cue-playback.json`, `look-animation.json`,
+`show-live-look.json`, `show-navigation.json`, `show-review-export.json`,
+`cue-export-media.json`, `wall-export.json`, `wall-export-media.json` and
+`release-reopen.json` under
+`build/envoy-validation/`.
+
 ## Clean-release control audit — 2026-10-20
 
 Rebuilt the canonical TOE with TouchDesigner 2025.32820 and clean defaults.

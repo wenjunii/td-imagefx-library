@@ -40,7 +40,7 @@ void main() {
 BLEND_SHADER = r'''
 layout(location=0) out vec4 fragColor;
 uniform vec4 uBlend;
-void main(){fragColor=TDOutputSwizzle(mix(texture(sTD2DInputs[0],vUV.st),texture(sTD2DInputs[1],vUV.st),uBlend.x)*uBlend.y);}
+void main(){fragColor=TDOutputSwizzle(mix(texture(sTD2DInputs[0],vUV.st),texture(sTD2DInputs[1],vUV.st),uBlend.x)*uBlend.y*uBlend.z);}
 '''
 
 ATLAS_SHADER = r'''
@@ -94,7 +94,7 @@ def build_show_control(demo, context):
     parameter("Transport", "Selectedcue", "int", 1, 1, 1000, label="Selected Cue Number")
     parameter("Transport", "Cuepage", "int", 1, 1, 84, label="Cue List Page (12 per page)")
     for name, label in (
-        ("Gocue", "GO"), ("Pause", "Pause All"), ("Resume", "Resume All"), ("Stopcue", "Stop Selected Cue"),
+        ("Gocue", "GO"), ("Goback", "Go Back"), ("Pause", "Pause All"), ("Resume", "Resume All"), ("Stopcue", "Stop Selected Cue"),
         ("Stopall", "STOP ALL"), ("Preload", "Preload Selected"), ("Preflight", "Check Media Files"),
         ("Saveshow", "Save Show"), ("Loadshow", "Load Show"), ("Selectcue", "Load Selected Cue Details"),
         ("Openoutputs", "Open Audience Canvas"), ("Closeoutputs", "Close Audience Canvas"),
@@ -109,7 +109,8 @@ def build_show_control(demo, context):
     parameter("Transport", "Showtime", default=0, maximum=86400, read_only=True, label="Show Time (seconds)")
 
     parameter("Cue Editor", "Cuename", "string", "New cue", label="Cue Name")
-    menu("Cue Editor", "Cuekind", ["visual", "audio", "parameters", "stop", "wait"], "visual", label="Cue Type")
+    menu("Cue Editor", "Cuekind", ["visual", "audio", "parameters", "stop", "wait", "blackout"], "visual", label="Cue Type")
+    menu("Cue Editor", "Blackoutscope", ["all", "track"], "all", label="Blackout Scope (All / Selected Track)")
     parameter("Cue Editor", "Cueenabled", "toggle", True, label="Cue Enabled")
     parameter("Cue Editor", "Mediafile", "file", "", label="Image / Video / Audio File")
     parameter("Cue Editor", "Track", "int", 1, 1, 3, label="Visual / Audio Track")
@@ -163,6 +164,7 @@ def build_show_control(demo, context):
     for track in (1, 2, 3):
         parameter("Runtime", "Track{}blend".format(track), default=0, read_only=True)
         parameter("Runtime", "Track{}visible".format(track), "toggle", False, read_only=True)
+        parameter("Runtime", "Track{}level".format(track), default=1, read_only=True)
 
     def node(kind, name):
         return show.create(context[kind], name)
@@ -195,6 +197,7 @@ def build_show_control(demo, context):
         blend.par.vec0name = "uBlend"
         blend.par.vec0valuex.expr = "parent().par.Track{}blend".format(track)
         blend.par.vec0valuey.expr = "parent().par.Track{}visible".format(track)
+        blend.par.vec0valuez.expr = "parent().par.Track{}level".format(track)
 
     for output in (1, 2, 3):
         prefix = "Output{}".format(output)
@@ -316,7 +319,7 @@ def build_show_control(demo, context):
     help_text.par.wordwrap = True
     help_text.par.alignx = "left"
     help_text.par.aligny = "top"
-    help_text.par.text.expr = "'OFF-AIR LOOK PREVIEW (silent) | ' + ('DRAFT ACTIVE' if parent().par.Lookediting else 'No draft')"
+    help_text.par.text.expr = "'OFF-AIR LOOK PREVIEW (silent) | ' + ('DRAFT ACTIVE' if parent().par.Lookediting else 'SAVED / FROZEN' if parent().op('look_result') else 'No draft')"
     for index, line in enumerate(("Recall Look > enter show_control/look_editor",
                                   "Edit its modules > Update / Save New / Cancel",
                                   "Save Show writes committed cues to disk.",
@@ -362,4 +365,76 @@ def build_show_control(demo, context):
     mapping_scope = dict(context, __file__=str(mapping_path), __name__="_imagefx_projection_mapping")
     exec(compile(mapping_path.read_text(encoding="utf-8"), str(mapping_path), "exec"), mapping_scope)
     mapping_scope["install"](show, MAPPING_SHADER)
+    install_navigation_controls(show)
+    live_path = context["PROJECT_ROOT"] / "touchdesigner/scripts/show_live_look.py"
+    live_scope = dict(context, __file__=str(live_path), __name__="_imagefx_live_look")
+    exec(compile(live_path.read_text(encoding="utf-8"), str(live_path), "exec"), live_scope)
+    live_scope["install"](show)
     return show
+
+
+def install_navigation_controls(show):
+    """Idempotent UI/shader upgrade; does not replace cues, looks, or mappings."""
+    import td
+    pages = {page.name: page for page in show.customPages}
+    for page_name, name, label in (("Transport", "Goback", "Go Back"),
+                                   ("Cue Editor", "Addblackout", "Add Blackout Cue")):
+        if getattr(show.par, name, None) is None:
+            pages[page_name].appendPulse(name, label=label)
+    if getattr(show.par, "Blackoutscope", None) is None:
+        p = pages["Cue Editor"].appendMenu("Blackoutscope", label="Blackout Scope")[0]
+        p.menuNames, p.menuLabels = ["all", "track"], ["All Visual Tracks", "Selected Track Only"]
+        p.default, p.val = "all", "all"
+    show.par.Blackoutscope.menuLabels = ["All Visual Tracks", "Selected Track Only"]
+    kind = show.par.Cuekind.eval()
+    show.par.Cuekind.menuNames = ["visual", "audio", "parameters", "stop", "wait", "blackout"]
+    show.par.Cuekind.menuLabels = ["Visual", "Audio", "Parameters", "Stop", "Wait", "Blackout"]
+    show.par.Cuekind = kind
+    for track in (1, 2, 3):
+        name = "Track{}level".format(track)
+        if getattr(show.par, name, None) is None:
+            p = pages["Runtime"].appendFloat(name, label="Track {} Blackout Level".format(track))[0]
+            p.default, p.val = 1, 1
+            p.min, p.max, p.normMin, p.normMax = 0, 1, 0, 1
+            p.clampMin, p.clampMax, p.readOnly = True, True, True
+        show.op("track{}_shader".format(track)).text = BLEND_SHADER
+        show.op("track{}".format(track)).par.vec0valuez.expr = "parent().par." + name
+    # Two rows keep every label usable on the existing 1660-pixel panel.
+    rows = ((('Gocue', 'GO'), ('Goback', 'Go Back'), ('Pause', 'Pause'),
+             ('Resume', 'Resume'), ('Stopall', 'STOP ALL')),
+            (('Preload', 'Preload'), ('Addcue', 'Add cue'), ('Addblackout', 'Add blackout'),
+             ('Applycue', 'Apply edits'), ('Capturelook', 'Capture look')))
+    for row, actions in enumerate(rows):
+        for column, (action, label) in enumerate(actions):
+            name = "button_" + action.lower()
+            # TD appends a numeric suffix to newly created Button COMPs. Reuse
+            # the action-owned button, including its native suffixed name.
+            button = show.op(name)
+            if button is None:
+                button = next((node for node in show.children
+                               if node.name.startswith(name) and node.name[len(name):].isdigit()
+                               and node.fetch('show_action', None, search=False) == action), None)
+            if button is None:
+                button = show.create(td.buttonCOMP, name)
+            for duplicate in list(show.children):
+                suffix = duplicate.name[len(name):] if duplicate.name.startswith(name) else ''
+                if duplicate != button and suffix.isdigit() and duplicate.fetch('show_action', None, search=False) == action:
+                    duplicate.destroy()
+            button.par.x, button.par.y = 20 + column * 178, 746 - row * 46
+            button.par.w, button.par.h = 170, 40
+            button.par.label, button.par.fontsize = label, 16
+            button.store("show_action", action)
+            callback = button.op("clicked")
+            if callback is None:
+                callback = button.create(td.panelexecuteDAT, "clicked")
+            for duplicate in list(button.children):
+                if duplicate.name.startswith('clicked') and duplicate.name[7:].isdigit():
+                    duplicate.destroy()
+            callback.par.panels, callback.par.panelvalue = "..", "lselect"
+            callback.par.offtoon = True
+            callback.text = "def onOffToOn(panelValue):\n    parent().parent().Action(parent().fetch('show_action'))\n    return\n"
+    # Cue rows sit below the second toolbar, clear of the Look Editor buttons.
+    for row in range(12):
+        button = show.op("cue_row_{}".format(row))
+        if button is not None:
+            button.par.y, button.par.h = 668 - row * 25, 23

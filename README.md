@@ -20,6 +20,13 @@ the reference. Animated and static glitter can use **Dot Pattern** as their
 surface. The new layer starts off and is included in captured show looks.
 See [pattern controls and examples](docs/ink-dream-flow.md#flowing-dot-pattern).
 
+All three modules also have **Timing → Animation Speed (1 = Original)**:
+an independent 0–10× multiplier for their generated animation and shimmer.
+Default 1× preserves existing looks and all individual speed settings; 0.5×
+slows the animation and 2× speeds it up. Changing speed preserves the current
+frame without a composition jump; 0× holds it, and increasing speed resumes it.
+Cue looks retain both the speed and the rendered animation position.
+
 ## Color replacement and two-image layouts
 
 **Color Switch** selects an input color and replaces it with another, with
@@ -40,6 +47,11 @@ The dance-driven backdrop audition is not included in these changes.
 The TOE now includes `/project1/imagefx_demo/show_control`: a clickable cue panel
 for local images, videos, stereo audio, captured effect/rack looks, parameter
 automation, timestamps, pre/post waits, crossfades, GO, pause/resume and stop.
+**Go Back** replays the previous enabled cue without blanking the output during
+preload. **Add blackout** inserts a timed, fadeable blackout cue for all visual
+tracks or the selected track; audio continues and the confidence UI stays
+visible. The next visual cue fades its track back up. See
+[cue navigation and blackout](docs/show-control.md#go-back-and-blackout-cues).
 Three configurable 1080p–4K outputs support identical, panoramic or independent
 content, corner pinning, crop, rotation, gamma/brightness and edge fades.
 Audio and audience outputs start disarmed. Show JSON and media stay local.
@@ -107,16 +119,52 @@ Captured looks are editable from the **Look Editor** tab: **Recall Look →
 Effect Module → Edit Controls → Update Cue / Save as New Cue / Cancel Changes**.
 **Open Preview** opens the full-size recalled look. The menu includes every
 workflow module, workflow switches, and the eight individual rack slots.
-These shortcuts edit only the off-air cue draft, not the main designer. The silent preview is separate
-from the main workflow and audience outputs. Save Show persists committed edits;
+These shortcuts edit only the cue draft, not the main designer. It starts off-air;
+**Show Live Look** auditions it on the selected **Live Look Target Track** through
+the existing projection mapping, Direct/4K Wall output and Projector Review.
+Blackouts still apply. **Stop Live Look** leaves the draft open; Update/Save New/
+Cancel and STOP ALL disarm the audition. Nothing changes the cue until Update.
+**Cue Notes → Save Cue Notes** stores per-cue notes without restarting playback
+or committing a look draft. **Save Show** persists committed edits and notes;
 new copies start disabled to avoid accidental triggers.
+Updating a cue now retains a **saved/frozen preview** and captures the current
+procedural animation phase plus its running/frozen state. Recall Look reopens
+that phase instead of resetting the ink pattern; GO and offline export use the
+same clock. Use **Save Show** to persist the updated look.
 
-The show-control audit covers all 21 editor fields, the original 63 mapping/grade/flip
-controls plus the expanded masking/reset controls, 48 pulse dispatch routes and
-fourteen panel buttons. Regression checks
+Cue preparation now runs off-air in small batches and reuses unchanged rack
+packages. Wait for **Ready** after **Preload**, then press **GO**; an unprepared
+GO waits for media and the first rendered frame. The outgoing cue stays selected
+until the incoming look is ready. A positive cue **Fade** makes a crossfade;
+zero still means an intentional cut. Saved effect Time Scale is honored during
+playback. After a completed blackout, GO/Go Back fade from black into the target
+cue's own starting state, without revealing the previous cue's last image. This
+also preserves the saved animation phase and video in-point, including frozen
+or reversed animation. Recall Look starts at the saved animation
+phase (zero for older looks that have not been recaptured).
+The dedicated `validate_cue_playback.py` test compares rendered custom ink looks
+and transition frames at 1080p. Cold shader compilation, video decoding and
+sustained three-channel GPU load still require rehearsal on the show laptop.
+
+The show-control audit covers all 22 editor fields, the original 63 mapping/grade/flip
+controls plus the expanded masking/reset controls, 54 pulse dispatch routes and
+nineteen panel buttons. Regression checks
 protect fade-from-black, running-cue preload, stop/follow cancellation and invalid
 mapping saves. Hardware arm/device/window controls are wiring-tested only; the
 automated suite deliberately does not open audience output or play audible sound.
+
+The **2026-10-23 follow-up audit** passed all 28 blocking groups (5,412 checks),
+14 real-frame groups (341 checks), and 520 portable release tests (four expected
+Windows symlink skips). The 1080p checks cover custom ink Recall/GO, unchanged
+on-air pixels during standby preparation, crossfade endpoints/midpoints,
+continuous Animation Speed, Update Cue Look, live-draft routing and cue notes.
+The clean TOE and all core TOXs were rebuilt; personal shows remain local.
+Preparation is frame-budgeted but an indivisible GPU/decode operation can still
+exceed a frame: the audit measured a maximum 65.4 ms preparation step. Preload
+before a timed entrance and rehearse the actual three-channel workload.
+The short UHD wall recording test also reported 10 dropped frames at 30-fps
+H.264 (zero in the 25-fps MJPEG fixture); see the
+[current validation record](docs/control-validation.md) before show use.
 
 The **2026-10-20 clean-release control audit** passed all 27 native validators,
 11 real-frame groups (196 checks), and 462 portable release tests (4 expected
@@ -237,7 +285,7 @@ git clone https://github.com/wenjunii/td-imagefx-library.git
 cd td-imagefx-library
 ```
 
-The clean Windows release build used TouchDesigner `2025.32820` and validated all 96 current effects with 124 versioned effect `.tox` files, nineteen core `.tox` files, one library `.toe`, 96 previews, 96 visual baselines, and 96 benchmark samples. That build report contains zero shader, preview, or builder errors. A fresh repository run completed 462 tests successfully, with four expected Windows symlink-permission skips. The release TOE contains clean defaults, not personal cues or media. In-place patches and saved personal cues are not a new full native-build certification; regenerate and validate distributable artifacts before publishing a release. Read [TouchDesigner setup](docs/touchdesigner-setup.md) to reproduce the native build.
+The clean Windows release build used TouchDesigner `2025.32820` and validated all 96 current effects with 124 versioned effect `.tox` files, nineteen core `.tox` files, one library `.toe`, 96 previews, 96 visual baselines, and 96 benchmark samples. That build report contains zero shader, preview, or builder errors. A fresh repository run completed 520 tests successfully, with four expected Windows symlink-permission skips. The release TOE contains clean defaults, not personal cues or media. In-place patches and saved personal cues are not a new full native-build certification; regenerate and validate distributable artifacts before publishing a release. Read [TouchDesigner setup](docs/touchdesigner-setup.md) to reproduce the native build.
 
 The generated project targets TouchDesigner 2025. Validate the exact TouchDesigner build, operating system, GPU, driver, resolution, pixel format, and color pipeline used by your production system. Python 3.11 or newer is required for repository tooling; it is not required merely to use already-built native components.
 
@@ -721,9 +769,9 @@ exec(compile(open(script, encoding="utf-8").read(), script, "exec"), scope)
 
 Copying `globals()` is required because rendered-pixel QA uses
 TouchDesigner-provided objects including `op`, `app`, `root`, `textDAT`, and
-`glslTOP`. The runner executes all 27 blocking validator groups, including
+`glslTOP`. The runner executes all 28 blocking validator groups, including
 Output Mode, Projector Review, projection mapping, every mapping reset and
-custom polygon masks. It continues long
+custom polygon masks and Go Back/blackout navigation. It continues long
 enough to report every failure, writes the ignored
 `build/envoy-validation/live-suite.json` summary plus each validator's normal
 report, and never saves the project. Each successful dispatch records the validator
@@ -748,11 +796,14 @@ toggles, menus and pulse routes. Context-dependent controls still need sensible
 media and enabled effects; these checks do not test every parameter combination.
 
 After that blocking suite, run the consolidated **real-frame audit**. It runs
-eleven additional groups in sequence: native rack events, workflow/crop events,
+fourteen additional groups in sequence: native rack events, workflow/crop events,
 wall buttons, decoded layer images, layer video transports, show playback and
 the off-air Look Editor, and Color Switch / Two-Image Composition media and cue
 checks, Source Media file decoding and video transport, and the Output Mode
-and Projection Mapping native button events. Stop All, finish/cancel any look draft, enable both
+and Projection Mapping native button events. It also checks 1080p custom ink
+Recall/GO/crossfade pixels, saved animation phases and continuous speed, and
+live-draft projection routing, cue notes and blackout boundaries.
+Stop All, finish/cancel any look draft, enable both
 blackouts and keep audio disarmed. Do not edit or save the TOE while it runs.
 
 The blocking suite generates its PNG fixtures. For the video checks, generate

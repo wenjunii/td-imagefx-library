@@ -88,7 +88,7 @@ def selected_snapshot(show, source):
         if not draft or draft['deck'] != show.op('look_editor'):
             raise ValueError('Recall Look first, or choose Selected Saved Cue')
         cue = copy.deepcopy(draft['cue'])
-        cue['look'] = ext._capture_look(draft['deck'])
+        cue['look'] = ext._capture_look(draft['deck'], capture_animation=True)
     elif source == 'cue':
         index = int(show.par.Selectedcue.eval()) - 1
         if not 0 <= index < len(ext.document['cues']):
@@ -248,11 +248,15 @@ def _writer(parent, target, path, settings):
 
 
 def _set_time(deck, modules, seconds):
+    from tdimagefx.show import animation_time
+    animation = deck.fetch('imagefx_look_animation', {}, search=False)
     for name in (*modules, 'fx_rack'):
         component = deck.op(name)
         if component is not None and component.par['Manualtime'] is not None:
             component.par.Autotime = False
-            component.par.Manualtime = seconds
+            scale = getattr(component.par, 'Timescale', None)
+            component.par.Manualtime = animation_time(animation, name, seconds,
+                                                      float(scale.eval()) if scale is not None else 1.0)
 
 
 def start_export(show):
@@ -722,7 +726,7 @@ def install(show):
     show.op('look_help_2').par.fontsize = 12
     show.op('look_help_3').par.text = ''
     show.op('look_help_3').par.display = False
-    priority = ('Transport', 'Output Mode', 'Wall Output', 'Projection Mapping', 'Cue Editor', 'Look Editor',
+    priority = ('Transport', 'Output Mode', 'Wall Output', 'Projection Mapping', 'Cue Editor', 'Cue Notes', 'Look Editor',
                 'Projector Review', 'Export Video', 'Routing',
                 'Output 1', 'Output 2', 'Output 3')
     existing_pages = [p.name for p in show.customPages]
@@ -731,7 +735,7 @@ def install(show):
     inspector = show.op('cue_inspector')
     # Review/export refreshes must keep the mapping navigation installed by
     # projection_mapping.install(); a hidden tab looks like missing controls.
-    inspector.par.pagescope = "Transport 'Output Mode' 'Wall Output' 'Projection Mapping' 'Cue Editor' 'Look Editor' 'Projector Review' 'Export Video' Routing 'Output 1' 'Output 2' 'Output 3'"
+    inspector.par.pagescope = "Transport 'Output Mode' 'Wall Output' 'Projection Mapping' 'Cue Editor' 'Cue Notes' 'Look Editor' 'Projector Review' 'Export Video' Routing 'Output 1' 'Output 2' 'Output 3'"
     inspector.par.op = ''
     inspector.cook(force=True)
     inspector.par.op = '..'

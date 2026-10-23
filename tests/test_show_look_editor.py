@@ -19,6 +19,8 @@ class LookEditorTests(unittest.TestCase):
         self.ext.document = dict(kind=show.SHOW_KIND, schema_version=1,
                                  cues=[copy.deepcopy(self.cue), show.new_cue()], mapping={})
         self.ext.ownerComp = Mock()
+        self.preview = Mock()
+        self.ext.ownerComp.op.side_effect = lambda name: None if name == "look_result" else self.preview
         self.ext._look_edit = {"cue": copy.deepcopy(self.cue), "deck": Mock()}
         self.ext._p = Mock(return_value=1)
         self.ext._status = Mock()
@@ -28,13 +30,19 @@ class LookEditorTests(unittest.TestCase):
         self.ext._save_document_dat = Mock()
         self.look = {"toggles": {"Coloradjustmentenabled": False}}
         self.ext._capture_look = Mock(return_value=copy.deepcopy(self.look))
+        self.snapshot = Mock(path="/show/look_result")
+        self.ext._snapshot_look = Mock(return_value=self.snapshot)
 
-    def test_update_changes_only_look_and_cleans_preview(self):
+    def test_update_changes_only_look_and_keeps_frozen_preview(self):
         deck = self.ext._look_edit["deck"]
         self.ext.UpdateLook()
         self.assertEqual(self.ext.document["cues"][0], dict(self.cue, look=self.look))
         self.assertIsNone(self.ext._look_edit)
         deck.destroy.assert_called_once()
+        self.ext._snapshot_look.assert_called_once_with(deck)
+        self.assertEqual(self.ext._look_preview_cue_id, self.cue["id"])
+        self.assertEqual(self.preview.par.top, self.snapshot.path)
+        self.ext._capture_look.assert_called_once_with(deck, capture_animation=True)
         self.ext.SelectCue.assert_called_once_with(1)
         self.ext._save_document_dat.assert_called_once()
 
@@ -69,6 +77,24 @@ class LookEditorTests(unittest.TestCase):
         self.assertEqual(self.ext.document, original)
         self.assertIs(self.ext._look_edit, draft)
         draft["deck"].destroy.assert_not_called()
+        self.assertNotEqual(draft["deck"].allowCooking, False)
+
+    def test_update_never_overwrites_foreign_preview(self):
+        self.ext.ownerComp.op.side_effect = None
+        with self.assertRaisesRegex(ValueError, "will not be overwritten"):
+            self.ext.UpdateLook()
+        self.ext._capture_look.assert_not_called()
+
+    def test_clear_saved_preview_is_scoped_to_owned_runtime(self):
+        result = Mock()
+        self.ext.ownerComp.op.side_effect = lambda name: result if name == "look_result" else self.preview
+        result.fetch.return_value = False
+        self.ext._clear_look_result()
+        result.destroy.assert_not_called()
+        result.fetch.return_value = True
+        self.ext._clear_look_result()
+        result.destroy.assert_called_once()
+        self.assertEqual(self.preview.par.top, "black")
 
     def test_invalid_draft_keeps_document_and_draft(self):
         original = copy.deepcopy(self.ext.document)
@@ -77,6 +103,7 @@ class LookEditorTests(unittest.TestCase):
             self.ext.UpdateLook()
         self.assertEqual(self.ext.document, original)
         self.assertIsNotNone(self.ext._look_edit)
+        self.ext._snapshot_look.assert_not_called()
 
     def test_changed_original_cannot_be_overwritten(self):
         self.ext.document["cues"][0]["name"] = "Externally changed"

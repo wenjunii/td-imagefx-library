@@ -50,7 +50,10 @@ def open_controls(show):
 
 
 def open_preview(show):
-    preview = active_deck(show).op("out1_image")
+    if not show.ext.ShowControlExt._look_edit and not show.op("look_result"):
+        raise ValueError("Select a visual cue and Recall Look first")
+    # A stable Select TOP survives Update Cue Look closing the draft.
+    preview = show.op("look_preview")
     if preview is None:
         raise ValueError("The recalled look has no output preview")
     preview.openViewer()
@@ -114,7 +117,8 @@ def install(show, order, labels):
         parameter = getattr(show.par, name, None)
         if parameter is None:
             parameter = page.appendPulse(name, label=label)[0]
-        parameter.enableExpr = "bool(me.par.Lookediting)"
+        parameter.enableExpr = ("bool(me.par.Lookediting) or me.op('look_result') is not None"
+                                if name == "Openlookpreview" else "bool(me.par.Lookediting)")
     status = getattr(show.par, "Lookcontrolstatus", None)
     if status is None:
         status = page.appendStr("Lookcontrolstatus", label="Controls Status")[0]

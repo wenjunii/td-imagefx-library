@@ -23,7 +23,7 @@ control. It starts bypassed in the demo to preserve existing looks.
 | Page | Controls |
 | --- | --- |
 | Ink Dream Flow | Master enable, dry/wet mix, background selection |
-| Timing | Auto/manual time, reversible time scale, repeatable random seed |
+| Timing | Animation Speed multiplier, auto/manual time, reversible time scale, repeatable random seed |
 | Composition | Center X/Y, scale, rotation, coverage, spread, ribbon stretch |
 | Liquid Flow | Separate liquid switch, deformation, speed/reverse, direction, drift, vortex curl, turbulence, wandering |
 | Ink Surface | Marbling, filament frequency, deep ink, diluted wash, bleeding edges, pigment pooling, granulation, dry brush |
@@ -50,12 +50,30 @@ are independent artistic values, not a particle count. Composition transforms
 also stretch the grains. Particle **Spread** distributes pigment beyond the
 liquid, including when ink coverage is low.
 
-With **Auto Time** on, **Time Scale = 0** freezes at effective time zero. To hold a particular moment,
-disable **Auto Time** and set **Manual Time**. Set liquid and particle speeds to zero to
+**Timing → Animation Speed (1 = Original)** is an independent 0–10× multiplier:
+0.5 = half speed, 1 = unchanged, 2 = double speed. The slider spans 0–4×;
+type a value for up to 10×. It scales liquid, particles, dots, animated glitter
+and static-glitter shimmer together without rewriting any existing parameters.
+It is saved with cue looks, including composition branches, and applies during
+Recall, GO and export. Old looks without this value use 1×. Changing Animation
+Speed preserves the current rendered frame: only subsequent clock movement
+uses the new rate. Zero holds that frame; increasing the value resumes from it.
+The pattern still evolves naturally, just faster or slower, with no immediate
+composition jump. Input video transport is unaffected. The displayed
+**Effective Time** remains the base clock; an embedded continuous clock tracks
+the rendered position separately. Cue looks save both positions, so speed
+edits also survive Update Cue Look, Recall, GO and offline export.
+
+Use **Animation Speed = 0** to hold the current generated frame. **Time Scale**
+and **Manual Time** retain their existing seek behavior; changing them can jump
+to another position. With **Auto Time** on, **Time Scale = 0** sets the base clock
+to zero. Disable **Auto Time** and set **Manual Time** to seek. Set liquid and particle speeds to zero to
 freeze their layers. Particles use the same family of flow fields but retain an
 independent clock. With glitter enabled, also set **Glitter Drift Speed** and
 **Shimmer Speed** to zero to freeze its motion. Seed and time reproduce a frame without simulation warm-up.
-Speed edits can jump phase; animate Manual Time for a continuous speed ramp.
+Use **Animation Speed** for live speed edits without phase jumps. The transient
+clock anchor resets on reopening a standalone TOE/TOX; saved cue looks restore
+their captured rendered position explicitly.
 
 ## Glitter
 

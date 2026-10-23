@@ -10,10 +10,10 @@ from touchdesigner.scripts import validate_live_suite as audit
 class LiveSuiteTests(unittest.TestCase):
     def test_all_output_and_mapping_groups_are_included(self):
         names = [item[0] for item in audit.VALIDATORS]
-        self.assertEqual(len(names), 27)
-        self.assertEqual(len(set(names)), 27)
+        self.assertEqual(len(names), 28)
+        self.assertEqual(len(set(names)), 28)
         self.assertTrue({"output_mode", "projector_review", "projection_mapping",
-                         "projection_resets", "projection_polygon"} <= set(names))
+                         "projection_resets", "projection_polygon", "show_navigation"} <= set(names))
         self.assertIn(("projection_resets", "validate_projection_mapping.py", "validate_resets"),
                       audit.VALIDATORS)
 
@@ -33,6 +33,15 @@ class LiveSuiteTests(unittest.TestCase):
             (Path(folder) / "fixture.py").write_text("validate_resets = None\n", encoding="utf-8")
             with self.assertRaisesRegex(RuntimeError, r"does not expose validate_resets\(\)"):
                 audit._run_validator("resets", "fixture.py", "validate_resets")
+
+    def test_nonboolean_or_empty_checks_cannot_pass(self):
+        with tempfile.TemporaryDirectory() as folder, patch.object(audit, "SCRIPT_ROOT", Path(folder)):
+            for checks in ({}, {"event": 1}, {"event": None}, {"event": "true"}):
+                with self.subTest(checks=checks):
+                    (Path(folder) / "fixture.py").write_text(
+                        "def validate(write_report=True):\n    return " + repr({"ok": True, "checks": checks}) + "\n",
+                        encoding="utf-8")
+                    self.assertFalse(audit._run_validator("fixture", "fixture.py")["ok"])
 
 
 if __name__ == "__main__":

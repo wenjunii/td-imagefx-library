@@ -52,6 +52,7 @@ VALIDATORS = (
     ("workflow", "validate_workflow.py"),
     ("all_effect_parameters", "validate_all_effect_parameters.py"),
     ("show_control", "validate_show_control.py"),
+    ("show_navigation", "validate_show_navigation.py"),
     ("wall_output", "validate_wall_output.py"),
     ("output_mode", "validate_output_mode.py"),
     ("projector_review", "validate_projector_review.py"),
@@ -84,13 +85,13 @@ def _run_validator(name, filename, entry_point="validate"):
     if not isinstance(result, dict):
         raise RuntimeError("{} returned a non-dictionary report".format(filename))
     failed_checks = [
-        key for key, value in result.get("checks", {}).items() if value is False
+        key for key, value in result.get("checks", {}).items() if value is not True
     ]
     summary = {
         "name": name,
         "script": filename,
         "entry_point": entry_point,
-        "ok": result.get("ok") is True and not failed_checks,
+        "ok": result.get("ok") is True and bool(result.get("checks")) and not failed_checks,
         "failed_checks": failed_checks,
         "generated_at": result.get("generated_at"),
         "duration_seconds": round(time.perf_counter() - started, 3),

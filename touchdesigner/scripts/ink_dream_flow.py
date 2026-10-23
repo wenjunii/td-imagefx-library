@@ -17,9 +17,11 @@ PARAMETERS = (
     dict(name="Background", label="Background", page="Ink Dream Flow", type="menu", default="paper",
          menu_names=["paper", "source", "transparent"], menu_labels=["Procedural Xuan Paper", "Input Image / Paper", "Transparent Ink"], uniform="uBackground"),
     dict(name="Autotime", label="Auto Time", page="Timing", type="toggle", default=True),
+    _control("Animationspeed", "Animation Speed (1 = Original)", "Timing", 1.0, 0.0, 10.0, norm_max=4.0),
     _control("Timescale", "Time Scale (0 = Freeze)", "Timing", 1.0, -5.0, 5.0),
     _control("Manualtime", "Manual Time", "Timing", 0.0, -100000.0, 100000.0, norm_min=0.0, norm_max=60.0),
-    _control("Time", "Effective Time", "Timing", 0.0, -500000.0, 500000.0, uniform="uTime", read_only=True, animatable=False),
+    _control("Time", "Effective Time", "Timing", 0.0, -500000.0, 500000.0, uniform="uTime", read_only=True, animatable=False,
+             uniform_expression="parent().op('animation_clock').module.sample(parent())"),
     dict(name="Seed", label="Random Seed", page="Timing", type="int", default=27, min=0, max=100000, uniform="uSeed"),
     dict(name="Center", label="Composition Center", page="Composition", type="xy", default=[0.0, 0.0], min=-1.0, max=1.0, uniform="uCenter"),
     _control("Scale", "Pattern Scale", "Composition", 1.25, 0.2, 6.0, uniform="uScale"),
@@ -702,6 +704,104 @@ def pack_scalar_uniforms(shader, definitions):
         values = []
         for axis, definition in zip("xyzw", scalar[index:index+4]):
             preamble.append("#define " + definition["uniform"] + " " + name + "." + axis)
-            values.append("parent().par." + definition["name"] + (".menuIndex" if definition["type"] == "menu" else ""))
+            values.append(definition.get("uniform_expression") or
+                          "parent().par." + definition["name"] + (".menuIndex" if definition["type"] == "menu" else ""))
         bindings.append((name, values))
     return "\n".join(preamble) + "\n" + shader, bindings
+
+
+ANIMATION_CLOCK_SOURCE = r'''
+"""Continuous speed changes, with a seekable clock for cue playback/export."""
+KEY = 'imagefx_ink_animation_clock'
+
+
+def reset(component, raw=None, phase=None, speed=None):
+    raw = float(component.par.Time.eval()) if raw is None else float(raw)
+    speed = float(component.par.Animationspeed.eval()) if speed is None else float(speed)
+    phase = raw * speed if phase is None else float(phase)
+    component.store(KEY, dict(raw=raw, phase=phase, speed=speed))
+    # Absolute application time restarts on reopening a TOE/TOX. Saved cue
+    # phases are restored explicitly; never reuse a previous session's anchor.
+    component.storeStartupValue(KEY, None)
+    return phase
+
+
+def sample(component):
+    raw = float(component.par.Time.eval())
+    speed = float(component.par.Animationspeed.eval())
+    state = component.fetch(KEY, None, search=False)
+    if state is None:
+        return reset(component, raw, speed=speed)
+    phase = state['phase'] + (raw - state['raw']) * state['speed']
+    if speed != state['speed']:
+        # Rebase at the old speed's current frame BEFORE using the new rate.
+        # This fallback also covers disabled/copy contexts without callbacks.
+        reset(component, raw, phase, speed)
+    return phase
+
+
+def change_speed(component, previous):
+    if component.fetch(KEY, None, search=False) is None:
+        reset(component, speed=float(previous))
+    return sample(component)
+'''
+
+
+def install_animation_clock(module):
+    """Install an embedded clock; standalone TOXs need no external scripts."""
+    import td
+    clock = module.op('animation_clock')
+    if clock is None:
+        clock = module.create(td.textDAT, 'animation_clock')
+    clock.text = ANIMATION_CLOCK_SOURCE
+    callback = module.op('animation_speed_changes')
+    if callback is None:
+        callback = module.create(td.parameterexecuteDAT, 'animation_speed_changes')
+    callback.par.active = False
+    callback.par.op = '..'
+    callback.par.pars = 'Animationspeed'
+    callback.par.custom, callback.par.builtin = True, False
+    callback.par.valuechange = True
+    callback.text = "def onValueChange(par, prev):\n    parent().op('animation_clock').module.change_speed(parent(), prev)\n    return\n"
+    callback.par.active = True
+    return clock
+
+
+def install_animation_speed(module):
+    """Upgrade the speed control in place, retaining values and visible phase.
+
+    Only the shader clock's rate changes, never the composition parameters.
+    """
+    shaders = [module.op("effect_glsl_" + name) for name in
+               ("ink_dream_flow", "ink_brush_flow", "ink_radial_flow")]
+    shaders = [shader for shader in shaders if shader is not None]
+    if len(shaders) != 1:
+        raise ValueError("Not an Ink Dream/Brush/Radial module: " + module.path)
+    shader = shaders[0]
+    definition = next(d for d in PARAMETERS if d["name"] == "Animationspeed")
+    expression = next(d for d in PARAMETERS if d["name"] == "Time")["uniform_expression"]
+    # All variants inherit the same first packed block. Locate by name rather
+    # than assuming the native GLSL TOP row index (XY bindings precede it).
+    _, bindings = pack_scalar_uniforms(SHADER, PARAMETERS)
+    uniform, values = next((name, values) for name, values in bindings if expression in values)
+    axis = "xyzw"[values.index(expression)]
+    rows = [i for i in range(shader.seq.vec.numBlocks)
+            if shader.par["vec{}name".format(i)].eval() == uniform]
+    if len(rows) != 1:
+        raise ValueError("Cannot uniquely locate ink animation clock")
+    binding = shader.par["vec{}value{}".format(rows[0], axis)]
+    if binding.expr not in ("parent().par.Time", "parent().par.Time * parent().par.Animationspeed", expression):
+        raise ValueError("Custom ink time binding will not be overwritten: " + binding.expr)
+    previous_phase = float(binding.eval())
+    if module.par["Animationspeed"] is None:
+        page = next(p for p in module.customPages if p.name == "Timing")
+        parameter = page.appendFloat(definition["name"], label=definition["label"])[0]
+        parameter.default = definition["default"]
+        parameter.val = definition["default"]
+        parameter.min, parameter.max = definition["min"], definition["max"]
+        parameter.normMin, parameter.normMax = definition["min"], definition["norm_max"]
+        parameter.clampMin = parameter.clampMax = True
+    clock = install_animation_clock(module)
+    clock.module.reset(module, phase=previous_phase)
+    binding.expr = expression
+    return binding

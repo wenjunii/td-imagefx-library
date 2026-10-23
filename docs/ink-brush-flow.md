@@ -34,6 +34,11 @@ ink surface, four RGBA palette colors, paper, animated glitter and the separate
 a deep navy background, pale-blue current/particle colors, finer particles,
 soft edges, matching liquid/particle speeds and no dry brush/granulation.
 Both glitter layers start off; enable either, both, or neither.
+**Timing → Animation Speed (1 = Original)** independently scales all generated
+motion and shimmer: 0.5× is slower, 2× is faster, and 1× preserves existing looks.
+It retains the individual layer speeds and current composition when changed;
+0× holds the current frame and increasing it resumes without a jump.
+See the [shared timing controls](ink-dream-flow.md#controls).
 The **Dot Pattern / Dot Pattern Motion** pages add a separately switchable
 flowing-dot sheet with 24 adjustable values, including RGBA components. Choose
 overlay/masked dots or dots on their own background; Brush's current field

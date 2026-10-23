@@ -430,6 +430,23 @@ class FxRackExtensionTests(unittest.TestCase):
         self.assertIsNone(self.owner.op("slot2"))
         self.assertIsNone(self.owner.op("slot8"))
 
+    def test_full_snapshot_reuses_installed_packages_and_applies_custom_values(self):
+        preset = self.rack.PresetData()
+        slots = [self.owner.op("slot{}".format(i)) for i in range(1, 9)]
+        preset["slots"][0]["parameters"]["Gain"] = 0.93
+        self.rack.ImportPreset(preset)
+        self.assertEqual(slots, [self.owner.op("slot{}".format(i)) for i in range(1, 9)])
+        self.assertEqual(slots[0].par.Gain.eval(), 0.93)
+
+    def test_partial_effect_values_reload_package_defaults(self):
+        preset = self.rack.PresetData()
+        original = self.owner.op("slot1")
+        original.par.Gain.val = 0.93
+        preset["slots"][0]["parameters"] = {}
+        self.rack.ImportPreset(preset)
+        self.assertIsNot(original, self.owner.op("slot1"))
+        self.assertEqual(self.owner.op("slot1").par.Gain.eval(), 0.5)
+
     def test_move_slot_down_preserves_each_effects_controls(self):
         self.owner.par["Slot1mix"].val = 0.11
         self.owner.par["Slot2mix"].val = 0.82

@@ -442,6 +442,7 @@ def _check_native_validation(library_version: str) -> None:
         raise VerificationError("Native validation is not bound to current show-control sources")
     module_sources = ("touchdesigner/scripts/ink_dream_flow.py", "touchdesigner/scripts/layer_composite.py", "touchdesigner/scripts/final_crop.py", "touchdesigner/scripts/workflow.py", "touchdesigner/scripts/wall_output.py", "touchdesigner/scripts/wall_output_controller.py", "touchdesigner/scripts/color_switch.py", "touchdesigner/scripts/image_composition.py", "touchdesigner/scripts/source_media.py", "touchdesigner/scripts/look_editor_controls.py", "touchdesigner/scripts/show_review_export.py", "touchdesigner/scripts/show_output_mode.py", "touchdesigner/scripts/projection_mapping.py")
     module_sources += ("touchdesigner/scripts/projection_polygon.py",)
+    module_sources += ("touchdesigner/scripts/show_live_look.py", "touchdesigner/extensions/FxRackExt.py")
     if record.get("module_sources") != {path: _sha256(ROOT / path) for path in module_sources}:
         raise VerificationError("Native validation is not bound to current module sources")
     environment = record.get("touchdesigner")

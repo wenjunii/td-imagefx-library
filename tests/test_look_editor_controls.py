@@ -23,6 +23,8 @@ class LookEditorControlTests(unittest.TestCase):
         self.show = Mock(path="/show")
         self.show.ext.ShowControlExt = self.ext
         self.show.op.return_value = self.deck
+        self.preview = Mock(path="/show/look_preview")
+        self.show.op.side_effect = lambda name: self.preview if name == "look_preview" else self.deck if name == "look_editor" else None
         self.show.par.Lookmodule.eval.return_value = "calligraphic_shadow"
 
     def call(self, name, *args):
@@ -51,13 +53,17 @@ class LookEditorControlTests(unittest.TestCase):
         self.deck.op.assert_not_called()
         self.show.parent.assert_not_called()
 
-    def test_preview_uses_draft_output(self):
-        self.assertIs(self.call("open_preview"), self.module)
-        self.deck.op.assert_called_once_with("out1_image")
-        self.module.openViewer.assert_called_once_with()
+    def test_preview_uses_stable_output_that_survives_commit(self):
+        self.assertIs(self.call("open_preview"), self.preview)
+        self.preview.openViewer.assert_called_once_with()
+
+    def test_saved_preview_can_be_opened_after_commit(self):
+        self.ext._look_edit = None
+        self.show.op.side_effect = lambda name: self.deck if name == "look_result" else self.preview
+        self.assertIs(self.call("open_preview"), self.preview)
 
     def test_missing_preview_is_reported(self):
-        self.deck.op.return_value = None
+        self.show.op.side_effect = lambda name: None if name == "look_preview" else self.deck
         with self.assertRaisesRegex(ValueError, "no output preview"):
             self.call("open_preview")
 
@@ -75,6 +81,7 @@ class LookEditorControlTests(unittest.TestCase):
                 self.call("open_controls")
 
     def test_stale_draft_is_rejected(self):
+        self.show.op.side_effect = None
         self.show.op.return_value = Mock()
         with self.assertRaisesRegex(ValueError, "unavailable"):
             self.call("open_controls")
@@ -119,7 +126,8 @@ class LookEditorControlTests(unittest.TestCase):
         for action in ("Editlookcontrols", "Openlookpreview"):
             with self.subTest(action=action):
                 self.assertTrue(self.call("on_pulse", action))
-                self.assertEqual(self.show.par.Lookcontrolstatus, "OFF-AIR: " + self.module.path)
+                target = self.preview if action == "Openlookpreview" else self.module
+                self.assertEqual(self.show.par.Lookcontrolstatus, "OFF-AIR: " + target.path)
 
     def test_pulse_errors_are_visible_without_reinitializing(self):
         self.ext._look_edit = None

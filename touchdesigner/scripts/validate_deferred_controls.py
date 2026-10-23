@@ -31,6 +31,9 @@ JOBS = (
     ("source_media", "validate_source_media.py", "validate_deferred", "source-media-deferred.json", "scope"),
     ("output_mode_events", "validate_output_mode.py", "validate_deferred", "output-mode-events.json", "scope"),
     ("mapping_events", "validate_projection_mapping.py", "validate_deferred", "projection-mapping-events.json", "scope"),
+    ("cue_playback", "validate_cue_playback.py", "start", "cue-playback.json", "dat_hd"),
+    ("look_animation", "validate_look_animation.py", "start", "look-animation.json", "dat_hd"),
+    ("show_live_look", "validate_show_live_look.py", "start", "show-live-look.json", "dat"),
 )
 FIXTURES = ("show-image-fixture.png", "show-av-fixture.mp4",
             "layer-top-fixture.png", "layer-backdrop-fixture.png")
@@ -57,7 +60,7 @@ def _summarize(job, report, source_hash):
 
 
 def validate():
-    """Schedule eleven real-frame validators; reject unsafe or overlapping runs."""
+    """Schedule all real-frame validators; reject unsafe or overlapping runs."""
     demo = op("/project1/imagefx_demo")
     if demo is None:
         raise RuntimeError("ImageFX demo is missing")
@@ -150,11 +153,14 @@ def validate():
                     parent.initializeExtensions()
                     dat = parent.create(textDAT, "media_audit")
                 else:
-                    dat = demo.create(textDAT, "look_media_audit")
+                    dat = demo.create(textDAT, job[0] + "_audit")
                     state["cleanup"] = dat.destroy
-                dat.text = source
+                dat.text = "__file__ = " + repr(str(script)) + "\n" + source
                 # Newly copied Parameter Execute DATs register on the next frame.
-                run("args[0]()", getattr(dat.module, job[2]), delayFrames=2)
+                if job[4] == "dat_hd":
+                    run("args[0](width=1920, height=1080)", getattr(dat.module, job[2]), delayFrames=2)
+                else:
+                    run("args[0]()", getattr(dat.module, job[2]), delayFrames=2)
             later()
         except Exception:
             # An interrupted validator can still own queued callbacks. Keep the
