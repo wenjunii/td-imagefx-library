@@ -76,6 +76,13 @@ def _repair_effect_shader_paths(root_comp):
             raise RuntimeError(
                 "{} Pixel Shader reference did not resolve".format(operator.path)
             )
+        # Retained package versions may also have an absolute diagnostic target.
+        # Repair the loaded copy without modifying the immutable package file.
+        info = operator.parent().op('shader_info_' + name[len('effect_glsl_'):])
+        if info is not None:
+            info.par['op'].val = info.relativePath(operator)
+            if info.par['op'].eval() != operator:
+                raise RuntimeError('{} diagnostic target did not resolve'.format(info.path))
         repaired += 1
     return repaired
 

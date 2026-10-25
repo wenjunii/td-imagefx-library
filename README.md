@@ -8,6 +8,38 @@ The current source contains **96 current effect IDs across 18 categories**, back
 
 Canonical repository: [github.com/wenjunii/td-imagefx-library](https://github.com/wenjunii/td-imagefx-library)
 
+## Optional Particle Field conversion
+
+In `ink_dream_flow`, `ink_brush_flow` and `ink_radial_flow`, **Particle Field →
+Particle Field Enabled** starts **off**. Off retains the original renderer,
+composition, motion, palette and defaults. On converts the existing foreground
+(including currents, wisps, glow, dot patterns and glitter) into discrete points
+inspired by `reference_particle_field`; it does not replace the flow generator,
+reseed it, or reset the animation clock.
+
+The same page provides **Particle Columns** (8–500), **Point Shape** (round,
+square, spark), **Point Depth Variation**, **Field Cell Fill** and **Field Point
+Size**. These are independent of the original pigment-particle controls and do
+nothing when the conversion is off. Background paper/input/transparent settings
+remain available. Old cues without the new switch stay in their original style;
+Capture/Update Cue Look saves the optional conversion with the look.
+See [shared controls and compatibility](docs/ink-dream-flow.md#optional-particle-field).
+
+**Point Motion Speed / Reverse** now moves the actual points along the flow,
+not just their colors. It starts at 0 (hold, preserving existing looks); try 1
+for motion or a negative value for reverse. Rate changes are continuous and cue
+looks retain the point phase. The underlying flow composition stays unchanged.
+
+All three modules also have a separate **Feedback** page, **off by default**:
+trail mix, retention/decay, zoom, rotation, X/Y offset and **Reset Feedback**.
+It works with or without Particle Field. Cue loads clear old trails; settings
+are saved, GPU history is not. See [feedback behavior](docs/ink-dream-flow.md#optional-feedback).
+
+To try it: enable the flow module, turn on **Particle Field Enabled**, set
+**Point Motion Speed / Reverse** to 1, then enable **Feedback** for trails.
+Use **Reset Feedback** to clear the trails without changing the flow settings.
+Leave both optional switches off to retain the original appearance and movement.
+
 ## Flowing dot patterns
 
 **Ink Dream Flow, Ink Brush Flow and Ink Radial Flow** now each include
@@ -296,7 +328,7 @@ git clone https://github.com/wenjunii/td-imagefx-library.git
 cd td-imagefx-library
 ```
 
-The clean Windows release build used TouchDesigner `2025.32820` and validated all 96 current effects with 124 versioned effect `.tox` files, nineteen core `.tox` files, one library `.toe`, 96 previews, 96 visual baselines, and 96 benchmark samples. That build report contains zero shader, preview, or builder errors. A fresh repository run completed 548 tests successfully, with four expected Windows symlink-permission skips. The release TOE contains clean defaults, not personal cues or media. In-place patches and saved personal cues are not a new full native-build certification; regenerate and validate distributable artifacts before publishing a release. Read [TouchDesigner setup](docs/touchdesigner-setup.md) to reproduce the native build.
+The clean Windows release build used TouchDesigner `2025.32820` and validated all 96 current effects with 124 versioned effect `.tox` files, nineteen core `.tox` files, one library `.toe`, 96 previews, 96 visual baselines, and 96 benchmark samples. That build report contains zero shader, preview, or builder errors. A fresh repository run completed 561 tests successfully, with four expected Windows symlink-permission skips. The release TOE contains clean defaults, not personal cues or media. In-place patches and saved personal cues are not a new full native-build certification; regenerate and validate distributable artifacts before publishing a release. Read [TouchDesigner setup](docs/touchdesigner-setup.md) to reproduce the native build.
 
 The generated project targets TouchDesigner 2025. Validate the exact TouchDesigner build, operating system, GPU, driver, resolution, pixel format, and color pipeline used by your production system. Python 3.11 or newer is required for repository tooling; it is not required merely to use already-built native components.
 
@@ -721,7 +753,7 @@ Enable **Ink Radial Flow Enabled** on `/project1/imagefx_demo`, then select
 look. **Composition Center** positions the center; **Radial Flow** adds enable,
 radial/brush blend, ring frequency, outward speed/inward reverse, spiral and
 organic wandering. **Radial Light** adds opening radius, central light,
-palette atmosphere and outer fade. It has 154 writable values; show looks
+palette atmosphere and outer fade. It has 169 writable values plus a feedback reset pulse; show looks
 capture eligible effect controls, with timing managed by the cue clock.
 Both glitter layers default off. Turning radial mode off, or its
 blend to zero, gives the inherited brush renderer with the selected palette.

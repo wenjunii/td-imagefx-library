@@ -49,7 +49,7 @@ def validate(write_report=True, brush=False, radial=False):
         shader = test.op("effect_glsl_" + module_name)
         defaults = {}
         for d in definitions:
-            if d.get("read_only"):
+            if d.get("read_only") or d['type'] == 'pulse':
                 continue
             suffixes = d["type"] if d["type"] in ("xy", "rgb", "rgba") else ""
             if suffixes:
@@ -67,6 +67,7 @@ def validate(write_report=True, brush=False, radial=False):
             set_values(defaults)
             set_values(values)
             test.op('animation_clock').module.reset(test)
+            test.op('animation_clock').module.field_reset(test)
 
         def capture(node=output):
             node.cook(force=True)
@@ -102,7 +103,22 @@ def validate(write_report=True, brush=False, radial=False):
             if par.readOnly:
                 checks[par.name + "_readonly"] = par.name == "Time" and bool(par.expr)
                 continue
+            if par.name.startswith('Feedback'):
+                # History needs separate advancing frames: validate_flow_feedback.py.
+                if par.isPulse:
+                    par.pulse()
+                    checks[par.name + '_wired'] = test.op('flow_feedback_changes') is not None
+                    continue
+                values = [False, True] if par.isToggle else [float(par.min), float(par.max)]
+                for value in values:
+                    par.val = value
+                    checks[par.name + '_accepts_' + str(value)] = par.eval() == value
+                controls[par.name] = dict(values=values, accepted=[True]*len(values), deferred_pixel_test='validate_flow_feedback.py')
+                continue
             reset()
+            if par.name in ("Particlecolumns", "Particleshape", "Particledepth", "Fielddensity", "Fieldsize", "Fieldspeed"):
+                # New point-conversion controls are deliberately inert when off.
+                reset(Particlefieldenabled=True, Particlecolumns=24, Fieldsize=4.)
             if par.name.startswith("Pattern") and par.name != "Patternenabled":
                 # Own-background mode exposes every RGBA component; a coarser
                 # lattice keeps endpoint changes visible in this 320px fixture.
@@ -142,13 +158,13 @@ def validate(write_report=True, brush=False, radial=False):
                     capture()
             images, accepted = [], []
             for value in values:
-                if par.name == 'Animationspeed':
-                    reset()
+                if par.name in ('Animationspeed', 'Fieldspeed'):
+                    reset(**({'Particlefieldenabled': True, 'Particlecolumns': 24, 'Fieldsize': 4.} if par.name == 'Fieldspeed' else {}))
                     before_speed = capture()
                 par.val = value
                 accepted.append(par.eval() == value)
-                if par.name == 'Animationspeed':
-                    checks['speed_change_no_jump_' + str(value)] = np.array_equal(before_speed, capture())
+                if par.name in ('Animationspeed', 'Fieldspeed'):
+                    checks[par.name + '_change_no_jump_' + str(value)] = np.array_equal(before_speed, capture())
                     test.par.Manualtime = 4.7
                 images.append(capture())
             changes = [difference(images[i], images[j]) for i in range(len(images)) for j in range(i+1, len(images))]
@@ -172,6 +188,7 @@ def validate(write_report=True, brush=False, radial=False):
         speed_expression = binding.expr
         for case, enabled in (
             ("liquid_particles", {}),
+            ("particle_conversion", dict(Particlefieldenabled=True, Particlecolumns=24)),
             ("dot_pattern", dict(Patternenabled=True, Patternmode="replace")),
             ("moving_glitter", dict(Glitterenabled=True, Glitterspread=1.)),
             ("static_shimmer", dict(Staticglitterenabled=True, Staticglittershimmer=1., Staticglitterspread=1.)),
@@ -216,6 +233,30 @@ def validate(write_report=True, brush=False, radial=False):
         transparent = capture()
         checks["transparent_ink_has_alpha_variation"] = float(np.ptp(transparent[:,:,3])) > .1
         checks["transparent_alpha_bounded"] = bool(((transparent[:,:,3]>=0)&(transparent[:,:,3]<=1)).all())
+        checks["particle_field_default_off"] = defaults["Particlefieldenabled"] is False
+        reset(Background="transparent", Particlefieldenabled=True, Fielddensity=0.)
+        if brush or radial:
+            set_values(dict(Brushglow=3., Brushhaze=1.))
+        if radial:
+            set_values(dict(Radialglow=2., Radialatmosphere=1.))
+        checks["zero_field_density_removes_entire_foreground"] = float(np.max(np.abs(capture()))) == 0.
+        reset()
+        original = capture()
+        phase = test.op('animation_clock').module.sample(test)
+        set_values(dict(Particlecolumns=72, Particleshape="spark", Particledepth=1., Fielddensity=.2, Fieldsize=6.))
+        checks["field_controls_off_do_not_change_original"] = np.array_equal(original,capture())
+        test.par.Particlefieldenabled=True
+        checks["field_on_changes_texture"] = difference(original,capture()) > 1e-6
+        checks["field_switch_does_not_reset_clock"] = test.op('animation_clock').module.sample(test) == phase
+        test.par.Particlefieldenabled=False
+        checks["field_off_restores_original_exactly"] = np.array_equal(original,capture())
+        # Verify visibly separate points in a fully populated, high-coverage
+        # field; native 320px output uses fewer columns to resolve the gaps.
+        reset(Background="transparent", Particlefieldenabled=True, Particlecolumns=24, Fieldsize=2.,
+              Fielddensity=1., Coverage=1., Spread=2., Particlesenabled=False)
+        isolated = capture()[:,:,3]
+        checks["flow_points_have_empty_gaps"] = float(np.mean(isolated==0.)) > .35
+        checks["flow_points_are_visible"] = float(np.max(isolated)) > .1
         for name in ("Particledensity", "Particleamount", "Particlecolora"):
             reset(Liquidenabled=False, Background="transparent", **{name: 0.0})
             checks[name + "_zero_removes_particles"] = float(np.max(np.abs(capture()))) == 0.0
@@ -429,7 +470,7 @@ def validate(write_report=True, brush=False, radial=False):
             first=capture()
             test.par.Manualtime=20.
             checks["radial_inherited_clocks_freeze"] = np.array_equal(first,capture())
-        checks["all_controls_covered"] = set(controls) == {p.name for p in test.customPars if not p.readOnly}
+        checks["all_controls_covered"] = set(controls) == {p.name for p in test.customPars if not p.readOnly and not p.isPulse}
         toggle = "Inkradialenabled" if radial else "Inkbrushenabled" if brush else "Inkdreamenabled"
         upstream = "ink_brush_flow" if radial else "ink_dream_flow" if brush else "ink_orbit_canvas"
         downstream = "ink_flow" if radial else "ink_radial_flow" if brush else "ink_brush_flow"
@@ -446,6 +487,14 @@ def validate(write_report=True, brush=False, radial=False):
             reset(Glitterenabled=True, Staticglitterenabled=True, Patternenabled=True)
             rendered = capture()
             checks[str(width) + "x" + str(height)] = rendered.shape[:2] == (height,width)
+            test.par.Particlefieldenabled = True
+            rendered = capture()
+            checks[str(width) + "x" + str(height) + "_particle_field"] = rendered.shape[:2] == (height,width)
+            test.par.Fieldspeed = 1.
+            test.op('animation_clock').module.field_reset(test, phase=1.5)
+            test.par.Feedbackenabled = True
+            rendered = capture()
+            checks[str(width) + "x" + str(height) + "_motion_feedback"] = rendered.shape[:2] == (height,width)
         report.update(checks=checks, controls=controls, control_count=len(controls), ok=all(checks.values()))
     except Exception:
         report.update(checks=checks, controls=controls, error=traceback.format_exc())

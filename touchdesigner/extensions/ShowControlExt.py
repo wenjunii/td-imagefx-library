@@ -376,6 +376,10 @@ class ShowControlExt:
                             clocks[name]["render_time"] = self.model.ink_render_time(
                                 clocks[name]["time"], float(module.par.Animationspeed.eval()),
                                 module.fetch(self.model.INK_CLOCK_KEY, None, search=False))
+                            if module.par['Fieldspeed'] is not None:
+                                clocks[name]['field_time'] = self.model.ink_render_time(
+                                    clocks[name]['render_time'], float(module.par.Fieldspeed.eval()),
+                                    module.fetch(self.model.INK_FIELD_CLOCK_KEY, None, search=False))
             look["animation"] = clocks
         look["order"] = demo.op("workflow").module.current(demo)
         layer = demo.op("layer_composite")
@@ -644,6 +648,18 @@ class ShowControlExt:
                         module.store(self.model.INK_CLOCK_KEY, dict(raw=float(phase),
                             phase=float(clock.get("render_time", phase * speed)), speed=speed))
                         module.storeStartupValue(self.model.INK_CLOCK_KEY, None)
+                        if module.par['Fieldspeed'] is not None:
+                            render_phase = float(clock.get('render_time', phase * speed))
+                            field_speed = float(module.par.Fieldspeed.eval())
+                            module.store(self.model.INK_FIELD_CLOCK_KEY, dict(raw=render_phase,
+                                phase=float(clock.get('field_time', render_phase * field_speed)), speed=field_speed))
+                            module.storeStartupValue(self.model.INK_FIELD_CLOCK_KEY, None)
+                        # Never bring trails from a prior use of this playback deck.
+                        module.store('imagefx_flow_feedback_state', None)
+                        module.storeStartupValue('imagefx_flow_feedback_state', None)
+                        history = module.op('flow_feedback_history')
+                        if history is not None:
+                            history.par.resetpulse.pulse()
         composition=deck.op("image_composition")
         if composition is not None:
             enabled=active and bool(deck.par.Imagecompositionenabled)

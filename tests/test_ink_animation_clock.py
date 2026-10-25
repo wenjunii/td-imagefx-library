@@ -22,7 +22,7 @@ class Value:
 
 class Component:
     def __init__(self, raw=0., speed=1.):
-        self.par = SimpleNamespace(Time=Value(raw), Animationspeed=Value(speed))
+        self.par = SimpleNamespace(Time=Value(raw), Animationspeed=Value(speed), Fieldspeed=Value(0.))
         self.storage = {}
         self.startup = {}
 
@@ -115,6 +115,44 @@ class InkAnimationClockTests(unittest.TestCase):
             captured = show.ink_render_time(raw, speed, c.fetch(show.INK_CLOCK_KEY))
             self.assertEqual(captured, CLOCK['sample'](c))
         self.assertEqual(show.ink_render_time(5., 2.), 10.)
+
+    def test_field_speed_changes_are_continuous_and_can_reverse(self):
+        c = Component(10.)
+        self.assertEqual(CLOCK['field_sample'](c), 0.)
+        c.par.Fieldspeed.value = 1.
+        self.assertEqual(CLOCK['change_field_speed'](c, 0.), 0.)
+        c.par.Time.value = 12.
+        self.assertEqual(CLOCK['field_sample'](c), 2.)
+        c.par.Fieldspeed.value = -2.
+        self.assertEqual(CLOCK['change_field_speed'](c, 1.), 2.)
+        c.par.Time.value = 13.
+        self.assertEqual(CLOCK['field_sample'](c), 0.)
+
+    def test_field_clock_holds_with_zero_or_master_freeze(self):
+        c = Component(10.)
+        c.par.Fieldspeed.value = 1.
+        CLOCK['field_reset'](c, phase=3.)
+        self.speed(c, 0.)
+        c.par.Time.value = 30.
+        self.assertEqual(CLOCK['field_sample'](c), 3.)
+        self.speed(c, 1.)
+        c.par.Fieldspeed.value = 0.
+        CLOCK['change_field_speed'](c, 1.)
+        c.par.Time.value = 40.
+        self.assertEqual(CLOCK['field_sample'](c), 3.)
+
+    def test_field_cue_phase_and_export_reproduce_motion(self):
+        c = Component(17., .5)
+        c.par.Fieldspeed.value = .75
+        CLOCK['reset'](c, phase=8.)
+        CLOCK['field_reset'](c, phase=4.)
+        self.assertEqual(CLOCK['FIELD_KEY'], show.INK_FIELD_CLOCK_KEY)
+        c.par.Time.value = 21.
+        self.assertEqual(CLOCK['field_sample'](c), 5.5)
+        self.assertEqual(show.ink_render_time(10., .75, c.fetch(show.INK_FIELD_CLOCK_KEY)), 5.5)
+        c.par.Time.value = 17.
+        self.assertEqual(CLOCK['field_sample'](c), 4.)
+        self.assertIsNone(c.startup[show.INK_FIELD_CLOCK_KEY])
 
 
 if __name__ == '__main__':

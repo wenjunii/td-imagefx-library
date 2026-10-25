@@ -1,5 +1,154 @@
 # Control validation
 
+## Release recheck — 2026-10-25
+
+The final Particle Field, point-motion and optional Feedback build was checked
+again in TouchDesigner 2025.32820 on the RTX 3080 Ti Laptop GPU. Both optional
+effects remain off by default; existing flow composition and movement are
+unchanged when Particle Field is off.
+
+- **28 blocking groups / 5,682 checks** and **16 real-frame groups / 517 checks
+  passed**. These cover parameter bindings, slider endpoints, numeric values,
+  menus, colors, pulse buttons, cue playback, mapping and resets. The three flow
+  modules include **477 writable values / 2,948 checks**, **93 motion/feedback
+  checks**, and **126 cue animation checks** at 1080p.
+- The export validator now records all three flow modules with custom Particle
+  Field, point motion and Feedback settings. It checks every custom value in the
+  isolated export deck and observes active, non-clearing GPU history after
+  initialization. Portable regressions protect these fixtures and their template.
+- **20 cue/draft export checks** passed. All **eight exported movies** decoded
+  with the expected codec, dimensions, frame rate and frame count, no audio
+  stream, and non-black output. The three new flow movies also had measurably
+  different first/last frames. Cancel and preservation of the main look/show
+  passed.
+- **Seven wall-recorder checks** passed, including early Stop and Cancel. All
+  three completed UHD recordings decoded at **3840 × 2160** with correct
+  top-left / top-right / bottom-left projector ordering and a bottom-right
+  confidence preview plus diagnostics.
+- The legacy-renderer comparison passed **159 checks**, with all **27 off-mode
+  comparisons pixel-exact**. The final canonical reopen passed **660 checks**
+  across **81 flow instances** and **324 local shader diagnostic targets**, with
+  zero native errors/warnings. All **4,903 embedded text DATs** passed credential
+  scanning. The personal show JSON and final TOE hashes were unchanged by this
+  recheck.
+- The publication-only snapshot passed **561 portable tests** (four expected
+  Windows symlink skips), credential scanning, native-artifact provenance,
+  all 96 preview baselines, feeds and benchmark checks. The main TOE and nineteen
+  core TOXs are included; personal media, show files, credentials and unrelated
+  rejected dance prototypes are excluded. Existing package versions are unchanged.
+
+**Recording limitation:** the short UHD H.264 30-fps test reported **10 dropped
+frames at startup**. The MJPEG 25-fps and later H.264 early-stop fixtures reported
+zero. Successful control/export checks do not certify seamless real-time
+recording under show load. Physical projector/processor connections and audible
+stereo output were not tested; output windows and audio stayed disarmed. Rehearse
+the actual media, feedback and recording workload before a performance.
+
+Fresh local reports are in `build/envoy-validation/`, with the saved-file audit
+in `build/flow-motion-feedback/reopen.json` and original-renderer comparison in
+`build/optional-particle-review/comparison.json`. These machine-local fixtures
+and reports remain ignored. The main canonical TOE is reopened with clean,
+stopped/disarmed defaults; the personal show remains backed up and unchanged.
+
+## Point movement and optional flow feedback — 2026-10-25
+
+Ink Dream Flow, Ink Brush Flow and Ink Radial Flow now have a continuous
+**Point Motion Speed / Reverse** control and an independent, default-off
+**Feedback** page. Point centers move along bounded flow-aligned paths; changing
+speed preserves the current point phase. Zero holds positions, negative reverses,
+and the default remains zero for compatibility. Particle Field itself stays off.
+The original flow composition is not warped by the added motion.
+
+Feedback provides trail mix, retention, zoom, rotation, X/Y offset and a reset
+pulse. It works with the original renderer or Particle Field. History is cleared
+on cue load, re-enable, large seeks and resolution changes; pauses hold it.
+Settings and point phase are captured in looks, but GPU history is not saved.
+Recalled looks/exports therefore build fresh trails from their saved phase.
+
+- The main TOE and nineteen core TOXs rebuilt without builder, shader or
+  preview errors in TouchDesigner 2025.32820. Removing a stateful phase readout
+  resolved a dependency warning in copied cue/composition modules; phase remains
+  internal and is still saved with cues.
+- All **28 blocking groups / 5,682 checks passed**, including sweeps of
+  **149 Dream / 159 Brush / 169 Radial writable values** (2,948 checks).
+- All **16 real-frame groups / 517 checks passed**, including cue/media,
+  mapping, Continue/Follow, live look editing and the new history fixture.
+- The dedicated real-frame motion/feedback fixture passed **93 checks** across
+  all three modules. It isolates alpha support to prove that point positions
+  move, not only colors. It tests no-jump rate edits, hold/reverse, continuity,
+  real history trails, pause, reset pulse, every history transform, zero-mix
+  bypass, zero retention, clean re-enable/seek, transparency and module bypass.
+- Cue animation tests passed **126 checks** at 1080p, including the saved point
+  phase and feedback settings through Update Cue Look, Recall, GO and isolated
+  export setup, alongside existing preview stability and composition checks.
+- The original-renderer comparison was repeated after the point-motion change:
+  **159 checks passed**, with all **27 off-mode comparisons pixel-exact**.
+- Reopen testing also found legacy absolute targets in rack shader Info DATs.
+  Builder, rack and library loaders now repair those diagnostic references in
+  loaded copies, leaving immutable package files unchanged. A portable
+  regression test covers each loader.
+- The final canonical reopen passed **660 checks**: current code and safe
+  defaults in all **81 flow instances**, **324 valid local diagnostic targets**,
+  no native errors/warnings, disarmed outputs and an unchanged personal show.
+  Credential scanning also passed for **4,903 embedded text DATs**.
+- The tracked-file verification snapshot passed **558 portable tests** (four
+  expected Windows symlink skips), credential scanning, native provenance,
+  96 gallery baselines, feeds and benchmark checks. Unrelated local dance
+  prototypes were preserved and excluded from the snapshot.
+
+The prior local TOE, core TOXs and personal show are backed up under
+`build/backups/pre-flow-motion-feedback-20261025/`. The personal show JSON was
+preserved, and rejected dance prototypes remain separate and untouched. Reports
+are in the ignored `build/envoy-validation/` and `build/flow-motion-feedback/`
+folders. Physical outputs/audio stayed disarmed. This is local functional
+validation, not GitHub publication or sustained multi-projector performance
+certification; feedback adds GPU history work when enabled.
+
+## Optional Particle Field with original flow restored — 2026-10-25
+
+This correction supersedes the earlier always-particle revision. Ink Dream Flow,
+Ink Brush Flow and Ink Radial Flow retain their original renderer, defaults,
+parameter labels and ranges. **Particle Field Enabled** is a separate, default-off
+switch; it converts the finished foreground without changing the flow generator,
+composition coordinates, seed or animation clock. The paper/input background is
+retained. New cell-fill and point-size controls do not reuse the original pigment
+density/size controls.
+
+- A side-by-side native comparison against the pre-particle source passed
+  **159 checks**. All **27 off-mode frame comparisons were pixel-exact** across
+  three modules, three configurations and three times. Old parameter definitions
+  and defaults matched exactly; new controls were inert while conversion was off.
+- On-mode checks verified unchanged foreground support and palette, a stable
+  point mask across time, zero-density behavior, exact toggle round-trips and no
+  animation-clock reset. 1080p original/converted previews were inspected.
+- A clean TouchDesigner 2025.32820 build completed with no builder, shader or
+  preview errors. The canonical TOE and nineteen core TOXs were rebuilt.
+- Native pixel sweeps passed **141 Dream / 151 Brush / 161 Radial writable
+  values**, totaling **2,876 checks**. Coverage includes exact bypass, new controls,
+  alpha/gaps, glitter/shimmer, no-jump speed changes with conversion on and off,
+  deterministic seeking, radial fallback, and 1080p/4K output dimensions.
+- The complete blocking workflow suite passed **28 groups / 5,610 checks**,
+  including the module sweeps above and existing control/binding/output checks.
+- The real-frame suite passed **15 groups / 397 checks**, including all six
+  optional field controls in Capture/Update, Recall and GO, legacy-cue default-off
+  behavior, preview/phase stability, Continue/Follow and blackout playback.
+- Reopening the canonical TOE passed **334 startup checks**: current shaders and
+  default-off field controls in all **81 module instances**, empty native
+  diagnostics, safe/disarmed outputs and the personal show hash unchanged.
+  Credential scanning passed for all **4,093 embedded text DATs**.
+- The tracked-file snapshot passed **551 portable tests** (four expected Windows
+  symlink skips), credential scanning, native provenance, 96 gallery baselines,
+  feeds and benchmarks. Unrelated local dance prototypes were preserved and
+  excluded from this snapshot.
+
+The prior local TOE, core TOXs and personal show are backed up under
+`build/backups/pre-optional-particle-field-20261025-160320/`; the original ink-style
+backup remains under `build/backups/pre-particle-flow-20261025/`. The personal show
+JSON is not modified. Comparison reports and previews are in the ignored
+`build/optional-particle-review/` folder. This is local validation, not a GitHub
+publication or sustained multi-projector performance certification. Physical
+outputs/audio remain disarmed during tests.
+
 ## Full control revalidation and publication — 2026-10-23
 
 The clean main TOE containing the Continue/Follow fix and per-cue Notes column

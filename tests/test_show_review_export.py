@@ -5,9 +5,37 @@ import unittest
 from unittest.mock import Mock, patch
 
 from touchdesigner.scripts import show_review_export as review
+from touchdesigner.scripts import validate_show_review_export as validation
 
 
 class ReviewExportTests(unittest.TestCase):
+    def test_flow_export_fixtures_cover_all_three_modules(self):
+        self.assertEqual(validation.FLOW_MODULES, (
+            'ink_dream_flow', 'ink_brush_flow', 'ink_radial_flow'))
+        for name in validation.FLOW_MODULES:
+            look = validation.flow_export_look({'toggles': {'Other': True}}, name, 'Flow')
+            self.assertEqual(look['toggles'], {'Other': False, 'Flow': True})
+            values = look['modules'][name]
+            self.assertFalse({'Enabled', 'Time', 'Autotime', 'Manualtime'} & set(values))
+            self.assertTrue(values['Particlefieldenabled'])
+            self.assertGreater(values['Fieldspeed'], 0)
+            self.assertTrue(values['Feedbackenabled'])
+            self.assertGreater(values['Feedbackamount'], 0)
+            self.assertTrue(look['animation'][name]['running'])
+            self.assertEqual(look['animation'][name]['field_time'], .75)
+
+    def test_flow_export_fixture_preserves_template(self):
+        template = {'toggles': {'Shadow': True}, 'modules': {'shadow': {'Mix': .3}},
+                    'animation': {'shadow': {'time': 1, 'running': False}}, 'order': ['shadow']}
+        before = copy.deepcopy(template)
+        result = validation.flow_export_look(template, 'ink_dream_flow', 'Dream')
+        result['order'].append('ink_dream_flow')
+        self.assertEqual(template, before)
+
+    def test_flow_export_fixture_rejects_unknown_module(self):
+        with self.assertRaises(ValueError):
+            validation.flow_export_look({}, 'unknown', 'Unknown')
+
     def settings(self, **changes):
         values = dict(source='cue', preset='1080p', width=1920, height=1080,
                       fps=30, duration=10, start=0, codec='h264')

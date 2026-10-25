@@ -33,6 +33,7 @@ JOBS = (
     ("mapping_events", "validate_projection_mapping.py", "validate_deferred", "projection-mapping-events.json", "scope"),
     ("cue_playback", "validate_cue_playback.py", "start", "cue-playback.json", "dat_hd"),
     ("look_animation", "validate_look_animation.py", "start", "look-animation.json", "dat_hd"),
+    ("flow_feedback", "validate_flow_feedback.py", "start", "flow-feedback.json", "dat"),
     ("show_live_look", "validate_show_live_look.py", "start", "show-live-look.json", "dat"),
     ("show_continue", "validate_show_continue.py", "start", "show-continue.json", "dat"),
 )

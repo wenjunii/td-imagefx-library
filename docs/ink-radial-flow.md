@@ -6,6 +6,62 @@ wandering take inspiration from the supplied central-vortex image. Warm coral,
 magenta, cyan-white and gold defaults are adjustable. No reference image,
 figures, tutorial code or third-party engine are bundled.
 
+## Optional Particle Field
+
+**Particle Field → Particle Field Enabled** is **off by default**. With it off,
+this module uses its original renderer, including the original composition,
+movement, palette, textures and defaults. Turning it on applies a point-sprite
+treatment to that same foreground; it does not change any flow coordinates,
+timing, seed, current contours or radial phases. Turning it back off restores the
+unconverted view at the current animation time, without restarting.
+
+| Control | Purpose |
+| --- | --- |
+| Particle Field Enabled | Convert the completed foreground into points; off preserves the original |
+| Particle Columns | 8–500 columns of point cells across the output |
+| Point Shape | Round point, square pixel or cross spark |
+| Point Depth Variation | Per-point size and brightness variation |
+| Field Cell Fill | Fraction of occupied cells; zero removes the converted foreground |
+| Field Point Size | Point radius within each cell, independent of the original pigment size |
+| Point Motion Speed / Reverse | -3 to +3; try 1 to move points, negative reverses, 0 holds positions |
+
+These controls do not change the original **Particles** page. Point Motion Speed
+starts at **0** for compatibility. Set it to **1** for flow-aligned point
+wandering; negative values reverse, zero holds the
+current positions. Rate changes preserve the current point phase. The underlying
+composition is not warped by this extra motion. Each point center moves along
+a bounded local path, keeping its shape intact (not persistent physics).
+The liquid/current layers, pigment wisps, glow, optional dot pattern and both
+glitter layers pass through the conversion together. Paper/input background is
+retained; **Transparent Ink** provides a particle foreground for compositing.
+Use the existing layer switches, palette and animation controls as before.
+This is a procedural particle rendering treatment, not an additional physical
+particle simulation.
+
+Old cue looks missing `Particlefieldenabled` use false and keep the original
+look. New Capture/Update Cue Look operations save the switch and field settings
+for Recall, GO and export. The previous always-particle revision is superseded;
+original defaults and renderer behavior are restored. The point clock is saved
+alongside the main animation clock for Recall, GO and export.
+
+## Optional Feedback
+
+The **Feedback** page is **off by default**, independent of Particle Field.
+Enable it for fading motion trails on either the original flow or its point
+version. Adjust **Feedback / Trail Mix**, **History Retention**, **Trail Zoom**,
+**Trail Rotation**, and **Trail Offset X/Y**. **Reset Feedback** clears the trail.
+Retention near 0.95 gives longer trails; 0 removes them. Mix 0 is exact bypass.
+Zoom/rotation/offset describe a 60-fps history step and scale with elapsed
+animation time. Pausing the animation holds the history.
+
+Cue load, re-enable, resolution changes and large time seeks clear history.
+Feedback parameters are saved, but previous GPU frames are not: a recalled
+cue/export builds fresh trails from its saved starting phase. A captured still
+can therefore show trails that need time to develop again. Reset after deliberate
+small manual seeks when a clean first frame is required. Feedback adds two GPU
+passes and a history texture; its render branch is bypassed when off. Test the complete show at output
+resolution before performance.
+
 ## Run
 
 1. Open the rebuilt `TD_ImageFX_Library.toe`, not a numbered backup.
@@ -84,7 +140,7 @@ ring frequency. Particle-only rendering is available with Liquid Ink off.
 
 ## Show cues and validation
 
-The module has 154 writable values. **Capture Look** saves eligible effect
+The module has 169 writable values plus a feedback reset pulse. **Capture Look** saves eligible effect
 values plus the demo enable toggle; Auto/Manual Time and module enable are
 managed by the cue clock and routing rather than duplicated in the look.
 Parameter cues can target `ink_radial_flow/Radialspeed`,
@@ -98,11 +154,13 @@ exact radial-off/zero brush fallback, outward/inward ring phase direction,
 center-safe finite pixels, all inherited glitter checks, range endpoints,
 transparent output and 1080p/4K dimensions. Its temporary copies are removed,
 and it never saves the live project. The full live suite includes this module
-and show-cue capture/glitter checks.
+and show-cue capture/glitter checks. `validate_flow_feedback.py` separately checks
+moving point support and feedback controls/reset across advancing frames.
 
 This is a bounded deterministic procedural flow-field effect, not a physical
 fluid simulation or exact reconstruction of the artwork. Smoothly periodic
 angular harmonics avoid a polar seam, and a softened origin avoids a center
-singularity. No feedback warm-up is required. Rehearse the complete cue chain
+singularity. No warm-up is required with Feedback off. Optional Feedback builds
+trails from prior frames. Rehearse the complete cue chain
 with every projector; successful 4K rendering does not prove sustained
 multi-output performance.

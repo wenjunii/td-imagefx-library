@@ -24,7 +24,7 @@ class LookAnimationTests(unittest.TestCase):
         self.assertEqual(show.animation_time(animation, 'ink_brush_flow', 100, 9), -5.25)
 
     def test_show_roundtrip_preserves_phase_and_freeze(self):
-        look = self.look(render_time=12.75)
+        look = self.look(render_time=12.75, field_time=-2.25)
         look['branches'] = {'a_effects': {'animation': {'ink_radial_flow': {'time': -9, 'running': False, 'render_time': 30.}}}}
         cue = dict(show.new_cue(), look=look)
         doc = dict(kind=show.SHOW_KIND, schema_version=1, cues=[cue], mapping={})
@@ -37,6 +37,14 @@ class LookAnimationTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             show.validate_cue(dict(show.new_cue(), look={'animation': {
                 'calligraphic_shadow': dict(time=1, running=True, render_time=3)}}))
+
+    def test_bad_field_phase_is_rejected(self):
+        for value in (float('nan'), float('inf'), True, '3', 1e13):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                show.validate_cue(dict(show.new_cue(), look=self.look(field_time=value)))
+        with self.assertRaises(ValueError):
+            show.validate_cue(dict(show.new_cue(), look={'animation': {
+                'calligraphic_shadow': dict(time=1, running=True, field_time=3)}}))
 
     def test_bad_phase_metadata_is_rejected(self):
         values = [None, [], {'unknown': {'time': 0, 'running': True}},

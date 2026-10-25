@@ -123,15 +123,17 @@ def validate_look_animation(look, *, branch=False):
         raise ValueError("Unknown look animation module")
     for name, clock in animation.items():
         if (not isinstance(clock, dict) or not {"time", "running"} <= set(clock)
-                or set(clock) - {"time", "running", "render_time"}):
+                or set(clock) - {"time", "running", "render_time", "field_time"}):
             raise ValueError("Look animation needs time and running")
         number(clock["time"], name + " animation time", -1.0e9, 1.0e9)
         if not isinstance(clock["running"], bool):
             raise ValueError("Look animation running must be boolean")
-        if "render_time" in clock:
+        for phase_name in ("render_time", "field_time"):
+            if phase_name not in clock:
+                continue
             if name not in {"ink_dream_flow", "ink_brush_flow", "ink_radial_flow"}:
                 raise ValueError("Continuous render time is only supported by ink flow modules")
-            number(clock["render_time"], name + " render time", -1.0e12, 1.0e12)
+            number(clock[phase_name], name + " " + phase_name, -1.0e12, 1.0e12)
     branches = look.get("branches", {})
     if not isinstance(branches, dict) or set(branches) - {"a_effects", "b_effects"}:
         raise ValueError("Unknown composition branch")
@@ -148,6 +150,7 @@ def animation_time(animation, name, elapsed, scale=1.0):
 
 
 INK_CLOCK_KEY = "imagefx_ink_animation_clock"
+INK_FIELD_CLOCK_KEY = "imagefx_ink_field_clock"
 
 
 def ink_render_time(raw, speed, anchor=None):

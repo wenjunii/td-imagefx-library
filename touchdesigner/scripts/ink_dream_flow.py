@@ -1,8 +1,8 @@
-"""Original, deterministic ink-marbling and pigment-particle GPU module.
+"""Original flow renderers with an optional, default-off particle treatment.
 
 No reference media is embedded. This is an artistic flow-field renderer, not a
-Navier-Stokes simulation. Its bounded shader has no feedback history, so cue
-seeking and manual time are reproducible without a warm-up or reset.
+Navier-Stokes simulation. The base renderer is seekable. Optional feedback is
+a separate, default-off history pass, reset on cue load and time discontinuities.
 """
 
 
@@ -129,6 +129,24 @@ PARAMETERS = (
     dict(name="Washcolor", label="Diluted Wash Color", page="Palette", type="rgba", default=[0.27, 0.32, 0.43, 1.0], uniform="uWashColor"),
     dict(name="Particlecolor", label="Pigment Particle Color", page="Palette", type="rgba", default=[0.07, 0.09, 0.19, 1.0], uniform="uParticleColor"),
     dict(name="Papercolor", label="Paper Color", page="Palette", type="rgba", default=[0.94, 0.85, 0.67, 1.0], uniform="uPaperColor"),
+    # Optional point conversion; no existing flow controls or defaults change.
+    dict(name="Particlefieldenabled", label="Particle Field Enabled", page="Particle Field", type="toggle", default=False, uniform="uParticleFieldEnabled"),
+    dict(name="Particlecolumns", label="Particle Columns", page="Particle Field", type="int", default=180, min=8, max=500, uniform="uParticleColumns"),
+    dict(name="Particleshape", label="Point Shape", page="Particle Field", type="menu", default="round",
+         menu_names=["round", "square", "spark"], menu_labels=["Round Point", "Square Pixel", "Cross Spark"], uniform="uParticleShape"),
+    _control("Particledepth", "Point Depth Variation", "Particle Field", 0.78, uniform="uParticleDepth"),
+    _control("Fielddensity", "Field Cell Fill", "Particle Field", 0.82, uniform="uFieldDensity"),
+    _control("Fieldsize", "Field Point Size", "Particle Field", 2.4, 0.3, 8.0, uniform="uFieldSize"),
+    _control("Fieldspeed", "Point Motion Speed / Reverse (0 = Hold)", "Particle Field", 0.0, -3.0, 3.0,
+             uniform="uFieldTime",
+             uniform_expression="parent().op('animation_clock').module.field_sample(parent())"),
+    dict(name="Feedbackenabled", label="Feedback Enabled", page="Feedback", type="toggle", default=False),
+    _control("Feedbackamount", "Feedback / Trail Mix", "Feedback", 0.7),
+    _control("Feedbackdecay", "History Retention (0 = No Trails)", "Feedback", 0.9, 0.0, 0.995),
+    _control("Feedbackzoom", "Trail Zoom per Frame", "Feedback", 1.0, 0.98, 1.02),
+    _control("Feedbackrotate", "Trail Rotation per Frame", "Feedback", 0.0, -2.0, 2.0),
+    dict(name="Feedbackoffset", label="Trail Offset per Frame", page="Feedback", type="xy", default=[0.0, 0.0], min=-0.02, max=0.02),
+    dict(name="Feedbackreset", label="Reset Feedback", page="Feedback", type="pulse"),
 )
 
 
@@ -143,6 +161,8 @@ uniform float uInkAmount, uWashAmount, uBleed, uEdge, uGranulation, uDryBrush;
 uniform float uParticlesEnabled, uParticleAmount, uParticleDensity, uParticleSize;
 uniform float uParticleSoftness, uParticleSpeed, uParticleJitter, uParticleFlow;
 uniform float uParticleSpread, uParticleTrail, uPaperTexture, uPaperGrain, uVignette;
+uniform float uParticleFieldEnabled, uParticleColumns, uParticleShape, uParticleDepth;
+uniform float uFieldDensity, uFieldSize, uFieldTime;
 uniform vec4 uInkColor, uWashColor, uParticleColor, uPaperColor;
 uniform float uPatternEnabled, uPatternAmount, uPatternMode, uPatternSurface;
 uniform float uPatternDensity, uPatternSize, uPatternSoftness, uPatternStretch;
@@ -220,6 +240,62 @@ float grains(vec2 p, float t, float seed) {
         dots=max(dots,dotMask*step(h,clamp(uParticleDensity,0.,1.)));
     }
     return dots;
+}
+// A screen-space particle treatment of the EXISTING foreground. It never
+// feeds coordinates/time back into flow(), currents, radial phases or glitter.
+// The stationary point lattice reveals the original moving pattern through it.
+vec2 fieldVelocity(vec2 screen, float t, float seed);
+vec2 fieldGrains(vec2 screen, float seed) {
+    float aspect=uTD2DInfos[0].res.z/max(uTD2DInfos[0].res.w,1.);
+    vec2 g=screen*clamp(floor(uParticleColumns+.5),8.,500.)/max(aspect,.001);
+    vec2 cell=floor(g), f=fract(g);
+    vec2 dots=vec2(0.);
+    if(uFieldDensity<=0.) return dots;
+    float radius=mix(.035,.43,pow(clamp((uFieldSize-.3)/7.7,0.,1.),.62));
+    float aa=clamp(max(length(dFdx(g)),length(dFdy(g)))*.65,.008,.28);
+    for(int y=-1;y<=1;y++) for(int x=-1;x<=1;x++) {
+        vec2 offset=vec2(x,y), id=cell+offset;
+        float h=hash21(id+seed), h2=hash21(id+seed+37.2);
+        vec2 center=.5+.256*vec2(sin(h*6.283),cos(h2*6.283));
+        if(uFieldTime!=0.) {
+            // Move each seed's CENTER, never distort its local point metric.
+            // Bounded flow-aligned wandering keeps round/square/spark shapes
+            // intact and a complete 3x3 neighbor search at every resolution.
+            vec2 world=(id+center)*aspect/clamp(floor(uParticleColumns+.5),8.,500.);
+            vec2 velocity=fieldVelocity(world,uFieldTime*.08,seed);
+            vec2 across=vec2(-velocity.y,velocity.x);
+            float phase=h*6.2831853, travel=uFieldTime*1.2;
+            center+=.18*((sin(travel+phase)-sin(phase))*velocity
+                       +.35*(cos(travel*.73+phase)-cos(phase))*across);
+        }
+        vec2 d=f-offset-center;
+        float r=radius*mix(1.,mix(.55,1.,h2),uParticleDepth);
+        float metric=length(d);
+        if(uParticleShape>.5 && uParticleShape<1.5) metric=max(abs(d.x),abs(d.y));
+        if(uParticleShape>1.5) metric=min(length(d*vec2(1.,3.)),length(d*vec2(3.,1.)));
+        float point=(1.-smoothstep(max(0.,r*.8-aa),r+aa,metric))*step(h,uFieldDensity);
+        float light=mix(1.,.42+.78*h2,uParticleDepth);
+        dots+=vec2(point,point*light)*(1.-dots.x);
+    }
+    return dots;
+}
+vec2 movingFieldGrains(vec2 screen, float seed) {
+    return fieldGrains(screen,seed);
+}
+vec2 dreamFieldVelocity(vec2 p, float t, float seed) {
+    vec2 drift=vec2(cos(radians(uDirection)),sin(radians(uDirection)));
+    vec2 curl=vec2(-sin(p.y*2.3+t*.19+seed),cos(p.x*2.1-t*.17+seed));
+    vec2 v=drift*(.35+uDrift)+curl*(.2+uSwirl*.35);
+    v+=uTurbulence*.3*vec2(sin(p.y*9.+t),cos(p.x*8.-t*.7));
+    return v/max(length(v),.08);
+}
+vec2 fieldVelocity(vec2 screen, float t, float seed) {
+    vec2 p=rot(radians(uRotation))*(screen-uCenter)*uScale*2.;
+    p.x/=max(uStretch,.25);
+    vec2 v=dreamFieldVelocity(p,t,seed);
+    v.x*=max(uStretch,.25);
+    v=rot(-radians(uRotation))*v;
+    return v/max(length(v),.08);
 }
 vec3 glitterGrains(vec2 screen, float height, float seed) {
     // Fixed 16-pixel cells keep grain radius independent of density. Nine
@@ -366,6 +442,8 @@ void main() {
     vec4 result=vec4(paper*uPaperColor.a,uPaperColor.a);
     if(uBackground>.5 && uBackground<1.5) result=vec4(source.rgb*source.a,source.a);
     if(uBackground>1.5) result=vec4(0.);
+    vec4 fieldBackground=result;
+    if(uParticleFieldEnabled>.5) result=vec4(0.);
     if(uLiquidEnabled>.5) {
         result=overInk(result,uWashColor,wash*uWashAmount*.64);
         result=overInk(result,uInkColor,ink*uInkAmount);
@@ -394,7 +472,13 @@ void main() {
         else if(uPatternSurface<3.5 && uPatternSurface>2.5) carrier=particleSurface;
         else if(uPatternSurface>3.5) carrier=max(max(inkSurface,washSurface),particleSurface);
         vec4 patternBase=result;
-        if(uPatternMode>.5) patternBase=vec4(uPatternBackground.rgb*uPatternBackground.a,uPatternBackground.a);
+        if(uPatternMode>.5) {
+            patternBase=vec4(uPatternBackground.rgb*uPatternBackground.a,uPatternBackground.a);
+            if(uParticleFieldEnabled>.5) {
+                fieldBackground=mix(fieldBackground,patternBase,uPatternAmount);
+                patternBase=vec4(0.);
+            }
+        }
         vec4 patterned=overInk(patternBase,vec4(uPatternColor.rgb*dots.y,uPatternColor.a),dots.x*carrier);
         result=mix(result,patterned,uPatternAmount);
         patternSurface=dots.x*carrier*uPatternColor.a*uPatternAmount;
@@ -429,6 +513,13 @@ void main() {
         vec3 lights=staticGlitterGrains(screen,uTD2DInfos[0].res.w,seed);
         result=overInk(result,vec4(uStaticColor.rgb*uStaticBrightness,uStaticColor.a),
                        surface*(lights.x+lights.y*.6+lights.z*.2)*uStaticAmount);
+    }
+    // Convert the completed foreground, including wisps, glow and glitter.
+    // Off takes the untouched legacy path, including its palette/background.
+    if(uParticleFieldEnabled>.5) {
+        vec2 points=movingFieldGrains(screen,seed);
+        result*=vec4(vec3(points.y),points.x);
+        result+=fieldBackground*(1.-result.a);
     }
     // Public TOP contract uses straight alpha; transparent background is usable
     // with an Over TOP and never carries hidden paper RGB at alpha zero.
@@ -548,6 +639,10 @@ float currentWisps(vec2 p, float t, float seed) {
 }
 """
     shader = shader.replace("void main() {", helper+"\nvoid main() {", 1)
+    shader = shader.replace("vec2 fieldVelocity(vec2 screen, float t, float seed);",
+                            "vec2 currentVelocity(vec2 p, float t, float seed);\nvec2 fieldVelocity(vec2 screen, float t, float seed);", 1)
+    shader = shader.replace("vec2 v=dreamFieldVelocity(p,t,seed);",
+                            "vec2 v=uBrushEnabled>.5 ? currentVelocity(p,t,seed) : dreamFieldVelocity(p,t,seed);", 1)
     shader = shader.replace("vec2 q=flow(moving,t,seed);\n    float n=", """vec2 q=flow(moving,t,seed);
     if(uBrushEnabled>.5) q=currentCoordinates(p,t,seed);
     float n=""", 1)
@@ -713,6 +808,7 @@ def pack_scalar_uniforms(shader, definitions):
 ANIMATION_CLOCK_SOURCE = r'''
 """Continuous speed changes, with a seekable clock for cue playback/export."""
 KEY = 'imagefx_ink_animation_clock'
+FIELD_KEY = 'imagefx_ink_field_clock'
 
 
 def reset(component, raw=None, phase=None, speed=None):
@@ -744,6 +840,32 @@ def change_speed(component, previous):
     if component.fetch(KEY, None, search=False) is None:
         reset(component, speed=float(previous))
     return sample(component)
+
+
+def field_reset(component, raw=None, phase=None, speed=None):
+    raw = sample(component) if raw is None else float(raw)
+    speed = float(component.par.Fieldspeed.eval()) if speed is None else float(speed)
+    phase = raw * speed if phase is None else float(phase)
+    component.store(FIELD_KEY, dict(raw=raw, phase=phase, speed=speed))
+    component.storeStartupValue(FIELD_KEY, None)
+    return phase
+
+
+def field_sample(component):
+    raw, speed = sample(component), float(component.par.Fieldspeed.eval())
+    state = component.fetch(FIELD_KEY, None, search=False)
+    if state is None:
+        return field_reset(component, raw, speed=speed)
+    phase = state['phase'] + (raw - state['raw']) * state['speed']
+    if speed != state['speed']:
+        field_reset(component, raw, phase, speed)
+    return phase
+
+
+def change_field_speed(component, previous):
+    if component.fetch(FIELD_KEY, None, search=False) is None:
+        field_reset(component, speed=float(previous))
+    return field_sample(component)
 '''
 
 
@@ -759,10 +881,13 @@ def install_animation_clock(module):
         callback = module.create(td.parameterexecuteDAT, 'animation_speed_changes')
     callback.par.active = False
     callback.par.op = '..'
-    callback.par.pars = 'Animationspeed'
+    callback.par.pars = 'Animationspeed Fieldspeed'
     callback.par.custom, callback.par.builtin = True, False
     callback.par.valuechange = True
-    callback.text = "def onValueChange(par, prev):\n    parent().op('animation_clock').module.change_speed(parent(), prev)\n    return\n"
+    callback.text = ("def onValueChange(par, prev):\n"
+                     "    clock = parent().op('animation_clock').module\n"
+                     "    if par.name == 'Fieldspeed': clock.change_field_speed(parent(), prev)\n"
+                     "    else: clock.change_speed(parent(), prev)\n    return\n")
     callback.par.active = True
     return clock
 
@@ -805,3 +930,132 @@ def install_animation_speed(module):
     clock.module.reset(module, phase=previous_phase)
     binding.expr = expression
     return binding
+
+
+FEEDBACK_RUNTIME_SOURCE = r'''
+"""Cook-on-demand history timing; no frame callback on bypassed modules."""
+KEY = 'imagefx_flow_feedback_state'
+
+def reset(component):
+    component.store(KEY, None)
+    component.storeStartupValue(KEY, None)
+    history = component.op('flow_feedback_history')
+    if history is not None:
+        history.par.resetpulse.pulse()
+
+def sample(component):
+    phase = component.op('animation_clock').module.sample(component)
+    source = component.op('flow_feedback_source')
+    shape = (source.width, source.height)
+    active = bool(component.par.Enabled and component.par.Feedbackenabled
+                  and component.par.Feedbackamount > 0 and component.par.Mix > 0)
+    stamp = (int(absTime.frame), phase, shape, active)
+    state = component.fetch(KEY, None, search=False)
+    if state is not None and state['stamp'] == stamp:
+        return state
+    delta = 0. if state is None else phase - state['phase']
+    # Seek, re-enable, resolution change, or long uncooked interval: no old cue.
+    clear = (state is None or not active or not state['active']
+             or shape != state['shape'] or abs(delta) > .5
+             or int(absTime.frame) - state['frame'] > 4)
+    state = dict(stamp=stamp, phase=phase, shape=shape, active=active,
+                 frame=int(absTime.frame), clear=clear,
+                 step=0. if clear else min(abs(delta)*60., 30.))
+    component.store(KEY, state)
+    component.storeStartupValue(KEY, None)
+    return state
+'''
+
+FEEDBACK_SHADER = r'''
+layout(location=0) out vec4 fragColor;
+uniform vec4 uHistory; // retention, zoom, rotation, time-step in 60fps frames
+uniform vec4 uOffset;  // x, y, reset, unused
+vec4 premult(vec4 c) { return vec4(c.rgb*c.a,c.a); }
+vec4 straight(vec4 c) { return vec4(c.a>1e-6 ? c.rgb/c.a : vec3(0.),c.a); }
+void main() {
+    vec2 uv=vUV.st;
+    vec4 current=texture(sTD2DInputs[0],uv);
+    if(uOffset.z>.5 || uHistory.x<=0.) { fragColor=TDOutputSwizzle(current); return; }
+    float aspect=uTD2DInfos[0].res.z/uTD2DInfos[0].res.w;
+    vec2 q=(uv-.5)*vec2(aspect,1.)-uOffset.xy*uHistory.w;
+    float a=radians(-uHistory.z)*uHistory.w, c=cos(a), s=sin(a);
+    q=mat2(c,-s,s,c)*q/pow(max(uHistory.y,.01),uHistory.w);
+    q=q/vec2(aspect,1.)+.5;
+    vec4 history=texture(sTD2DInputs[1],clamp(q,0.,1.));
+    if(any(lessThan(q,vec2(0.))) || any(greaterThan(q,vec2(1.)))) history=vec4(0.);
+    float retention=pow(clamp(uHistory.x,0.,.995),uHistory.w);
+    fragColor=TDOutputSwizzle(straight(mix(premult(current),premult(history),retention)));
+}
+'''
+
+FEEDBACK_MIX_SHADER = r'''
+layout(location=0) out vec4 fragColor;
+uniform float uAmount;
+void main() {
+    vec4 a=texture(sTD2DInputs[0],vUV.st), b=texture(sTD2DInputs[1],vUV.st);
+    vec4 c=mix(vec4(a.rgb*a.a,a.a),vec4(b.rgb*b.a,b.a),clamp(uAmount,0.,1.));
+    fragColor=TDOutputSwizzle(vec4(c.a>1e-6 ? c.rgb/c.a : vec3(0.),c.a));
+}
+'''
+
+
+def install_feedback(module, raw):
+    """Embed a true history pass; the off branch never requests history cooks."""
+    import td
+    source = module.create(td.nullTOP, 'flow_feedback_source')
+    raw.outputConnectors[0].connect(source.inputConnectors[0])
+    runtime = module.create(td.textDAT, 'flow_feedback_runtime')
+    runtime.text = FEEDBACK_RUNTIME_SOURCE
+    history = module.create(td.feedbackTOP, 'flow_feedback_history')
+    source.outputConnectors[0].connect(history.inputConnectors[0])
+    history.par.reset.expr = "parent().op('flow_feedback_runtime').module.sample(parent())['clear']"
+
+    def shader_node(name, code, inputs):
+        pixel = module.create(td.textDAT, name + '_pixel')
+        pixel.text = code
+        node = module.create(td.glslTOP, name)
+        for i, item in enumerate(inputs):
+            item.outputConnectors[0].connect(node.inputConnectors[i])
+        node.par.pixeldat = pixel.name
+        node.par.glslversion = 'glsl460'
+        node.par.outputresolution = 'useinput'
+        node.par.format = 'rgba16float'
+        node.par.compilebehavior = 'stalluntildone'
+        node.par.errorbehavior = 'showerror'
+        return node
+
+    accumulate = shader_node('flow_feedback_accumulate', FEEDBACK_SHADER, [source, history])
+    history.par.top = accumulate.name
+    accumulate.seq.vec.numBlocks = 2
+    accumulate.par.vec0name = 'uHistory'
+    for axis, expression in zip('xyzw', (
+        'parent().par.Feedbackdecay', 'parent().par.Feedbackzoom',
+        'parent().par.Feedbackrotate',
+        "parent().op('flow_feedback_runtime').module.sample(parent())['step']")):
+        accumulate.par['vec0value'+axis].expr = expression
+    accumulate.par.vec1name = 'uOffset'
+    accumulate.par.vec1valuex.expr = 'parent().par.Feedbackoffsetx'
+    accumulate.par.vec1valuey.expr = 'parent().par.Feedbackoffsety'
+    accumulate.par.vec1valuez.expr = "parent().op('flow_feedback_runtime').module.sample(parent())['clear']"
+    mix = shader_node('flow_feedback_mix', FEEDBACK_MIX_SHADER, [source, accumulate])
+    mix.par.vec0name = 'uAmount'
+    mix.par.vec0valuex.expr = 'parent().par.Feedbackamount'
+    switch = module.create(td.switchTOP, 'flow_feedback_switch')
+    source.outputConnectors[0].connect(switch.inputConnectors[0])
+    mix.outputConnectors[0].connect(switch.inputConnectors[1])
+    switch.par.index.expr = 'int(bool(parent().par.Feedbackenabled and parent().par.Feedbackamount > 0 and parent().par.Mix > 0))'
+    switch.outputConnectors[0].connect(module.op('enable_switch').inputConnectors[1])
+    changes = module.create(td.parameterexecuteDAT, 'flow_feedback_changes')
+    changes.par.active = False
+    changes.par.op = '..'
+    changes.par.pars = 'Feedbackreset Feedbackenabled Enabled'
+    changes.par.custom, changes.par.builtin = True, False
+    changes.par.valuechange = changes.par.onpulse = True
+    changes.text = ("def onPulse(par):\n    parent().op('flow_feedback_runtime').module.reset(parent())\n"
+                    "def onValueChange(par, prev):\n    onPulse(par)\n")
+    changes.par.active = True
+    for node in (accumulate, mix):
+        node.cook(force=True)
+        if node.errors():
+            raise RuntimeError('Flow feedback shader failed: ' + str(node.errors()))
+    runtime.module.reset(module)

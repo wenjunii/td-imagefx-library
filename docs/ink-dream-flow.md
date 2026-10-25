@@ -5,6 +5,62 @@ curling liquid marbling, fine pigment particles, soft wet edges and dry fibers.
 The default palette is indigo ink on warm procedural Xuan paper. Reference
 video and artwork are not copied into this repository.
 
+## Optional Particle Field
+
+**Particle Field → Particle Field Enabled** is **off by default**. With it off,
+this module uses its original renderer, including the original composition,
+movement, palette, textures and defaults. Turning it on applies a point-sprite
+treatment to that same foreground; it does not change any flow coordinates,
+timing, seed, current contours or radial phases. Turning it back off restores the
+unconverted view at the current animation time, without restarting.
+
+| Control | Purpose |
+| --- | --- |
+| Particle Field Enabled | Convert the completed foreground into points; off preserves the original |
+| Particle Columns | 8–500 columns of point cells across the output |
+| Point Shape | Round point, square pixel or cross spark |
+| Point Depth Variation | Per-point size and brightness variation |
+| Field Cell Fill | Fraction of occupied cells; zero removes the converted foreground |
+| Field Point Size | Point radius within each cell, independent of the original pigment size |
+| Point Motion Speed / Reverse | -3 to +3; try 1 to move points, negative reverses, 0 holds positions |
+
+These controls do not change the original **Particles** page. Point Motion Speed
+starts at **0** for compatibility. Set it to **1** for flow-aligned point
+wandering; negative values reverse, zero holds the
+current positions. Rate changes preserve the current point phase. The underlying
+composition is not warped by this extra motion. Each point center moves along
+a bounded local path, keeping its shape intact (not persistent physics).
+The liquid/current layers, pigment wisps, glow, optional dot pattern and both
+glitter layers pass through the conversion together. Paper/input background is
+retained; **Transparent Ink** provides a particle foreground for compositing.
+Use the existing layer switches, palette and animation controls as before.
+This is a procedural particle rendering treatment, not an additional physical
+particle simulation.
+
+Old cue looks missing `Particlefieldenabled` use false and keep the original
+look. New Capture/Update Cue Look operations save the switch and field settings
+for Recall, GO and export. The previous always-particle revision is superseded;
+original defaults and renderer behavior are restored. The point clock is saved
+alongside the main animation clock for Recall, GO and export.
+
+## Optional Feedback
+
+The **Feedback** page is **off by default**, independent of Particle Field.
+Enable it for fading motion trails on either the original flow or its point
+version. Adjust **Feedback / Trail Mix**, **History Retention**, **Trail Zoom**,
+**Trail Rotation**, and **Trail Offset X/Y**. **Reset Feedback** clears the trail.
+Retention near 0.95 gives longer trails; 0 removes them. Mix 0 is exact bypass.
+Zoom/rotation/offset describe a 60-fps history step and scale with elapsed
+animation time. Pausing the animation holds the history.
+
+Cue load, re-enable, resolution changes and large time seeks clear history.
+Feedback parameters are saved, but previous GPU frames are not: a recalled
+cue/export builds fresh trails from its saved starting phase. A captured still
+can therefore show trails that need time to develop again. Reset after deliberate
+small manual seeks when a clean first frame is required. Feedback adds two GPU
+passes and a history texture; its render branch is bypassed when off. Test the complete show at output
+resolution before performance.
+
 ## Run it
 
 1. Open the newly built **TD_ImageFX_Library.toe** (not a numbered backup).
@@ -28,6 +84,8 @@ control. It starts bypassed in the demo to preserve existing looks.
 | Liquid Flow | Separate liquid switch, deformation, speed/reverse, direction, drift, vortex curl, turbulence, wandering |
 | Ink Surface | Marbling, filament frequency, deep ink, diluted wash, bleeding edges, pigment pooling, granulation, dry brush |
 | Particles | Separate particle switch, opacity, density, size, softness, speed/reverse, random wandering, flow distortion, spread, streak length |
+| Particle Field | Optional conversion enable, columns, point shape/depth, cell fill, point size and continuous motion speed/reverse |
+| Feedback | Default-off history, trail mix/retention, zoom/rotation/offset and reset pulse |
 | Dot Pattern | Separate switch/mix, overlay or own background, surface mask, density, radius, softness, ellipse aspect, row stagger, dot/background RGBA |
 | Dot Pattern Motion | Fold deformation/frequency, independent speed/reverse, grid rotation, module-flow following, depth shading, repeatable fold seed |
 | Glitter | Separate switch, amount, density, grain size/softness, brightness, RGBA color, surface choice, threshold, edge softness, spread |
@@ -203,12 +261,14 @@ includes every glitter value and its enable switch.
 The cue loader preserves each module's enable expression when resetting effect
 parameters, so captured on/off choices remain live when decks are reused.
 
-`validate_ink_dream_flow.py` creates a temporary test copy, sweeps all 134 writable
+`validate_ink_dream_flow.py` creates a temporary test copy, sweeps all 149 writable
 values, checks bypass, alpha, zero endpoints, both glitter layers' surface isolation,
 independent glitter clocks, stationary shimmer support, dot-pattern surfaces/colors,
 exact pattern-off/zero bypass, zero-speed freeze and deterministic seeking, and
 renders at 1080p and 4K. It removes only its own test container and never saves
-the TOE. It is included in `validate_live_suite.py`.
+the TOE. It is included in `validate_live_suite.py`. History controls and their
+reset pulse receive separate real-frame pixel checks in
+`validate_flow_feedback.py`, included in `validate_deferred_controls.py`.
 
 This bounded procedural flow-field renderer is **not a physical fluid simulation**.
 It recreates the visual character, not exact video frames. Pixel checks do not

@@ -9,6 +9,62 @@ The module ID/name stays unchanged for existing networks and cues.
 The reference video is not redistributed; no tutorial code or third-party
 particle engine is bundled.
 
+## Optional Particle Field
+
+**Particle Field → Particle Field Enabled** is **off by default**. With it off,
+this module uses its original renderer, including the original composition,
+movement, palette, textures and defaults. Turning it on applies a point-sprite
+treatment to that same foreground; it does not change any flow coordinates,
+timing, seed, current contours or radial phases. Turning it back off restores the
+unconverted view at the current animation time, without restarting.
+
+| Control | Purpose |
+| --- | --- |
+| Particle Field Enabled | Convert the completed foreground into points; off preserves the original |
+| Particle Columns | 8–500 columns of point cells across the output |
+| Point Shape | Round point, square pixel or cross spark |
+| Point Depth Variation | Per-point size and brightness variation |
+| Field Cell Fill | Fraction of occupied cells; zero removes the converted foreground |
+| Field Point Size | Point radius within each cell, independent of the original pigment size |
+| Point Motion Speed / Reverse | -3 to +3; try 1 to move points, negative reverses, 0 holds positions |
+
+These controls do not change the original **Particles** page. Point Motion Speed
+starts at **0** for compatibility. Set it to **1** for flow-aligned point
+wandering; negative values reverse, zero holds the
+current positions. Rate changes preserve the current point phase. The underlying
+composition is not warped by this extra motion. Each point center moves along
+a bounded local path, keeping its shape intact (not persistent physics).
+The liquid/current layers, pigment wisps, glow, optional dot pattern and both
+glitter layers pass through the conversion together. Paper/input background is
+retained; **Transparent Ink** provides a particle foreground for compositing.
+Use the existing layer switches, palette and animation controls as before.
+This is a procedural particle rendering treatment, not an additional physical
+particle simulation.
+
+Old cue looks missing `Particlefieldenabled` use false and keep the original
+look. New Capture/Update Cue Look operations save the switch and field settings
+for Recall, GO and export. The previous always-particle revision is superseded;
+original defaults and renderer behavior are restored. The point clock is saved
+alongside the main animation clock for Recall, GO and export.
+
+## Optional Feedback
+
+The **Feedback** page is **off by default**, independent of Particle Field.
+Enable it for fading motion trails on either the original flow or its point
+version. Adjust **Feedback / Trail Mix**, **History Retention**, **Trail Zoom**,
+**Trail Rotation**, and **Trail Offset X/Y**. **Reset Feedback** clears the trail.
+Retention near 0.95 gives longer trails; 0 removes them. Mix 0 is exact bypass.
+Zoom/rotation/offset describe a 60-fps history step and scale with elapsed
+animation time. Pausing the animation holds the history.
+
+Cue load, re-enable, resolution changes and large time seeks clear history.
+Feedback parameters are saved, but previous GPU frames are not: a recalled
+cue/export builds fresh trails from its saved starting phase. A captured still
+can therefore show trails that need time to develop again. Reset after deliberate
+small manual seeks when a clean first frame is required. Feedback adds two GPU
+passes and a history texture; its render branch is bypassed when off. Test the complete show at output
+resolution before performance.
+
 ## Run
 
 1. Open the newly rebuilt `TD_ImageFX_Library.toe`, not a numbered backup.
@@ -77,7 +133,7 @@ texture; Speed zero freezes its pulse independently. See [static glitter](ink-dr
 
 ## Cue integration and testing
 
-The module has 144 writable values. **Capture Look** saves eligible effect
+The module has 159 writable values plus a feedback reset pulse. **Capture Look** saves eligible effect
 values and the demo toggle, with time managed by the cue clock. Parameter
 cues can target `ink_brush_flow/Brushweb`, `ink_brush_flow/Brushwidth`,
 `ink_brush_flow/Particleamount`, `ink_brush_flow/Inkcolorr`,
@@ -89,12 +145,15 @@ drives the inherited manual clock, including pause/resume and repeatable seeking
 control's accepted values, ranges and rendered response, with additional brush
 isolation. It checks both glitter layers and stationary shimmer, time freeze/replay, transparent output,
 master bypass/mix and native 1080p/4K rendering. Tests create and remove their
-own temporary copies; they do not save your project.
+own temporary copies; they do not save your project. Point movement and feedback
+history controls/reset additionally run through `validate_flow_feedback.py` on
+separate advancing frames.
 
 This is a bounded deterministic **procedural flow-field renderer**, not a
 physical fluid/particle simulation or an exact reconstruction of the video's
 network. Smooth density contours and bounded curl-field trail sampling replace
-the cellular renderer, without accumulated state or simulation warm-up.
+the cellular renderer, without accumulated state or simulation warm-up when
+Feedback is off. Optional Feedback deliberately retains prior frames.
 Fine trail integration and both glitter layers cost more GPU time. Rehearse the
 full cue chain and all connected projectors before selecting show resolution;
 successful 4K rendering is not a guarantee of sustained multi-output frame rate.
