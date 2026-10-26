@@ -67,7 +67,7 @@ To insert a blackout:
 Blackout affects the visual tracks before output mapping, in both direct-display
 and 2×2 wall modes. It leaves audio playing and keeps confidence-monitor labels
 and diagnostics available (its projector previews show black). In identical or
-panoramic routing all projectors use Track 1; use independent routing for
+panoramic routing all projectors use the Shared Canvas Cue Track (default 1); use independent routing for
 individual projector blackout. The next visual on a blacked-out track fades
 that track back up; other tracks stay black. Stopping a blackout cue freezes its
 current level rather than unexpectedly revealing content. Master Blackout,
@@ -103,6 +103,10 @@ The existing **Look Preview** is still a separate silent, off-air editing view.
 ## Output Mode
 
 Use **Show Control → Output Mode**, the second tab after Transport:
+
+**Canvas Layout** chooses content: Identical, Panoramic, or Independent.
+**Output Mode** chooses the cable/display delivery below. They are independent:
+all three layouts work with both delivery modes.
 
 - **Direct Displays (separate projectors)** opens one borderless window per
   assigned projector. Set **Direct P1/P2/P3 Display** to the display indices
@@ -333,7 +337,7 @@ Capture Look or Update Cue again.
 3. Optionally press **Show Live Look** to audition your changes on projection.
    **Look Editor → Live Look Target Track** starts at the cue's track and can
    select track 1–3. Routing still applies: Independent sends it to outputs
-   assigned to that track; Identical/Panoramic use track 1. Both Direct and 4K
+   assigned to that track; Identical/Panoramic use Shared Canvas Cue Track (default 1). Both Direct and 4K
    Wall modes use these same mapped feeds. Projector Review shows the audition.
    The status says **LIVE DRAFT (not saved)**. Mapping, masks, grading, and
    master/per-projector/wall blackouts remain active; this does not open output
@@ -467,12 +471,62 @@ projectors 1/2/3 into top-left/top-right/bottom-left and a confidence multiview
 into bottom-right, all at 1920x1080. See [4K wall output](wall-output.md).
 Select its Show Control source mode to retain all cue and output mapping below.
 
-On **Routing**, choose:
+### One cue across three projectors
+
+1. In **Output Mode**, set **Canvas Layout → Panoramic (one wide canvas)**.
+2. Set **Shared Canvas Cue Track** to the track of your visual cue (1, 2, or 3).
+   Other visual tracks are not part of this canvas; audio is unchanged.
+3. Set **Canvas Render Width Per Panel = 1920**, **Canvas Render Height = 1080**,
+   and overlap **0** to start. This creates one **5760×1080** effect canvas.
+   The main workflow follows automatically while **imagefx_demo → Output →
+   Follow Show Canvas Resolution / Fit** is on (default). Its Effective Canvas
+   field shows the actual size and fit; manual HD / 4K / Custom values are retained
+   and become active again when Follow Show Canvas is off.
+4. Choose physical **Output Mode → Direct Displays** or **4K Wall Processor**.
+   For the processor, keep **Wall Output → Wall Source Mode → Show Control**;
+   a standalone wall source override bypasses cue routing and is flagged in Canvas Summary.
+5. Select the cue, Preload, and GO. P1 receives the left third, P2 the center
+   third, P3 the right third. **Projector Review → Three Projectors / Side by
+   Side** shows the continuous panorama; wall review shows its packed tiles.
+   Check/Open the selected hardware output and release blackouts when ready.
+6. Use each projector's mapping, mask and feather controls to align the picture.
+   **Save Show** preserves layout, shared track, render dimensions, overlap and media fit.
+
+**Canvas Media Fit → Auto** (default) uses **Fill / Crop** in panoramic mode:
+the original image/video is scaled equally on both axes, then center-cropped
+to fill the canvas. A 1920×1080 clip fills 5760×1080 by scaling to 5760×3240
+and retaining the center 1080-pixel-high band. It loses top/bottom content but
+does not distort proportions. This fit happens **before** the visual effects,
+for GO, Recall Look and live cue editing, not only for the projector preview.
+Explicit **Fill / Crop**, **Fit / Letterbox**, and **Stretch** remain available;
+Stretch is the only option that changes proportions. Auto uses Fit / Letterbox
+for Identical and Independent layouts. Wide source media avoids unnecessary crop.
+
+When the main workflow follows Show Canvas, Canvas Media Fit also controls its
+source fitting; the manual Source Media → Image Fit control is disabled. Turn
+Follow Show Canvas off to use that manual control again. Fit does not alter
+video speed or audio. Look modules with their own media/fit settings remain independent.
+
+This is one cue/effect render split three ways, not three duplicated cue instances.
+The wall cable remains 3840×2160: three 1920×1080 slices plus confidence, **not**
+a 5760-wide HDMI signal. For three directly connected 4K projectors, 3840×2160
+per panel gives an 11520×2160 render; this is substantially heavier on the GPU.
+The 2×2 processor always outputs 1080p per tile, regardless of render quality.
+
+Canvas controls on Output Mode are two-way links to **Routing**, not a second
+copy of the settings. Existing shows without Shared Canvas Cue Track use 1.
+Changing layout/dimensions/overlap/track/media fit closes physical output windows for safe
+reconfiguration. Prepared, running and recalled decks resize in place without
+reloading media or resetting cue time; resolution changes can still incur GPU
+allocation/compilation and change aspect-dependent effects or feedback history.
+Configure the canvas before the show and rehearse at final resolution.
+
+On **Canvas Layout** (also **Routing → Three-Output Content Mapping**), choose:
 
 | Mode | Content |
 | --- | --- |
-| Identical | Track 1 copied to all three outputs, with individual mapping/grade. |
-| Panoramic | One wide Track 1 canvas cropped across outputs 1–3, left to right. Default 1080p panels use a 5760×1080 render canvas. Three 4K panels use 11520×2160. |
+| Identical | Shared Canvas Cue Track repeated on all three outputs, with individual mapping/grade. |
+| Panoramic | One wide Shared Canvas Cue Track cropped across outputs 1–3, left to right. Default 1080p panels use a 5760×1080 render canvas. Three 4K panels use 11520×2160. |
 | Independent | Three separate visual tracks; each Output page can select any track. |
 
 Render Width/Height control processing resolution. Each **Output 1–3** page has
@@ -500,10 +554,11 @@ the previous saved file.
 
 Panorama Shared Edge Overlap gives adjacent panels shared source pixels. Pair
 it with edge fades and real projector overlap during alignment; this is not
-automatic photometric calibration. Stop All and preload again after changing
-routing/render dimensions/overlap, so cue decks are prepared at the new size.
-Media is stretched to the render canvas; use prepared panoramic media, or the
-existing fit/fill effect in a captured rack to choose an aspect treatment.
+automatic photometric calibration. Set up routing/render dimensions/overlap
+before playback where practical, then Check/Open the output after changes.
+Original media is aspect-fitted before the effect chain according to Canvas
+Media Fit. Existing shows without that setting use Auto; choose Stretch explicitly
+if a legacy look intentionally depended on the former stretched source.
 
 The borderless **Audience Canvas** packs the three outputs horizontally into
 one window. Set Windows displays to **Extend**, arrange them left-to-right with

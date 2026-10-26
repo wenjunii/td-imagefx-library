@@ -154,6 +154,9 @@ def _resolution_diagnostics(primary_output):
             "custom": (custom_width, custom_height),
         }
         target = targets.get(preset)
+        canvas = demo.op('workflow_canvas')
+        if canvas is not None:
+            target = tuple(canvas.module.workflow_size(demo))
         crop = demo.op("final_crop")
         if crop is not None and crop.par.Enabled.eval() and crop.par.Outputmode.eval()=="crop":
             # Crop-sized output deliberately differs from the source canvas.

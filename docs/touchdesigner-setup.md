@@ -302,11 +302,13 @@ the 40-style Motion Studio stage, and **Apply Video Effects** controls the rack.
 Inside `ink_flow`, **Ink Visual Enabled** and **Water
 Particles Enabled** are independent.
 
-Select `imagefx_demo` and use its **Output** page to choose **HD 1920 x 1080**
-(the default), **4K UHD 3840 x 2160**, or **Custom**. Custom width and height
-accept 16 through 8192 pixels. The built-in generated source follows the
-selected size through the effect chain, and `out1_image` always uses the
-selected delivery resolution. Large resolutions should be qualified with the
+Select `imagefx_demo` and open its **Output** page. **Follow Show Canvas Resolution
+/ Fit** defaults on: Show Control's canvas controls determine the source size
+(normally 1920x1080; panoramic 1080p panels use 5760x1080 with zero overlap).
+Turn it off to choose manual **HD 1920 x 1080**, **4K UHD 3840 x 2160**, or
+**Custom**; custom width and height accept 16 through 8192 pixels. Manual values
+are retained when following the show. `out1_image` follows the effect chain;
+Final Crop may change its size. Large resolutions should be qualified with the
 actual enabled effects and target GPU.
 
 Select `ink_flow` to choose **Minimal Ink Work** or **Minimal Ink Wash
@@ -346,7 +348,7 @@ resolution and frame-time budget.
 
 The demo also connects deterministic fixtures to every auxiliary rack input, including the second-image bus used by transitions, composites, and clean-reference keys. Replace those fixtures with production TOPs in a real project. Several grading and transform effects intentionally load with neutral parameter values; enter the loaded `slot1` through `slot8` component to adjust its effect-specific custom parameters.
 
-To use your own source, select `/project1/imagefx_demo` → **Source Media** and choose **Image / Video File**. Images and silent video are decoded into the existing `source_image` TOP, with fit/fill/stretch and playback controls; no node replacement or workflow reset is needed. The source and `fixture_image_b` stay connected and the source canvas follows the main Output page's HD/4K/Custom resolution. View `out1_image` for the processed result. See [Source Media](source-media.md). Live camera capture is not part of this file-input section.
+To use your own source, select `/project1/imagefx_demo` → **Source Media** and choose **Image / Video File**. Images and silent video are decoded into the existing `source_image` TOP, with aspect fitting and playback controls; no node replacement or workflow reset is needed. The source and `fixture_image_b` stay connected. The canvas and media fit follow Show Control by default; disable Follow Show Canvas to use manual HD/4K/Custom resolution and Source Media fitting. View `out1_image` for the processed result. See [Source Media](source-media.md). Live camera capture is not part of this file-input section.
 
 Rack, browser, updater, and stateful-effect callback targets are stored as component-relative operator paths. Stateful Feedback TOPs likewise target their package-local state nodes relatively. An imported `FxRack.tox` therefore watches its own slot parameters and retains working temporal history after it is moved or renamed; it does not retain absolute paths from the network that produced the `.tox`.
 

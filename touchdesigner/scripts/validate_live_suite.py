@@ -106,10 +106,34 @@ def _run_validator(name, filename, entry_point="validate"):
     return summary
 
 
+def _require_safe_session(demo):
+    """Fail before any parameter changes if the operator is using the show."""
+    if demo is None:
+        raise RuntimeError("ImageFX demo is missing")
+    show, wall = demo.op("show_control"), demo.op("wall_output")
+    if show is None or wall is None:
+        raise RuntimeError("Build Show Control and Wall Output before the control audit")
+    ext = show.ext.ShowControlExt
+    if ext.engine.state != "stopped" or ext._look_edit is not None:
+        raise RuntimeError("Stop All and finish/cancel the look draft before QA")
+    if show.par.Audioenabled or not show.par.Masterblackout or not wall.par.Blackout:
+        raise RuntimeError("Disarm audio and enable show/wall blackouts before QA")
+    runtime = show.op("show_output_mode")
+    if runtime is None:
+        raise RuntimeError("Install Output Mode before the control audit")
+    if any(window is not None and window.isOpen for window in runtime.module.windows(show)):
+        raise RuntimeError("Close all physical output windows before QA")
+    if show.fetch("imagefx_export_job", None, search=False):
+        raise RuntimeError("Finish/cancel video export or wall recording before QA")
+    if demo.fetch("imagefx_deferred_controls_running", False):
+        raise RuntimeError("Wait for the deferred control audit to finish before another audit")
+
+
 def validate(write_report=True):
     """Run the complete live suite, continue after failures, and summarize it."""
 
     demo = op("/project1/imagefx_demo")
+    _require_safe_session(demo)
     workflow = demo.op("workflow").module if demo is not None and demo.op("workflow") is not None else None
     if workflow is None:
         return _validate_default_order(write_report)

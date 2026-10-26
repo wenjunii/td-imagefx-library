@@ -25,6 +25,15 @@ each Output 1/2/3 page. Mode changes close outputs and never change cue routing.
 The existing wide `show_control/audience_atlas` remains as a compatibility TOP;
 do not use that atlas for the 2x2 processor.
 
+To spread **one cue across all three projectors**, use **Show Control → Output
+Mode → Canvas Layout → Panoramic (one wide canvas)** and choose the cue's track
+under **Shared Canvas Cue Track**. Leave the wall's Source Mode on **Show Control**:
+the cue is rendered once at 5760×1080 (1080p panels), mapped as three slices,
+then packed into the same 3840×2160 output with confidence in Q4. Do not also
+select the wall's standalone Panoramic source mode; that is for a separate master
+TOP, not for already-sliced Show Control feeds. The same cue layout also works
+with Direct Displays. See [panoramic cue setup](show-control.md#one-cue-across-three-projectors).
+
 ## Fixed pixel map
 
 One borderless, native-pixel **3840x2160** Perform Window carries four tiles.
@@ -68,8 +77,12 @@ numbered calibration pattern also respects mapping. See [mapping controls](proje
 
 Video remains live: the module does not cache frames or alter cue timing/audio.
 Decode media through existing ImageFX/Show Control or your own Movie File In TOPs.
-In Panoramic mode use genuinely wide media or design the effect canvas at 5760x1080;
-stretching an ordinary 16:9 clip into it does not create extra picture content.
+With Show Control's panoramic layout, the main workflow automatically uses
+5760x1080 with 1080p panels. Canvas Media Fit defaults to proportional Fill / Crop
+for this layout, so an ordinary 16:9 clip fills the panorama without stretching
+(its top/bottom are cropped). Wide media preserves more of the original picture.
+Choose Fit / Letterbox to keep the whole frame instead. The separate standalone
+Wall Source modes retain their own fit controls; the packed wall is always 3840x2160.
 
 ## Confidence monitor
 
