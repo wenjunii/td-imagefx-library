@@ -25,6 +25,9 @@ RACK_MODULE = _load_module(
     "tdimagefx_shader_path_rack",
     Path("touchdesigner/extensions/FxRackExt.py"),
 )
+BUILDER_MODULE = _load_module(
+    'tdimagefx_shader_path_builder', Path('touchdesigner/scripts/build_project.py'),
+)
 
 
 class FakePixelParameter:
@@ -77,12 +80,24 @@ class FakeEffect:
             self.children.append(self.shader_dat)
 
     def op(self, path):
-        if self.shader_dat is not None and path == self.shader_dat.name:
-            return self.shader_dat
-        return None
+        return next((node for node in self.children if node.name == path), None)
 
 
 class TouchDesignerShaderPathTests(unittest.TestCase):
+    def test_loaded_diagnostic_paths_are_repaired_without_rewriting_packages(self):
+        for module in (LIBRARY_MODULE, RACK_MODULE, BUILDER_MODULE):
+            with self.subTest(module=module.__name__):
+                effect = FakeEffect()
+                info = FakeGLSL('shader_info_1', effect)
+                info.type = 'info'
+                info.par.op = FakePixelParameter(info)
+                info.par.op.val = '/project1/build/effects/example/effect_glsl_1'
+                effect.children.append(info)
+                self.assertIsNone(info.par.op.eval())
+                self.assertEqual(module._repair_effect_shader_paths(effect), 1)
+                self.assertEqual(info.par.op.val, 'effect_glsl_1')
+                self.assertIs(info.par.op.eval(), effect.glsl)
+
     def test_loaded_package_shader_paths_are_repaired_portably(self):
         for module in (LIBRARY_MODULE, RACK_MODULE):
             with self.subTest(module=module.__name__):

@@ -74,12 +74,23 @@ def step():
             draft = ext._look_edit['deck']
             ink = draft.op(name)
             _check(name + '/legacy_cue_speed_default', ink.par.Animationspeed.eval() == 1.)
+            _check(name + '/legacy_cue_particle_defaults',
+                   ink.par.Particlecolumns.eval() == 180 and ink.par.Particleshape.eval() == 'round'
+                   and abs(ink.par.Particledepth.eval()-.78)<1e-6 and not ink.par.Particlefieldenabled)
+            ink.par.Particlefieldenabled = True
+            ink.par.Fielddensity, ink.par.Fieldsize = .6, 3.5
+            ink.par.Particlecolumns, ink.par.Particleshape, ink.par.Particledepth = 72, 'square', .38
+            ink.par.Feedbackenabled, ink.par.Feedbackamount = True, 0.
+            ink.par.Feedbackdecay, ink.par.Feedbackzoom = .93, 1.005
             ink.par.Autotime, ink.par.Manualtime = False, 23.5
             STATE['pixels'] = _pixels(draft.op('out1_image'))
+            ink.par.Fieldspeed = .8
+            _same(name + '/point_speed_edit_preserves_frame', _pixels(draft.op('out1_image')))
             ink.par.Animationspeed = .5 + STATE['index'] * .75
             _same(name + '/speed_edit_preserves_frame', _pixels(draft.op('out1_image')))
             ink.par.Manualtime = 25.5
             STATE['render_phase'] = ink.op('animation_clock').module.sample(ink)
+            STATE['field_phase'] = ink.op('animation_clock').module.field_sample(ink)
             _check(name + '/rate_applied_after_edit', abs(STATE['render_phase'] - (23.5 + 2 * ink.par.Animationspeed.eval())) < 1e-6)
             STATE['pixels'] = _pixels(draft.op('out1_image'))
             STATE['original_cue'] = copy.deepcopy(cue)
@@ -97,8 +108,15 @@ def step():
                 extension_same=ext is STATE.get('ext'),
                 lookstatus=qa.par.Lookstatus.eval())
             _check(name + '/update_finishes_draft', ext._look_edit is None and qa.op('look_editor') is None)
-            _check(name + '/saved_phase', ext.document['cues'][0]['look']['animation'][name] == {'time': 25.5, 'running': False, 'render_time': STATE['render_phase']})
+            _check(name + '/saved_phase', ext.document['cues'][0]['look']['animation'][name] == {'time': 25.5, 'running': False, 'render_time': STATE['render_phase'], 'field_time': STATE['field_phase']})
+            _check(name + '/point_speed_saved', ext.document['cues'][0]['look']['modules'][name]['Fieldspeed'] == .8)
             _check(name + '/speed_saved', ext.document['cues'][0]['look']['modules'][name]['Animationspeed'] == .5 + STATE['index'] * .75)
+            saved=ext.document['cues'][0]['look']['modules'][name]
+            _check(name + '/feedback_settings_saved', saved['Feedbackenabled'] and saved['Feedbackamount']==0.
+                   and saved['Feedbackdecay']==.93 and saved['Feedbackzoom']==1.005)
+            _check(name + '/particle_controls_saved', saved['Particlecolumns']==72
+                   and saved['Particleshape']=='square' and abs(saved['Particledepth']-.38)<1e-6
+                   and saved['Particlefieldenabled'] and saved['Fielddensity']==.6 and saved['Fieldsize']==3.5)
             _check(name + '/metadata_unchanged', {k:v for k,v in ext.document['cues'][0].items() if k != 'look'} == {k:v for k,v in cue.items() if k != 'look'})
             _same(name + '/immediate_saved_preview', _pixels(qa.op('look_preview')))
             _check(name + '/saved_preview_no_errors', not qa.op('look_result').errors())
@@ -111,7 +129,14 @@ def step():
             ink = ext._look_edit['deck'].op(name)
             _check(name + '/recall_clock', ink.par.Time.eval() == 25.5 and not ink.par.Autotime)
             _check(name + '/recall_render_phase', ink.op('animation_clock').module.sample(ink) == STATE['render_phase'])
+            _check(name + '/recall_point_phase', ink.op('animation_clock').module.field_sample(ink) == STATE['field_phase'])
+            _check(name + '/recall_feedback_history_clean', ink.fetch('imagefx_flow_feedback_state', None, search=False) is None)
+            _check(name + '/recall_feedback_settings', bool(ink.par.Feedbackenabled) and ink.par.Feedbackamount.eval()==0.
+                   and ink.par.Feedbackdecay.eval()==.93 and ink.par.Feedbackzoom.eval()==1.005)
             _check(name + '/speed_recalled', ink.par.Animationspeed.eval() == .5 + STATE['index'] * .75)
+            _check(name + '/particle_controls_recalled', ink.par.Particlecolumns.eval()==72
+                   and ink.par.Particleshape.eval()=='square' and abs(ink.par.Particledepth.eval()-.38)<1e-6
+                   and ink.par.Particlefieldenabled and ink.par.Fielddensity.eval()==.6 and ink.par.Fieldsize.eval()==3.5)
             _same(name + '/recall_pixels', _pixels(qa.op('look_preview')))
             ext.CancelLook()
             ext.Preload()
@@ -133,7 +158,13 @@ def step():
             ink = item['deck'].op(name)
             _check(name + '/go_clock', ink.par.Time.eval() == 25.5)
             _check(name + '/go_render_phase', ink.op('animation_clock').module.sample(ink) == STATE['render_phase'])
+            _check(name + '/go_point_phase', ink.op('animation_clock').module.field_sample(ink) == STATE['field_phase'])
+            _check(name + '/go_feedback_settings', bool(ink.par.Feedbackenabled) and ink.par.Feedbackamount.eval()==0.
+                   and ink.par.Feedbackdecay.eval()==.93 and ink.par.Feedbackzoom.eval()==1.005)
             _check(name + '/go_speed', ink.par.Animationspeed.eval() == .5 + STATE['index'] * .75)
+            _check(name + '/particle_controls_go', ink.par.Particlecolumns.eval()==72
+                   and ink.par.Particleshape.eval()=='square' and abs(ink.par.Particledepth.eval()-.38)<1e-6
+                   and ink.par.Particlefieldenabled and ink.par.Fielddensity.eval()==.6 and ink.par.Fieldsize.eval()==3.5)
             _same(name + '/go_pixels', _pixels(item['deck'].op('out1_image')))
             ext.Stopall()
             ext.RecallLook()
@@ -145,8 +176,9 @@ def step():
             ink.store('imagefx_look_time_phase', 17.25)
             ink.par.Timescale, ink.par.Autotime = -.5, True
             render_phase = ink.op('animation_clock').module.sample(ink)
+            field_phase = ink.op('animation_clock').module.field_sample(ink)
             ext.UpdateLook()
-            _check(name + '/running_clock_saved', ext.document['cues'][0]['look']['animation'][name] == {'time': 17.25, 'running': True, 'render_time': render_phase})
+            _check(name + '/running_clock_saved', ext.document['cues'][0]['look']['animation'][name] == {'time': 17.25, 'running': True, 'render_time': render_phase, 'field_time': field_phase})
             ext.RecallLook()
             ink = ext._look_edit['deck'].op(name)
             _check(name + '/running_recall_phase', ink.par.Time.eval() == 17.25 and bool(ink.par.Autotime))
@@ -155,6 +187,7 @@ def step():
             _check(name + '/export_phase_and_reverse', ink.par.Time.eval() == 15.25)
             _check(name + '/export_speed', ink.par.Animationspeed.eval() == .5 + STATE['index'] * .75)
             _check(name + '/export_render_phase', abs(ink.op('animation_clock').module.sample(ink) - (render_phase - 2 * ink.par.Animationspeed.eval())) < 1e-6)
+            _check(name + '/export_point_phase', abs(ink.op('animation_clock').module.field_sample(ink) - (field_phase - 2 * ink.par.Animationspeed.eval() * .8)) < 1e-6)
             ext.CancelLook()
             STATE['index'] += 1
             STATE['phase'] = 'next'

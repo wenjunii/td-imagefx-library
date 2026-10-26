@@ -10,6 +10,24 @@ import time
 from datetime import datetime, timezone
 
 STATE = {}
+FLOW_MODULES = ('ink_dream_flow', 'ink_brush_flow', 'ink_radial_flow')
+
+
+def flow_export_look(template, name, toggle_name):
+    """Build a non-default animated test look without mutating its template."""
+    if name not in FLOW_MODULES:
+        raise ValueError('Unknown flow export module: ' + name)
+    look = copy.deepcopy(template)
+    look['toggles'] = {key: False for key in look.get('toggles', {})}
+    look['toggles'][toggle_name] = True
+    look['modules'] = {name: dict(
+        Mix=1., Coverage=.7, Particlefieldenabled=True,
+        Particlecolumns=64, Fielddensity=.65, Fieldsize=2.5, Fieldspeed=1.2,
+        Feedbackenabled=True, Feedbackamount=.8, Feedbackdecay=.94,
+        Feedbackzoom=1.005, Feedbackrotate=.3, Feedbackoffsetx=.002,
+        Feedbackoffsety=-.001, Animationspeed=1.3)}
+    look['animation'] = {name: dict(time=1., running=True, render_time=2., field_time=.75)}
+    return look
 
 
 def start(root=None):
@@ -78,12 +96,14 @@ def start(root=None):
         cue['look']['toggles'][e.model.MODULE_TOGGLES['calligraphic_shadow']]=True
         e._replace_cues([cue])
         e.SelectCue(1)
+        STATE['base_cue'] = copy.deepcopy(cue)
         s.par.Exportfolder=str(root/'build/export-tests')
         s.par.Exportfps='30'
         s.par.Exportstart=0
         STATE['cases']=[('1080p','h264',.2,'cue'),('4k','h264',.1,'cue'),
                         ('custom','mjpeg',.2,'cue'),('custom','h264',.2,'draft'),
                         ('custom','h264',.2,'movie')]
+        STATE['cases'] += [('custom', 'h264', .4, name) for name in FLOW_MODULES]
         td.run("op(args[0]).module.next_case()", STATE['driver'], delayFrames=2)
     except Exception as exc:
         finish(repr(exc))
@@ -108,6 +128,16 @@ def next_case():
         schedule()
         return
     preset,codec,duration,source=STATE['cases'][STATE['index']]
+    STATE['flow_observed'] = False
+    STATE['flow_samples'] = []
+    if source in FLOW_MODULES:
+        if e._look_edit: e.CancelLook()
+        cue = copy.deepcopy(STATE['base_cue'])
+        cue['name'] = 'Particle feedback export ' + source
+        cue['source'] = ''
+        cue['look'] = flow_export_look(cue['look'], source, e.model.MODULE_TOGGLES[source])
+        e._replace_cues([cue])
+        e.SelectCue(1)
     if source=='movie':
         if e._look_edit: e.CancelLook()
         cue=copy.deepcopy(e.document['cues'][0])
@@ -123,7 +153,7 @@ def next_case():
     s.par.Exportwidth,s.par.Exportheight=640,360
     s.par.Exportcodec=codec
     s.par.Exportduration=duration
-    s.par.Exportsource='cue' if source=='movie' else source
+    s.par.Exportsource='cue' if source=='movie' or source in FLOW_MODULES else source
     s.par.Startexport.pulse()
     STATE['await_start']=True
     schedule()
@@ -141,12 +171,31 @@ def poll():
             finish()
             return
         if s.par.Exportbusy:
+            name = STATE['cases'][STATE['index']][3]
+            if name in FLOW_MODULES:
+                job = s.fetch(STATE['runtime'].JOB_KEY, None, search=False)
+                if job and job['deck'] is not None and job['index'] >= 2:
+                    module = job['deck'].op(name)
+                    expected = e.document['cues'][0]['look']['modules'][name]
+                    assert module.par.Enabled, name + ' export module disabled'
+                    differences = {key: (value, module.par[key].eval()) for key, value in expected.items()
+                                   if module.par[key].eval() != value}
+                    assert not differences, (name, differences)
+                    history = module.fetch('imagefx_flow_feedback_state', None, search=False)
+                    STATE['flow_samples'].append(dict(index=job['index'], history=history))
+                    # A delayed enable/reset event can clear the initial frame.
+                    # Require observed accumulation later, not on the first poll.
+                    if history and history['active'] and not history['clear']:
+                        STATE['flow_observed'] = True
             STATE['await_start']=False
             schedule()
             return
         status=s.par.Exportstatus.eval()
         if not status.startswith('COMPLETE'): raise ValueError(status)
         case=STATE['cases'][STATE['index']]
+        if case[3] in FLOW_MODULES:
+            assert STATE['flow_observed'], ('Particle motion/history were not observed', case[3], STATE['flow_samples'])
+            STATE['checks'].append(case[3] + ' custom values and active GPU history in export copy')
         STATE['exports'].append(dict(preset=case[0],codec=case[1],duration=case[2],source=case[3],
             path=s.par.Exportresult.eval(),status=status))
         STATE['checks'].append('export '+str(case))

@@ -575,7 +575,7 @@ def validate(write_report=True):
                    "Openoutputs":"Openoutputs","Closeoutputs":"Closeoutputs","Applycue":"ApplyCue",
                    "Capturelook":"CaptureLook","Addcue":"AddCue","Addblackout":"AddBlackout","Duplicatecue":"DuplicateCue",
                    "Removecue":"RemoveCue","Cueup":"MoveCue","Cuedown":"MoveCue",
-                   "Recalllook":"RecallLook","Updatelook":"UpdateLook",
+                   "Recalllook":"RecallLook","Editrunninglook":"EditRunningLook","Updatelook":"UpdateLook",
                    "Savelookasnew":"SaveLookAsNew","Cancellook":"CancelLook",
                    "Showlooklive":"ShowLiveLook","Stoplooklive":"StopLiveLook",
                    "Savecuenotes":"SaveCueNotes","Opencuenotes":"OpenCueNotes"}

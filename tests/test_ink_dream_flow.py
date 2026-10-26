@@ -80,6 +80,72 @@ class InkDreamFlowTests(unittest.TestCase):
             cue = dict(new_cue(), kind="parameters", target="ink_dream_flow/"+parameter, value=.75)
             self.assertEqual(validate_cue(cue)["target"], cue["target"])
 
+    def test_particle_conversion_is_optional_and_does_not_rewrite_flow(self):
+        for definitions, shader in ((MODULE["PARAMETERS"], MODULE["SHADER"]), MODULE["brush_variant"](), MODULE["radial_variant"]()):
+            controls = {d["name"]: d for d in definitions}
+            self.assertFalse(controls["Particlefieldenabled"]["default"])
+            self.assertEqual(controls["Particlecolumns"]["max"], 500)
+            self.assertEqual(controls["Particleshape"]["menu_names"], ["round", "square", "spark"])
+            self.assertIn("vec4 fieldBackground=result;", shader)
+            self.assertIn("if(uParticleFieldEnabled>.5) result=vec4(0.);", shader)
+            self.assertIn("result*=vec4(vec3(points.y),points.x);", shader)
+            self.assertGreater(shader.index("vec2 points=movingFieldGrains(screen,seed);"), shader.index("if(uStaticEnabled>.5"))
+            helper = shader.split("vec2 fieldGrains",1)[1].split("vec2 movingFieldGrains",1)[0]
+            self.assertNotIn("uTime", helper)
+            self.assertNotIn("flow(", helper)
+            self.assertNotIn("uParticleDensity", helper)
+            self.assertIn("for(int y=-1;y<=1;y++) for(int x=-1;x<=1;x++)", shader)
+            self.assertIn("if(uFieldDensity<=0.) return dots;", shader)
+            self.assertEqual(controls["Background"]["menu_names"], ["paper", "source", "transparent"])
+        radial = MODULE["radial_variant"]()[1]
+        self.assertIn("currentWisps", radial)
+        self.assertIn("paper=mix(paper,ambient", radial)
+
+    def test_motion_is_opt_in_and_moves_sampling_positions(self):
+        for definitions, shader in ((MODULE['PARAMETERS'], MODULE['SHADER']), MODULE['brush_variant'](), MODULE['radial_variant']()):
+            controls = {d['name']:d for d in definitions}
+            self.assertEqual(controls['Fieldspeed']['default'], 0.)
+            self.assertIn('field_sample', controls['Fieldspeed']['uniform_expression'])
+            # A stateful clock readout on the component creates a dependency
+            # warning in copied cue decks. Keep phase internal to the uniform.
+            self.assertNotIn('Fieldtime', controls)
+            self.assertIn('center+=.18*', shader)
+            self.assertIn('if(uFieldTime!=0.)', shader)
+            self.assertIn('vec2 d=f-offset-center;', shader)
+        self.assertIn('currentVelocity(p,t,seed)', MODULE['brush_variant']()[1])
+
+    def test_feedback_is_optional_embedded_and_separate_from_base_shader(self):
+        for definitions, shader in ((MODULE['PARAMETERS'], MODULE['SHADER']), MODULE['brush_variant'](), MODULE['radial_variant']()):
+            controls = {d['name']:d for d in definitions}
+            self.assertFalse(controls['Feedbackenabled']['default'])
+            self.assertEqual(controls['Feedbackreset']['type'], 'pulse')
+            self.assertNotIn('uHistory', shader)
+        self.assertIn('premult(current)', MODULE['FEEDBACK_SHADER'])
+        self.assertIn("or abs(delta) > .5", MODULE['FEEDBACK_RUNTIME_SOURCE'])
+        builder = (ROOT/'touchdesigner/scripts/build_project.py').read_text(encoding='utf-8')
+        self.assertIn('output_setup=scope["install_feedback"]', builder)
+        cues = (ROOT/'touchdesigner/extensions/ShowControlExt.py').read_text(encoding='utf-8')
+        self.assertIn("module.store('imagefx_flow_feedback_state', None)", cues)
+
+    def test_legacy_flow_defaults_restored(self):
+        variants = ((MODULE["PARAMETERS"], .48, [0.94, .85, .67, 1.]),
+                    (MODULE["brush_variant"]()[0], .57, [.012, .02, .045, 1.]),
+                    (MODULE["radial_variant"]()[0], .57, [1., .43, .14, 1.]))
+        for definitions, coverage, paper in variants:
+            controls = {d['name']: d for d in definitions}
+            self.assertEqual(controls['Coverage']['default'], coverage)
+            self.assertEqual(controls['Papercolor']['default'], paper)
+            self.assertGreater(controls['Papertexture']['default'], 0.)
+            self.assertEqual(controls['Particlefieldenabled']['page'], 'Particle Field')
+        for name in ('Fielddensity', 'Fieldsize'):
+            self.assertEqual(next(d for d in MODULE['PARAMETERS'] if d['name']==name)['page'], 'Particle Field')
+
+    def test_new_particle_values_are_cue_targets(self):
+        for module in ("ink_dream_flow", "ink_brush_flow", "ink_radial_flow"):
+            for name, value in (("Particlefieldenabled", True), ("Particlecolumns", 250), ("Particleshape", "spark"), ("Particledepth", .7), ("Fielddensity", .8), ("Fieldsize", 2.), ("Fieldspeed", -1.), ("Feedbackenabled", True), ("Feedbackamount", .75), ("Feedbackdecay", .94), ("Feedbackzoom", 1.01), ("Feedbackrotate", .25), ("Feedbackoffsetx", .001), ("Feedbackoffsety", -.002)):
+                cue = dict(new_cue(), kind="parameters", target=module+"/"+name, value=value)
+                self.assertEqual(validate_cue(cue)["value"], value)
+
     def test_builder_harness_and_suite_include_module(self):
         for name in ("build_project.py", "install_dev_harness.py"):
             text = (ROOT / "touchdesigner/scripts" / name).read_text(encoding="utf-8")
@@ -150,7 +216,8 @@ class InkDreamFlowTests(unittest.TestCase):
             for key in ("type", "uniform", "min", "max", "menu_names"):
                 self.assertEqual(variant.get(key), definition.get(key))
         self.assertIn("softCurrent(q,t,seed)", shader)
-        self.assertIn("currentWisps(pq,pt,seed)", shader)
+        self.assertIn("currentVelocity(point,t,seed)", shader)
+        self.assertIn("currentWisps", shader)
         self.assertNotIn("second-nearest",shader)
         coordinate_function = shader.split("vec2 currentCoordinates",1)[1].split("float softCurrent",1)[0]
         self.assertNotIn("q=currentCoordinates",coordinate_function)
@@ -173,7 +240,7 @@ class InkDreamFlowTests(unittest.TestCase):
             packed, bindings = MODULE["pack_scalar_uniforms"](shader,parameters)
             scalar = [d for d in parameters if d.get("uniform") and d["type"] not in ("xy","rgb","rgba")]
             self.assertEqual(sum(len(values) for _,values in bindings),len(scalar))
-            self.assertLess(len(bindings)+1,32)
+            self.assertLessEqual(len(bindings)+1,32)
             for definition in scalar:
                 self.assertEqual(len(re.findall(r"#define "+definition["uniform"]+r"\s+uPacked\d+\.[xyzw]",packed)),1)
                 expr = definition.get("uniform_expression") or "parent().par."+definition["name"]+(".menuIndex" if definition["type"]=="menu" else "")

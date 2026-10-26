@@ -4571,6 +4571,13 @@ def _repair_effect_shader_paths(root_comp):
             raise RuntimeError(
                 "{} Pixel Shader reference did not resolve".format(operator.path)
             )
+        # Retained package versions may also have an absolute diagnostic target.
+        # Repair the loaded copy without modifying the immutable package file.
+        info = operator.parent().op('shader_info_' + name[len('effect_glsl_'):])
+        if info is not None:
+            info.par['op'].val = info.relativePath(operator)
+            if info.par['op'].eval() != operator:
+                raise RuntimeError('{} diagnostic target did not resolve'.format(info.path))
         repaired += 1
     return repaired
 
@@ -5779,6 +5786,7 @@ def _build_reference_video_module(
     input_setup=None,
     packed_scalar_bindings=None,
     module_setup=None,
+    output_setup=None,
 ):
     """Build a bounded GPU module, optionally with custom image input routing."""
 
@@ -5908,6 +5916,9 @@ def _build_reference_video_module(
     # A saved .tox must display its own output after being copied/loaded.
     module.par.opviewer = module.relativePath(output)
 
+    if output_setup is not None:
+        output_setup(module, glsl)
+
     glsl.cook(force=True)
     errors = list(glsl.errors())
     if errors:
@@ -5984,6 +5995,7 @@ def build_ink_dream_flow_module(parent_comp, brush=False, radial=False):
         reference_video="Center-radiating particle currents inspired by the supplied image" if radial else "Soft luminous particle currents inspired by the supplied reference output" if brush else "Timeline 1.mp4",
         packed_scalar_bindings=bindings,
         module_setup=scope["install_animation_clock"],
+        output_setup=scope["install_feedback"],
     )
 
 
