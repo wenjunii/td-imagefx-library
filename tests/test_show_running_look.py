@@ -212,7 +212,9 @@ class RunningLookTests(unittest.TestCase):
         self.ext._mapping_matrices = Mock()
         engine = self.ext.engine
         with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory) / "show.json"
+            # macOS temp roots can traverse /var -> /private/var. Use the
+            # real directory; SaveShow deliberately rejects symlink paths.
+            path = Path(directory).resolve() / "show.json"
             self.ext._p.return_value = str(path)
             self.ext.SaveShow()
             self.assertEqual(json.loads(path.read_text())["cues"][0]["id"], self.cue["id"])

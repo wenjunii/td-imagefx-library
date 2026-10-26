@@ -28,6 +28,10 @@ after the update; the results below include that release recheck.
 - The publication-only source snapshot passed **579 portable tests** with four
   expected Windows symlink skips. The local, rejected dance prototypes were not
   included. The tracked-file credential scan passed.
+  GitHub's macOS run exposed a temporary-directory alias in the new Save Show
+  fixture; resolving that test directory keeps the production symlink guard
+  intact. A documentation assertion also keeps the README's real-frame group
+  count synchronized with the audit dispatcher.
 - The previous main TOE was backed up locally before patching; the personal
   show JSON was unchanged. Audience windows and physical audio remained disarmed.
   These checks do not certify venue hardware or sustained show-load performance.
