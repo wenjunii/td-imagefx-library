@@ -1,4 +1,4 @@
-"""Off-air look navigation, installable without restarting ShowControlExt."""
+"""Scoped off-air/running-cue navigation, installable without restarting playback."""
 import inspect
 
 
@@ -12,11 +12,13 @@ def target_definitions(order, labels):
 
 def active_deck(show):
     extension = show.ext.ShowControlExt
+    draft = extension._look_edit
+    if draft and draft.get("mode") == "running":
+        return extension.RunningLookDeck()
     if extension.engine.state != "stopped":
         raise ValueError("Stop All before editing a look")
-    draft = extension._look_edit
     if not draft:
-        raise ValueError("Select a visual cue and Recall Look first")
+        raise ValueError("Select a visual cue and Recall Look, or select its PLAY row and Edit Running Cue")
     deck = draft["deck"]
     if deck is None or deck != show.op("look_editor") or deck.path != show.path + "/look_editor":
         raise ValueError("The recalled look is unavailable; no main-workflow fallback is used")
@@ -66,7 +68,9 @@ def on_pulse(show, action):
         return False
     try:
         target = actions[action](show)
-        show.par.Lookcontrolstatus = "OFF-AIR: " + target.path
+        draft = show.ext.ShowControlExt._look_edit
+        prefix = "LIVE CUE: " if draft and draft.get("mode") == "running" else "OFF-AIR: "
+        show.par.Lookcontrolstatus = prefix + target.path
         return True
     except Exception as exc:
         show.par.Lookcontrolstatus = str(exc)

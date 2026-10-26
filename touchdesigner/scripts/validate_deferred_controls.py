@@ -35,6 +35,7 @@ JOBS = (
     ("look_animation", "validate_look_animation.py", "start", "look-animation.json", "dat_hd"),
     ("flow_feedback", "validate_flow_feedback.py", "start", "flow-feedback.json", "dat"),
     ("show_live_look", "validate_show_live_look.py", "start", "show-live-look.json", "dat"),
+    ("running_look", "validate_running_look.py", "start", "running-look.json", "dat"),
     ("show_continue", "validate_show_continue.py", "start", "show-continue.json", "dat"),
 )
 FIXTURES = ("show-image-fixture.png", "show-av-fixture.mp4",

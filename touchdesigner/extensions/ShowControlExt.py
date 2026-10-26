@@ -88,8 +88,8 @@ class ShowControlExt:
     def _status(self, message):
         self.ownerComp.par.Status = str(message)[:500]
 
-    def _guard_no_look_edit(self):
-        if self._look_edit is not None:
+    def _guard_no_look_edit(self, allow_running=False):
+        if self._look_edit is not None and not (allow_running and self.IsRunningLookEdit()):
             raise ValueError("Update Cue, Save as New Cue, or Cancel Changes before continuing")
 
     def _guard_edit(self, allow_look_edit=False):
@@ -123,7 +123,7 @@ class ShowControlExt:
         if not self.document["cues"]:
             return
         index = max(1, min(index, len(self.document["cues"])))
-        if self._look_edit is not None:
+        if self._look_edit is not None and not self.IsRunningLookEdit():
             target = self._look_index()
             if index != target + 1:
                 self.ownerComp.par.Selectedcue = target + 1
@@ -223,7 +223,7 @@ class ShowControlExt:
         index = int(self._p("Selectedcue")) - 1
         if not 0 <= index < len(self.document["cues"]):
             raise ValueError("Select a cue first")
-        if self._look_edit is not None:
+        if self._look_edit is not None and not self.IsRunningLookEdit():
             index = self._look_index()
         cues = copy.deepcopy(self.document["cues"])
         cues[index]["notes"] = self._p("Notes")
@@ -233,7 +233,7 @@ class ShowControlExt:
         for engine_cue in self.engine.cues:
             if engine_cue["id"] == cue["id"]:
                 engine_cue["notes"] = cue["notes"]
-        if self._look_edit is not None:
+        if self._look_edit is not None and self._look_edit["cue"]["id"] == cue["id"]:
             self._look_edit["cue"]["notes"] = cue["notes"]
         self._save_document_dat()
         self.Refresh()
@@ -265,6 +265,8 @@ class ShowControlExt:
         return top.path if top is not None else fallback
 
     def ShowLiveLook(self):
+        if self.IsRunningLookEdit():
+            raise ValueError("Running-cue edits are already on projection; Update Cue Look or Cancel Changes")
         self._guard_edit(allow_look_edit=True)
         self._look_index()
         self.ownerComp.par.Looklive = True
@@ -275,6 +277,11 @@ class ShowControlExt:
             self.ownerComp.par.Looklive = False
 
     def LiveLookStatus(self):
+        if self.IsRunningLookEdit():
+            draft = self._look_edit
+            state = "LIVE CUE EDIT" if draft.get("deck") is not None else "CUE ENDED / DRAFT RETAINED"
+            return "{} | {} / track {} | Update Cue Look to keep; Cancel to discard".format(
+                state, draft["cue"]["name"][:36], draft["cue"]["track"])
         enabled = getattr(self.ownerComp.par, "Looklive", None)
         if enabled is None or not enabled.eval() or self._look_edit is None:
             return "OFF-AIR | Show Live Look to audition; Update Cue to keep changes"
@@ -455,6 +462,143 @@ class ShowControlExt:
                 return index
         raise ValueError("Original cue no longer exists; cancel this draft")
 
+    def IsRunningLookEdit(self):
+        return bool(self._look_edit and self._look_edit.get("mode") == "running")
+
+    def RunningLookDeck(self):
+        """An editor may only touch the exact playback instance it started on."""
+        if not self.IsRunningLookEdit():
+            raise ValueError("No running-cue edit is active")
+        draft = self._look_edit
+        item = self.tracks.get(draft["cue"]["track"])
+        deck = draft.get("deck")
+        if (deck is None or item is None or item is not draft.get("item") or item.get("finished")
+                or item["cue"]["id"] != draft["cue"]["id"]
+                or deck != item.get("deck") or deck.id != draft["deck_id"]
+                or deck != self.ownerComp.op("deck{}_{}".format(item["track"], item["side"]))):
+            raise ValueError("The edited cue has ended or changed; Update Cue Look or Cancel Changes")
+        return deck
+
+    def EditRunningLook(self):
+        """Audition in-place: no copying, media reload, clock reset or rerouting."""
+        self._guard_no_look_edit()
+        if self.engine.state != "running":
+            raise ValueError("Run or resume a visual cue, select its PLAY row, then Edit Running Cue")
+        index = int(self._p("Selectedcue")) - 1
+        if not 0 <= index < len(self.document["cues"]):
+            raise ValueError("Select the running visual cue")
+        cue = self.document["cues"][index]
+        item = self.tracks.get(cue["track"])
+        if (cue["kind"] != "visual" or not item or item["cue"]["id"] != cue["id"]
+                or item.get("finished") or cue["id"] not in self.engine.active):
+            raise ValueError("Select the visual cue currently showing PLAY on its track")
+        if item.get("fading"):
+            raise ValueError("Wait for this cue's crossfade to finish before editing")
+        if any(value["cue"]["track"] == cue["track"] for value in self.automations.values()):
+            raise ValueError("Wait for parameter automation on this track to finish before editing")
+        deck = item["deck"]
+        original = self._capture_look(deck)
+        self._clear_look_result()
+        self.StopLiveLook()
+        self._look_edit = dict(mode="running", cue=copy.deepcopy(cue), deck=deck,
+                               deck_id=deck.id, item=item, original=original)
+        self.ownerComp.op("look_preview").par.top = deck.op("out1_image").path
+        self.ownerComp.par.Lookediting = True
+        self.ownerComp.par.Lookstatus = "LIVE EDIT: " + cue["name"]
+        self._status("Running cue stays on air. Choose Effect Module > Edit Controls; Update Cue Look or Cancel Changes.")
+
+    @staticmethod
+    def _keep_starting_clocks(look, saved):
+        """Commit settings, not elapsed rehearsal time, as a cue's next start."""
+        look.pop("animation", None)
+        if "animation" in saved:
+            look["animation"] = copy.deepcopy(saved["animation"])
+        if "rack" in look:
+            for name, default in (("time", 0.0), ("autotime", True)):
+                look["rack"][name] = saved.get("rack", {}).get(name, default)
+        for name, branch in look.get("branches", {}).items():
+            ShowControlExt._keep_starting_clocks(branch, saved.get("branches", {}).get(name, {}))
+        return look
+
+    def _running_look_snapshot(self):
+        draft = self._look_edit
+        if draft.get("deck") is None:
+            if draft.get("capture_error"):
+                raise ValueError("Ended draft could not be captured: " + draft["capture_error"] + "; Cancel Changes")
+            return copy.deepcopy(draft["pending_look"])
+        return self._keep_starting_clocks(self._capture_look(self.RunningLookDeck()), draft["cue"]["look"])
+
+    def _restore_running_values(self, deck, look):
+        """Restore changed values only; never load media or reset playback clocks."""
+        for name, values in look.get("modules", {}).items():
+            module = deck.op(name)
+            for key, value in values.items():
+                if module.par[key].eval() != value:
+                    self._assign(module, key, value)
+        for module_name, field in (("layer_composite", "layer_files"), ("image_composition", "composition_files")):
+            module = deck.op(module_name)
+            for name, value in look.get(field, {}).items():
+                if module.par[name].eval() != value:
+                    module.par[name] = value
+        rack = deck.op("fx_rack")
+        current = json.loads(rack.ExportPreset())
+        preset = copy.deepcopy(look["rack"])
+        for key in ("time", "autotime"):
+            preset[key] = current[key]
+        if preset != current:
+            # Branch rack time can be expression-bound; ImportPreset must not
+            # replace that binding while restoring slot settings.
+            clock = rack.par.Manualtime
+            mode, expression = clock.mode, clock.expr
+            rack.ImportPreset(preset)
+            clock.expr, clock.mode = expression, mode
+        for name, branch in look.get("branches", {}).items():
+            self._restore_running_values(deck.op("image_composition/" + name), branch)
+        for name, value in look.get("toggles", {}).items():
+            if bool(deck.par[name]) != value:
+                deck.par[name] = value
+        workflow = deck.op("workflow").module
+        if list(workflow.current(deck)) != look.get("order"):
+            workflow.apply_order(deck, look["order"])
+
+    def _detach_running_look(self, item):
+        """Retain a value-only draft before its deck is held, stopped or reused."""
+        if not self.IsRunningLookEdit() or self._look_edit.get("item") is not item:
+            return
+        draft = self._look_edit
+        try:
+            draft["pending_look"] = self._running_look_snapshot()
+        except Exception as exc:
+            draft["capture_error"] = str(exc)
+        # Keep the auditioned image through a hold or outgoing crossfade. The
+        # deck is reset on reuse; reverting it here would create a visible pop.
+        draft["deck"], draft["item"] = None, None
+        self.ownerComp.op("look_preview").par.top = "black"
+        self.ownerComp.par.Lookstatus = "Cue ended; draft retained. Update Cue Look or Cancel Changes."
+
+    def _finish_running_look(self):
+        # This deck belongs to playback, not the editor: NEVER destroy it.
+        self._look_edit = None
+        self.ownerComp.par.Lookediting = False
+        self.ownerComp.op("look_preview").par.top = "black"
+        self.ownerComp.par.Lookstatus = "No look draft; Edit Running Cue or Recall Look"
+
+    def _commit_running_look(self):
+        index = self._look_index()
+        look = self._running_look_snapshot()
+        cues = copy.deepcopy(self.document["cues"])
+        cues[index]["look"] = look
+        validated = self._validated_cues(cues)
+        cue = self.document["cues"][index]
+        cue["look"] = validated["cues"][index]["look"]
+        for engine_cue in self.engine.cues:
+            if engine_cue["id"] == cue["id"]:
+                engine_cue["look"] = copy.deepcopy(cue["look"])
+        self._save_document_dat()
+        self._finish_running_look()
+        self.Refresh()
+        self._status("Cue look updated without restarting playback. Starting phase and timing unchanged; Save Show writes it to disk.")
+
     def _clear_look_result(self):
         result = self.ownerComp.op("look_result")
         if result is not None and result.fetch("imagefx_saved_preview", False, search=False):
@@ -494,6 +638,10 @@ class ShowControlExt:
                                          "No look draft; select a visual cue and Recall Look")
 
     def _commit_look(self, as_new=False):
+        if self.IsRunningLookEdit():
+            if as_new:
+                raise ValueError("Use Update Cue Look or Cancel Changes for a running-cue edit")
+            return self._commit_running_look()
         self._guard_edit(allow_look_edit=True)
         index = self._look_index()
         if self.ownerComp.op("look_result") is not None:
@@ -536,6 +684,12 @@ class ShowControlExt:
         self._commit_look(as_new=True)
 
     def CancelLook(self):
+        if self.IsRunningLookEdit():
+            if self._look_edit.get("deck") is not None:
+                self._restore_running_values(self.RunningLookDeck(), self._look_edit["original"])
+            self._finish_running_look()
+            self._status("Running look changes discarded. Playback continues without rewinding; saved cue unchanged.")
+            return
         self._guard_edit(allow_look_edit=True)
         if self._look_edit is None:
             raise ValueError("No look draft to cancel")
@@ -752,7 +906,7 @@ class ShowControlExt:
         return deck
 
     def prepare(self, cue):
-        self._guard_no_look_edit()
+        self._guard_no_look_edit(allow_running=True)
         if cue["id"] in self.engine.active or any(
             item["cue"]["id"] == cue["id"] for item in self.tracks.values()
         ):
@@ -769,7 +923,7 @@ class ShowControlExt:
 
     def prepare_replay(self, cue):
         """Load a fresh standby while keeping a previously held instance on air."""
-        self._guard_no_look_edit()
+        self._guard_no_look_edit(allow_running=True)
         track = self.tracks.get(cue["track"])
         if cue["kind"] == "visual" and track and track.get("fading"):
             raise ValueError("Wait for this track's crossfade to finish before Go Back")
@@ -782,6 +936,7 @@ class ShowControlExt:
         held_cue = held["cue"] if held else None
         voice_cue = voice["cue"] if voice else None
         if held:
+            self._detach_running_look(held)
             held["cue"] = dict(held_cue, id=alias)
         if voice:
             voice["cue"] = dict(voice_cue, id=alias)
@@ -1018,6 +1173,8 @@ class ShowControlExt:
         if kind == "visual":
             track = cue["track"]
             old = self.tracks.get(track)
+            if old is not None:
+                self._detach_running_look(old)
             self.ownerComp.op("track{}_source{}".format(track, item["side"])).par.top = item["deck"].op("out1_image").path
             if float(self._p("Track{}level".format(track))) <= 1e-6:
                 # A blackout is a visual boundary. Raising the level while
@@ -1055,6 +1212,8 @@ class ShowControlExt:
             for track in ((1, 2, 3) if cue["blackout_scope"] == "all" else (cue["track"],)):
                 self._fade_track_level(track, 0.0, cue, elapsed)
         elif kind == "parameters":
+            if self.tracks.get(cue["track"]) is not None:
+                self._detach_running_look(self.tracks[cue["track"]])
             parameter, old = self._target(cue)
             self.automations = {key: value for key, value in self.automations.items() if value["parameter"] != parameter}
             self.automations[cue["id"]] = {"cue": cue, "parameter": parameter, "old": old, "started": elapsed}
@@ -1133,6 +1292,7 @@ class ShowControlExt:
                 self.automations.pop(key)
 
     def _halt_deck(self, item):
+        self._detach_running_look(item)
         if item.get("movie") is not None:
             item["movie"].par.play = False
         item["deck"].allowCooking = False
@@ -1143,6 +1303,7 @@ class ShowControlExt:
         if cue["kind"] == "visual":
             item = self.tracks.get(cue["track"])
             if item and item["cue"]["id"] == cue["id"]:
+                self._detach_running_look(item)
                 if cue["hold"]:
                     # A disabled COMP can invalidate textures selected outside
                     # it. Cache the live image before halting its network.
@@ -1170,7 +1331,10 @@ class ShowControlExt:
                     self._level_fades.pop(track)
 
     def _stop_track(self, track):
-        item = self.tracks.pop(track, None)
+        item = self.tracks.get(track)
+        if item:
+            self._detach_running_look(item)
+        self.tracks.pop(track, None)
         if item:
             self._release_audio(item["cue"]["id"])
             self._halt_deck(item)
@@ -1244,7 +1408,7 @@ class ShowControlExt:
             item["reader"].par.play = not paused and item["started"] is not None
 
     def Go(self):
-        self._guard_no_look_edit()
+        self._guard_no_look_edit(allow_running=True)
         queued = self.engine.go(int(self._p("Selectedcue")) - 1)
         self.SelectCue(min(len(self.document["cues"]), self.engine.selected + 1))
         self._status("GO queued; waiting for pre-wait and media readiness" if queued else "No cue queued (disabled or end of list)")
@@ -1255,7 +1419,7 @@ class ShowControlExt:
         self.Refresh()
 
     def GoBack(self):
-        self._guard_no_look_edit()
+        self._guard_no_look_edit(allow_running=True)
         queued = self.engine.go_back()
         if queued:
             self.SelectCue(min(len(self.document["cues"]), self.engine.selected + 1))
@@ -1263,7 +1427,7 @@ class ShowControlExt:
         self.Refresh()
 
     def Resume(self):
-        self._guard_no_look_edit()
+        self._guard_no_look_edit(allow_running=True)
         self.engine.resume()
         self.Refresh()
 
@@ -1304,7 +1468,7 @@ class ShowControlExt:
         return problems
 
     def SaveShow(self):
-        self._guard_edit()
+        self._guard_no_look_edit()
         from tdimagefx.jsonutil import atomic_write_json, load_json
         path = Path(self._p("Showfile"))
         if path.is_symlink() or any(parent.is_symlink() for parent in path.parents):
@@ -1492,6 +1656,7 @@ class ShowControlExt:
                 "Removecue": self.RemoveCue, "Applycue": self.ApplyCue,
                 "Capturelook": self.CaptureLook, "Saveshow": self.SaveShow,
                 "Recalllook": self.RecallLook, "Updatelook": self.UpdateLook,
+                "Editrunninglook": self.EditRunningLook,
                 "Savelookasnew": self.SaveLookAsNew, "Cancellook": self.CancelLook,
                 "Loadshow": self.LoadShow, "Preflight": self.Preflight,
                 "Openoutputs": self.Openoutputs, "Closeoutputs": self.Closeoutputs,

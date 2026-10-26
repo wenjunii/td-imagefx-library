@@ -43,15 +43,19 @@ def install(show):
         item.label = label
         return item
 
+    running = parameter('Look Editor', 'Pulse', 'Editrunninglook', 'Edit Running Cue')
+    running.enableExpr = "not bool(me.par.Lookediting) and me.ext.ShowControlExt.engine.state == 'running'"
+    offair = 'bool(me.par.Lookediting) and not me.IsRunningLookEdit()'
     live = parameter('Look Editor', 'Toggle', 'Looklive', 'Send Live Look to Projection', False)
-    live.enableExpr = 'bool(me.par.Lookediting)'
+    live.enableExpr = offair
     target = parameter('Look Editor', 'Int', 'Looklivetrack', 'Live Look Target Track', 1)
     target.min, target.max, target.normMin, target.normMax = 1, 3, 1, 3
     target.clampMin, target.clampMax = True, True
-    target.enableExpr = 'bool(me.par.Lookediting)'
+    target.enableExpr = offair
     for name, label in (('Showlooklive', 'Show Live Look'), ('Stoplooklive', 'Stop Live Look')):
         item = parameter('Look Editor', 'Pulse', name, label)
-        item.enableExpr = 'bool(me.par.Lookediting)' if name == 'Showlooklive' else 'bool(me.par.Looklive)'
+        item.enableExpr = offair if name == 'Showlooklive' else 'bool(me.par.Looklive)'
+    show.par.Savelookasnew.enableExpr = offair
     status = parameter('Look Editor', 'Str', 'Looklivestatus', 'Live Projection Status')
     status.expr, status.readOnly = 'me.LiveLookStatus()', True
 
@@ -74,7 +78,8 @@ def install(show):
 
     for action, label, x, width in (('Showlooklive', 'Show Live Look', 20, 214),
                                     ('Stoplooklive', 'Stop Live Look', 244, 188),
-                                    ('Opencuenotes', 'Cue Notes', 442, 182)):
+                                    ('Opencuenotes', 'Cue Notes', 442, 182),
+                                    ('Editrunninglook', 'Edit Running Cue', 634, 266)):
         button = next((node for node in show.children
                        if node.fetch('show_action', None, search=False) == action), None)
         if button is None:
@@ -87,6 +92,10 @@ def install(show):
             callback = button.create(td.panelexecuteDAT, 'clicked')
         callback.par.panels, callback.par.panelvalue, callback.par.offtoon = '..', 'lselect', True
         callback.text = "def onOffToOn(panelValue):\n    parent().parent().Action(parent().fetch('show_action'))\n"
+    # The previous 256x144 preview reached y=340 and covered this new button
+    # row. Keep a 16:9 preview fully below the controls and above the review.
+    preview = show.op('look_preview_panel')
+    preview.par.x, preview.par.y, preview.par.w, preview.par.h = 724, 198, 176, 99
     help_node = show.op('help')
     help_node.par.y, help_node.par.h, help_node.par.fontsize = 282, 24, 12
     help_node.par.text.expr = 'parent().LiveLookStatus()'

@@ -32,7 +32,7 @@ cue. Long or multiline notes are shortened to a one-line preview; the full text
 remains in **Cue Notes**. A dash means that cue has no saved notes. Press **Save
 Cue Notes** to refresh the row after editing; changing selection does not save
 an unfinished edit. The selected cue's note also appears beneath the live-look controls.
-Press **Save Show** when stopped and outside a draft to persist committed notes
+Press **Save Show** outside a draft to persist committed notes (playback may continue)
 in the show JSON. Unsaved note text is replaced when selecting another cue.
 
 ## Go Back and blackout cues
@@ -267,6 +267,44 @@ Keep a separate backup of both the JSON and its media. Relative media paths are
 resolved against the JSON's directory. Save Show is separate from saving the TOE;
 rebuilding the library resets the built-in demo cue, but not your saved JSON.
 
+### Edit the running cue live
+
+You do not have to stop playback or Recall Look to adjust the cue on air:
+
+1. Select the Visual cue row marked **PLAY**. GO normally advances selection to
+   the next row, so reselect the cue you actually want to edit.
+2. Click **Edit Running Cue** on the Show Control panel or Look Editor tab.
+   Wait for any crossfade or parameter automation on its track to finish first.
+3. In **Look Editor**, choose **Effect Module → Edit Controls**. Edit its module
+   sliders, colors, switches, workflow order, rack slots or composition branches.
+   These controls target that exact playback deck, not the main design workflow.
+   The status reads **LIVE CUE EDIT**. **Open Preview** shows its live effect output.
+4. Changes immediately reach the cue's normal track and assigned outputs. Existing
+   mapping, masks, output grading, Direct/4K Wall routing and all blackouts still
+   apply. No hardware output or audio device is automatically armed.
+5. Choose **Update Cue Look** to commit the current settings, or **Cancel Changes**
+   to restore the controls as they were when editing started. Neither action
+   reloads the main media, recreates its audio voice, or rewinds the playhead.
+   Update saves only the look: cue source, timing, track, notes and original
+   starting animation phase stay unchanged. The on-air animation continues.
+6. **Save Show** writes the committed settings to your local JSON. This is allowed
+   while playback runs, but only after finishing/canceling the draft.
+
+Pause/Resume and GO/Go Back remain usable. Continue/Follow cues are not blocked.
+When the edited cue ends, stops, is replaced, or a parameter cue takes over its
+track, the draft is detached and its settings are retained for **Update Cue Look**
+or **Cancel Changes**. The outgoing/held image is not reverted during transition.
+Cancel then discards the retained draft only; it never modifies the new cue.
+Only one look edit can be active at a time. **Save as New Cue** and the off-air
+**Show/Stop Live Look** routing controls are disabled in running-edit mode.
+
+This is live audition, not an undo of rendered history: changing feedback controls
+can affect accumulated trails, and Cancel cannot reconstruct past GPU frames.
+Changing a layer file or rack effect may need media loading/shader compilation;
+test those changes in rehearsal. Keep cue source/timing edits in the stopped
+Cue Editor. Reopening the TOE or reinitializing Show Control discards uncommitted
+drafts, so Update and Save Show before closing.
+
 ### Edit a captured look safely
 
 Every visual module's own **Enabled** switch is bound bidirectionally to its
@@ -301,7 +339,7 @@ Capture Look or Update Cue again.
    master/per-projector/wall blackouts remain active; this does not open output
    windows or enable audio. Release the appropriate blackouts yourself when
    ready. **Stop Live Look** returns to normal program output without discarding
-   the draft. Editing requires a stopped show, so that output is normally black.
+   the draft. This Recall workflow requires a stopped show, so that output is normally black.
 4. Choose **Update Cue** to replace only that cue's look. Its name, media,
    timing, track and audio settings are unchanged. The preview remains on the
    saved frame, marked **SAVED / FROZEN**; **Open Preview** stays available.
@@ -450,7 +488,7 @@ show, not a cue look. See [projection mapping and masks](projection-mapping.md).
 The Projection Mapping page and individual projector panels include section
 resets, plus complete calibration resets. Full reset includes output resolution
 and grade but preserves routing and blackout. **Save Mapping + Cues to Show File**
-uses the same JSON saver as **Save Show** (Stop All first). Applied custom mask
+uses the same JSON saver as **Save Show** (finish/cancel any look draft first). Applied custom mask
 points are embedded in that show; mask images stay external. **Load Show**
 restores the complete saved calibration and safely disarms the outputs/audio.
 
@@ -507,6 +545,12 @@ process may be preferable. The software tests do not prove glitch-free physical
 audio. See [Audio Device Out CHOP](https://docs.derivative.ca/Audio_Device_Out_CHOP).
 
 ## Verification and current limits
+
+`validate_running_look.py` adds 63 real-frame checks for the running-cue editor:
+projection pixels, non-destructive Update/Cancel, playback/clock continuity,
+all three ink modules, rack/order/branch restoration, video/audio reader retention,
+automatic Continue/Follow transitions, and ended-draft handling. It is part of
+the deferred control suite and does not open hardware outputs or enable audio.
 
 `validate_show_control.py` checks cue preparation, rendered mapping controls,
 all routing modes, pause/resume, parameter automation, missing media retention,

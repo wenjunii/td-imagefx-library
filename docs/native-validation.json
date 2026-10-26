@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-10-25T21:03:58.751707+00:00",
+  "generated_at": "2026-10-25T22:30:08.742830+00:00",
   "library_version": "0.3.0",
   "touchdesigner": {
     "version": "099",
@@ -14,7 +14,7 @@
   },
   "show_sources": {
     "src/tdimagefx/show.py": "1450e01dc8f1a09879de2daa5e08770e2261a4b5128be62757df10ef50b08748",
-    "touchdesigner/extensions/ShowControlExt.py": "30cfce0298aa5708dce030cae0068917dcbb80664e3957b1c296eb2bb12e2a65",
+    "touchdesigner/extensions/ShowControlExt.py": "e15cee68dfd3fa6c8d0eb7f84d61cbb218624eae705fdbc5242d9bfa58ba7321",
     "touchdesigner/scripts/build_show_control.py": "68c8ad38c7eb29e5d7ea70443a910cbfd40cffba7519d4c726905ab05ffc8006"
   },
   "module_sources": {
@@ -27,12 +27,12 @@
     "touchdesigner/scripts/color_switch.py": "9ce855169c5c815735cef991380d1935fea8535eab9846c0f1188284011ae98e",
     "touchdesigner/scripts/image_composition.py": "557d059d6f1269a95cbd61e66f49757e5551a59543a6b39c8fdc8a2ba18d0374",
     "touchdesigner/scripts/source_media.py": "c7a423d858704ea0736957ec7767de1a4bcf930a86181b84fddea50d17bc1448",
-    "touchdesigner/scripts/look_editor_controls.py": "06694ac44e7f3063045b0d7dabd069c563a017aea74cd7ea18d5877709d91016",
+    "touchdesigner/scripts/look_editor_controls.py": "383177594556ca9b2cb6d1f5f4a043be2bb182c05f765974fd5ca682e712338c",
     "touchdesigner/scripts/show_review_export.py": "c262cbb992661d33244d9f142ba0cbd6fc696c9de865e57c5c884e100eebba15",
     "touchdesigner/scripts/show_output_mode.py": "54c50cbb6c07e48a55931d38815fbab8e5f686654a47a3ec6fc0d3e0a16de646",
     "touchdesigner/scripts/projection_mapping.py": "8a9f936e2ee04906409ef0572d0d139687bd9352df85b82175f384e71938a518",
     "touchdesigner/scripts/projection_polygon.py": "a3a6ef52960eb768a2b82082d8a6370b693f44b5c2c15fdde8e7f5adc74df6ce",
-    "touchdesigner/scripts/show_live_look.py": "441339b60aa129e83e039d2a019715d813a80a8dcb10be04f01b94bdb1b704ee",
+    "touchdesigner/scripts/show_live_look.py": "a8c816c3ea5687b70ba3a2807ebae6a1ee7820eba919d92dde152bc1395e0e8b",
     "touchdesigner/extensions/FxRackExt.py": "718abb4d28777a99076a5881f82ae43b9edfea1fbcb3d02e0ff993065131130c"
   },
   "catalog": {
@@ -52,8 +52,8 @@
   "artifacts": [
     {
       "path": "TD_ImageFX_Library.toe",
-      "bytes": 1773858,
-      "sha256": "b7a5fa5f6c0be844848d4c387c0443a8e1ec56d1cbc251e9363601c47d4b81eb"
+      "bytes": 5037642,
+      "sha256": "160244019dc8ffc15c3b6c6c7aa73ce5718332be674339f560156c6fbf2e531c"
     },
     {
       "path": "touchdesigner/core/TDImageFXLibrary.tox",

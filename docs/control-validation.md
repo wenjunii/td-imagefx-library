@@ -1,5 +1,45 @@
 # Control validation
 
+## Running-cue look editing — 2026-10-25
+
+The main TOE has an in-place Show Control update for **Edit Running Cue**.
+Effect shaders and the existing core/package TOXs are unchanged by this update.
+The full control and export suites were rerun against the saved canonical TOE
+after the update; the results below include that release recheck.
+
+- **63 focused native checks** verify live projector pixel changes, Cancel,
+  Update without a frame/clock reset, independent track isolation, mapping and
+  blackout safety, pause/resume, rack/workflow/branch restoration, and preservation
+  of all three ink modules' saved starting phases. Video and embedded-audio
+  reader identities/play states remain intact. Continue/Follow and Stop All retain
+  an unfinished draft without changing the next cue. Save Show works after commit
+  while playback continues. The new panel button is checked for size and preview
+  non-overlap; its label is also visually verified in the saved TOE.
+- The full audit passed **28 blocking groups / 5,682 checks** and **17 real-frame
+  groups / 580 checks**. The latter includes the 63 new checks. The visible
+  **Edit Running Cue** pulse and panel-button route are included in the exhaustive
+  dispatcher check.
+- **20 cue/draft export checks** and **seven wall-recorder checks** passed again.
+  Independent decoding confirmed all eight cue movies and three completed UHD
+  wall movies, including projector quadrant order and confidence-monitor pixels.
+  The H.264 30-fps wall test again reported **10 startup frame drops**; MJPEG
+  25-fps and H.264 24-fps early Stop reported none. This remains a recording
+  performance limitation, not a failed control or file-format check.
+- The publication-only source snapshot passed **579 portable tests** with four
+  expected Windows symlink skips. The local, rejected dance prototypes were not
+  included. The tracked-file credential scan passed.
+- The previous main TOE was backed up locally before patching; the personal
+  show JSON was unchanged. Audience windows and physical audio remained disarmed.
+  These checks do not certify venue hardware or sustained show-load performance.
+- A fresh canonical-file reopen passed **14 persistence/safety checks** with
+  no native errors or warnings. All **4,906 embedded text DATs** passed the
+  credential scan; the new button and scoped editor code match the saved source.
+
+Regression: `tests/test_show_running_look.py`, `tests/test_look_editor_controls.py`,
+and `touchdesigner/scripts/validate_running_look.py`. The last runs automatically
+in `validate_deferred_controls.py`; its local report is
+`build/envoy-validation/running-look.json`.
+
 ## Release recheck — 2026-10-25
 
 The final Particle Field, point-motion and optional Feedback build was checked

@@ -139,6 +139,24 @@ class LookEditorControlTests(unittest.TestCase):
         self.assertFalse(self.call("on_pulse", "Gocue"))
         self.show.op.assert_not_called()
 
+    def test_running_edit_uses_only_owned_playback_instance(self):
+        self.ext.engine.state = "running"
+        self.ext._look_edit["mode"] = "running"
+        self.deck.path = "/show/deck2_0"
+        self.module.path = "/show/deck2_0/calligraphic_shadow"
+        self.ext.RunningLookDeck = Mock(return_value=self.deck)
+        self.assertIs(self.call("control_target"), self.module)
+        self.ext.RunningLookDeck.assert_called_once_with()
+        self.assertTrue(self.call("on_pulse", "Editlookcontrols"))
+        self.assertEqual(self.show.par.Lookcontrolstatus, "LIVE CUE: " + self.module.path)
+
+    def test_ended_running_draft_never_falls_back_to_next_cue(self):
+        self.ext._look_edit["mode"] = "running"
+        self.ext.RunningLookDeck = Mock(side_effect=ValueError("Cue ended"))
+        with self.assertRaisesRegex(ValueError, "Cue ended"):
+            self.call("control_target")
+        self.deck.op.assert_not_called()
+
 
 if __name__ == "__main__":
     unittest.main()
