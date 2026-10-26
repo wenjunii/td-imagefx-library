@@ -8,6 +8,156 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 
 
+def _panorama_checks(show, wall, checks):
+    """Check shared-cue slicing on the actual mapped and packed output graph."""
+    import numpy as np
+    ext = show.ext.ShowControlExt
+    for alias, target in (('Outputlayout','Routingmode'), ('Outputsharedtrack','Sharedtrack'),
+                          ('Outputpanelwidth','Renderwidth'), ('Outputpanelheight','Renderheight'),
+                          ('Outputoverlap','Panoramaoverlap'), ('Outputmediafit','Cuemediafit')):
+        checks['canvas_binding_' + alias] = show.par[alias].bindMaster == show.par[target]
+    show.par.Outputlayout = 'panoramic'
+    show.par.Outputsharedtrack = 2
+    show.par.Outputpanelwidth, show.par.Outputpanelheight = 1920, 1080
+    show.par.Outputoverlap = 0
+    show.par.Masterblackout = False
+    for i in (1, 2, 3):
+        show.par['Output{}width'.format(i)], show.par['Output{}height'.format(i)] = 1920, 1080
+    code = show.create(textDAT, 'panorama_test_code')
+    code.text = ('layout(location=0) out vec4 fragColor; void main(){'
+                 'vec3 c=vUV.x<1./3.?vec3(1,0,0):vUV.x<2./3.?vec3(0,1,0):vec3(0,0,1);'
+                 'fragColor=TDOutputSwizzle(vec4(c,1));}')
+    source = show.create(glslTOP, 'panorama_test')
+    source.par.pixeldat, source.par.outputresolution = 'panorama_test_code', 'custom'
+    source.par.resolutionw, source.par.resolutionh = 5760, 1080
+    show.op('track2_source0').par.top = source.path
+    show.par.Track2visible, show.par.Track2blend, show.par.Track2level = True, 0, 1
+    wall.par.Sourcemode, wall.par.Blackout, wall.par.Enabled = 'show', False, True
+    wall.par.Testpattern, wall.par.Monitorenabled = False, True
+    ext.UpdateMapping()
+
+    def pixels(top):
+        top.cook(force=True)
+        result = top.numpyArray(delayed=False)
+        assert result is not None and np.isfinite(result).all() and not top.errors(), top.path
+        return result.copy()
+
+    colors = np.eye(3)
+    for delivery in ('direct', 'wall'):
+        show.par.Outputmode = delivery
+        checks['panorama_summary_' + delivery] = '5760 x 1080 panorama | Track 2' in show.par.Outputcanvas.eval()
+        feeds = [pixels(show.op('out{}_projector'.format(i))) for i in (1, 2, 3)]
+        checks['panorama_mapped_dimensions_' + delivery] = all(a.shape == (1080,1920,4) for a in feeds)
+        for i, a in enumerate(feeds):
+            checks['panorama_slice_{}_{}'.format(delivery,i+1)] = bool(np.allclose(a[:,:,:3], colors[i], atol=.005))
+        packed = pixels(wall.op('out1_wall_4k'))
+        checks['panorama_4k_pack_' + delivery] = packed.shape == (2160,3840,4)
+        for i, tile in enumerate((packed[1080:,:1920], packed[1080:,1920:], packed[:1080,:1920])):
+            checks['panorama_wall_tile_{}_{}'.format(delivery,i+1)] = bool(np.allclose(tile[:,:,:3], feeds[i][:,:,:3], atol=.005))
+        checks['panorama_confidence_' + delivery] = np.array_equal(packed[:1080,1920:], pixels(wall.op('comp_monitor_out')))
+    for track in (1, 3):
+        show.par.Sharedtrack = track
+        checks['panorama_shared_track_' + str(track)] = all(ext.OutputTrack(i) == track for i in (1,2,3))
+    show.par.Sharedtrack = 2
+    show.par.Panoramaoverlap = .25
+    ext.UpdateMapping()
+    checks['panorama_overlap_width'] = '4800 x 1080' in show.par.Outputcanvas.eval()
+    checks['panorama_overlap_intervals'] = all(
+        abs(float(show.op('mapped%d' % i).par.vec3valuex) - (i-1)*.3) < 1e-6
+        and abs(float(show.op('mapped%d' % i).par.vec3valuez) - ((i-1)*.3+.4)) < 1e-6 for i in (1,2,3))
+    show.par.Routingmode = 'identical'
+    ext.UpdateMapping()
+    checks['identical_remains_available'] = np.array_equal(pixels(show.op('mapped1')), pixels(show.op('mapped3')))
+    show.par.Routingmode = 'independent'
+    checks['independent_remains_available'] = [ext.OutputTrack(i) for i in (1,2,3)] == [1,2,3]
+
+    # Exercise a genuine cue, not just synthetic inputs. Preload at panel size,
+    # switch layout before GO, then resize a playing deck without replacing it.
+    ext.Stopall()
+    show.par.Renderwidth, show.par.Renderheight = 320, 180
+    show.par.Panoramaoverlap = 0
+    cue = dict(ext.model.new_cue(), name='Panorama QA', track=2, fade=0, duration=0)
+    ext._replace_cues([cue])
+    ext.prepare(cue)
+    for _ in range(500):
+        for item in ext.prepared.values():
+            if 'warm_frame' in item: item['warm_frame'] = absTime.frame - 1
+        ext._service_preloads()
+        if not any(item.get('loading') for item in ext.prepared.values()): break
+    item = ext.prepared[cue['id']]
+    checks['panorama_real_cue_prepared'] = not item.get('loading') and not item.get('error')
+    show.par.Routingmode = 'panoramic'
+    ext.UpdateMapping()
+    deck = item['deck']
+    checks['panorama_standby_resize'] = int(deck.par.Customwidth) == 960
+    ext.engine.go(0)
+    ext.engine.tick()
+    current = ext.tracks[2]
+    before = (current['deck'].id, current.get('started'), copy.deepcopy(current['cue']))
+    show.par.Renderwidth = 640
+    ext.UpdateMapping()
+    checks['panorama_live_resize'] = int(deck.par.Customwidth) == 1920
+    checks['panorama_live_identity_and_time_preserved'] = before == (current['deck'].id, current.get('started'), current['cue'])
+    checks['panorama_cue_errors_empty'] = not ext.engine.errors
+    # A circle must remain circular when a 16:9 source fills the wide canvas.
+    # This exercises the actual cue-media shader, not just the portable formula.
+    show.par.Renderwidth = 320
+    ext.UpdateMapping()
+    media_code = deck.create(textDAT, 'aspect_test_code')
+    media_code.text = ('layout(location=0) out vec4 fragColor; void main(){'
+        'vec2 p=(vUV.xy-.5)*vec2(320,180); float d=length(p);'
+        'fragColor=TDOutputSwizzle(d<20.?vec4(1,1,1,.65):vec4(.1,.2,.3,1));}')
+    media = deck.create(glslTOP, 'aspect_test_source')
+    media.par.pixeldat, media.par.outputresolution = 'aspect_test_code', 'custom'
+    media.par.resolutionw, media.par.resolutionh = 320,180
+    fitted = show.op('show_output_mode').module.fit_cue_media(show,deck,media)
+    deck.op('source_image').par.index = 1
+    for mode, expected in (('auto',(120,120)), ('cover',(120,120)), ('contain',(40,40)), ('stretch',(120,40))):
+        show.par.Outputmediafit = mode
+        a = pixels(fitted)
+        ys,xs = np.where(a[:,:,0] > .8)
+        bounds = (int(xs.max()-xs.min()+1), int(ys.max()-ys.min()+1))
+        checks['cue_media_shape_' + mode] = all(abs(v-e)<=3 for v,e in zip(bounds,expected))
+        checks['cue_media_dimensions_' + mode] = a.shape == (180,960,4)
+        checks['cue_media_alpha_' + mode] = abs(float(a[90,480,3])-.65)<.01
+        if mode in ('auto','cover'):
+            checks['cue_media_fill_no_bars_' + mode] = bool(np.allclose(a[0,0,:3], [.1,.2,.3], atol=.01))
+        checks['cue_media_switch_' + mode] = np.allclose(pixels(deck.op('source_image')),a,atol=.005)
+    show.par.Outputmediafit = 'auto'
+    reader_id, fitted_id = media.id, fitted.id
+    show.par.Routingmode = 'independent'
+    ext.UpdateMapping()
+    a = pixels(fitted)
+    checks['cue_media_auto_normal_canvas'] = a.shape == (180,320,4) and fitted.par.vec0valuex.eval() == 0
+    show.par.Routingmode = 'panoramic'
+    ext.UpdateMapping()
+    checks['cue_media_resize_preserves_nodes'] = media.id == reader_id and fitted.id == fitted_id
+    checks['cue_media_auto_panorama_restored'] = pixels(fitted).shape == (180,960,4) and fitted.par.vec0valuex.eval() == 1
+    ext.Stopall()
+    ext.SelectCue(1)
+    ext.RecallLook()
+    checks['panorama_recall_wide'] = int(ext._look_edit['deck'].par.Customwidth) == 960
+    show.par.Renderwidth = 320
+    ext.UpdateMapping()
+    checks['panorama_draft_resize'] = int(ext._look_edit['deck'].par.Customwidth) == 960
+    ext.CancelLook()
+    show.par.Outputmediafit = 'cover'
+    path = (ROOT / 'build/envoy-validation/panorama-show.json').resolve()
+    show.par.Showfile = str(path)
+    ext.SaveShow()
+    saved = json.loads(path.read_text(encoding='utf-8'))
+    checks['panorama_show_saved'] = saved['mapping']['Routingmode'] == 'panoramic' and saved['mapping']['Sharedtrack'] == 2
+    checks['canvas_media_fit_saved'] = saved['mapping']['Cuemediafit'] == 'cover'
+    show.par.Routingmode, show.par.Sharedtrack = 'independent', 1
+    show.par.Outputmediafit = 'stretch'
+    ext.LoadShow()
+    checks['panorama_show_loaded'] = show.par.Routingmode == 'panoramic' and int(show.par.Sharedtrack) == 2
+    checks['canvas_media_fit_loaded'] = show.par.Cuemediafit == 'cover' and show.par.Outputmediafit == 'cover'
+    checks['panorama_load_safe'] = bool(show.par.Masterblackout) and not show.par.Audioenabled
+    checks['panorama_no_physical_windows'] = not any(w.isOpen for w in show.op('show_output_mode').module.windows(show) if w)
+    wall.par.Blackout = True
+
+
 def validate(write_report=True):
     original = op('/project1/imagefx_demo/show_control')
     document = copy.deepcopy(original.ext.ShowControlExt.document)
@@ -65,6 +215,7 @@ def validate(write_report=True):
         scope['install'](show)
         checks['reinstall_no_duplicate_parameters'] = len(show.customPars) == count
         checks['reinstall_preserves_cues'] = show.ext.ShowControlExt.document == before
+        _panorama_checks(show, wall, checks)
         checks['original_cues_untouched'] = original.ext.ShowControlExt.document == document
         checks['no_operator_errors'] = not show.errors(recurse=True)
         report['ok'] = all(checks.values())
@@ -107,6 +258,31 @@ def validate_deferred():
         yield
         checks['mode_event_closes_once'] = len(closes) == 1
         checks['review_updates_on_mode_event'] = show.par.Reviewroute == 'atlas'
+        closes.clear()
+        show.par.Outputlayout = 'panoramic'
+        yield
+        checks['canvas_alias_updates_master'] = show.par.Routingmode == 'panoramic'
+        checks['canvas_change_closes_once'] = len(closes) == 1
+        closes.clear()
+        show.par.Outputsharedtrack = 3
+        yield
+        checks['shared_alias_updates_master'] = int(show.par.Sharedtrack) == 3
+        checks['shared_track_change_closes_once'] = len(closes) == 1
+        closes.clear()
+        show.par.Routingmode = 'identical'
+        yield
+        checks['master_updates_canvas_alias'] = show.par.Outputlayout == 'identical'
+        checks['routing_change_closes_once'] = len(closes) == 1
+        closes.clear()
+        show.par.Outputmediafit = 'cover'
+        yield
+        checks['media_fit_alias_updates_master'] = show.par.Cuemediafit == 'cover'
+        checks['media_fit_change_closes_once'] = len(closes) == 1
+        closes.clear()
+        show.par.Cuemediafit = 'contain'
+        yield
+        checks['media_fit_master_updates_alias'] = show.par.Outputmediafit == 'contain'
+        checks['media_fit_master_closes_once'] = len(closes) == 1
         closes.clear()
         show.par.Directdisplay1 = 31
         yield

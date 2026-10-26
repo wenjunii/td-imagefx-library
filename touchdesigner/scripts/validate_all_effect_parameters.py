@@ -768,6 +768,7 @@ def validate(write_report=True):
         "Resolutionpreset",
         "Customwidth",
         "Customheight",
+        "Followshowcanvas",
     )
     saved_demo = {
         name: demo.par[name].eval()
@@ -807,6 +808,7 @@ def validate(write_report=True):
             "Resolutionpreset": "custom",
             "Customwidth": QA_WIDTH,
             "Customheight": QA_HEIGHT,
+            "Followshowcanvas": False,
         }
         for name, value in demo_values.items():
             parameter = demo.par[name]

@@ -7,6 +7,137 @@ from pathlib import Path
 
 ACTIONS = ('Checkoutput', 'Openoutput', 'Closealloutputs')
 DIRECT_NAMES = tuple('direct_window{}'.format(i) for i in (1, 2, 3))
+CANVAS_PARAMETERS = ('Routingmode', 'Sharedtrack', 'Renderwidth', 'Renderheight', 'Panoramaoverlap', 'Cuemediafit')
+
+
+def canvas_size(layout, panel_width, panel_height, overlap=0.):
+    """Render one continuous image before splitting it into projector feeds."""
+    factor = 3 - 2 * float(overlap) if layout == 'panoramic' else 1
+    return int(float(panel_width) * factor), int(panel_height)
+
+
+def cue_media_fit(show):
+    fit = show.par.Cuemediafit.eval()
+    if fit == 'auto':
+        return 'cover' if show.par.Routingmode == 'panoramic' else 'contain'
+    return fit
+
+
+def workflow_show(demo):
+    """Standalone copies and cue decks keep their own manual resolution."""
+    follow = getattr(demo.par, 'Followshowcanvas', None)
+    if follow is None or not follow or demo.fetch('imagefx_show_runtime', False):
+        return None
+    return demo.op('show_control')
+
+
+def workflow_size(demo):
+    show = workflow_show(demo)
+    if show is not None:
+        return canvas_size(show.par.Routingmode.eval(), int(show.par.Renderwidth),
+                           int(show.par.Renderheight), float(show.par.Panoramaoverlap))
+    preset = demo.par.Resolutionpreset.eval()
+    if preset == 'hd': return 1920, 1080
+    if preset == 'uhd4k': return 3840, 2160
+    return int(demo.par.Customwidth), int(demo.par.Customheight)
+
+
+def workflow_fit(demo):
+    show = workflow_show(demo)
+    return cue_media_fit(show) if show is not None else demo.par.Sourcefit.eval()
+
+
+def workflow_summary(demo):
+    width, height = workflow_size(demo)
+    fit = {'contain': 'Fit / Letterbox', 'cover': 'Fill / Crop (no stretching)', 'stretch': 'Stretch'}[workflow_fit(demo)]
+    return '{} x {} | {} | {}'.format(width, height, fit,
+        'Show Control > Output Mode' if workflow_show(demo) is not None else 'Manual canvas')
+
+
+CUE_MEDIA_SHADER = r'''
+uniform vec4 uFit;
+layout(location=0) out vec4 fragColor;
+void main() {
+    vec2 size = uTD2DInfos[0].res.zw;
+    vec2 canvas = uTDOutputInfo.res.zw;
+    float ratio = (size.x / max(size.y, 1.)) / (canvas.x / max(canvas.y, 1.));
+    vec2 extent = vec2(1.);
+    if (uFit.x < .5) extent = vec2(min(1., ratio), min(1., 1. / ratio));
+    else if (uFit.x < 1.5) extent = vec2(max(1., ratio), max(1., 1. / ratio));
+    vec2 uv = (vUV.st - (1. - extent) * .5) / extent;
+    if (any(lessThan(uv, vec2(0.))) || any(greaterThan(uv, vec2(1.)))) {
+        fragColor = TDOutputSwizzle(vec4(0., 0., 0., 1.)); return;
+    }
+    vec2 halfTexel = .5 / max(size, vec2(1.));
+    fragColor = TDOutputSwizzle(texture(sTD2DInputs[0], clamp(uv, halfTexel, 1. - halfTexel)));
+}
+'''
+
+
+def fit_cue_media(show, deck, movie):
+    """Fit original decoded pixels before effects; never resize/restart the reader."""
+    import td
+    code = deck.op('cue_media_fit_code') or deck.create(td.textDAT, 'cue_media_fit_code')
+    code.text = CUE_MEDIA_SHADER
+    fitted = deck.op('cue_media_fit') or deck.create(td.glslTOP, 'cue_media_fit')
+    fitted.par.pixeldat = 'cue_media_fit_code'
+    fitted.par.outputresolution = 'custom'
+    fitted.par.resolutionw.expr = 'int(parent().par.Customwidth)'
+    fitted.par.resolutionh.expr = 'int(parent().par.Customheight)'
+    fitted.seq.vec.numBlocks = 1
+    fitted.par.vec0name = 'uFit'
+    fitted.par.vec0valuex.expr = "('contain','cover','stretch').index(parent().parent().op('show_output_mode').module.cue_media_fit(parent().parent()))"
+    movie.outputConnectors[0].connect(fitted.inputConnectors[0])
+    fitted.outputConnectors[0].connect(deck.op('source_image').inputConnectors[1])
+    return fitted
+
+
+def install_workflow_canvas(show):
+    """Follow Show Control without overwriting the user's manual size/fit values."""
+    import inspect
+    import td
+    demo = show.parent()
+    if getattr(demo.par, 'Resolutionpreset', None) is None or demo.op('source_image') is None:
+        return
+    page = next(p for p in demo.customPages if p.name == 'Output')
+    if demo.par['Followshowcanvas'] is None:
+        p = page.appendToggle('Followshowcanvas', label='Follow Show Canvas Resolution / Fit')[0]
+        p.default, p.val = True, True
+    if demo.par['Canvasresolution'] is None:
+        page.appendStr('Canvasresolution', label='Effective Canvas / Media Fit')
+    code = demo.op('workflow_canvas') or demo.create(td.textDAT, 'workflow_canvas')
+    code.text = '\n\n'.join(inspect.getsource(f) for f in (
+        canvas_size, cue_media_fit, workflow_show, workflow_size, workflow_fit, workflow_summary))
+    demo.par.Canvasresolution.expr = "me.op('workflow_canvas').module.workflow_summary(me)"
+    demo.par.Canvasresolution.readOnly = True
+    manual = "me.op('workflow_canvas').module.workflow_show(me) is None"
+    demo.par.Resolutionpreset.enableExpr = manual
+    for name in ('Customwidth', 'Customheight'):
+        demo.par[name].enableExpr = manual + " and me.par.Resolutionpreset == 'custom'"
+    for name, axis in (('resolutionw', 0), ('resolutionh', 1)):
+        demo.op('source_image').par[name].expr = "parent().op('workflow_canvas').module.workflow_size(parent())[{}]".format(axis)
+    if getattr(demo.par, 'Sourcefit', None) is not None:
+        demo.par.Sourcefit.enableExpr = manual + " and not me.fetch('imagefx_show_runtime', False)"
+        demo.op('source_image').par.vec1valuey.expr = "('contain','cover','stretch').index(parent().op('workflow_canvas').module.workflow_fit(parent()))"
+    first = ('Followshowcanvas', 'Canvasresolution', 'Resolutionpreset', 'Customwidth', 'Customheight')
+    page.sort(*first, *(p.name for p in page.pars if p.name not in first))
+
+
+def canvas_summary(show):
+    mode = show.par.Routingmode.eval()
+    width, height = int(show.par.Renderwidth), int(show.par.Renderheight)
+    if mode == 'panoramic':
+        width = int(width * (3 - 2 * float(show.par.Panoramaoverlap)))
+        content = '{} x {} panorama | Track {} -> P1 left / P2 center / P3 right'.format(
+            width, height, int(show.par.Sharedtrack))
+    elif mode == 'identical':
+        content = '{} x {} | Track {} repeated on P1/P2/P3'.format(width, height, int(show.par.Sharedtrack))
+    else:
+        content = '{} x {} per track | separate canvases; assign tracks on Output 1/2/3'.format(width, height)
+    wall = show.parent().op('wall_output')
+    if show.par.Outputmode == 'wall' and wall is not None and wall.par.Sourcemode != 'show':
+        content += ' | Wall source override: choose Show Control on Wall Output'
+    return content
 
 
 def windows(show):
@@ -117,7 +248,9 @@ def on_pulse(show, name):
 
 
 def changed(show, name):
-    if name == 'Outputmode' or (show.par.Outputmode == 'direct' and
+    if name in CANVAS_PARAMETERS:
+        show.UpdateMapping()
+    if name == 'Outputmode' or name in CANVAS_PARAMETERS or (show.par.Outputmode == 'direct' and
             (name.startswith('Direct') or name in {
                 'Output{}{}'.format(i, size) for i in (1, 2, 3) for size in ('width', 'height')})):
         close_all(show)
@@ -154,6 +287,45 @@ def install(show):
     mode.default = 'wall'
     if new_mode:
         mode.val = 'direct' if show.par.Reviewroute == 'atlas' else 'wall'
+    routing = next(p for p in show.customPages if p.name == 'Routing')
+    if show.par['Sharedtrack'] is None:
+        shared = routing.appendInt('Sharedtrack', label='Shared Canvas Cue Track')[0]
+        shared.default, shared.val = 1, 1
+        shared.min, shared.max, shared.normMin, shared.normMax = 1, 3, 1, 3
+        shared.clampMin = shared.clampMax = True
+    if show.par['Cuemediafit'] is None:
+        fit = routing.appendMenu('Cuemediafit', label='Canvas Media Fit')[0]
+        fit.menuNames = ['auto', 'contain', 'cover', 'stretch']
+        fit.menuLabels = ['Auto (Panorama: Crop / Others: Fit)', 'Fit / Letterbox (no stretching)',
+                          'Fill / Crop (no stretching)', 'Stretch (changes proportions)']
+        fit.default, fit.val = 'auto', 'auto'
+    layout = show.par.Routingmode
+    saved_layout = layout.eval()
+    layout.menuLabels = ['Identical (repeat one cue)', 'Panoramic (one wide canvas)', 'Independent (separate canvases)']
+    layout.val = saved_layout
+    show.par.Sharedtrack.enableExpr = "me.par.Routingmode != 'independent'"
+    show.par.Panoramaoverlap.enableExpr = "me.par.Routingmode == 'panoramic'"
+    for alias, target, label in (
+        ('Outputlayout', 'Routingmode', 'Canvas Layout'),
+        ('Outputsharedtrack', 'Sharedtrack', 'Shared Canvas Cue Track'),
+        ('Outputpanelwidth', 'Renderwidth', 'Canvas Render Width Per Panel'),
+        ('Outputpanelheight', 'Renderheight', 'Canvas Render Height'),
+        ('Outputoverlap', 'Panoramaoverlap', 'Panorama Shared Edge Overlap'),
+        ('Outputmediafit', 'Cuemediafit', 'Canvas Media Fit'),
+    ):
+        master = show.par[target]
+        p = parameter('Menu' if master.isMenu else master.style, alias, label)
+        if master.isMenu:
+            p.menuNames, p.menuLabels = master.menuNames, master.menuLabels
+        elif master.isNumber:
+            p.min, p.max, p.normMin, p.normMax = master.min, master.max, master.normMin, master.normMax
+            p.clampMin, p.clampMax = master.clampMin, master.clampMax
+        p.bindExpr = 'me.par.' + target
+        p.mode = type(p.mode).BIND
+        if target in ('Sharedtrack', 'Panoramaoverlap'):
+            p.enableExpr = master.enableExpr
+    parameter('Str', 'Outputcanvas', 'Canvas Summary').expr = "me.op('show_output_mode').module.canvas_summary(me)"
+    show.par.Outputcanvas.readOnly = True
     for name, label in zip(ACTIONS, ('Check Selected Output', 'OPEN SELECTED OUTPUT', 'CLOSE ALL OUTPUTS')):
         parameter('Pulse', name, label)
     parameter('Str', 'Outputsummary', 'Format').expr = "me.op('show_output_mode').module.summary(me)"
@@ -184,6 +356,9 @@ def install(show):
             p.clampMin = p.clampMax = True
     parameter('Str', 'Outputdisplays', 'Connected Displays').expr = "me.parent().op('wall_output').par.Displays.eval()"
     show.par.Outputdisplays.readOnly = True
+    first = ('Outputmode', 'Outputlayout', 'Outputsharedtrack', 'Outputpanelwidth',
+             'Outputpanelheight', 'Outputoverlap', 'Outputmediafit', 'Outputcanvas')
+    page.sort(*first, *(p.name for p in page.pars if p.name not in first))
     for i in (1, 2, 3):
         w = show.op('direct_window{}'.format(i)) or show.create(td.windowCOMP, 'direct_window{}'.format(i))
         w.par.winop = 'out{}_projector'.format(i)
@@ -193,9 +368,14 @@ def install(show):
         w.par.borders, w.par.cursorvisible = False, 'nocursor'
     runtime = show.op('show_output_mode') or show.create(td.textDAT, 'show_output_mode')
     runtime.text = Path(__file__).read_text(encoding='utf-8').split('\ndef install(show):')[0]
+    install_workflow_canvas(show)
+    for name in ['deck{}_{}'.format(t, s) for t in (1, 2, 3) for s in (0, 1)] + ['look_editor']:
+        deck = show.op(name)
+        if deck is not None and deck.op('media') is not None:
+            fit_cue_media(show, deck, deck.op('media'))
     callback = show.op('output_mode_callbacks') or show.create(td.parameterexecuteDAT, 'output_mode_callbacks')
     callback.par.active = False
-    callback.par.op, callback.par.pars = '..', ' '.join(ACTIONS) + ' Outputmode Direct* Output*width Output*height'
+    callback.par.op, callback.par.pars = '..', ' '.join(ACTIONS + CANVAS_PARAMETERS) + ' Outputmode Direct* Output1width Output1height Output2width Output2height Output3width Output3height'
     callback.par.custom, callback.par.builtin = True, False
     callback.par.onpulse, callback.par.valuechange = True, True
     callback.text = "def onPulse(par):\n    parent().op('show_output_mode').module.on_pulse(parent(), par.name)\ndef onValueChange(par, prev):\n    parent().op('show_output_mode').module.changed(parent(), par.name)\n"

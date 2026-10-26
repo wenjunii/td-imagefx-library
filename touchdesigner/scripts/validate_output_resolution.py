@@ -87,6 +87,7 @@ def validate(write_report=True):
         "preset": demo.par.Resolutionpreset.eval(),
         "custom_width": demo.par.Customwidth.eval(),
         "custom_height": demo.par.Customheight.eval(),
+        "follow": demo.par.Followshowcanvas.eval(),
         "output_display": bool(output.display),
         "opviewer": (
             demo.par.opviewer.eval()
@@ -101,6 +102,7 @@ def validate(write_report=True):
         output.display = False
         if saved["opviewer"] is not None:
             demo.par.opviewer = ""
+        demo.par.Followshowcanvas = False
 
         menu_names = tuple(
             str(item) for item in demo.par.Resolutionpreset.menuNames
@@ -159,6 +161,26 @@ def validate(write_report=True):
             "output_has_no_errors": not output_errors,
             "output_has_no_warnings": not output_warnings,
         }
+        show = demo.op('show_control')
+        saved_canvas = {name:show.par[name].eval() for name in
+                        ('Routingmode','Renderwidth','Renderheight','Panoramaoverlap','Cuemediafit')}
+        try:
+            demo.par.Followshowcanvas = True
+            show.par.Renderwidth, show.par.Renderheight = 1920, 1080
+            show.par.Panoramaoverlap, show.par.Cuemediafit = 0, 'auto'
+            for layout, size in (('panoramic',[5760,1080]), ('identical',[1920,1080]), ('independent',[1920,1080])):
+                show.par.Routingmode = layout
+                rendered = _cook_resolution(source, output)
+                checks['automatic_workflow_' + layout] = rendered['source'] == size and rendered['output'] == size
+                checks['automatic_media_fit_' + layout] = source.par.vec1valuey.eval() == (1 if layout == 'panoramic' else 0)
+            checks['automatic_does_not_overwrite_manual_values'] = (
+                demo.par.Resolutionpreset == 'custom' and int(demo.par.Customwidth) == 1234 and int(demo.par.Customheight) == 678)
+            checks['manual_controls_disabled_while_following'] = not demo.par.Resolutionpreset.enable and not demo.par.Sourcefit.enable
+            demo.par.Followshowcanvas = False
+            checks['manual_resolution_restored'] = _cook_resolution(source,output)['output'] == [1234,678]
+            checks['manual_controls_enabled'] = bool(demo.par.Resolutionpreset.enable) and bool(demo.par.Sourcefit.enable)
+        finally:
+            for name, value in saved_canvas.items(): show.par[name] = value
         report.update(
             {
                 "checks": checks,
@@ -179,6 +201,7 @@ def validate(write_report=True):
         demo.par.Resolutionpreset = saved["preset"]
         demo.par.Customwidth = saved["custom_width"]
         demo.par.Customheight = saved["custom_height"]
+        demo.par.Followshowcanvas = saved['follow']
         output.display = saved["output_display"]
         if saved["opviewer"] is not None:
             demo.par.opviewer = saved["opviewer"]

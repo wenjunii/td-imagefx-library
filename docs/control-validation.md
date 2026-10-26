@@ -1,5 +1,108 @@
 # Control validation
 
+## Panoramic output publication recheck — 2026-10-25
+
+A fresh load of the saved canonical TOE passed **28 blocking groups / 5,758
+checks**, **17 real-frame groups / 590 checks**, and **29 startup/persistence
+checks**. The publishable source snapshot passed **600 portable tests**, with
+four expected Windows symlink-permission skips. All 4,907 embedded text DATs
+passed the credential scan; the private show JSON and saved TOE remained
+byte-for-byte unchanged during the audit. The rejected dance prototypes and
+their local tests remain outside the publication snapshot.
+
+The blocking runner now rejects active/paused cues, unfinished drafts, armed
+audio, released blackouts, open physical windows, active exports and overlapping
+deferred audits before it touches parameters. Seven new portable regressions
+cover these guards, including leaving the operator's windows and export jobs
+alone. See the README's complete live validation instructions.
+
+The separate Look Editor navigation pass completed **64 checks**. Cue/draft
+export completed **20 checks**, and independent decoding verified eight clips,
+including animated particle/feedback looks in all three ink modules. The wall
+recorder completed **seven checks**; three finished UHD clips decoded with the
+correct projector quadrants and confidence preview/diagnostics. The short
+30-fps H.264 wall recording again reported **10 startup dropped frames**, while
+25-fps MJPEG and the 24-fps H.264 early-stop fixture reported none. File/control
+checks pass, but this real-time recording performance warning remains open.
+
+Parameter sweeps verify ranges, endpoints, bindings, callbacks and pixel response;
+they do not manually drag every GUI slider or cover every combination. Real
+projectors, processor cabling/EDID, stereo listening and sustained three-channel
+performance still require an on-site rehearsal. No audience output was opened
+and no audible audio was enabled during this recheck.
+
+## Automatic canvas sizing and distortion-free crop — 2026-10-25
+
+The main workflow now follows Show Control's canvas dimensions and media fit
+by default, retaining its manual HD / 4K / Custom size and Image Fit settings
+for the Follow Show Canvas off state. Cue source media now passes through an
+aspect-preserving fit shader before effects; Auto fills panoramic canvases by
+center-cropping and letterboxes other layouts. Explicit Fill, Fit and Stretch
+remain available, and Canvas Media Fit is persisted with show mapping.
+
+- **28 blocking groups / 5,758 checks** passed, including actual main-source and
+  output dimensions at 5760x1080, normal-layout return to 1920x1080, retained
+  manual sizing, enabled/disabled controls, and cue-deck resize identity.
+- Native circle pixels verify proportional Fill / Crop (equal width and height),
+  letterbox fitting, intentional Stretch, alpha preservation, filled image
+  borders, actual cue source-switch output, and fit changes after resizing.
+- **17 real-frame groups / 590 checks** passed, including real image/video
+  playback, cue transitions, running-look editing, export, and both directions
+  of the Canvas Media Fit binding with one safe window-close event per change.
+- The publication-only snapshot passed **593 portable tests**, with four
+  expected Windows symlink-permission skips; rejected prototypes were excluded.
+- The saved main TOE reopened successfully: **29 persistence/safety checks**
+  passed, including fresh 5760x1080/1920x1080 rendering and default Auto fitting.
+  No native errors or warnings were present; all **4,907 embedded text DATs**
+  passed credential scanning. Personal show JSON remained byte-for-byte unchanged.
+- Small-fixture shader sweeps explicitly opt out of automatic canvas sizing
+  during validation and restore that setting afterward. Live diagnostics now
+  compare against the effective automatic size, not the inactive manual preset.
+- Physical projector/processor output and sustained show-load performance are
+  not certified by these checks. Projector feeds remain 1920x1080 by default;
+  the wall-controller packing remains 3840x2160 with confidence in Q4.
+
+Focused regressions: `tests/test_show_panorama.py`, `validate_output_resolution.py`,
+and `validate_output_mode.py`. Runtime/TOE changes are additive; existing effect
+and core TOX files are unchanged.
+
+## Shared panoramic cue canvas — 2026-10-25
+
+Show Control now exposes Canvas Layout, Shared Canvas Cue Track, per-panel
+render dimensions and overlap beside Output Mode. The same single wide cue
+works with direct displays or the existing 4K 2x2 wall; independent routing
+and legacy defaults remain intact. Only the main TOE needs this additive
+Show Control update; effect/core TOXs and shaders are unchanged.
+
+- **28 blocking groups / 5,724 checks** and **17 real-frame groups / 586 checks**
+  passed in TouchDesigner 2025.32820 on the RTX 3080 Ti Laptop GPU.
+- Native pixel checks confirmed a **5760x1080** three-color panorama is split
+  into the correct **1920x1080** left, center and right feeds. Direct and wall
+  routes retain those same pixels; the **3840x2160** wall places them in Q1-Q3
+  and preserves the confidence monitor in Q4, without a second crop.
+- Shared cue tracks 1-3, overlap, independent/identical modes, and Save/Load
+  Show all passed. Changing canvas dimensions resizes preloaded, playing and
+  recalled decks without replacing their identities, restarting cue time or
+  changing saved look values. Real callback tests verify both directions of
+  the Routing/Output Mode links and safe output-window closure.
+- The publication-only snapshot passed **588 portable tests**, with four
+  expected Windows symlink skips. The rejected dance prototypes remain
+  excluded. The native Canvas Layout dropdown and 5760x1080 summary were
+  also inspected directly in Show Control.
+- Physical projector/processor output and sustained panoramic show-load
+  performance were not tested. Configure the canvas before playback; resizing
+  still incurs GPU allocation and can clear feedback history. Audience windows
+  and audible audio remained disarmed, and the personal show JSON was preserved.
+- A fresh canonical-file reopen passed **23 persistence/safety checks** with
+  no native errors or warnings. All **4,906 embedded text DATs** passed credential
+  scanning. Repository verification passed for the updated native artifact,
+  source fingerprints, tests, gallery, feeds and benchmark records.
+
+Regression: `tests/test_show_panorama.py`, `tests/test_show_output_mode.py` and
+`touchdesigner/scripts/validate_output_mode.py`. The focused native report is
+`build/envoy-validation/output-mode.json`; full reports are `live-suite.json`
+and `deferred-controls.json` in the same ignored directory.
+
 ## Running-cue look editing — 2026-10-25
 
 The main TOE has an in-place Show Control update for **Edit Running Cue**.

@@ -287,7 +287,7 @@ class ShowControlExt:
             return "OFF-AIR | Show Live Look to audition; Update Cue to keep changes"
         track = int(self._p("Looklivetrack"))
         routing = self._p("Routingmode")
-        outputs = [i for i in (1, 2, 3) if (int(self._p("Output{}track".format(i))) if routing == "independent" else 1) == track]
+        outputs = [i for i in (1, 2, 3) if self.OutputTrack(i) == track]
         destinations = ",".join(str(i) for i in outputs) or "none (check Routing)"
         return "LIVE DRAFT (not saved) | Track {} > P{} | {}".format(
             track, destinations, "MASTER BLACKOUT ON" if self._p("Masterblackout") else "output mapping/blackouts apply")
@@ -1067,11 +1067,35 @@ class ShowControlExt:
         deck.par.Customwidth = int(self._p("Renderwidth") * ((3-2*self._p("Panoramaoverlap")) if self._p("Routingmode") == "panoramic" else 1))
         deck.par.Customheight = int(self._p("Renderheight"))
 
+    def OutputTrack(self, output):
+        """Physical delivery does not change which cue track supplies a canvas."""
+        if self._p('Routingmode') == 'independent':
+            return int(self._p('Output{}track'.format(output)))
+        shared = getattr(self.ownerComp.par, 'Sharedtrack', None)
+        return int(shared.eval()) if shared is not None else 1
+
+    def _sync_canvas_resolution(self):
+        """Resize prepared/live/edit decks without reloading media or cue time."""
+        width = int(self._p('Renderwidth') * (
+            (3 - 2 * self._p('Panoramaoverlap')) if self._p('Routingmode') == 'panoramic' else 1))
+        height = int(self._p('Renderheight'))
+        names = ['deck{}_{}'.format(t, s) for t in (1, 2, 3) for s in (0, 1)] + ['look_editor']
+        for name in names:
+            deck = self.ownerComp.op(name)
+            if deck is not None and (deck.par.Resolutionpreset != 'custom'
+                    or int(deck.par.Customwidth) != width or int(deck.par.Customheight) != height):
+                self._set_deck_resolution(deck)
+
     def _load_deck_media(self, deck, cue, path):
         movie = deck.op("media")
         if movie is None and path:
             movie = deck.create(moviefileinTOP, "media")
-            movie.outputConnectors[0].connect(deck.op("source_image").inputConnectors[1])
+        if movie is not None:
+            output_mode = self.ownerComp.op('show_output_mode')
+            if output_mode is not None and hasattr(output_mode.module, 'fit_cue_media'):
+                output_mode.module.fit_cue_media(self.ownerComp, deck, movie)
+            else:
+                movie.outputConnectors[0].connect(deck.op("source_image").inputConnectors[1])
         deck.op("source_image").par.index = int(bool(path))
         if movie is not None:
             movie.par.play = False
@@ -1609,6 +1633,7 @@ class ShowControlExt:
                     overlap = self._p("Panoramaoverlap")
                     crop = ((output - 1) * (1 - overlap) + crop) / (3 - 2 * overlap)
                 shader.par["vec3value" + axis] = crop
+        self._sync_canvas_resolution()
         self._mapping_key = values
         self.ownerComp.par.Mappingstatus = "Mapping valid"
 

@@ -126,6 +126,21 @@ the selected mode, and changing mode closes the windows without changing cues
 or releasing blackout. All display assignments start unassigned; set them when
 the venue hardware is connected. See [output setup](docs/show-control.md#output-mode).
 
+**Output Mode → Canvas Layout → Panoramic (one wide canvas)** spans one cue
+across all three projectors, left/center/right, with either delivery mode.
+Choose **Shared Canvas Cue Track** to match that cue's track. A 1920×1080 panel
+setting renders one **5760×1080** canvas; the wall processor packs its three
+1080p slices into Q1–Q3 and keeps confidence in Q4. Identical and Independent
+layouts remain available. Canvas settings, overlap and track selection are
+saved by **Save Show**. See [panoramic setup](docs/show-control.md#one-cue-across-three-projectors).
+
+The main design workflow automatically follows that canvas too: **imagefx_demo →
+Output → Follow Show Canvas Resolution / Fit** is on by default. **Canvas Media
+Fit → Auto** proportionally scales and crops media to fill a panorama without
+stretching; other layouts use letterbox fitting. You can explicitly choose
+Fill / Crop, Fit / Letterbox, or Stretch. Turn Follow Show Canvas off to restore
+the main workflow's unchanged manual HD / 4K / Custom size and Source Media fit.
+
 **Show Control → Wall Output** now exposes the processor settings directly in
 the cue panel: both show/wall blackouts, feed enable, sources/fit, calibration,
 confidence/diagnostics, display selection and Check/Open/Close buttons. These
@@ -207,6 +222,15 @@ available. Other tracks continue independently. Follow still requires a nonzero
 Duration and respects Post-Wait plus the next cue's Pre-Wait. Pause and Stop
 also control queued requests; missing media still reports ERROR. The fix adds
 20 portable regressions and 35 native rendered-image checks.
+
+The **2026-10-25 panoramic-output recheck** passed 28 blocking groups (5,758
+checks), 17 real-frame groups (590 checks), 29 saved-file startup checks and
+600 portable tests (four expected Windows symlink skips). It verifies automatic
+5760×1080 sizing, proportional media cropping, normal-layout/manual-size return,
+cue/deck identity, and correct three-feed/4K-wall pixels. The native audit now
+refuses to disturb active cues, drafts, exports or physical output windows.
+See the [current validation record](docs/control-validation.md) for scope and
+remaining hardware/performance limits.
 
 The **2026-10-23 full revalidation** passed all 28 blocking groups (5,412 checks),
 15 real-frame groups (385 checks), and 548 portable release tests (four expected
@@ -342,7 +366,7 @@ git clone https://github.com/wenjunii/td-imagefx-library.git
 cd td-imagefx-library
 ```
 
-The clean Windows release build used TouchDesigner `2025.32820` and validated all 96 current effects with 124 versioned effect `.tox` files, nineteen core `.tox` files, one library `.toe`, 96 previews, 96 visual baselines, and 96 benchmark samples. That build report contains zero shader, preview, or builder errors. A fresh repository run completed 579 tests successfully, with four expected Windows symlink-permission skips. The release TOE contains clean defaults, not personal cues or media. In-place patches and saved personal cues are not a new full native-build certification; regenerate and validate distributable artifacts before publishing a release. Read [TouchDesigner setup](docs/touchdesigner-setup.md) to reproduce the native build.
+The clean Windows release build used TouchDesigner `2025.32820` and validated all 96 current effects with 124 versioned effect `.tox` files, nineteen core `.tox` files, one library `.toe`, 96 previews, 96 visual baselines, and 96 benchmark samples. That build report contains zero shader, preview, or builder errors. A fresh repository run completed 600 tests successfully, with four expected Windows symlink-permission skips. The release TOE contains clean defaults, not personal cues or media. In-place patches and saved personal cues are not a new full native-build certification; regenerate and validate distributable artifacts before publishing a release. Read [TouchDesigner setup](docs/touchdesigner-setup.md) to reproduce the native build.
 
 The generated project targets TouchDesigner 2025. Validate the exact TouchDesigner build, operating system, GPU, driver, resolution, pixel format, and color pipeline used by your production system. Python 3.11 or newer is required for repository tooling; it is not required merely to use already-built native components.
 
@@ -445,7 +469,11 @@ not changed until you explicitly update them.
 ### Output resolution
 
 Select `/project1/imagefx_demo` and open its **Output** custom parameter page.
-**Resolution Preset** provides:
+**Follow Show Canvas Resolution / Fit** is on by default: Show Control's Canvas
+Layout and per-panel render dimensions determine the main workflow canvas
+(1920×1080 normally, 5760×1080 in Panoramic with 1080p panels and zero overlap).
+Effective Canvas / Media Fit reports the active values. Turn Follow Show Canvas
+off to use **Resolution Preset**, which retains these manual options:
 
 - **HD 1920 x 1080**, the default;
 - **4K UHD 3840 x 2160**; and
@@ -800,8 +828,8 @@ reproduction instructions and hardware-testing limits.
 ### Eight-slot rack
 
 1. Open `/project1/imagefx_demo` after a successful native build.
-2. Choose **HD 1920 x 1080**, **4K UHD 3840 x 2160**, or **Custom** on the **Output** page.
-3. Select `imagefx_demo` → **Source Media** and choose **Image / Video File**. Auto uses the file when one is selected and the test pattern otherwise. Use Fit / Letterbox, Fill / Crop, or Stretch; output follows the HD/4K/Custom setting. Play/pause, loop, speed/reverse, seek, restart and reload are on the same page. Keep `source_image` in place: no rewiring or workflow reset is needed. See the [Source Media guide](docs/source-media.md). Cue playback still uses the cue's own media and timing.
+2. Leave **Output → Follow Show Canvas Resolution / Fit** on to match Show Control automatically, or turn it off and choose **HD 1920 x 1080**, **4K UHD 3840 x 2160**, or **Custom**.
+3. Select `imagefx_demo` → **Source Media** and choose **Image / Video File**. Auto uses the file when one is selected and the test pattern otherwise. Show Control's **Canvas Media Fit** controls fitting while Follow Show Canvas is on (Auto crops panoramas without stretching); otherwise use Source Media's Fit / Letterbox, Fill / Crop, or Stretch. Play/pause, loop, speed/reverse, seek, restart and reload are on the same page. Keep `source_image` in place: no rewiring or workflow reset is needed. See the [Source Media guide](docs/source-media.md). Cue playback still uses the cue's own media and timing.
 4. Keep your source connected to `fixture_image_b` if you want its derived clean/alternate image, or replace rack input 1 with a different TOP for transitions, composites, and Difference Key.
 5. On `imagefx_demo`, enable the stages you want: Layer Composite, Two-Image Composition, the three reference modules, Ink Dream Flow, Ink Brush Flow, Ink Radial Flow, Ink Flow, Random Particles, Glitch, Color Adjustment, Color Switch, Motion Studio, and **Apply Video Effects**.
 6. Select the corresponding child module to edit its custom parameters. Use `ink_dream_flow` for marbling, `ink_brush_flow` for curling particle currents, `ink_radial_flow` for center radiation, or `fx_rack` and its **Rack** custom page to choose up to eight additional effects.
@@ -837,6 +865,12 @@ summary, and a false check cannot be masked by an inconsistent overall success f
 A complete run can take several minutes.
 Each mutating validator restores its parameters, rack preset, routing,
 resolution, source time, and timeline state in its own `finally` block.
+The blocking runner refuses active or paused cues, unfinished look drafts,
+enabled audio, released show/wall blackouts, open physical-output windows,
+active exports and overlapping real-frame audits **before changing anything**.
+Stop All, finish or cancel the draft/export, close outputs, enable both blackouts
+and disarm audio first. It never closes an operator's window or cancels a job
+just to make a test proceed.
 
 The dedicated `validate_control_surface.py` pass exercises all 45 visible pulse
 buttons and all 42 rack value controls. It checks the library, updater, browser,

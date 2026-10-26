@@ -849,6 +849,7 @@ def validate(write_report=True):
         "resolution_preset": demo.par.Resolutionpreset.eval(),
         "custom_width": demo.par.Customwidth.eval(),
         "custom_height": demo.par.Customheight.eval(),
+        "follow_canvas": demo.par.Followshowcanvas.eval() if getattr(demo.par, 'Followshowcanvas', None) is not None else None,
         "source_time_expression": source.par.vec0valuex.expr,
         "source_time_value": source.par.vec0valuex.eval(),
         "controls": {
@@ -866,6 +867,8 @@ def validate(write_report=True):
         demo.par.Resolutionpreset = "custom"
         demo.par.Customwidth = 320
         demo.par.Customheight = 180
+        if saved['follow_canvas'] is not None:
+            demo.par.Followshowcanvas = False
         module_reports = {}
         for definition in MODULES:
             module_reports[definition["name"]] = _validate_module(
@@ -899,6 +902,8 @@ def validate(write_report=True):
         demo.par.Resolutionpreset = saved["resolution_preset"]
         demo.par.Customwidth = saved["custom_width"]
         demo.par.Customheight = saved["custom_height"]
+        if saved['follow_canvas'] is not None:
+            demo.par.Followshowcanvas = saved['follow_canvas']
         if saved["source_time_expression"]:
             source.par.vec0valuex.expr = saved["source_time_expression"]
         else:

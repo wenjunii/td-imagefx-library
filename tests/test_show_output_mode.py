@@ -68,6 +68,24 @@ class OutputModeTests(unittest.TestCase):
         mode.changed(show, 'Directdisplay1')
         show.op.assert_not_called()
 
+    def test_canvas_changes_close_both_delivery_routes_without_replacing_cues(self):
+        for selected in ('direct', 'wall'):
+            for name in mode.CANVAS_PARAMETERS:
+                with self.subTest(selected=selected, parameter=name):
+                    show, nodes, wall = self.show(selected)
+                    mode.changed(show, name)
+                    show.UpdateMapping.assert_called_once()
+                    for w in nodes.values():
+                        w.par.winclose.pulse.assert_called_once()
+                        w.par.winopen.pulse.assert_not_called()
+                    self.assertTrue(show.par.Masterblackout)
+
+    def test_canvas_alias_event_does_not_double_dispatch_master(self):
+        show, nodes, wall = self.show()
+        mode.changed(show, 'Outputlayout')
+        show.UpdateMapping.assert_not_called()
+        show.op.assert_not_called()
+
     def test_direct_resolution_change_closes_windows(self):
         show, nodes, wall = self.show()
         mode.changed(show, 'Output2width')
