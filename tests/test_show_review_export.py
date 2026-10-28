@@ -131,6 +131,7 @@ class ReviewExportTests(unittest.TestCase):
     def test_wall_writer_bridges_comp_boundary_with_local_select(self):
         parent, writer, selector, target = Mock(), Mock(), Mock(), Mock(path='/demo/wall/out1_wall_4k')
         parent.create.side_effect = [writer, selector]
+        writer.par.videocodec.menuNames = ['mjpa', 'h264', 'h265']
         writer.inputConnectors = [Mock()]
         selector.outputConnectors = [Mock()]
         with patch.dict('sys.modules', {'td': SimpleNamespace(moviefileoutTOP='movie', selectTOP='select')}):

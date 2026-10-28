@@ -404,4 +404,6 @@ def install(show):
     inspector.cook(force=True)
     inspector.par.op = '..'
     inspector.cook(force=True)
+    if show.op('show_panel_layout') is not None:
+        show.op('show_panel_layout').module.configure(show)
     return runtime

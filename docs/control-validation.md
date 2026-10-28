@@ -1,5 +1,97 @@
 # Control validation
 
+## Motion, controls and clean publication recheck — 2026-10-28
+
+The publication copy was rebuilt in TouchDesigner **2025.32820** on the
+**RTX 3080 Ti Laptop GPU**, separately from the operator's personal TOE and
+show files. All 96 current catalog effects compiled with zero builder, shader
+or preview errors. The distribution has clean defaults: no personal cues,
+artwork, prepared motion, camera session, model weights or credentials.
+
+- **717 portable tests** passed with NumPy 1.24.4 and again with NumPy 2.4.6;
+  four Windows symlink-permission skips are expected. Both GitHub verification
+  workflows now install the motion-math test dependency explicitly.
+  Two media-path assertions now compare canonical paths, covering macOS `/var`
+  aliases and Windows 8.3 temporary-directory names found by cross-platform CI.
+- **121 optional puppet tests** passed in the configured worker environment.
+- **29 blocking native groups / 6,609 checks** cover the complete control
+  inventory, slider ranges/endpoints, menus, values, bindings and callbacks.
+  The new motion audit covers all three Dance Forces panels and Dance Puppet.
+  Camera/analysis/viewer launch pulses receive wiring checks, not unattended
+  activation. Other rendered behavior has separate frame-based tests.
+- **17 real-frame groups / 590 checks** cover playback, media, transitions,
+  Continue/Follow, running-look edits, events, mapping and feedback. The runner
+  now also refuses open physical output windows or active export jobs.
+- **12 additional native groups / 922 checks** cover local force advection,
+  response delay, pattern-relative coordinates, smooth asynchronous activation,
+  cue inheritance, puppet fade/alpha/trails, independent A/B editing, navigation
+  and export. **83 older-show checks** exercise recall, live edit, cancel,
+  update and save/reload with prepared local fixtures.
+- **36 panoramic preview checks** preserve the running deck, values, playhead
+  and 5760×1080 pixels across window sizes. A visible maximize/restore/focus
+  smoke test retained the letterboxed image and accessible pinned preview.
+- **24 finished export clips** passed independent ffprobe/ffmpeg decoding:
+  HD, UHD, custom, full panorama and the packed wall with confidence monitor.
+  Dimensions, codecs, frame counts and silent streams were checked; wall
+  quadrant colors and confidence content were also verified.
+- A fresh 12-frame CUDA check recorded actual CUDA execution in both pose
+  sessions (3,756 detector and 6,660 pose kernels). OpenGL rendering identified
+  the RTX 3080 Ti. Small CPU support operations remain; this does not mean every
+  operation is CUDA or certify live camera/show frame rate.
+
+The audit corrected stale validator assumptions about workflow stage counts,
+fade-in, and activation timing, and repaired the export validator's missing
+driver reference. Reopening also exposed a puppet Time cook-dependency loop:
+the preview clock now uses per-DAT ephemeral state rather than writing dependent
+operator storage from its own time expression. Two portable regressions cover
+storage-free evaluation and isolated clocks for copied modules.
+The final saved TOE passed **58 startup/persistence checks** after reopening,
+with no native errors or warnings. All **4,306 embedded text DATs** passed the
+credential scan. The operator's original TOE and personal shows were preserved.
+Saved motion roots, independent rack paths and Show Control
+paths now follow the opened project folder instead of the developer checkout.
+The rejected dance-driven-backdrop prototype stays local and unpublished.
+
+**Performance warning:** the 30-fps H.264 real-time UHD wall test reported
+**10 startup dropped frames**. The 25-fps MJPEG and 24-fps H.264 early-stop
+fixtures reported zero. Controls/file correctness passed; seamless real-time
+wall recording is not certified. Rehearse the actual duration, codec and disk.
+Physical cameras, projector/processor cabling/EDID, stereo listening and a
+sustained three-projector show load were not tested. No audience output or
+audible audio was enabled. Automated sweeps do not manually drag every GUI
+slider or exhaust every possible parameter combination.
+
+Detailed reports remain local under `build/envoy-validation/`,
+`build/dance-forces/`, `build/dance-puppet/` and `build/audit/`. The public
+`docs/native-validation.json` records source-bound native artifact hashes.
+
+## Panoramic offline export — 2026-10-27
+
+The new **Export Video → Resolution → Panoramic / Full 3-Projector Canvas**
+preset renders the selected saved cue or current draft at the full three-panel
+size, normally 5760×1080. The existing packed 3840×2160 wall recording stays
+separate. No projector output was opened and no audio was enabled.
+
+- **614 portable tests**, with four expected Windows symlink-permission skips,
+  passed in a publication-only source snapshot. Rejected local prototypes remain
+  untouched and excluded.
+- **29 native review/export checks** passed, producing 12 short files: existing
+  HD/4K/custom cue/draft/video and three animated ink particle/feedback fixtures,
+  plus panoramic saved-cue, draft, image and Final Crop cases.
+- Independent ffprobe/ffmpeg decoding verified dimensions, codec, FPS, frame
+  counts and silent streams for all 12 files. The panoramic image's first frame
+  contains a proportionally fitted circle, not an initial blank frame. A loading
+  race found during testing was fixed by waiting for fully decoded media rather
+  than merely an open file.
+- Export works while the live layout stays Identical; the render copy has its
+  own wide resolution and media fit. Saved cues, the main look and unsaved cue
+  editor fields remain unchanged. Cancellation removes only the job's copy.
+- Unit checks cover overlap/even-pixel sizing, 4K-per-panel geometry, unsupported
+  H.264 dimensions, Auto/explicit fit, reader readiness and unchanged wall sizing.
+
+These short functional exports do not certify long-duration disk throughput,
+11520×2160 performance, or physical projector/video-wall hardware.
+
 ## Panoramic output publication recheck — 2026-10-25
 
 A fresh load of the saved canonical TOE passed **28 blocking groups / 5,758
@@ -1043,6 +1135,14 @@ the existing Dream and Brush outputs were unchanged by adding the radial module.
 
 ## Scope and reports
 
+The October 27 local puppet/layer extension has an additional focused validator,
+`validate_puppet_layers.py`: 47 checks cover opening-pose preview, pause/resume,
+solo-character cue synchronization, independent A/B effects, saved cue recall,
+and fixed 1080p foreground placement within a 5760×1080 panorama. A circle fixture
+checks both aspect ratio and pixel size at left/center/right. The updated Layer
+Composite regression passes 181 checks. These local results do not replace a
+clean release build or rehearsal on the physical projection system.
+
 The focused `validate_module_bindings.py` regression first audits the installed
 two-way links without repairing them, then uses disposable cue copies to check
 every module and rack slot in both directions. It covers independent states,
@@ -1050,6 +1150,29 @@ capture/recall, A/B branches, reorder, preset/slot reload, and the rack master
 bypass's rendered pixels. The October 7, 2026 in-place main-TOE upgrade passed
 830 focused checks and preserved the current cue document and designer look.
 This focused result is not a new complete native-build certification.
+
+`validate_layer_editing_feedback.py` checks both independent editor scopes,
+all module/slot targets, nonrecursive navigation, alpha-preserving puppet
+trails, half-life/strength independence, pause, clear, bypass and the Show
+Control geometry/section selector. The October 27 local follow-up passed its
+155 native checks. `validate_layer_composite.py` now distinguishes editor-only
+menus from visual controls and passes 187 checks. A separate pure-Python layout
+test rejects intersecting control rectangles and misaligned cue/notes rows.
+Projector review reinstallation also retains the new one-section inspector.
+
+The subsequent preview/navigation fix adds `validate_preview_navigation.py`:
+61 native checks exercise the real Section value-change callback across all 13
+pages, explicit inspector rebinding, dedicated fitted-preview wiring, unchanged
+render pixels/resolution, draft/document preservation and audience-window safety.
+The visible dropdown was also tested in Show Control; scope-value checks alone
+did not detect the original cached-page bug. The preview was checked at normal,
+square and maximized sizes. The additional `validate_preview_panorama.py`
+regression passes 36 checks with a running 5760×1080 cue, including live editing,
+pause/resume, preserved pixels and unchanged cue/deck state during resize. The
+Look Editor window stays above TouchDesigner after resize and focus changes;
+Projector Review is unchanged. The 662-test portable suite passes (four expected
+Windows symlink-permission skips). These are local UI regression tests,
+not a new clean release build or physical-projector certification.
 
 Detailed reports are generated locally in the ignored `build/envoy-validation/`
 folder: `live-suite.json`, `control-surface.json`, `control-events.json`, the

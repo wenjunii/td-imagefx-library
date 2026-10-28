@@ -1002,6 +1002,11 @@ void main() {
 def install_feedback(module, raw):
     """Embed a true history pass; the off branch never requests history cooks."""
     import td
+    from pathlib import Path
+    force_path = Path(__file__).with_name('dance_forces.py')
+    force_scope = {'__file__': str(force_path)}
+    exec(compile(force_path.read_text(encoding='utf-8'), str(force_path), 'exec'), force_scope)
+    raw = force_scope['install'](module, raw)
     source = module.create(td.nullTOP, 'flow_feedback_source')
     raw.outputConnectors[0].connect(source.inputConnectors[0])
     runtime = module.create(td.textDAT, 'flow_feedback_runtime')

@@ -112,7 +112,7 @@ def validate(write_report=True):
         c.par.Enabled=True
         for prefix in ('a','b'):
             branch=c.op(prefix+'_effects'); flow=branch.op('workflow').module
-            checks[prefix+'_independent_workflow']=len(flow.current(branch))==15 and 'image_composition' not in flow.current(branch)
+            checks[prefix+'_independent_workflow']=set(flow.current(branch))==set(flow.BRANCH_ORDER) and 'image_composition' not in flow.current(branch)
             c.par.Manualtime=2.75
             checks[prefix+'_clock_follows_composition']=abs(branch.op('calligraphic_shadow').par.Time.eval()-2.75)<1e-6
             checks[prefix+'_viewer_self']=branch.par.opviewer.eval()==branch.op('out1_image')

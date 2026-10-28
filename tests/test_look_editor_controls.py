@@ -1,7 +1,7 @@
 """Look Editor shortcuts must target only the active off-air draft."""
 import unittest
 from types import SimpleNamespace
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from touchdesigner.scripts import look_editor_controls as controls
 from touchdesigner.scripts.workflow import DEFAULT_ORDER, LABELS
@@ -24,16 +24,20 @@ class LookEditorControlTests(unittest.TestCase):
         self.show.ext.ShowControlExt = self.ext
         self.show.op.return_value = self.deck
         self.preview = Mock(path="/show/look_preview")
-        self.show.op.side_effect = lambda name: self.preview if name == "look_preview" else self.deck if name == "look_editor" else None
+        self.preview_window = Mock(path="/show/look_preview_window")
+        self.show.op.side_effect = {
+            'look_preview': self.preview, 'look_editor': self.deck,
+            'look_preview_window': self.preview_window,
+        }.get
         self.show.par.Lookmodule.eval.return_value = "calligraphic_shadow"
 
     def call(self, name, *args):
         return self.runtime[name](self.show, *args)
 
     def test_menu_contains_all_stages_and_slots(self):
-        self.assertEqual(len(self.targets), 25)
-        self.assertEqual([row[0] for row in self.targets[1:17]], list(DEFAULT_ORDER))
-        self.assertEqual([row[2] for row in self.targets[1:17]], list(LABELS))
+        self.assertEqual(len(self.targets), 26)
+        self.assertEqual([row[0] for row in self.targets[1:18]], list(DEFAULT_ORDER))
+        self.assertEqual([row[2] for row in self.targets[1:18]], list(LABELS))
         self.assertEqual(self.targets[-1][1], "fx_rack/slot8")
 
     def test_every_menu_target_resolves_inside_draft(self):
@@ -55,7 +59,33 @@ class LookEditorControlTests(unittest.TestCase):
 
     def test_preview_uses_stable_output_that_survives_commit(self):
         self.assertIs(self.call("open_preview"), self.preview)
-        self.preview.openViewer.assert_called_once_with()
+        self.preview_window.par.winopen.pulse.assert_called_once_with()
+        self.preview.openViewer.assert_not_called()
+
+    def test_missing_fitted_window_does_not_open_raw_viewer(self):
+        self.show.op.side_effect = {'look_preview': self.preview, 'look_editor': self.deck}.get
+        with self.assertRaisesRegex(ValueError, 'fitted preview window'):
+            self.call('open_preview')
+        self.preview.openViewer.assert_not_called()
+
+    def test_preview_window_is_pinned_fitted_and_not_an_audience_window(self):
+        display, panel, window = Mock(), Mock(), Mock()
+        show = Mock()
+        show.op.side_effect = {'look_preview_display': display,
+                              'look_preview_panel': panel,
+                              'look_preview_window': window}.get
+        with patch.dict('sys.modules', td=SimpleNamespace()):
+            self.assertIs(controls.install_preview_window(show), window)
+        self.assertEqual(display.par.top, 'look_preview')
+        self.assertEqual(display.par.fillmode, 'best')
+        self.assertEqual(panel.par.topfill, 'best')
+        self.assertTrue(window.par.alwaysontop)
+        self.assertTrue(window.par.borders)
+        self.assertFalse(window.par.interact)
+        self.assertFalse(window.par.includedialog)
+        self.assertEqual(window.par.justifyoffsetto, 'primarydisplay')
+        window.par.winopen.pulse.assert_not_called()
+        show.initializeExtensions.assert_not_called()
 
     def test_saved_preview_can_be_opened_after_commit(self):
         self.ext._look_edit = None

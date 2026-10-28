@@ -117,13 +117,13 @@ class ColorCompositionTests(unittest.TestCase):
                         self.assertEqual(scope['selected'](c,prefix),0)
 
     def test_branches_have_every_nonrecursive_stage(self):
-        self.assertEqual(set(COMPOSE['CORE_FILES']),set(FLOW['BRANCH_ORDER']))
+        self.assertEqual(set(COMPOSE['CORE_FILES'])|set(COMPOSE['PROCEDURAL_STAGES']),set(FLOW['BRANCH_ORDER']))
         self.assertNotIn('image_composition',COMPOSE['CORE_FILES'])
         self.assertIn('calligraphic_shadow',COMPOSE['CORE_FILES'])
         self.assertIn('color_switch',COMPOSE['CORE_FILES'])
 
     def test_main_workflow_new_stages_and_legacy_migration(self):
-        self.assertEqual(len(FLOW['DEFAULT_ORDER']),16)
+        self.assertEqual(len(FLOW['DEFAULT_ORDER']),17)
         legacy=list(FLOW['LEGACY_ORDER'])
         upgraded=FLOW['validate_order'](legacy)
         self.assertEqual([n for n in upgraded if n in legacy],legacy)
@@ -177,9 +177,9 @@ class ColorCompositionTests(unittest.TestCase):
         for look in ({'branches':{'other':{}}},{'branches':{'a_effects':{'branches':{'a_effects':{}}}}}):
             with self.assertRaises(ValueError): validate_look_media(look,ROOT)
 
-    def test_no_experiment_sources_in_new_modules(self):
+    def test_no_rejected_prototype_or_private_paths_in_new_modules(self):
         sources='\n'.join((ROOT/'touchdesigner/scripts'/name).read_text(encoding='utf-8') for name in ('color_switch.py','image_composition.py'))
-        for private in ('dance_backdrop','dance_puppet','wenju','Desktop'):
+        for private in ('dance_backdrop','prototypes/dance_puppet','DancePuppet25D_Prototype','wenju','Desktop'):
             self.assertNotIn(private,sources)
 
     def test_new_native_assets_and_source_binding_declared(self):

@@ -39,6 +39,16 @@ EXPORT_SOURCES = (
     ('draft', 'Current Look Draft / Offline'),
     ('wall', '2x2 Wall + Confidence / Real-Time'),
 )
+EXPORT_RESOLUTIONS = (
+    ('1080p', '1920 x 1080'), ('4k', '3840 x 2160'), ('720p', '1280 x 720'),
+    ('panoramic', 'Panoramic / Full 3-Projector Canvas'), ('custom', 'Custom'),
+)
+EXPORT_CODECS = (
+    ('h264', 'MP4 / H.264 (NVIDIA GPU, Commercial/Pro)'),
+    ('mjpeg', 'MOV / Motion JPEG'),
+    ('h265', 'MP4 / H.265 HEVC (NVIDIA GPU, Commercial/Pro)'),
+)
+GPU_CODEC_LIMITS = {'h264': 4096, 'h265': 8192}
 REVIEW_VIEWS = (
     ('auto', 'Auto / Follow Output Mode'),
     ('all', 'Three Projectors / Side by Side'),
@@ -50,15 +60,34 @@ REVIEW_VIEWS = (
 )
 
 
-def export_settings(source, preset, width, height, fps, duration, start, codec):
-    if source not in dict(EXPORT_SOURCES) or codec not in ('h264', 'mjpeg'):
+def panorama_size(panel_width, panel_height, overlap):
+    """Same three-panel geometry as live routing, rounded to even movie pixels."""
+    width, height, overlap = float(panel_width), float(panel_height), float(overlap)
+    if (not all(math.isfinite(n) for n in (width, height, overlap))
+            or width != int(width) or height != int(height)
+            or not 16 <= width <= 4096 or not 16 <= height <= 4096
+            or not 0 <= overlap <= .5):
+        raise ValueError('Panorama needs panel dimensions 16–4096 and overlap 0–0.5')
+    # Live routing truncates its width first; at most one extra pixel is needed.
+    return tuple(n + n % 2 for n in (int(width * (3 - 2 * overlap)), int(height)))
+
+
+def export_settings(source, preset, width, height, fps, duration, start, codec,
+                    panorama=(5760, 1080)):
+    if source not in dict(EXPORT_SOURCES) or codec not in dict(EXPORT_CODECS):
         raise ValueError('Choose an export source and codec from the menus')
     sizes = {'1080p': (1920, 1080), '4k': (3840, 2160), '720p': (1280, 720)}
-    if preset not in (*sizes, 'custom'):
+    if preset not in dict(EXPORT_RESOLUTIONS):
         raise ValueError('Choose a resolution preset')
     if source == 'wall':
         size = sizes['4k']  # Fixed hardware contract; ignore disabled size fields.
         start = 0         # Record current playback; never seek the live show.
+    elif preset == 'panoramic':
+        dims = tuple(float(n) for n in panorama)
+        if len(dims) != 2 or any(not math.isfinite(n) or n != int(n)
+                                or not 16 <= n <= 16384 or int(n) % 2 for n in dims):
+            raise ValueError('Panoramic dimensions must be even integers from 16 to 16384')
+        size = tuple(int(n) for n in dims)
     elif preset == 'custom':
         dims = (float(width), float(height))
         if any(not math.isfinite(n) or n != int(n) or n < 16 or n > 4096 or int(n) % 2 for n in dims):
@@ -66,6 +95,12 @@ def export_settings(source, preset, width, height, fps, duration, start, codec):
         size = tuple(int(n) for n in dims)
     elif preset in sizes:
         size = sizes[preset]
+    if codec == 'h264' and max(size) > 4096:
+        raise ValueError('H.264 supports at most 4096 pixels per axis. Choose MP4 / H.265 HEVC '
+                         'up to 8192 pixels, or MOV / Motion JPEG; the canvas will not be resized.')
+    if codec == 'h265' and max(size) > GPU_CODEC_LIMITS['h265']:
+        raise ValueError('H.265 GPU export supports at most 8192 pixels per axis. '
+                         'Choose MOV / Motion JPEG for this larger panorama; the canvas will not be resized.')
     fps, duration, start = float(fps), float(duration), float(start)
     if not math.isfinite(fps) or fps not in (24, 25, 30, 50, 60):
         raise ValueError('Export FPS must be 24, 25, 30, 50, or 60')
@@ -76,7 +111,56 @@ def export_settings(source, preset, width, height, fps, duration, start, codec):
     # Round half up; report actual duration after frame quantization.
     frames = max(1, int(math.floor(duration * fps + .5)))
     return dict(source=source, width=size[0], height=size[1], fps=int(fps),
-                frames=frames, duration=frames / fps, start=start, codec=codec)
+                frames=frames, duration=frames / fps, start=start, codec=codec,
+                panoramic=source != 'wall' and preset == 'panoramic')
+
+
+def export_suffix(codec):
+    if codec not in dict(EXPORT_CODECS):
+        raise ValueError('Unknown export codec')
+    return '.mp4' if codec in GPU_CODEC_LIMITS else '.mov'
+
+
+def writer_codec(codec, menu_names):
+    """Resolve TD's versioned codec tokens without falling back to a CPU codec."""
+    if codec not in dict(EXPORT_CODECS):
+        raise ValueError('Unknown export codec')
+    candidates = ('mjpa',) if codec == 'mjpeg' else (codec + 'nvgpu', codec)
+    for name in candidates:
+        if name in menu_names:
+            return name
+    raise ValueError('The selected codec is unavailable in this TouchDesigner build: ' + codec)
+
+
+def upgrade_codec_menu(show):
+    """Preserve existing choices, including old serialized menu indices."""
+    par = show.par.Exportcodec
+    selected = par.eval()
+    par.menuNames = [name for name, _ in EXPORT_CODECS]
+    par.menuLabels = [label for _, label in EXPORT_CODECS]
+    par.val = selected if selected in par.menuNames else 'h264'
+
+
+def panorama_codec_hint(width, height):
+    if max(width, height) > GPU_CODEC_LIMITS['h265']:
+        return ' Above 8192 pixels: use MOV / Motion JPEG.'
+    if max(width, height) > GPU_CODEC_LIMITS['h264']:
+        return ' Use MP4 / H.265 HEVC for NVIDIA GPU encoding, or MOV / Motion JPEG.'
+    return ''
+
+
+def current_panorama_size(show):
+    return panorama_size(show.par.Renderwidth.eval(), show.par.Renderheight.eval(),
+                         show.par.Panoramaoverlap.eval())
+
+
+def export_media_fit(show, panoramic):
+    fit = show.par.Cuemediafit.eval()
+    if fit == 'auto':
+        return 'cover' if panoramic or show.par.Routingmode == 'panoramic' else 'contain'
+    if fit not in ('contain', 'cover', 'stretch'):
+        raise ValueError('Choose a valid Canvas Media Fit in Output Mode')
+    return fit
 
 
 def selected_snapshot(show, source):
@@ -213,7 +297,48 @@ def export_description(show):
     if show.par.Exportsource == 'wall':
         return ('3840 x 2160 fixed | TL=P1 TR=P2 BL=P3 BR=confidence | '
                 'Real-time, silent; run cues with output windows CLOSED. Blackouts are recorded.')
+    if show.par.Exportresolution == 'panoramic':
+        try:
+            width, height = current_panorama_size(show)
+            return ('{} x {} panorama | Full cue canvas, no confidence or projector mapping | '
+                    'Offline; Auto = Fill/Crop, no stretching.{}').format(
+                        width, height, panorama_codec_hint(width, height))
+        except ValueError as exc:
+            return str(exc)
     return 'Offline cue/draft render | STOP ALL and close output windows | Silent video'
+
+
+def configure_export_canvas(show, deck, settings):
+    """Change only our render copy; never the designer, show routing or live deck."""
+    deck.par.Resolutionpreset = 'custom'
+    for name, key in (('Customwidth', 'width'), ('Customheight', 'height')):
+        deck.par[name].max = max(deck.par[name].max, settings[key])
+        deck.par[name].val = settings[key]
+    settings['fit'] = export_media_fit(show, settings['panoramic'])
+    if getattr(deck.par, 'Sourcefit', None) is not None:
+        deck.par.Sourcefit = settings['fit']
+
+
+def export_render_target(show, deck, settings):
+    """Freeze media fit; preserve final-crop proportions on the panoramic canvas."""
+    import td
+    fitted = deck.op('cue_media_fit')
+    if fitted is not None:
+        fitted.par.vec0valuex = ('contain', 'cover', 'stretch').index(settings['fit'])
+    output = deck.op('out1_image')
+    if not settings['panoramic']:
+        return output
+    code = deck.create(td.textDAT, 'export_canvas_code')
+    code.text = show.op('show_output_mode').module.CUE_MEDIA_SHADER
+    target = deck.create(td.glslTOP, 'export_canvas')
+    target.par.pixeldat = code.name
+    target.par.outputresolution = 'custom'
+    target.par.resolutionw, target.par.resolutionh = settings['width'], settings['height']
+    target.seq.vec.numBlocks = 1
+    target.par.vec0name = 'uFit'
+    target.par.vec0valuex = ('contain', 'cover', 'stretch').index(settings['fit'])
+    output.outputConnectors[0].connect(target.inputConnectors[0])
+    return target
 
 
 def _writer(parent, target, path, settings):
@@ -223,7 +348,7 @@ def _writer(parent, target, path, settings):
     writer.par.file = str(path)
     wall = settings['source'] == 'wall'
     writer.par.type = 'movie' if wall else 'stopframemovie'
-    writer.par.videocodec = 'mjpa' if settings['codec'] == 'mjpeg' else settings['codec']
+    writer.par.videocodec = writer_codec(settings['codec'], writer.par.videocodec.menuNames)
     writer.par.pause = not wall
     writer.par.avgbitrate = 20000 if settings['width'] <= 1920 else 50000
     writer.par.peakbitrate = 30000 if settings['width'] <= 1920 else 70000
@@ -266,7 +391,8 @@ def start_export(show):
     values = [show.par[name].eval() for name in (
         'Exportsource', 'Exportresolution', 'Exportwidth', 'Exportheight', 'Exportfps',
         'Exportduration', 'Exportstart', 'Exportcodec')]
-    settings = export_settings(*values)
+    panorama = current_panorama_size(show) if values[0] != 'wall' and values[1] == 'panoramic' else (5760, 1080)
+    settings = export_settings(*values, panorama=panorama)
     is_wall = settings['source'] == 'wall'
     target = wall_export_target(show) if is_wall else None
     cue = None if is_wall else selected_snapshot(show, settings['source'])
@@ -282,7 +408,7 @@ def start_export(show):
     folder.mkdir(parents=True, exist_ok=True)
     name = 'wall-2x2-confidence' if is_wall else cue['name']
     safe_name = re.sub(r'[^a-zA-Z0-9_-]+', '-', name).strip('-')[:60] or 'cue'
-    suffix = '.mp4' if settings['codec'] == 'h264' else '.mov'
+    suffix = export_suffix(settings['codec'])
     # A separate unique directory is atomically reserved; never overwrite a file.
     jobdir = folder / (safe_name + '-' + time.strftime('%Y%m%d-%H%M%S') + '-' + uuid.uuid4().hex[:8])
     jobdir.mkdir(exist_ok=False)
@@ -315,8 +441,7 @@ def start_export(show):
         deck = ext._new_deck('export_render_' + uuid.uuid4().hex[:8])
         job['deck'] = deck
         ext._apply_look(deck, cue['look'])
-        deck.par.Resolutionpreset = 'custom'
-        deck.par.Customwidth, deck.par.Customheight = settings['width'], settings['height']
+        configure_export_canvas(show, deck, settings)
         movie = ext._load_deck_media(deck, cue, ext._media_path(cue))
         job['movie'] = movie
         if movie is not None:
@@ -330,7 +455,8 @@ def start_export(show):
             reader.par.frametimeout = 5000
             reader.par.alwaysloadinitial = True
             reader.preload()
-        job['writer'] = _writer(deck, deck.op('out1_image'), path, settings)
+        job['target'] = export_render_target(show, deck, settings)
+        job['writer'] = _writer(deck, job['target'], path, settings)
         _later(show)
     except Exception:
         finish_export(show, 'FAILED')
@@ -365,6 +491,9 @@ def finish_export(show, outcome):
         show.par.Exportprogress = 1
         show.par.Exportstatus = 'COMPLETE — {} frames, {:.3f}s, silent video'.format(
             job['index'], job['index'] / job['settings']['fps'])
+        if job['settings'].get('panoramic'):
+            show.par.Exportstatus = show.par.Exportstatus.eval() + ' | {}x{} full panorama'.format(
+                job['settings']['width'], job['settings']['height'])
         if job['settings']['source'] == 'wall':
             dropped = job.get('dropped', 0)
             show.par.Exportstatus = show.par.Exportstatus.eval() + ' | 3840x2160 wall + confidence | {} dropped frames{}'.format(
@@ -412,6 +541,15 @@ def _wall_step(show, job):
         _later(show)
 
 
+def export_reader_ready(reader):
+    reader.cook(force=True)
+    if reader.isInvalid:
+        raise ValueError('A media source could not be decoded: ' + reader.name)
+    # An open file can still have a black GPU texture, especially just after
+    # preload. Wait for decoded pixels before writing even the very first frame.
+    return bool(reader.isOpen and reader.isFullyPreRead)
+
+
 def step(show, job_id=None):
     job = show.fetch(JOB_KEY, None, search=False)
     if not job or (job_id is not None and job['id'] != job_id):
@@ -432,16 +570,15 @@ def step(show, job_id=None):
         if job['movie'] is not None:
             job['movie'].par.index = job['cue']['media_in'] + seconds * job['cue']['speed']
         for reader in job['readers']:
-            reader.cook(force=True)
-            if reader.isInvalid:
-                raise ValueError('A media source could not be decoded: ' + reader.name)
-            if not reader.isOpen:
+            if not export_reader_ready(reader):
                 if time.monotonic() > job['deadline']:
                     raise ValueError('Media preload timed out')
                 _later(show)
                 return
-        output = deck.op('out1_image')
+        output = job['target']
         output.cook(force=True)
+        if settings['panoramic'] and (output.width, output.height) != (settings['width'], settings['height']):
+            raise ValueError('Panoramic resolution unavailable; check TouchDesigner license and GPU limits')
         errors = deck.errors(recurse=True)
         if errors:
             raise ValueError(str(errors))
@@ -453,6 +590,7 @@ def step(show, job_id=None):
         if writer.errors():
             raise ValueError(writer.errors())
         job['index'] += 1
+        job['deadline'] = time.monotonic() + 90
         show.par.Exportprogress = job['index'] / settings['frames']
         show.par.Exportstatus = 'Rendering {}/{} frames — silent, off-air'.format(job['index'], settings['frames'])
         _later(show)
@@ -523,6 +661,9 @@ def configure_panel_layout(show):
         inspector.par.builtin = False
         inspector.par.custom = True
         inspector.par.compress = 1
+    layout = show.op('show_panel_layout')
+    if layout is not None:
+        layout.module.configure(show)
 
 
 def install_wall_controls(show):
@@ -624,8 +765,12 @@ def install(show):
     source.val = selected if selected in source.menuNames else 'cue'
     par(p, 'Exportinfo', 'Export Mode / Canvas', 'Str', '', readonly=True).expr = "me.op('show_review_export').module.export_description(me)"
     par(p, 'Exportfolder', 'Export Folder', 'Folder', '.imagefx/exports')
-    par(p, 'Exportcodec', 'Format', 'Menu', 'h264', menu=[('h264', 'MP4 / H.264 (Commercial/Pro)'), ('mjpeg', 'MOV / Motion JPEG')])
-    par(p, 'Exportresolution', 'Resolution', 'Menu', '1080p', menu=[('1080p', '1920 x 1080'), ('4k', '3840 x 2160'), ('720p', '1280 x 720'), ('custom', 'Custom')])
+    par(p, 'Exportcodec', 'Format', 'Menu', 'h264', menu=EXPORT_CODECS)
+    upgrade_codec_menu(show)
+    resolution = par(p, 'Exportresolution', 'Resolution', 'Menu', '1080p', menu=EXPORT_RESOLUTIONS)
+    selected = resolution.eval()
+    resolution.menuNames, resolution.menuLabels = [x[0] for x in EXPORT_RESOLUTIONS], [x[1] for x in EXPORT_RESOLUTIONS]
+    resolution.val = selected if selected in resolution.menuNames else '1080p'
     for name, label, default in [('Exportwidth','Width',1920), ('Exportheight','Height',1080)]:
         par(p, name, label, 'Int', default, (16,4096)).enableExpr = "not me.par.Exportbusy and me.par.Exportsource != 'wall' and me.par.Exportresolution == 'custom'"
     par(p, 'Exportfps', 'Frames / Second', 'Menu', '30', menu=[(str(n),str(n)) for n in (24,25,30,50,60)])

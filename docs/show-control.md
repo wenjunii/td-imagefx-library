@@ -20,6 +20,25 @@ alone did not fix that issue. Maximize the viewer if its outer window extends
 beyond your desktop. The media `+` picker and cue/export dropdowns have been
 checked directly in TouchDesigner after the custom-parameter-only correction.
 
+Use **Show Control Section** at the upper right to choose Transport, Output
+Mode, Wall Output, Projection Mapping, Cue Editor, Cue Notes, Look Editor,
+Projector Review, Export Video, Routing or Output 1/2/3. Only the selected page
+is shown, so long tab headings do not overlap. Cue buttons and notes share
+aligned rows; live-edit status/help have separate space below the edit buttons.
+**Cue Notes** selects that section directly in the panel, without opening
+another crowded parameter window. This navigation does not change cue content.
+Each selection explicitly refreshes the native parameter list; this avoids
+TouchDesigner's cached Transport controls remaining visible after a menu change.
+
+**Look Editor > Open Preview** uses a separate window titled **ImageFX - Look
+Preview (Fit / No Crop)**. Resize or maximize it freely: the complete frame stays
+aspect-fitted with black padding as needed, including panoramic video. It has no
+mouse pan/zoom interaction and does not change the cue's output resolution or
+projector routing. The preview stays on top so a border resize or focus change
+does not send it behind TouchDesigner. The small in-panel preview is also
+aspect-fitted. Close the floating preview with the title-bar X; Open Preview
+reopens it. It is an operator preview, not an audience output window.
+
 ## Cue notes
 
 Select a cue and click **Cue Notes** (or open the **Cue Notes** tab). Enter up to
@@ -155,6 +174,57 @@ original controls. Wall hardware settings are saved with the TOE, not cue looks
 or Save Show JSON. See [4K wall setup](wall-output.md) for display assignment and
 the fixed quadrant map. Adding the tab does not open or arm any display.
 
+## Export a panoramic video
+
+1. **STOP ALL** and close physical output windows.
+2. In **Show Control → Export Video**, choose **Selected Saved Cue / Offline**
+   or **Current Look Draft / Offline** as Export Source.
+3. Set **Resolution → Panoramic / Full 3-Projector Canvas** and
+   **Format → MP4 / H.265 HEVC (NVIDIA GPU, Commercial/Pro)** for the standard
+   5760×1080 canvas on the RTX 3080 Ti. **MOV / Motion JPEG** remains available.
+   Choose duration, FPS, start time and folder,
+   then press **Export Video (Silent)**.
+
+The file contains one continuous canvas, normally **5760×1080**, not a 4K 2×2
+wall. Its dimensions follow **Output Mode → Canvas Render Width Per Panel**,
+**Canvas Render Height** and **Panorama Overlap**: width = panel width × (3 − 2 × overlap). An odd pixel
+dimension is rounded up by one for movie compatibility; the exact size appears
+in **Export Mode / Canvas**. You can export a panorama even while the output
+layout is Identical or Independent: the export never changes the live layout.
+
+The selected cue's saved effects, or the current draft's edits, render on this
+wide canvas. **Canvas Media Fit → Auto** uses proportional **Fill / Crop**;
+explicit Fit/Letterbox and Stretch remain available. If Final Crop changes the
+aspect ratio, the exported result is fitted with the same rule, not silently
+stretched. Size and fit are frozen for each export, so later setting changes
+cannot alter a movie halfway through. Projector masks/warps/blackouts, confidence
+stats, other cue tracks and audio are not included. For the actual packed wall,
+keep using **2x2 Wall + Confidence / Real-Time** instead.
+
+H.264 exports above 4096 pixels on either axis are rejected. H.265 uses NVIDIA's
+dedicated NVENC encoder on supported Windows GPUs and allows up to **8192×8192**;
+it does not use CUDA cores for encoding. The standard 5760×1080 panorama fits,
+but a three-panel 4K panorama (11520×2160) requires Motion JPEG. Unsupported
+sizes/codecs are rejected; there is no silent downscaling or software fallback.
+The existing H.264/Motion JPEG menu values are retained for older saved shows.
+Motion JPEG files can be large:
+test a short clip and check storage/playback performance before a long export.
+TouchDesigner license and GPU resolution limits still apply. The underlying
+[Movie File Out TOP](https://derivative.ca/UserGuide/Movie_File_Out_TOP) supports
+frame-stepped recording; this option uses it to render offline, not in real time.
+
+The focused 2026-10-27 check rendered and independently decoded 21 test files,
+including H.265 at 1080p, 4K and 5760×1080. Panoramic saved cues, look drafts,
+proportional source-media cropping and all three ink/particle-flow modules were
+checked; custom values and feedback history remained active. The user's cues,
+main look, editor fields and output routing were preserved. These short off-air
+tests do not certify sustained real-time wall recording or venue playback.
+The same follow-up passed 675 portable tests (four expected Windows skips),
+121 puppet tests, 49 native review/export assertions and 15 reopened-TOE checks.
+The prior personal TOE is backed up under
+`build/dance-puppet/h265-backup-20261027/`; this is a local in-place update, not
+a newly built clean distribution.
+
 ## Export a visual cue to video
 
 1. **STOP ALL** and close audience/wall output windows. Export shares the GPU;
@@ -184,10 +254,13 @@ aspect ratio to avoid stretching. Effect start offsets the effect clock and
 source-video position; feedback/history effects start fresh, without a precomputed
 simulation history. Duration rounds to whole output frames (minimum one).
 
-MP4/H.264 needs a Commercial/Pro license and supported encoding hardware;
+MP4/H.264 and MP4/H.265 need a Commercial/Pro license and supported NVIDIA
+encoding hardware on Windows;
 **MOV / Motion JPEG** is also available. TouchDesigner's license resolution
 limits still apply. See the official
 [Movie File Out TOP documentation](https://docs.derivative.ca/Movie_File_Out_TOP).
+H.265 exports are ordinary video, not transparent alpha media; the puppet's
+Hap Alpha preparation pipeline is unchanged.
 
 ### Record the complete 2x2 wall, including confidence monitor
 
@@ -203,7 +276,7 @@ into the file. The confidence preview and current diagnostics are recorded too.
    Enable **Wall Output → Enable Confidence Quadrant**. Turn **Show Diagnostics**
    on if you want the statistics text included. Clear blackouts only when ready;
    the recorder never changes them for you.
-3. Choose the export folder, MP4/H.264 or MOV/Motion JPEG, FPS, and maximum duration.
+3. Choose the export folder, MP4/H.264, MP4/H.265 or MOV/Motion JPEG, FPS, and maximum duration.
    Wall resolution is fixed at UHD. The offline resolution/size/start-time
    fields are disabled and ignored; the **Export Mode / Canvas** readout confirms it.
 4. Press **Export Video (Silent)**. It records the wall as it currently plays.
@@ -273,6 +346,13 @@ rebuilding the library resets the built-in demo cue, but not your saved JSON.
 
 ### Edit the running cue live
 
+Older cues that predate Dance Forces or Dance Puppet can now be edited without
+losing the prepared local motion media. Missing pre-feature media blocks inherit
+the matching main/A/B workflow's files; effects still start disabled. Already
+saved media and effect settings are never replaced. Enable motion in the cue's
+Edit Controls panel, then Update Cue Look and Save Show to commit it. Cancel keeps
+the original cue unchanged. No camera or analysis process starts automatically.
+
 You do not have to stop playback or Recall Look to adjust the cue on air:
 
 1. Select the Visual cue row marked **PLAY**. GO normally advances selection to
@@ -327,7 +407,7 @@ Capture Look or Update Cue again.
    A parameter window opens for that module in the recalled cue, with its custom
    parameter tabs visible. Choose **Workflow / Module Switches** for the draft's
    enable switches and ordering, or **FX Rack / Slot 1–8** for individual slot
-   parameters. **Open Preview** opens the full-size silent off-air output; the
+   parameters. **Open Preview** opens the aspect-fitted silent off-air output; the
    small preview at the bottom remains available. These shortcuts never open
    the original `imagefx_demo` modules. The temporary workspace is still
    `/project1/imagefx_demo/show_control/look_editor` if you prefer node editing;

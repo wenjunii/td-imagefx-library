@@ -7,11 +7,14 @@ Contributions are welcome through focused pull requests. By contributing, you ag
 Use Python 3.11 or newer and run:
 
 ```text
+python -m pip install -r requirements-test.txt
 python -m unittest discover -v
 python tools/verify_repository.py
 ```
 
 CI repeats these checks on Windows, macOS, and Linux with supported Python versions.
+NumPy is needed by the optional dance-force math tests, not by the package core.
+The portable checks do not install CUDA, pose models, camera drivers or media.
 
 ## Immutable package history
 
