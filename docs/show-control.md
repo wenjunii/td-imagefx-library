@@ -20,7 +20,7 @@ alone did not fix that issue. Maximize the viewer if its outer window extends
 beyond your desktop. The media `+` picker and cue/export dropdowns have been
 checked directly in TouchDesigner after the custom-parameter-only correction.
 
-Use **Show Control Section** at the upper right to choose Transport, Output
+Use **Show Control Section** at the upper right to choose Transport, Pre-Show Check, Output
 Mode, Wall Output, Projection Mapping, Cue Editor, Cue Notes, Look Editor,
 Projector Review, Export Video, Routing or Output 1/2/3. Only the selected page
 is shown, so long tab headings do not overlap. Cue buttons and notes share
@@ -38,6 +38,32 @@ projector routing. The preview stays on top so a border resize or focus change
 does not send it behind TouchDesigner. The small in-panel preview is also
 aspect-fitted. Close the floating preview with the title-bar X; Open Preview
 reopens it. It is an operator preview, not an audience output window.
+
+## Pre-Show Check
+
+1. Choose **Pre-Show Check → Run Pre-Show Check** (also available on Transport).
+   The full report separates errors, warnings and information. It checks the
+   existing media/workflow contract, the GPU selected by TouchDesigner, connected
+   display configuration, blackout/calibration state, audio controls and AC power.
+   File existence is not a decoding test: use **Preload Selected** for each cue.
+2. Resolve media/output errors. Blackout and closed-window warnings may be
+   intentional before a show; this check never changes them for you. GPU identity
+   does not certify that every external CUDA motion worker is running.
+3. Run representative cues, then **Sample Current Performance**. The default
+   sample is 5 seconds, adjustable 1–30, against a selectable 24/25/30/50/60 FPS
+   target. It reports mean/minimum FPS, 95th-percentile frame time, timeline drops
+   and peak GPU memory. Missing telemetry is a warning, not a passing zero.
+4. **Open Full Report** for the timestamped local snapshot. Repeat after changing
+   media, effects, resolution or output mode. Idle/blackout samples are not a
+   stress test. Verify projector order, EDID/refresh, masking/focus and audible
+   stereo output in a full rehearsal; software cannot confirm those connections.
+
+**Cue Warm-up (rendered frames)** defaults to 3, with a 1–12 range. The standby
+deck cooks across distinct TouchDesigner frames before it is published; the
+current cue stays on air. This does not advance the new cue's animation clock or
+change its saved parameters. A stalled visual preload reports an error after 90
+seconds without stopping the current track. It is a readiness improvement, not
+a guarantee that an expensive shader/decoder can never stall a frame.
 
 ## Cue notes
 
@@ -279,9 +305,14 @@ into the file. The confidence preview and current diagnostics are recorded too.
 3. Choose the export folder, MP4/H.264, MP4/H.265 or MOV/Motion JPEG, FPS, and maximum duration.
    Wall resolution is fixed at UHD. The offline resolution/size/start-time
    fields are disabled and ignored; the **Export Mode / Canvas** readout confirms it.
-4. Press **Export Video (Silent)**. It records the wall as it currently plays.
-   You can run/advance/pause cues during recording; it does not start or rewind
-   cues automatically. To capture the lead-in, start recording before **GO**.
+4. Set **Wall Render Warm-up** (0–10 seconds, default 2), then press
+   **Export Video (Silent)**. During **WARMING**, the wall pipeline cooks but
+   nothing is recorded. Wait for **RECORDING** before pressing **GO** to capture
+   the cue's beginning. Existing playback continues through warm-up; it is not
+   rewound or paused. Even at zero seconds, preparation spans two rendered frames.
+   You can run/advance/pause cues during recording; the recorder never does this
+   automatically. Encoder startup preserves the first input frame, but can still
+   cause a brief stall; the actual dropped-frame count remains visible.
 5. Recording finishes at the selected length. **Stop Wall Recording & Save**
    finalizes a shorter usable file. **Cancel Export** keeps any partial file
    but labels it incomplete. Check **Export Status** and **Last Output File**.

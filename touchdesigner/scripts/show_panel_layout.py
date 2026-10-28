@@ -1,7 +1,7 @@
 """One geometry contract for Show Control; no cue/transport mutations."""
 import inspect
 
-SECTIONS = ('Transport', 'Output Mode', 'Wall Output', 'Projection Mapping',
+SECTIONS = ('Transport', 'Pre-Show Check', 'Output Mode', 'Wall Output', 'Projection Mapping',
             'Cue Editor', 'Cue Notes', 'Look Editor', 'Projector Review',
             'Export Video', 'Routing', 'Output 1', 'Output 2', 'Output 3')
 

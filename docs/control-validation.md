@@ -1,5 +1,126 @@
 # Control validation
 
+## Full control and publication recheck — 2026-10-28
+
+The clean publication TOE was reopened and audited again, separately from the
+operator's two-cue session. No operator cue or media was used as release content.
+
+- **757 portable tests** passed (four expected Windows symlink skips), with
+  immutable-history, artifact/source-hash, credential and generated-file checks.
+- **29 native groups / 6,609 checks** passed for the control inventory, value
+  limits, bindings, menus and callbacks. This includes all **58 Show Control
+  pulses, 20 panel buttons and 63 mapping/grade controls**.
+- **17 frame-based groups / 590 checks** passed for real event dispatch,
+  media, cue playback, Continue/Follow, editing, mapping and feedback.
+- **12 additional groups / 926 checks** passed for force response, activation,
+  pattern-relative motion, puppet/layer controls, 14-section navigation and
+  export. **83 older-cue checks** passed with local prepared-motion fixtures.
+- **16 readiness checks** now include slider minimum/midpoint/maximum and
+  defaults, all five FPS menu entries, read-only result fields, non-arming
+  pulses, 1/3/12-frame cue warm-up and recording/cancellation behavior.
+- **36 panoramic-preview checks** passed, plus visible maximize/restore and
+  focus testing. **62 clean-startup checks** passed; **4,307 runtime text DATs**
+  passed the credential scan. The published TOE's hash stayed unchanged during
+  these tests. The personal main TOE was restored with **12 preservation checks**
+  confirming both cues, effect values, editable show values and the canonical
+  file hash were unchanged, with no native errors or warnings.
+
+The independent export check exposed a test-fixture mistake: the first readiness
+test reused the original wall, whose Show Control master blackout correctly
+made the projector quadrants black. Encoder completion alone was not sufficient
+evidence of a calibration picture. The validator now copies both Show Control
+and Wall Output into an isolated host, verifies RGB quadrant pixels and a
+nonblank confidence monitor, and confirms the original wall values, expressions
+and modes are untouched. It also refuses armed audio, released blackouts,
+open audience windows and overlapping sample/export/audit jobs before changes.
+
+The corrected warm-up recordings each contain 90 decoded frames at
+3840×2160 / 30 FPS, with zero reported encoder drops in this short run.
+Independent ffprobe/ffmpeg checks passed for **26 export clips**: codec,
+dimensions, frame rate/count, complete decoding and silent audio; packed-wall
+clips also passed quadrant-order and confidence-content checks. These short
+fixtures do not certify sustained heavy-effects performance. The performance
+sampler still reported startup/timeline drops after constructing the test copy;
+those warnings remain visible rather than being treated as a pass.
+
+Physical projector/processor routing, live camera capture and audible stereo
+playback were deliberately not armed. Launch buttons for those paths receive
+wiring checks only. Rehearse the actual show, displays, camera, audio and media
+before public use. Detailed local reports/recordings remain ignored under
+`build/`; only sanitized summaries and clean distributable artifacts are synced.
+
+## Pre-show readiness and render warm-up — 2026-10-28
+
+Show Control now includes a non-arming **Pre-Show Check**, a current-workload
+performance sample, distinct-render-frame cue warm-up, and a configurable
+0–10-second render warm-up before real-time wall recording (default 2 seconds).
+It never treats missing telemetry as a pass. GPU identity describes the selected
+TouchDesigner renderer, not whether every external worker is using CUDA.
+
+The portable suite contains **752 tests** with four expected Windows symlink
+skips. The 17 new regressions cover missing/invalid/slow performance samples,
+memory and dropped-frame warnings, callback dispatch, sample-job isolation,
+distinct-frame cue warm-up, preload timeout preserving the on-air cue, and wall
+recording warm-up timing and bounds. The existing layout test covers all 14
+Show Control sections.
+
+The native Show Control regression passed **50 groups**, including dispatch for
+all **58 pulses and 20 panel buttons** and rendered checks for 63 mapping/grade
+controls. The real-frame ink playback suite passed **15 checks** across all three
+ink modules: recall, GO, timed pixels, unchanged on-air pixels during preload,
+and continuous crossfade endpoints. No physical outputs or audio were armed.
+
+The initial TouchDesigner 2025.32820 / RTX 3080 Ti Laptop GPU test exercised
+the pre-show button and performance sample, section navigation, cue warm-up at
+1/3/12 frames, wall recording with warm-up at 0 and 2 seconds, cancellation
+during warm-up, and preservation of the original cue document. Both 3-second
+UHD H.264 encoder-test clips decoded as 90 frames at 3840×2160 / 30 fps.
+The zero-second case reported **1 dropped frame**; the 2-second case reported
+**0 dropped frames**. These are short calibration tests, not a sustained show
+or heavy-effects performance guarantee. They did not verify calibration pixels;
+the isolated, pixel-verified rerun above supersedes that part of the evidence.
+Warm-up prepares the render pipeline;
+the encoder still opens when recording starts and may stall on its first frame.
+
+Use **Sample Current Performance** while representative cues are running, then
+rehearse actual projector/processor routing, audio, codec, disk and duration.
+The earlier recording warning below is retained as historical evidence.
+Reports and test recordings stay local under `build/show-readiness/`.
+An offline expansion of the saved release TOE confirmed the exact new runtime
+sources, dispatch guard, page and warm-up value, clean test cue and no personal
+look/media. All **1,835 saved text DATs** passed the credential scan. A subsequent
+fresh-open runtime check passed **62 startup/persistence checks** with no native
+errors or warnings; all **4,307 runtime text DATs** passed the credential scan.
+The render GPU remained the RTX 3080 Ti Laptop GPU, with audience windows closed
+and audio disarmed.
+
+The personal main TOE was separately upgraded through a backed-up candidate.
+Its fresh-open validation passed **29 checks**, preserving both cues, **19 effect
+components** (values, modes, expressions and bindings) and **199 existing Show
+Control values**. All 24 embedded puppet runtimes received the existing preview
+clock correction; this removed three cook-dependency warnings reproduced in the
+untouched original. The upgraded candidate reopened without native errors or
+warnings before promotion to `TD_ImageFX_Library.toe`. The original file and
+private preservation reports remain local in `build/show-readiness/` and are not
+part of the clean publication artifact.
+
+## Local-first verification policy — 2026-10-28
+
+The local safety gate passed **735 portable tests** on Python 3.11.9 / NumPy
+1.24.4 (four expected Windows symlink-permission skips). Its 18 new regressions
+cover failure propagation, missing prerequisites, safe subprocess arguments,
+single-pass verification and the low-usage workflow policy. Immutable package
+history, tracked/staged credential scans, generated artifacts and documentation
+checks passed; all three workflow files passed actionlint 1.7.12.
+
+Routine repository verification now has one Ubuntu job on PR updates and `main`
+pushes, with no duplicate feature-branch push run. The full six-way OS/Python
+matrix is manual. Security settings and branch protection are unchanged.
+That initial local-first commit changed no TOE, TOX, shader, runtime, cue or media
+files. Later readiness/control commits include rebuilt clean native artifacts
+and the validation described above. Neither stage certifies live-camera,
+physical projector or sustained recording performance.
+
 ## Motion, controls and clean publication recheck — 2026-10-28
 
 The publication copy was rebuilt in TouchDesigner **2025.32820** on the

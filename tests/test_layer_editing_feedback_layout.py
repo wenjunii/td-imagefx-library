@@ -74,8 +74,9 @@ class LayerFeedbackLayoutTests(unittest.TestCase):
 
     def test_all_show_sections_accessible_in_selector(self):
         layout=runpy.run_path('touchdesigner/scripts/show_panel_layout.py')
-        self.assertEqual(len(layout['SECTIONS']),13)
-        self.assertEqual(len(set(layout['SECTIONS'])),13)
+        self.assertEqual(len(layout['SECTIONS']),14)
+        self.assertIn('Pre-Show Check',layout['SECTIONS'])
+        self.assertEqual(len(set(layout['SECTIONS'])),14)
         for page in ('Cue Notes','Look Editor','Projection Mapping','Export Video'):
             self.assertIn(page,layout['SECTIONS'])
 

@@ -581,6 +581,7 @@ def validate(write_report=True):
                    "Savecuenotes":"SaveCueNotes","Opencuenotes":"OpenCueNotes"}
         pulses={p.name for p in show.customPars if p.isPulse}
         extra_routes={
+            'show_readiness': ('readiness_callbacks', ('Readinesscheck','Readinesssample','Readinessreport')),
             'look_editor_controls': ('look_editor_controls_callbacks', ('Editlookcontrols','Openlookpreview')),
             'show_output_mode': ('output_mode_callbacks', ('Checkoutput','Openoutput','Closealloutputs')),
             'projection_mapping': ('projection_mapping_callbacks', show.op('projection_mapping').module.ACTIONS),

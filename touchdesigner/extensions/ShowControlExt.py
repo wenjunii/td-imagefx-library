@@ -1083,7 +1083,8 @@ class ShowControlExt:
         source_top.par.top = "black"
         deck.allowCooking = False
         item = {"cue": cue, "deck": deck, "movie": None, "track": track, "side": side,
-                "deck_id": deck.id, "loading": True, "error": None}
+                "deck_id": deck.id, "loading": True, "error": None,
+                "prepare_started": time.monotonic()}
         self.prepared[cue["id"]] = item
         item["steps"] = self._prepare_visual_steps(item, path)
 
@@ -1101,11 +1102,7 @@ class ShowControlExt:
         # selected throughout preparation, including shader/media warm-up.
         while not self._media_ready(item):
             yield
-        deck.op("out1_image").cook(force=True)
-        item["warm_frame"] = absTime.frame
-        yield
-        while absTime.frame <= item["warm_frame"]:
-            yield
+        yield from self._warm_prepared_deck(item)
         errors = deck.errors(recurse=True)
         if errors:
             raise ValueError("Prepared look has operator errors: " + str(errors)[:300])
@@ -1120,6 +1117,20 @@ class ShowControlExt:
             reader.par.play = False
             self._connect_audio(item)
 
+    def _warm_prepared_deck(self, item):
+        """Compile/cook off-air across real frames, without advancing cue clocks."""
+        parameter = getattr(self.ownerComp.par, 'Cuewarmframes', None)
+        frames = int(parameter.eval()) if parameter is not None else 3
+        if not 1 <= frames <= 12:
+            raise ValueError('Cue warm-up must be 1 to 12 frames')
+        for _ in range(frames):
+            item['deck'].op('out1_image').cook(force=True)
+            item['warm_frame'] = absTime.frame
+            item['warm_count'] = item.get('warm_count', 0) + 1
+            yield
+            while absTime.frame <= item['warm_frame']:
+                yield
+
     def _service_preloads(self):
         # One shared 4ms CPU budget, not one budget per track. An indivisible
         # decoder/GPU operation can take longer; ready is never advertised early.
@@ -1128,6 +1139,8 @@ class ShowControlExt:
             if not item.get("loading") or item.get("error"):
                 continue
             try:
+                if time.monotonic() - item.get('prepare_started', time.monotonic()) > 90:
+                    raise ValueError('Cue preload timed out after 90 seconds; check media/decoder and retry')
                 while time.perf_counter() < deadline:
                     next(item["steps"])
                     # Warm-up must span actual TD frames, not just generator steps.
@@ -1563,7 +1576,7 @@ class ShowControlExt:
             self.prepare(self.document["cues"][index])
             self._status("Preparing selected cue off-air; GO waits until the look and media are ready")
 
-    def Preflight(self):
+    def _preflight_media(self):
         problems = []
         for index, cue in enumerate(self.document["cues"]):
             try:
@@ -1581,7 +1594,15 @@ class ShowControlExt:
                         raise ValueError("Audio cue needs a media file")
             except Exception as exc:
                 problems.append("{}: {}".format(index + 1, exc))
-        self._status("Preflight: " + ("; ".join(problems) if problems else "all referenced media files exist"))
+        return problems
+
+    def Preflight(self):
+        problems = self._preflight_media()
+        runtime = self.ownerComp.op('show_readiness')
+        if runtime is not None:
+            runtime.module.check(self.ownerComp, problems)
+        else:
+            self._status("Preflight: " + ("; ".join(problems) if problems else "all referenced media files exist"))
         return problems
 
     def SaveShow(self):

@@ -121,6 +121,13 @@ def export_suffix(codec):
     return '.mp4' if codec in GPU_CODEC_LIMITS else '.mov'
 
 
+def wall_warmup_seconds(value):
+    value = float(value)
+    if not math.isfinite(value) or not 0 <= value <= 10:
+        raise ValueError('Wall render warm-up must be between 0 and 10 seconds')
+    return value
+
+
 def writer_codec(codec, menu_names):
     """Resolve TD's versioned codec tokens without falling back to a CPU codec."""
     if codec not in dict(EXPORT_CODECS):
@@ -296,7 +303,8 @@ def wall_export_target(show):
 def export_description(show):
     if show.par.Exportsource == 'wall':
         return ('3840 x 2160 fixed | TL=P1 TR=P2 BL=P3 BR=confidence | '
-                'Real-time, silent; run cues with output windows CLOSED. Blackouts are recorded.')
+                'Silent real-time; windows CLOSED. Wait for RECORDING before GO; '
+                'warm-up is not recorded. Blackouts are recorded.')
     if show.par.Exportresolution == 'panoramic':
         try:
             width, height = current_panorama_size(show)
@@ -357,6 +365,10 @@ def _writer(parent, target, path, settings):
     writer.par.resolutionw, writer.par.resolutionh = settings['width'], settings['height']
     writer.par.resmult = False
     writer.par.audiochop = ''
+    # Keep the requested first input frame when opening the encoder. This can
+    # stall briefly; it does not guarantee subsequent real-time throughput.
+    if getattr(writer.par, 'stallforopen', None) is not None:
+        writer.par.stallforopen = True
     if wall:
         writer.par.limitlength = True
         # TD's frame unit uses the project rate, not Movie FPS. Seconds keeps
@@ -394,6 +406,8 @@ def start_export(show):
     panorama = current_panorama_size(show) if values[0] != 'wall' and values[1] == 'panoramic' else (5760, 1080)
     settings = export_settings(*values, panorama=panorama)
     is_wall = settings['source'] == 'wall'
+    warmup = getattr(show.par, 'Wallrecordwarmup', None)
+    settings['warmup'] = wall_warmup_seconds(warmup.eval() if warmup is not None else 2) if is_wall else 0
     target = wall_export_target(show) if is_wall else None
     cue = None if is_wall else selected_snapshot(show, settings['source'])
     if any(window_open(w) for w in _export_windows(show)):
@@ -431,11 +445,9 @@ def start_export(show):
             job['writer'] = _writer(deck, target, path, settings)
             info = deck.create(td.infoCHOP, 'encoder_info')
             info.par.op = 'export_writer'
-            job.update(info=info, target=target, dropped=0, stage='recording',
-                       deadline=time.monotonic() + settings['duration'] + 90)
-            job['writer'].par.record = True
-            job['writer'].cook(force=True)
-            show.par.Exportstatus = 'Recording 2x2 wall + confidence — silent, real-time'
+            job.update(info=info, target=target, dropped=0, stage='warming',
+                       warm_until=time.monotonic()+settings['warmup'], warm_frames=0)
+            show.par.Exportstatus = 'WARMING wall render pipeline — not recording yet; wait for RECORDING before GO'
             _later(show)
             return
         deck = ext._new_deck('export_render_' + uuid.uuid4().hex[:8])
@@ -526,6 +538,27 @@ def _wall_step(show, job):
     if wall_export_target(show) != job['target']:
         raise ValueError('Wall output changed during recording')
     writer, settings = job['writer'], job['settings']
+    if job['stage'] == 'warming':
+        # Target was cooked above. Spread GPU/media warm-up over actual frames,
+        # not a tight loop, and never seek or change a cue to create the pre-roll.
+        import td
+        frame = td.absTime.frame
+        if job.get('warm_frame') != frame:
+            job['warm_frame'] = frame
+            job['warm_frames'] += 1
+        remaining = max(0, job['warm_until']-time.monotonic())
+        show.par.Exportstatus = 'WARMING — {:.1f}s remaining, {} rendered frames; not recorded'.format(
+            remaining,job['warm_frames'])
+        if remaining == 0 and job['warm_frames'] >= 2:
+            writer.par.record = True
+            writer.cook(force=True)
+            if writer.errors():
+                raise ValueError(str(writer.errors()))
+            job['stage'] = 'recording'
+            job['deadline'] = time.monotonic() + settings['duration'] + 90
+            show.par.Exportstatus = 'RECORDING 2x2 wall + confidence — ready for GO; silent, real-time'
+        _later(show)
+        return
     writer.cook(force=True)
     if writer.errors():
         raise ValueError(str(writer.errors()))
@@ -776,6 +809,7 @@ def install(show):
     par(p, 'Exportfps', 'Frames / Second', 'Menu', '30', menu=[(str(n),str(n)) for n in (24,25,30,50,60)])
     par(p, 'Exportduration', 'Duration (seconds)', 'Float', 10, (.02,3600))
     par(p, 'Exportstart', 'Effect Start (seconds)', 'Float', 0, (0,86400))
+    par(p, 'Wallrecordwarmup', 'Wall Render Warm-up (seconds)', 'Float', 2, (0,10)).enableExpr = "not me.par.Exportbusy and me.par.Exportsource == 'wall'"
     par(p, 'Startexport', 'Export Video (Silent)', 'Pulse').enableExpr = 'not me.par.Exportbusy'
     par(p, 'Stopexport', 'Stop Wall Recording & Save', 'Pulse').enableExpr = "bool(me.par.Exportbusy) and me.par.Exportsource == 'wall'"
     par(p, 'Cancelexport', 'Cancel Export', 'Pulse').enableExpr = 'bool(me.par.Exportbusy)'

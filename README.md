@@ -8,6 +8,22 @@ The current source contains **96 current effect IDs across 18 categories**, back
 
 Canonical repository: [github.com/wenjunii/td-imagefx-library](https://github.com/wenjunii/td-imagefx-library)
 
+## Pre-show readiness and warm-up
+
+Show Control now has a **Pre-Show Check** section: check media/workflow paths,
+selected render GPU, output/display configuration, blackout, audio and AC power,
+then **Sample Current Performance** for FPS, frame-time, dropped frames and GPU
+memory. These are local snapshots, not hardware certification; no check opens
+outputs, unmutes audio, changes cues or releases blackout. Use **Open Full Report**
+for details and repeat the sample with your actual running show.
+
+Visual cues now warm up over **3 rendered frames** by default (adjustable 1–12)
+before becoming ready. Cue animation clocks are not advanced by this preparation.
+UHD wall recording has **Wall Render Warm-up**, default 2 seconds, before recording.
+Wait for **RECORDING** before GO to capture the cue's beginning; the warm-up itself
+is not recorded and never rewinds the show. Encoder dropped-frame warnings remain
+visible. See [the pre-show checklist](docs/show-control.md#pre-show-check).
+
 ## Dance-driven flow forces
 
 `ink_dream_flow`, `ink_brush_flow` and `ink_radial_flow` include an optional,
@@ -449,7 +465,7 @@ The browser source adds channel, processing-model, capability, input-readiness, 
 | `touchdesigner/` | TouchDesigner extensions, callbacks, native builder, and reusable core component sources |
 | `integrations/embody/` | Project-scoped TD knowledge, Envoy live-QA contract, and safe harness setup |
 | `tools/` | Effect scaffolding, release packaging, gallery/benchmark generation, and repository verification |
-| `.github/workflows/` | Cross-platform verification, immutable-history checks, and prepare-only release automation |
+| `.github/workflows/` | Lightweight PR/main safety check, manual compatibility matrix, and prepare-only release automation |
 | `tests/` | Unit and integration checks that do not require a live TouchDesigner process |
 | `docs/` | Architecture, setup, authoring, security, gallery, benchmarks, coverage, and references |
 
@@ -462,7 +478,7 @@ git clone https://github.com/wenjunii/td-imagefx-library.git
 cd td-imagefx-library
 ```
 
-The clean Windows release build used TouchDesigner `2025.32820` and validated all 96 current effects with 124 versioned effect `.tox` files, nineteen core `.tox` files, one library `.toe`, 96 previews, 96 visual baselines, and 96 benchmark samples. That build report contains zero shader, preview, or builder errors. A fresh repository run completed 717 tests successfully, with four expected Windows symlink-permission skips; install `requirements-test.txt` first (NumPy is used by motion-math tests, not by the package core). The release TOE contains clean defaults, not personal cues, private character artwork or prepared motion media. In-place patches and saved personal cues are not a new full native-build certification; regenerate and validate distributable artifacts before publishing a release. Read [TouchDesigner setup](docs/touchdesigner-setup.md) to reproduce the native build and [control validation](docs/control-validation.md) for measured results and limits.
+The clean Windows release build used TouchDesigner `2025.32820` and validated all 96 current effects with 124 versioned effect `.tox` files, nineteen core `.tox` files, one library `.toe`, 96 previews, 96 visual baselines, and 96 benchmark samples. That build report contains zero shader, preview, or builder errors. A fresh repository run completed 757 tests successfully, with four expected Windows symlink-permission skips; install `requirements-test.txt` first (NumPy is used by motion-math tests, not by the package core). The release TOE contains clean defaults, not personal cues, private character artwork or prepared motion media. In-place patches and saved personal cues are not a new full native-build certification; regenerate and validate distributable artifacts before publishing a release. Read [TouchDesigner setup](docs/touchdesigner-setup.md) to reproduce the native build and [control validation](docs/control-validation.md) for measured results and limits.
 
 The generated project targets TouchDesigner 2025. Validate the exact TouchDesigner build, operating system, GPU, driver, resolution, pixel format, and color pipeline used by your production system. Python 3.11 or newer is required for repository tooling; it is not required merely to use already-built native components.
 
@@ -971,6 +987,18 @@ Stop All, finish or cancel the draft/export, close outputs, enable both blackout
 and disarm audio first. It never closes an operator's window or cancels a job
 just to make a test proceed.
 
+For the new readiness/warm-up controls, load
+`touchdesigner/scripts/validate_show_readiness.py` into a temporary Text DAT and
+call its module's `start(repo_root)` in the disposable session. This separate
+real-frame regression checks slider endpoints/defaults, every target-FPS menu
+choice, cue warm-up and wall recording. It uses isolated Show Control **and**
+Wall Output copies, verifies calibration pixels, and preserves the original
+wall's values and bindings. Decode the resulting clips independently; a
+successful encoder status alone does not prove the intended picture was sent.
+Reports and recordings stay local under `build/show-readiness/`.
+See the [latest control recheck](docs/control-validation.md) for results and
+the physical-camera/audio/projector checks that still require rehearsal.
+
 The dedicated `validate_control_surface.py` pass exercises all 45 visible pulse
 buttons and all 42 rack value controls. It checks the library, updater, browser,
 global rack, and every per-slot callback, including preset round trips and
@@ -1207,15 +1235,37 @@ For an offline checkout, disable `tdimagefx.github.catalog` and enable `tdimagef
 
 ## Verify a checkout
 
-Run the dependency-free repository check with Python 3.11 or newer:
+Development is **local-first**. Install the small test dependency once with
+Python 3.11 or newer, then use one command before committing:
 
 ```console
-python tools/verify_repository.py
+python -m pip install -r requirements-test.txt
+python tools/verify_local.py
 ```
+
+On Windows, use `py -3.11` in place of `python` if your default Python is older.
+The local gate checks published-package history against your cached
+`origin/main` and runs `verify_repository.py` once. It does not fetch, install,
+upload, push, launch TouchDesigner, or alter your TOE/cues. After dependency
+setup it can run offline; pass `--base <existing-local-ref-or-SHA>` to choose a
+different known history baseline. It fails clearly if the baseline or NumPy is
+missing. Source checks do not replace live GPU/camera/projector rehearsals.
 
 The verifier expects exactly 96 current IDs and 124 immutable manifests. It compiles Python, runs tests, validates manifests and feeds, verifies the recorded hashes of the library `.toe`, all 124 effect `.tox` files, and nineteen core `.tox` files, compares generated gallery/baseline/benchmark coverage with the latest catalog, and prevents version drift. It also cross-checks this README's test and catalog claims, the ImageFX project context, and the live validator's package/build constants against checked source and native records. A failure caused by stale native or generated artifacts is intentional: rebuild and review them rather than weakening the invariant.
 
-GitHub Actions runs verification on Windows, macOS, and Linux with Python 3.11 and 3.13, and separately rejects modifications to package versions already present in repository history.
+GitHub runs **one Ubuntu/Python 3.11 safety job per PR update and `main` push**,
+including immutable-history protection. Feature-branch pushes no longer launch
+duplicate verification, obsolete runs are canceled, and the unit suite is not
+repeated inside a job. The six-way Windows/macOS/Linux and Python 3.11/3.13 matrix
+is retained as **Full compatibility (manual)** for release/platform checks.
+Release preparation is still manual; security scanning is unchanged. See
+[the development and CI policy](CONTRIBUTING.md#low-usage-github-policy).
+
+GitHub is not needed for cue playback or local rendering once required media,
+dependencies and models are on the machine. For an offline performance, turn
+off **Auto Check** in the Update Manager and use the local-only feed configuration
+described above. Keep a tested TOE/show/media backup outside the working checkout;
+do not run validation, rebuilds or dependency upgrades during a performance.
 
 ## Production rules and limitations
 
