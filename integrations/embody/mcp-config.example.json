@@ -2,7 +2,8 @@
   "mcpServers": {
     "td-knowledge": {
       "type": "stdio",
-      "command": "C:\\ABSOLUTE\\PATH\\TO\\td-ai-assistant\\venv\\Scripts\\python.exe",
+      "command": "C:\\ABSOLUTE\\PATH\\TO\\td-knowledge-mcp\\.venv\\Scripts\\python.exe",
+      "cwd": "C:\\ABSOLUTE\\PATH\\TO\\td-knowledge-mcp",
       "args": [
         "-u",
         "C:\\ABSOLUTE\\PATH\\TO\\td-knowledge-mcp\\td_knowledge_mcp.py",

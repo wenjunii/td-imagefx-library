@@ -478,7 +478,7 @@ git clone https://github.com/wenjunii/td-imagefx-library.git
 cd td-imagefx-library
 ```
 
-The clean Windows release build used TouchDesigner `2025.32820` and validated all 96 current effects with 124 versioned effect `.tox` files, nineteen core `.tox` files, one library `.toe`, 96 previews, 96 visual baselines, and 96 benchmark samples. That build report contains zero shader, preview, or builder errors. A fresh repository run completed 757 tests successfully, with four expected Windows symlink-permission skips; install `requirements-test.txt` first (NumPy is used by motion-math tests, not by the package core). The release TOE contains clean defaults, not personal cues, private character artwork or prepared motion media. In-place patches and saved personal cues are not a new full native-build certification; regenerate and validate distributable artifacts before publishing a release. Read [TouchDesigner setup](docs/touchdesigner-setup.md) to reproduce the native build and [control validation](docs/control-validation.md) for measured results and limits.
+The clean Windows release build used TouchDesigner `2025.32820` and validated all 96 current effects with 124 versioned effect `.tox` files, nineteen core `.tox` files, one library `.toe`, 96 previews, 96 visual baselines, and 96 benchmark samples. That build report contains zero shader, preview, or builder errors. A fresh repository run completed 768 tests successfully, with four expected Windows symlink-permission skips; install `requirements-test.txt` first (NumPy is used by motion-math tests, not by the package core). The release TOE contains clean defaults, not personal cues, private character artwork or prepared motion media. In-place patches and saved personal cues are not a new full native-build certification; regenerate and validate distributable artifacts before publishing a release. Read [TouchDesigner setup](docs/touchdesigner-setup.md) to reproduce the native build and [control validation](docs/control-validation.md) for measured results and limits.
 
 The generated project targets TouchDesigner 2025. Validate the exact TouchDesigner build, operating system, GPU, driver, resolution, pixel format, and color pipeline used by your production system. Python 3.11 or newer is required for repository tooling; it is not required merely to use already-built native components.
 
@@ -516,9 +516,14 @@ For knowledge-grounded live inspection, use the separate [Embody, Envoy, and TD 
 
 The integration includes `integrations/embody/check_td_bridge.py`, which starts
 the project-scoped MCP server through the official client, confirms the
-`td-imagefx-library` contract, waits for the 3,022-chunk knowledge index, and
+`td-imagefx-library` contract, waits for the validated knowledge index, and
 optionally requires a clean live Envoy connection. This distinguishes an open
 TouchDesigner window from an actually reachable Envoy endpoint.
+
+Use the Python interpreter in `td-knowledge-mcp/.venv`, not the assistant's
+separate environment. The checker and configuration templates support MCP SDK
+2.x and its six local tools, including passive server health. After updating
+the ignored project MCP configuration, reconnect the client's MCP server.
 
 The project-scoped MCP configuration follows the active instance in the
 ImageFX harness's local `.embody/envoy.json` registry, including automatic port
