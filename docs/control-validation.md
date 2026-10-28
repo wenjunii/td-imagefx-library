@@ -1,5 +1,21 @@
 # Control validation
 
+## Local-first verification policy — 2026-10-28
+
+The local safety gate passed **735 portable tests** on Python 3.11.9 / NumPy
+1.24.4 (four expected Windows symlink-permission skips). Its 18 new regressions
+cover failure propagation, missing prerequisites, safe subprocess arguments,
+single-pass verification and the low-usage workflow policy. Immutable package
+history, tracked/staged credential scans, generated artifacts and documentation
+checks passed; all three workflow files passed actionlint 1.7.12.
+
+Routine repository verification now has one Ubuntu job on PR updates and `main`
+pushes, with no duplicate feature-branch push run. The full six-way OS/Python
+matrix is manual. Security settings and branch protection are unchanged.
+No TOE, TOX, shader, runtime, cue or media files changed. This is a source/CI
+validation update, not a new GPU, live-camera, projector or recording-performance
+certification; the native results and open recording warning below still apply.
+
 ## Motion, controls and clean publication recheck — 2026-10-28
 
 The publication copy was rebuilt in TouchDesigner **2025.32820** on the
