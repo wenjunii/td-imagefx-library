@@ -10,6 +10,8 @@ CORE_FILES = {
     'color_switch':'ColorSwitch.tox', 'motion_studio':'MotionStudio.tox',
     'fx_rack':'FxRack.tox', 'layer_composite':'LayerComposite.tox', 'final_crop':'FinalCrop.tox',
 }
+# Constructed directly by build_workflow, not loaded from a packaged core TOX.
+PROCEDURAL_STAGES = ('dance_puppet',)
 SPLITS = {'equal':.5, 'two_one':2/3, 'one_two':1/3, 'three_one':.75, 'one_three':.25}
 
 def rectangles(layout='horizontal', ratio='equal', split=.5, gap=0., margin=0., a=(0.,0.,.5,1.), b=(.5,0.,.5,1.)):
@@ -75,6 +77,16 @@ for _p in ('A','B'):
     )
 
 RUNTIME = r'''
+def active(c,p):
+    if not c.par[p+'visible']: return False
+    layer=c.parent().op('layer_composite')
+    routed=layer is not None and bool(layer.par.Enabled) and 'effects_'+p.lower() in (layer.par.Backdropsource.eval(),layer.par.Topsource.eval())
+    return bool(c.par.Enabled) or routed
+
+def fixed_top(c,p):
+    layer=c.parent().op('layer_composite')
+    return layer is not None and bool(layer.par.Enabled) and getattr(layer.par,'Topcanvas',None) is not None and layer.par.Topcanvas.eval()!='full' and layer.par.Topsource.eval()=='effects_'+p.lower()
+
 def selected(c, p):
     mode=c.par[p+'source'].eval()
     has_file=bool(c.par[p+'file'].eval().strip())
@@ -99,6 +111,37 @@ def rect(c,p):
     index=(0 if p=='A' else 1) ^ int(bool(c.par.Swap))
     return boxes[index]
 '''
+
+
+def install_layer_sources(c):
+    """Upgrade existing A/B workflows for use as independent layer sources."""
+    import inspect
+    import td
+    c.op('composition_math').text='import math\nSPLITS='+repr(SPLITS)+'\n'+inspect.getsource(rectangles)+'\n'+RUNTIME
+    empty=c.op('transparent')
+    empty.par.resolutionw.expr="max(16,parent().op('in1_image').width)"
+    empty.par.resolutionh.expr="max(16,parent().op('in1_image').height)"
+    for p in ('A','B'):
+        name=p.lower()
+        c.op(name+'_file').par.play.expr="parent().op('composition_math').module.active(parent(),'{}') and (not parent().par.Autotime or parent().par.{}play)".format(p,p)
+        # A procedural effect needs a real 1080p working canvas when it is the
+        # fixed-size top layer, not a squeezed 5760-wide effect result.
+        dat=c.op(name+'_layer_fit_shader') or c.create(td.textDAT,name+'_layer_fit_shader')
+        dat.text='''layout(location=0) out vec4 fragColor;
+void main(){vec2 p=vUV.st-.5;float ratio=(uTD2DInfos[0].res.z/uTD2DInfos[0].res.w)/(16./9.);
+vec2 extent=vec2(min(ratio,1.),min(1./ratio,1.));vec2 uv=p/extent+.5;
+float inside=float(all(greaterThanEqual(uv,vec2(0)))&&all(lessThanEqual(uv,vec2(1))));
+fragColor=TDOutputSwizzle(texture(sTD2DInputs[0],clamp(uv,0.,1.))*inside);}'''
+        fit=c.op(name+'_layer_fit') or c.create(td.glslTOP,name+'_layer_fit')
+        fit.par.pixeldat=dat.name; fit.par.glslversion='glsl460'; fit.par.outputresolution='custom'
+        fit.par.resolutionw=1920; fit.par.resolutionh=1080
+        c.op(name+'_crop').outputConnectors[0].connect(fit.inputConnectors[0])
+        gate=c.op(name+'_layer_canvas') or c.create(td.switchTOP,name+'_layer_canvas')
+        c.op(name+'_crop').outputConnectors[0].connect(gate.inputConnectors[0])
+        fit.outputConnectors[0].connect(gate.inputConnectors[1])
+        gate.par.index.expr="int(parent().op('composition_math').module.fixed_top(parent(),'{}'))".format(p)
+        c.op(name+'_effects').inputConnectors[0].disconnect()
+        gate.outputConnectors[0].connect(c.op(name+'_effects').inputConnectors[0])
 
 CALLBACKS = r'''
 def onValueChange(par,prev):
@@ -195,14 +238,16 @@ def build(parent, context):
         other=c.create(td.inTOP,'in2_image'); other.par.label='image B (optional)'
         source.par.label='image A / upstream effects / output resolution'
         empty=c.create(td.constantTOP,'transparent'); empty.par.alpha=0
-        empty.par.outputresolution='custom'; empty.par.resolutionw=16; empty.par.resolutionh=16
+        empty.par.outputresolution='custom'
+        empty.par.resolutionw.expr="max(16,parent().op('in1_image').width)"
+        empty.par.resolutionh.expr="max(16,parent().op('in1_image').height)"
         outputs=[]
         for p,port in (('A',source),('B',other)):
             name=p.lower()
             reader=c.create(td.moviefileinTOP,name+'_file')
             reader.par.file.expr="parent().par.{}file if parent().op('composition_math').module.selected(parent(),'{}')==2 else ''".format(p,p)
             reader.par.playmode.expr="'sequential' if parent().par.Autotime else 'specify'"
-            reader.par.play.expr="parent().par.Enabled and (not parent().par.Autotime or parent().par.{}play)".format(p)
+            reader.par.play.expr="parent().op('composition_math').module.active(parent(),'{}') and (not parent().par.Autotime or parent().par.{}play)".format(p,p)
             reader.par.speed.expr='parent().par.'+p+'speed'
             reader.par.indexunit='seconds'; reader.par.cuepointunit='seconds'
             reader.par.index.expr='parent().par.{0}in + parent().par.Manualtime * parent().par.{0}speed'.format(p)
@@ -233,7 +278,7 @@ def build(parent, context):
             for module_name,filename in CORE_FILES.items():
                 child=context['load_tox_component'](branch,core/filename,module_name)
                 if module_name=='fx_rack':
-                    child.par.Rootfolder=str(root)
+                    child.par.Rootfolder=''
                 else: child.par.Enabled.expr='parent().par.'+MODULE_TOGGLES[module_name]
                 if child.par['Autotime'] is not None:
                     child.par.Autotime=False
@@ -266,5 +311,6 @@ def build(parent, context):
     module,path=context['_build_reference_video_module'](parent,component_name='image_composition',component_label='Two-Image Composition',shader_source=SHADER,parameter_definitions=definitions,storage_key='tdimagefx_image_composition',module_id='tdimagefx.core.image-composition',tox_name='ImageComposition.tox',color=(.18,.36,.42),reference_video='independent two-source layouts',input_setup=inputs,packed_scalar_bindings=bindings)
     module.viewer=True
     module.par.opviewer.expr="me.op('out1_image')"
+    install_layer_sources(module)
     module.save(str(path),createFolders=True)
     return module,path

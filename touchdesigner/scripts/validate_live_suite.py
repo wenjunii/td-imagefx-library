@@ -46,6 +46,7 @@ VALIDATORS = (
     ("ink_dream_flow", "validate_ink_dream_flow.py"),
     ("ink_brush_flow", "validate_ink_brush_flow.py"),
     ("ink_radial_flow", "validate_ink_radial_flow.py"),
+    ("motion_controls", "validate_motion_controls.py"),
     ("layer_composite", "validate_layer_composite.py"),
     ("final_crop", "validate_final_crop.py"),
     ("color_composition", "validate_color_composition.py"),

@@ -56,6 +56,7 @@ class RunningLookTests(unittest.TestCase):
         self.item["movie"].assert_not_called()
         self.assertEqual(self.item["started"], 4.0)
         self.assertEqual(self.ext.engine.elapsed, 42.0)
+        self.assertEqual(self.preview.par.top, 'track2_source0')
 
     def test_update_changes_only_saved_look_without_transport_reset(self):
         self.begin()

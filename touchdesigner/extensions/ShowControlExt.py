@@ -241,7 +241,11 @@ class ShowControlExt:
 
     def OpenCueNotes(self):
         self.ownerComp.currentPage = "Cue Notes"
-        self.ownerComp.openParameters()
+        navigation = self.ownerComp.op('inspector_navigation')
+        if navigation is not None:
+            navigation.par.Section = 'Cue Notes'
+        else:
+            self.ownerComp.openParameters()
 
     def CueNotesLabel(self):
         index = int(self._p("Selectedcue")) - 1
@@ -389,6 +393,19 @@ class ShowControlExt:
                                     module.fetch(self.model.INK_FIELD_CLOCK_KEY, None, search=False))
             look["animation"] = clocks
         look["order"] = demo.op("workflow").module.current(demo)
+        force_files = {}
+        for name in self.model.FLOW_MODULES:
+            module = demo.op(name)
+            if module is not None and module.par['Dancecache'] is not None:
+                force_files[name] = {p:module.par[p].eval() for p in ('Dancevideo','Dancecache')}
+        if force_files:
+            look['force_files'] = self.model.resolve_force_files(force_files,project.folder,
+                modules=look['modules'],toggles=look['toggles'],active=active)
+        puppet=demo.op('dance_puppet')
+        if puppet is not None:
+            look['puppet_files']=self.model.resolve_puppet_files(
+                {name:puppet.par[name].eval() for name in ('Renderfile','Fanrenderfile','Chainrenderfile','Dancevideo','Motioncache','Characterprofile')},project.folder,
+                selections=look['modules']['dance_puppet'],enabled=active and look['toggles'].get('Dancepuppetenabled',False))
         layer = demo.op("layer_composite")
         look["layer_files"] = self.model.resolve_layer_files(
             {name: layer.par[name].eval() for name in ("Backdropfile", "Topfile")},
@@ -398,11 +415,12 @@ class ShowControlExt:
         )
         composition=demo.op("image_composition")
         if composition is not None:
-            enabled=active and look["toggles"]["Imagecompositionenabled"]
+            activity=self.model.composition_activity(look,active)
+            enabled=any(activity.values())
             look["composition_files"]=self.model.resolve_composition_files(
                 {name:composition.par[name].eval() for name in ("Afile","Bfile")},project.folder,
-                selections=look["modules"]["image_composition"],enabled=enabled)
-            look["branches"]={name:self._capture_look(composition.op(name),enabled and bool(composition.par[name[0].upper()+"visible"]),capture_animation=capture_animation) for name in ("a_effects","b_effects")}
+                selections=look["modules"]["image_composition"],enabled=enabled,active_prefixes={p for p,on in activity.items() if on})
+            look["branches"]={name:self._capture_look(composition.op(name),activity[name[0].upper()],capture_animation=capture_animation) for name in ("a_effects","b_effects")}
         return look
 
     def RecallLook(self):
@@ -431,7 +449,12 @@ class ShowControlExt:
                     clock = cue["look"].get("animation", {}).get(name, {})
                     module.store("imagefx_look_time_origin", absTime.seconds)
                     module.store("imagefx_look_time_phase", clock.get("time", 0.0))
-                    module.par.Time.expr = "me.fetch('imagefx_look_time_phase', 0) + (absTime.seconds - me.fetch('imagefx_look_time_origin', 0)) * me.par.Timescale if me.par.Autotime else me.par.Manualtime"
+                    if name=='dance_puppet':
+                        module.store('puppet_preview_clock',dict(origin=float(absTime.seconds),phase=float(clock.get('time',0.0)),speed=float(module.par.Timescale),running=bool(clock.get('running',True))))
+                        module.storeStartupValue('puppet_preview_clock',None)
+                        module.par.Time.expr="me.op('puppet_runtime').module.preview_time(me)"
+                    else:
+                        module.par.Time.expr = "me.fetch('imagefx_look_time_phase', 0) + (absTime.seconds - me.fetch('imagefx_look_time_origin', 0)) * me.par.Timescale if me.par.Autotime else me.par.Manualtime"
                     module.par.Autotime = clock.get("running", True)
             if movie is not None:
                 movie.par.play = True
@@ -502,7 +525,10 @@ class ShowControlExt:
         self.StopLiveLook()
         self._look_edit = dict(mode="running", cue=copy.deepcopy(cue), deck=deck,
                                deck_id=deck.id, item=item, original=original)
-        self.ownerComp.op("look_preview").par.top = deck.op("out1_image").path
+        # The track source retains its last rendered frame during Pause, while
+        # the underlying deck deliberately stops cooking. Preview that same
+        # pre-mapping source so resize/redraw never shows an uncooked deck.
+        self.ownerComp.op("look_preview").par.top = "track{}_source{}".format(item["track"], item["side"])
         self.ownerComp.par.Lookediting = True
         self.ownerComp.par.Lookstatus = "LIVE EDIT: " + cue["name"]
         self._status("Running cue stays on air. Choose Effect Module > Edit Controls; Update Cue Look or Cancel Changes.")
@@ -535,11 +561,15 @@ class ShowControlExt:
             for key, value in values.items():
                 if module.par[key].eval() != value:
                     self._assign(module, key, value)
-        for module_name, field in (("layer_composite", "layer_files"), ("image_composition", "composition_files")):
+        for module_name, field in (("layer_composite", "layer_files"), ("image_composition", "composition_files"), ("dance_puppet", "puppet_files")):
             module = deck.op(module_name)
             for name, value in look.get(field, {}).items():
                 if module.par[name].eval() != value:
                     module.par[name] = value
+        for module_name, files in look.get('force_files',{}).items():
+            module = deck.op(module_name)
+            for name, value in files.items():
+                if module.par[name].eval() != value: module.par[name] = value
         rack = deck.op("fx_rack")
         current = json.loads(rack.ExportPreset())
         preset = copy.deepcopy(look["rack"])
@@ -699,7 +729,7 @@ class ShowControlExt:
 
     @staticmethod
     def _safe_parameter(parameter):
-        return parameter is not None and not parameter.readOnly and not parameter.isPulse and (
+        return parameter is not None and parameter.name not in {'Amodule','Bmodule'} and not parameter.readOnly and not parameter.isPulse and (
             parameter.isNumber or parameter.isToggle or parameter.isMenu
         )
 
@@ -729,11 +759,29 @@ class ShowControlExt:
         for _ in self._apply_look_steps(deck, look, template, active):
             pass
 
-    def _apply_look_steps(self, deck, look, template=None, active=True):
+    def _apply_look_steps(self, deck, look, template=None, active=True, media_source=None):
         branch=bool(deck.fetch("imagefx_branch",False))
         self.model.validate_look_media(look,Path(self._p("Showfile")).resolve().parent,active=active,branch=branch)
-        if set(look) - {"toggles", "modules", "rack", "layer_files", "order", "composition_files", "branches", "animation"}:
+        if set(look) - {"toggles", "modules", "rack", "layer_files", "order", "composition_files", "branches", "animation", "puppet_files", "force_files"}:
             raise ValueError("Unknown look fields")
+        # Pre-feature cues have no motion media block. Seed passive local files
+        # from the matching designer workflow, not from a previously used deck.
+        # Do not change the saved cue, enable an effect, or launch a worker.
+        # Explicit media (even blank) and all existing controls remain decisive.
+        media_source = media_source or self.ownerComp.parent()
+        force_defaults = {}
+        for name in self.model.FLOW_MODULES:
+            source = media_source.op(name)
+            if source is not None and source.par['Dancecache'] is not None:
+                force_defaults[name] = {key:source.par[key].eval() for key in ('Dancevideo','Dancecache')}
+        puppet_source = media_source.op('dance_puppet')
+        puppet_defaults = None if puppet_source is None else {
+            key:puppet_source.par[key].eval() for key in
+            ('Renderfile','Fanrenderfile','Chainrenderfile','Dancevideo','Motioncache','Characterprofile')}
+        look = self.model.with_legacy_motion_media(look,
+            force_files=self.model.resolve_force_files(force_defaults,project.folder,active=False),
+            puppet_files=None if puppet_defaults is None else self.model.resolve_puppet_files(
+                puppet_defaults,project.folder,enabled=False))
         animation = copy.deepcopy(look.get("animation", {}))
         deck.store("imagefx_look_animation", animation)
         workflow = deck.op("workflow").module
@@ -765,6 +813,22 @@ class ShowControlExt:
             deck.par[name] = value
         for name, value in layer_files.items():
             deck.op("layer_composite").par[name] = value
+        force_files = self.model.resolve_force_files(look.get('force_files',{}),Path(self._p('Showfile')).resolve().parent,
+            modules=look.get('modules',{}),toggles=look.get('toggles',{}),active=active)
+        for module_name, files in force_files.items():
+            module = deck.op(module_name)
+            if module is not None and module.par['Dancecache'] is not None:
+                for name, value in files.items(): module.par[name] = value
+        puppet=deck.op('dance_puppet')
+        if puppet is not None:
+            files=self.model.resolve_puppet_files(look.get('puppet_files',{}),Path(self._p('Showfile')).resolve().parent,
+                selections=look.get('modules',{}).get('dance_puppet',{}),enabled=active and look.get('toggles',{}).get('Dancepuppetenabled',False))
+            for name,value in files.items(): puppet.par[name]=value
+            # Decks are intentionally not cooking while a look is staged.
+            # Do not import a DAT module here: that requires cooking the DAT.
+            puppet.store('puppet_finish_clock',None)
+            puppet.storeStartupValue('puppet_finish_clock',None)
+            puppet.op('puppet_history').par.resetpulse.pulse()
         for module_name, parameters in look.get("modules", {}).items():
             if module_name not in self.model.MODULES or deck.op(module_name) is None or not isinstance(parameters, dict):
                 raise ValueError("Unknown module in look")
@@ -790,7 +854,29 @@ class ShowControlExt:
                     module.par.Manualtime.expr = "{} + (parent(2).par.Time - {}) * me.par.Timescale".format(phase, parent_phase)
                 else:
                     module.par.Manualtime = phase
+                if module_name=='dance_puppet' and module.par['Fadein'] is not None:
+                    module.store('puppet_fade_start',float(absTime.seconds) if module.par.Sourcemode=='live' else float(phase))
+                    module.storeStartupValue('puppet_fade_start',None)
                 if module_name in {"ink_dream_flow", "ink_brush_flow", "ink_radial_flow"}:
+                    if module.par['Danceenabled'] is not None:
+                        # Cue-local force clock is independent of the saved
+                        # procedural pattern phase. GO/export begin at in-point.
+                        module.store('dance_force_clock',dict(raw=float(phase),phase=0.,speed=float(module.par.Dancespeed)))
+                        module.storeStartupValue('dance_force_clock',None)
+                        module.store('dance_force_activation',float(phase))
+                        module.storeStartupValue('dance_force_activation',None)
+                        module.store('dance_force_gate',None)
+                        module.storeStartupValue('dance_force_gate',None)
+                        module.store('dance_force_ready',False)
+                        module.storeStartupValue('dance_force_ready',None)
+                        # Preparing a deck can disable DAT cooking, so reset
+                        # GPU material history without importing its runtime.
+                        module.store('dance_flow_clock',None)
+                        module.storeStartupValue('dance_flow_clock',None)
+                        for history_name in ('dance_motion_history','dance_response_history'):
+                            force_history=module.op(history_name)
+                            if force_history is not None:
+                                force_history.par.resetpulse.pulse()
                     renderer_clock = module.op("animation_clock")
                     if renderer_clock is not None:
                         # New looks retain their continuous position. Old looks
@@ -816,11 +902,12 @@ class ShowControlExt:
                             history.par.resetpulse.pulse()
         composition=deck.op("image_composition")
         if composition is not None:
-            enabled=active and bool(deck.par.Imagecompositionenabled)
-            files=self.model.resolve_composition_files(look.get("composition_files",{}),Path(self._p("Showfile")).resolve().parent,selections=look.get("modules",{}).get("image_composition",{}),enabled=enabled)
+            activity=self.model.composition_activity(look,active)
+            enabled=any(activity.values())
+            files=self.model.resolve_composition_files(look.get("composition_files",{}),Path(self._p("Showfile")).resolve().parent,selections=look.get("modules",{}).get("image_composition",{}),enabled=enabled,active_prefixes={p for p,on in activity.items() if on})
             for name,value in files.items(): composition.par[name]=value
             for name in ("a_effects","b_effects"):
-                yield from self._apply_look_steps(composition.op(name),look.get("branches",{}).get(name,{}),template.op("image_composition/"+name),enabled and bool(composition.par[name[0].upper()+"visible"]))
+                yield from self._apply_look_steps(composition.op(name),look.get("branches",{}).get(name,{}),template.op("image_composition/"+name),activity[name[0].upper()],media_source.op("image_composition/"+name))
         deck.op("fx_rack").Reset()
         workflow.apply_order(deck, order)
         yield
@@ -1132,14 +1219,20 @@ class ShowControlExt:
         gain.outputConnectors[0].connect(mixer.inputConnectors[len(mixer.inputs)])
 
     def _look_readers(self, deck):
+        puppet=deck.op('dance_puppet')
+        if puppet is not None and puppet.par.Enabled.eval():
+            if puppet.par.Sourcemode.eval()=='recorded': yield puppet.op('recorded_motion')
+            else:
+                puppet.op('puppet_runtime').module.poll(puppet)
+                if not puppet.par.Ready: raise ValueError('Puppet live camera is not ready; Start Camera explicitly before preloading')
         layer=deck.op("layer_composite")
         if layer is not None and layer.par.Enabled.eval():
             for prefix in ("backdrop","top"):
                 if layer.op("media_status").module.uses_file(layer,prefix): yield layer.op(prefix+"_file")
         composition=deck.op("image_composition")
-        if composition is not None and composition.par.Enabled.eval():
+        if composition is not None:
             for prefix in ("A","B"):
-                if not composition.par[prefix+"visible"]: continue
+                if not composition.op('composition_math').module.active(composition,prefix): continue
                 if composition.op("composition_math").module.selected(composition,prefix)==2: yield composition.op(prefix.lower()+"_file")
                 yield from self._look_readers(composition.op(prefix.lower()+"_effects"))
 

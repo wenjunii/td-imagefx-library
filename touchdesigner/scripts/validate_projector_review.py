@@ -76,7 +76,8 @@ def validate(write_report=True):
         checks['reinstall_preserves_view'] = show.par.Reviewprojector == 'wall'
         checks['reinstall_updates_menu'] = show.par.Reviewprojector.menuNames == [x[0] for x in runtime.REVIEW_VIEWS]
         checks['no_duplicate_parameters'] = len(show.customPars) == count
-        checks['reinstall_keeps_mapping_tab'] = "'Projection Mapping'" in show.op('cue_inspector').par.pagescope.eval()
+        nav=show.op('inspector_navigation')
+        checks['reinstall_keeps_mapping_tab'] = ('Projection Mapping' in nav.par.Section.menuNames if nav is not None else "'Projection Mapping'" in show.op('cue_inspector').par.pagescope.eval())
         checks['cues_unchanged'] = show.ext.ShowControlExt.document == before and original.ext.ShowControlExt.document == document
         checks['no_output_windows_opened'] = not any(n is not None and n.isOpen for n in runtime._export_windows(show))
         checks['no_operator_errors'] = not show.errors(recurse=True)

@@ -172,7 +172,8 @@ def validate(write_report=True):
         checks['default_wall_mode'] = show.par.Outputmode.eval() == 'wall'
         checks['two_clear_mode_labels'] = list(show.par.Outputmode.menuNames) == ['direct', 'wall']
         checks['output_page_second'] = [p.name for p in show.customPages][:2] == ['Transport', 'Output Mode']
-        checks['output_page_visible'] = "'Output Mode'" in show.op('cue_inspector').par.pagescope.eval()
+        nav=show.op('inspector_navigation')
+        checks['output_page_visible'] = ('Output Mode' in nav.par.Section.menuNames if nav is not None else "'Output Mode'" in show.op('cue_inspector').par.pagescope.eval())
         checks['master_blackout_alias'] = show.par.Outputblackout.bindMaster == show.par.Masterblackout
         checks['processor_display_alias'] = show.par.Outputwalldisplay.bindMaster == wall.par.Displayindex
         checks['wall_blackout_alias'] = show.par.Outputwallblackout.bindMaster == wall.par.Blackout

@@ -1,6 +1,7 @@
 """Off-air integration test; uses temporary cues, restores show and mapping state.
 
-Run in TouchDesigner, with both physical output windows closed and no look draft.
+Run as a Text DAT module in TouchDesigner using start(root), with physical
+output windows closed and no look draft. The DAT stays alive until completion.
 Exports small local test files under ignored build/export-tests; never uploads.
 """
 from pathlib import Path
@@ -47,12 +48,12 @@ def start(root=None):
     s.initializeExtensions()
     e = s.ext.ShowControlExt
     r = s.op('show_review_export').module
-    STATE.update(root=root, show=s, ext=e, runtime=r, wall=wall,
+    STATE.update(root=root, driver=me.path, show=s, ext=e, runtime=r, wall=wall,
                  original=original, document=copy.deepcopy(original.ext.ShowControlExt.document),
                  main=e._capture_look(s.parent()),
                  pars={p.name:p.eval() for p in original.customPars if not p.isPulse and not p.readOnly},
                  wall_pars={n:wall.par[n].eval() for n in ('Sourcemode','Projector1top','Projector2top','Projector3top','Blackout','Enabled','Testpattern')},
-                 checks=[], exports=[], index=0, deadline=time.monotonic()+300)
+                 checks=[], exports=[], index=0, deadline=time.monotonic()+600)
     try:
         for i,channel in enumerate(('r','g','b'),1):
             source=s.create(td.constantTOP,'review_validation_'+str(i))
@@ -101,9 +102,15 @@ def start(root=None):
         s.par.Exportfps='30'
         s.par.Exportstart=0
         STATE['cases']=[('1080p','h264',.2,'cue'),('4k','h264',.1,'cue'),
+                        ('1080p','h265',.2,'cue'),('4k','h265',.1,'cue'),
                         ('custom','mjpeg',.2,'cue'),('custom','h264',.2,'draft'),
                         ('custom','h264',.2,'movie')]
         STATE['cases'] += [('custom', 'h264', .4, name) for name in FLOW_MODULES]
+        STATE['cases'] += [('panoramic', 'mjpeg', .2, source) for source in
+                           ('panorama_cue', 'panorama_draft', 'panorama_media', 'panorama_crop')]
+        STATE['cases'] += [('panoramic', 'h265', .2, source) for source in
+                           ('panorama_cue', 'panorama_draft', 'panorama_media', 'panorama_crop')]
+        STATE['cases'] += [('panoramic', 'h265', .4, name) for name in FLOW_MODULES]
         td.run("op(args[0]).module.next_case()", STATE['driver'], delayFrames=2)
     except Exception as exc:
         finish(repr(exc))
@@ -128,6 +135,9 @@ def next_case():
         schedule()
         return
     preset,codec,duration,source=STATE['cases'][STATE['index']]
+    if preset == 'panoramic':
+        s.par.Renderwidth, s.par.Renderheight, s.par.Panoramaoverlap = 1920, 1080, 0
+        s.par.Routingmode, s.par.Cuemediafit = 'identical', 'auto'
     STATE['flow_observed'] = False
     STATE['flow_samples'] = []
     if source in FLOW_MODULES:
@@ -149,11 +159,42 @@ def next_case():
     if source=='draft':
         e.RecallLook()
         STATE['draft']=e._capture_look(e._look_edit['deck'])
+    if source.startswith('panorama_'):
+        import td
+        if e._look_edit: e.CancelLook()
+        s.par.Renderwidth, s.par.Renderheight, s.par.Panoramaoverlap = 1920, 1080, 0
+        # The preset must work without changing the actual output layout.
+        s.par.Routingmode, s.par.Cuemediafit = 'identical', 'auto'
+        cue = copy.deepcopy(STATE['base_cue'])
+        if source in ('panorama_media', 'panorama_crop'):
+            cue['look']['toggles'] = {key: False for key in cue['look']['toggles']}
+            code = s.op('aspect_fixture_code') or s.create(td.textDAT, 'aspect_fixture_code')
+            code.text = ('layout(location=0) out vec4 fragColor; void main(){'
+                         'vec2 p=(vUV.st-.5)*vec2(1920.,1080.);'
+                         'vec3 c=length(p)<120. ? vec3(1.,0.,0.) : vec3(.05);'
+                         'fragColor=TDOutputSwizzle(vec4(c,1.));}')
+            fixture = s.op('aspect_fixture') or s.create(td.glslTOP, 'aspect_fixture')
+            fixture.par.pixeldat = code.name
+            fixture.par.outputresolution = 'custom'
+            fixture.par.resolutionw, fixture.par.resolutionh = 1920, 1080
+            fixture.cook(force=True)
+            assert not fixture.errors(), fixture.errors()
+            fixture_path = STATE['root'] / 'build/export-tests/panorama-circle.png'
+            fixture.save(str(fixture_path))
+            cue['source'] = str(fixture_path)
+            if source == 'panorama_crop':
+                cue['look']['toggles'][e.model.MODULE_TOGGLES['final_crop']] = True
+                cue['look']['modules']['final_crop'] = dict(Aspect='16x9', Outputmode='crop')
+        e._replace_cues([cue])
+        e.SelectCue(1)
+        if source == 'panorama_draft':
+            e.RecallLook()
+            STATE['draft'] = e._capture_look(e._look_edit['deck'])
     s.par.Exportresolution=preset
     s.par.Exportwidth,s.par.Exportheight=640,360
     s.par.Exportcodec=codec
     s.par.Exportduration=duration
-    s.par.Exportsource='cue' if source=='movie' or source in FLOW_MODULES else source
+    s.par.Exportsource = ('draft' if source in ('draft', 'panorama_draft') else 'cue')
     s.par.Startexport.pulse()
     STATE['await_start']=True
     schedule()
@@ -172,6 +213,25 @@ def poll():
             return
         if s.par.Exportbusy:
             name = STATE['cases'][STATE['index']][3]
+            if STATE['cases'][STATE['index']][0] == 'panoramic':
+                job = s.fetch(STATE['runtime'].JOB_KEY, None, search=False)
+                if job and job['index'] >= 1:
+                    assert (job['target'].width, job['target'].height) == (5760, 1080)
+                    if job['settings']['codec'] == 'h265':
+                        assert job['writer'].par.videocodec.eval() in ('h265', 'h265nvgpu')
+                        assert job['path'].suffix == '.mp4'
+                    assert (int(job['deck'].par.Customwidth), int(job['deck'].par.Customheight)) == (5760, 1080)
+                    assert s.par.Routingmode == 'identical' and job['settings']['fit'] == 'cover'
+                    if name in ('panorama_media', 'panorama_crop'):
+                        assert job['deck'].op('cue_media_fit').par.vec0valuex.eval() == 1
+                    if name == 'panorama_media':
+                        arr = job['target'].numpyArray(delayed=False)
+                        mask = (arr[:, :, 0] > .8) & (arr[:, :, 1] < .1)
+                        ys, xs = mask.nonzero()
+                        assert len(xs), 'Panorama media was not rendered'
+                        w, h = int(xs.max()-xs.min()+1), int(ys.max()-ys.min()+1)
+                        assert abs(w-h) <= 2 and 710 <= w <= 730, (w,h)
+                    STATE['panorama_observed'] = True
             if name in FLOW_MODULES:
                 job = s.fetch(STATE['runtime'].JOB_KEY, None, search=False)
                 if job and job['deck'] is not None and job['index'] >= 2:
@@ -193,6 +253,9 @@ def poll():
         status=s.par.Exportstatus.eval()
         if not status.startswith('COMPLETE'): raise ValueError(status)
         case=STATE['cases'][STATE['index']]
+        if case[0] == 'panoramic':
+            assert STATE.pop('panorama_observed', False), 'Panoramic render dimensions were not observed'
+            STATE['checks'].append(case[3] + ' full canvas, frozen proportional fit, unchanged routing')
         if case[3] in FLOW_MODULES:
             assert STATE['flow_observed'], ('Particle motion/history were not observed', case[3], STATE['flow_samples'])
             STATE['checks'].append(case[3] + ' custom values and active GPU history in export copy')

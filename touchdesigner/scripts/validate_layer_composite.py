@@ -94,15 +94,27 @@ def validate(write_report=True):
         checks["viewer_enabled"] = module.viewer
         for par in test.customPars:
             if par.readOnly:
-                checks[par.name+"_readonly"] = par.name in ("Time","Routingstatus","Backdropstatus","Topstatus") and bool(par.expr)
+                checks[par.name+"_readonly"] = par.name == "Editstatus" or (par.name in ("Time","Routingstatus","Backdropstatus","Topstatus") and bool(par.expr))
                 checks[par.name+"_evaluates"] = isinstance(par.eval(), (str,float,int))
                 continue
             if par.isPulse or par.name in transport_names:
                 continue
             if par.name in ("Backdropfile","Topfile","Backdropsource","Topsource"):
                 continue
+            if par.name in ('Amodule','Bmodule'):
+                # Navigation selects an editor, not a visual treatment.
+                values=list(par.menuNames)
+                accepted=[]
+                for value in values:
+                    par.val=value; accepted.append(par.eval()==value)
+                controls[par.name]=dict(values=values,accepted=accepted)
+                checks[par.name+'_accepts']=all(accepted)
+                checks[par.name+'_standalone_disabled']=not par.enable
+                continue
             reset(Flickerenabled=par.name in flicker_names)
             back.par.resolutionw,back.par.resolutionh=160,90
+            shader.par.resolutionw=480 if par.name=='Topcanvas' else 160
+            if par.name=='Topcanvas': test.par.Topfit='stretch'
             if par.name=="Backdropfit":
                 # Decouple source aspect from canvas in this temporary test.
                 back.par.resolutionw,back.par.resolutionh=80,80
@@ -138,6 +150,7 @@ def validate(write_report=True):
             checks[par.name+"_accepts"] = all(accepted)
             checks[par.name+"_visible"] = all(v>1e-7 for v in changes)
 
+        shader.par.resolutionw=160
         reset(Enabled=False)
         checks["disabled_exact_bypass"] = diff(capture(),capture(back))<1e-7
         reset(Opacity=0.)
@@ -180,7 +193,7 @@ def validate(write_report=True):
                 test.par[prefix+"source"]=value
                 indices.append(test.op(prefix.lower()+"_source").par.index.eval())
             controls[prefix+"source"]={"values":values,"indices":indices}
-            checks[prefix+"_sources_route"] = indices==[2,3,0,2,0]
+            checks[prefix+"_sources_route"] = indices==[2,3,0,2,0,5,6]
         # The processed result can be used as foreground while the backdrop is
         # transparent, even if an unused file field still contains a path.
         reset(Backdropsource="transparent",Topsource="effects",Topfile="unused.png",Topfit="stretch")
@@ -220,7 +233,9 @@ def validate(write_report=True):
             and module.par.Enabled.bindMaster == module.parent().par.Layercompositeenabled
             and not module.par.Enabled.readOnly
         )
-        checks["demo_chain"] = module.inputs[0]==op("/project1/imagefx_demo/image_composition/out1_image") and op("/project1/imagefx_demo/final_crop").inputs[0]==module.op("out1_image")
+        demo=module.parent(); order=demo.op('workflow').module.current(demo)
+        previous=order[order.index('layer_composite')-1]
+        checks["demo_chain"] = module.inputs[0]==demo.op(previous+'/out1_image') and demo.op('final_crop').inputs[0]==module.op('out1_image')
         top.outputConnectors[0].connect(test.inputConnectors[1])
         shader.par.resolutionw.expr,shader.par.resolutionh.expr=resolution_exprs
         back.par.resolutionw,back.par.resolutionh=640,360

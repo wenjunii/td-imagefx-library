@@ -45,7 +45,9 @@ BUILDER_PATH = Path(__file__).resolve()
 LIBRARY_VERSION = "0.3.0"
 MODULE_SOURCES = ("touchdesigner/scripts/ink_dream_flow.py", "touchdesigner/scripts/layer_composite.py", "touchdesigner/scripts/final_crop.py", "touchdesigner/scripts/workflow.py", "touchdesigner/scripts/wall_output.py", "touchdesigner/scripts/wall_output_controller.py", "touchdesigner/scripts/color_switch.py", "touchdesigner/scripts/image_composition.py", "touchdesigner/scripts/source_media.py", "touchdesigner/scripts/look_editor_controls.py", "touchdesigner/scripts/show_review_export.py", "touchdesigner/scripts/show_output_mode.py", "touchdesigner/scripts/projection_mapping.py", "touchdesigner/scripts/projection_polygon.py")
 RACK_SLOT_COUNT = 8
-MODULE_SOURCES += ("touchdesigner/scripts/show_live_look.py", "touchdesigner/extensions/FxRackExt.py")
+MODULE_SOURCES += ("touchdesigner/scripts/show_live_look.py", "touchdesigner/extensions/FxRackExt.py", "touchdesigner/scripts/show_panel_layout.py")
+MODULE_SOURCES += ('touchdesigner/scripts/dance_puppet.py', 'touchdesigner/scripts/dance_puppet_runtime.py')
+MODULE_SOURCES += ('touchdesigner/scripts/dance_forces.py', 'touchdesigner/scripts/dance_forces_runtime.py', 'touchdesigner/scripts/dance_forces_math.py')
 OWNED_PROJECT_NODES = frozenset({"td_imagefx", "imagefx_demo"})
 DEFAULT_TEMPLATE_NODES = {
     "geo1": "geo",
@@ -6077,6 +6079,7 @@ def build_layer_composite_module(parent_comp):
     )
     module.viewer = True
     module.comment = "Post-effects compositor: choose the effects result or media separately for each layer. Bypass preserves input 1."
+    scope['install_independent_sources'](module)
     module.save(str(path), createFolders=True)
     return module, path
 
@@ -6998,6 +7001,10 @@ def build_source_media(demo):
 
 
 def build_workflow(demo, branch=False):
+    puppet_path = PROJECT_ROOT / 'touchdesigner/scripts/dance_puppet.py'
+    puppet_scope = {}
+    exec(compile(_read_text(puppet_path),str(puppet_path),'exec'),puppet_scope)
+    puppet_scope['build'](demo,PROJECT_ROOT)
     source = _read_text(PROJECT_ROOT / "touchdesigner/scripts/workflow.py")
     scope = {}
     exec(compile(source, "workflow.py", "exec"), scope)
@@ -7020,6 +7027,9 @@ def build_workflow(demo, branch=False):
     callback.par.op,callback.par.pars = "..","Stageup Stagedown Stagefirst Stagelast Resetorder"
     callback.par.custom,callback.par.builtin,callback.par.onpulse = True,False,True
     scope["apply_order"](demo,stages)
+    layer_scope = {}
+    exec(_read_text(PROJECT_ROOT / 'touchdesigner/scripts/layer_composite.py'), layer_scope)
+    layer_scope['install_independent_sources'](demo.op('layer_composite'))
 
 
 def build_demo(

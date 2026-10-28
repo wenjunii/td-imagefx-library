@@ -410,3 +410,5 @@ def install(show, mapping_shader):
     scope['install'](show,POLYGON_SHADER)
     show.ext.ShowControlExt._mapping_key=None
     show.UpdateMapping()
+    if show.op('show_panel_layout') is not None:
+        show.op('show_panel_layout').module.configure(show)

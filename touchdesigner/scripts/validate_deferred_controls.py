@@ -75,6 +75,11 @@ def validate():
         raise RuntimeError("Stop All and finish/cancel the look draft before QA")
     if show.par.Audioenabled or not show.par.Masterblackout or not wall.par.Blackout:
         raise RuntimeError("Disarm audio and enable show/wall blackouts before QA")
+    runtime = show.op('show_output_mode')
+    if runtime is None or any(w.isOpen for w in runtime.module.windows(show) if w):
+        raise RuntimeError('Close all physical output windows before QA')
+    if show.fetch('imagefx_export_job', None, search=False):
+        raise RuntimeError('Finish/cancel video export or wall recording before QA')
     if demo.fetch(RUNNING_KEY, False):
         raise RuntimeError("A deferred control audit is already running")
     missing = [name for name in FIXTURES if not (REPORT_DIR / name).is_file()]

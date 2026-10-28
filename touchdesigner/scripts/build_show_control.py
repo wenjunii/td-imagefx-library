@@ -89,8 +89,10 @@ def build_show_control(demo, context):
     def menu(page, name, values, default, **extra):
         parameter(page, name, "menu", default, menu_names=values, menu_labels=[v.replace("_", " ").title() for v in values], **extra)
 
-    parameter("Transport", "Libraryroot", "folder", str(context["PROJECT_ROOT"]), read_only=True)
-    parameter("Transport", "Showfile", "file", str(context["PROJECT_ROOT"] / ".imagefx" / "shows" / "current.json"), label="Show File (local JSON)")
+    parameter("Transport", "Libraryroot", "folder", "", read_only=True)
+    show.par.Libraryroot.expr = 'project.folder'
+    parameter("Transport", "Showfile", "file", ".imagefx/shows/current.json", label="Show File (local JSON)")
+    show.par.Showfile.expr = "project.folder + '/.imagefx/shows/current.json'"
     parameter("Transport", "Selectedcue", "int", 1, 1, 1000, label="Selected Cue Number")
     parameter("Transport", "Cuepage", "int", 1, 1, 84, label="Cue List Page (12 per page)")
     for name, label in (
@@ -370,6 +372,10 @@ def build_show_control(demo, context):
     live_scope = dict(context, __file__=str(live_path), __name__="_imagefx_live_look")
     exec(compile(live_path.read_text(encoding="utf-8"), str(live_path), "exec"), live_scope)
     live_scope["install"](show)
+    layout_path = context["PROJECT_ROOT"] / "touchdesigner/scripts/show_panel_layout.py"
+    layout_scope = dict(context, __file__=str(layout_path), __name__="_imagefx_panel_layout")
+    exec(compile(layout_path.read_text(encoding="utf-8"), str(layout_path), "exec"), layout_scope)
+    layout_scope["install"](show)
     return show
 
 

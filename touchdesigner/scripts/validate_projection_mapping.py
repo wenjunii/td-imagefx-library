@@ -162,7 +162,8 @@ def validate(write_report=True):
         checks['reinstall_no_duplicate_polygon_widgets']=len(show.op('polygon_editor').children)==editor_count
         checks['reinstall_preserves_cues']=ext.document==document
         checks['reinstall_keeps_two_way_bindings']=show.op('projection2').par.Maskwidth.bindMaster==show.par.Output2maskwidth
-        checks['visible_mapping_tab']="'Projection Mapping'" in show.op('cue_inspector').par.pagescope.eval()
+        nav=show.op('inspector_navigation')
+        checks['visible_mapping_tab']=('Projection Mapping' in nav.par.Section.menuNames if nav is not None else "'Projection Mapping'" in show.op('cue_inspector').par.pagescope.eval())
         checks['no_audience_windows_open']=not any(w is not None and w.isOpen for w in show.op('show_review_export').module._export_windows(show))
         checks['no_errors']=not show.errors(recurse=True) and not wall.errors(recurse=True)
         report['ok']=all(bool(v) for v in checks.values())

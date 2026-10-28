@@ -58,7 +58,12 @@ def open_preview(show):
     preview = show.op("look_preview")
     if preview is None:
         raise ValueError("The recalled look has no output preview")
-    preview.openViewer()
+    window = show.op("look_preview_window")
+    if window is None:
+        raise ValueError("The fitted preview window is unavailable; reinstall Look Editor controls")
+    # Native TOP viewers retain pan/zoom interaction state. A separate,
+    # non-interactive Window COMP always fits the complete image on resize.
+    window.par.winopen.pulse()
     return preview
 
 
@@ -87,6 +92,40 @@ def runtime_source(targets):
     functions = (active_deck, control_target, open_controls, open_preview, on_pulse)
     return "TARGETS = {!r}\n\n".format(targets) + "\n\n".join(
         inspect.getsource(function) for function in functions)
+
+
+def install_preview_window(show):
+    """Operator-only preview: never opens a projector or changes render size."""
+    import td
+    display = show.op('look_preview_display') or show.create(td.selectTOP, 'look_preview_display')
+    display.par.top = 'look_preview'
+    display.par.fillmode = 'best'
+    display.par.filtertype = 'linear'
+    panel = show.op('look_preview_panel')
+    if panel is not None:
+        panel.par.topfill = 'best'
+    window = show.op('look_preview_window')
+    if window is None:
+        window = show.create(td.windowCOMP, 'look_preview_window')
+        window.par.size = 'custom'
+        window.par.winw, window.par.winh = 960, 540
+        window.par.justifyh, window.par.justifyv = 'center', 'center'
+    window.par.winop = 'look_preview_display'
+    window.par.title = 'ImageFX - Look Preview (Fit / No Crop)'
+    window.par.justifyoffsetto = 'primarydisplay'
+    window.par.ignoretaskbar = False
+    window.par.dpiscaling = 'usedpiscale'
+    window.par.borders = True
+    window.par.interact = False
+    # Keep this operator preview above TD when Windows changes focus during a
+    # border resize. This is not a projector/Perform window and can be closed
+    # independently with its title-bar X.
+    window.par.alwaysontop = True
+    window.par.cursorvisible = 'alwaysvisible'
+    window.par.constraincursor = 'off'
+    window.par.closeescape = True
+    window.par.includedialog = False
+    return window
 
 
 def install(show, order, labels):
@@ -132,6 +171,7 @@ def install(show, order, labels):
     if runtime is None:
         runtime = show.create(td.textDAT, "look_editor_controls")
     runtime.text = runtime_source(targets)
+    install_preview_window(show)
     callback = show.op("look_editor_controls_callbacks")
     if callback is None:
         callback = show.create(td.parameterexecuteDAT, "look_editor_controls_callbacks")

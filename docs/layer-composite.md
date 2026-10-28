@@ -3,7 +3,7 @@
 Combine a backdrop with a separately graded foreground. Either layer can be an
 image, a video, or the upstream effects result, independently. Each **Source**
 menu offers Auto, Effects Result (Input 1), Second TOP Input, Image / Video File,
-and Transparent. In Auto, a file takes priority; otherwise backdrop uses input 1
+Transparent, and Independent Effects A/B. In Auto, a file takes priority; otherwise backdrop uses input 1
 and top uses input 2. Without a second input or file, an Auto top is transparent.
 Media is referenced, not copied into the repository or embedded as media assets.
 
@@ -25,13 +25,66 @@ above a backdrop file. Move it first to let later effects process the composite.
 See [workflow and crop](workflow-and-crop.md) for ordering and older-show migration.
 The reusable component is `touchdesigner/core/LayerComposite.tox`.
 
+## Two independently processed effects
+
+On **Images**, press **Use A as Backdrop + B as Top**. This selects the two
+independent effect branches already inside `image_composition`, enables Layer
+Composite, and moves Two-Image Composition before it if necessary. It does not
+erase either branch's settings or media. The two branches are shared with the
+Two-Image Composition layout, not additional duplicate effect racks.
+
+Use **Choose A / B Images or Videos** to select the two sources, then **Edit
+Independent Effects A** and **Edit Independent Effects B** to enable and adjust
+different effects. For example, A can generate an Ink Dream Flow backdrop while
+B contains a transparent Dance Puppet. Keep A/B Visible on. The layout module
+itself can remain bypassed; the two effect branches still render when consumed
+by Layer Composite. Capture/Recall/Update Look preserve both branches and wait
+for their required media, including puppet movies.
+
+For detailed adjustment, open **Effects A** or **Effects B**, choose **Effect
+Module**, and press **Edit Selected A/B Controls**. Every workflow module and
+all eight FX Rack slots are available. **Open A/B Module Switches / Order**
+opens that branch's enable switches and ordering, and **Preview A/B Result**
+opens its processed image. These selectors navigate only; they do not change
+the rendered look or get captured as effect parameters. When this Layer
+Composite belongs to a recalled/running cue, the controls stay within that
+cue's own A/B branches, never the main designer workflow.
+
+For a puppet on top, keep the puppet's **Transparent Background** on and
+enable its **Feedback**. Trail Amount sets visible strength, Trail Half-Life
+sets decay in seconds, and Trail Softness spreads the history. The accumulator
+stays transparent and full-strength internally; opacity and optional background
+are applied afterward. This prevents low Trail Amount or an opaque background
+from erasing the trail each frame. Pause holds history; Clear History removes it.
+
+Independent A/B sources cannot be selected recursively inside A/B themselves.
+If Layer Composite is moved before Two-Image Composition, those sources become
+transparent with an explanatory status, and cue preflight rejects the cycle.
+
+## Keep the foreground 1080p in a panorama
+
+On **Top Placement**, set **Top Canvas / Panoramic Placement** to **1080p —
+Left**, **Center**, or **Right**. On a 5760×1080 canvas these correspond to the
+three 1920×1080 projector areas. The foreground is contained without cropping
+or stretching; the backdrop continues using its own Fit/Fill setting. Top
+Opacity, grading, position, scale and rotation remain available. A lower-height
+preview scales the 16:9 area proportionally; output larger than 1080p keeps the
+area at 1920×1080 pixels. **Full Output Canvas** preserves previous behavior.
+
+When the top source is Independent Effects A/B, that branch receives a 1080p
+working canvas so procedural effects are not first rendered across the entire
+panorama. Use a file or independent branch for the original foreground; a
+previously cropped upstream Effects Result cannot recover its discarded pixels.
+Downstream Final Crop or other effects can still alter the finished composite.
+
 ## Controls
 
 - **Images:** module enable, two source menus and media pickers, independent Stretch / Fit / Fill modes,
   read-only routing/file status and a direct preview button.
 - **Top Color:** opacity (0 = transparent, 1 = full source alpha), RGB tint,
   hue rotation, saturation, contrast, brightness, exposure and color inversion.
-- **Top Placement:** position X/Y, scale and rotation.
+- **Top Placement:** Full Canvas or fixed 1080p Left/Center/Right, position X/Y,
+  scale and rotation.
 - **Flicker:** enable, regular on/off / soft pulse / random on/off, rate in Hz,
   visible fraction (or random probability), minimum visibility, soft edge, phase and seed.
 - **Timing:** auto time, reversible time scale, manual time and read-only effective time.

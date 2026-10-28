@@ -8,6 +8,79 @@ The current source contains **96 current effect IDs across 18 categories**, back
 
 Canonical repository: [github.com/wenjunii/td-imagefx-library](https://github.com/wenjunii/td-imagefx-library)
 
+## Dance-driven flow forces
+
+`ink_dream_flow`, `ink_brush_flow` and `ink_radial_flow` include an optional,
+off-by-default **Dance Forces** treatment. Prerecorded or explicitly started live
+camera motion pushes and swirls the existing pattern, with camera-motion
+compensation, smoothing, release, body/hand/foot weights and adjustable **Fade In**.
+CUDA prepares prerecorded motion once; cue playback steers the flow's internal
+motion on the GPU. The source image, paper and canvas framing are not warped.
+**Directional Push** and **Flow Speed Response** adjust direction and local speed
+independently; disabled Dance Forces retains the original flow.
+**Force Response Delay** (0–5 seconds, default 0.75) makes local pushes, direction
+changes and speed changes build gradually without retiming the dancers or
+changing composition. Set 0 for the original immediate response; 1.5–2 seconds
+is a gentler starting point. It is saved in cue looks and supports live editing.
+**Dance Influence → Force Coordinate Space** now defaults to **Follow Pattern
+Composition**: the force area and travel follow Pattern Scale, Center, Rotation,
+and Stretch, with a soft local boundary. **Full Canvas (Legacy)** retains the
+previous mapping. Both modes work in cue looks, A/B layers and panoramic output.
+Dance Force activation now prepares recorded playback in the background and
+starts **Fade In** when it is ready, without blocking the pattern's render thread.
+A fresh-history gate prevents a previous force frame flashing on re-trigger.
+The existing puppet also has a separate **Fade In** control after its trails.
+Older cues that predate these motion features now retain the matching main/A/B
+workflow's prepared local motion files when recalled or played. Effects remain
+off until enabled; existing cue files and values are never replaced. Use
+**Update Cue Look**, then **Save Show**, to commit newly enabled motion.
+See [Dance Forces setup, cue timing and limits](docs/dance-forces.md).
+
+## Dance Puppet cue module
+
+The optional `dance_puppet` workflow stage uses the connected 2.5D rig with
+black bodies and pale linework, complete-body/cropped framing, adjustable
+colors/opacity, transparent output, and optional feedback trails. It starts
+disabled. Place it after a backdrop effect and enable **Over Upstream Effects**
+to layer the figures over that effect. Its settings and prepared movie are
+captured by Show Control, including Recall Look and Edit Running Cue.
+
+**Characters / Projection Mode** selects both figures, the fan figure alone,
+or the chain figure alone. Prepared solo clips have independent fixed framing
+and identical timing. **Animate Preview** starts at zero; **Pause Preview** and
+**Resume Preview** hold/continue without jumping. New preparation can remove
+estimated source-camera pan/roll/zoom while preserving the dancers' travel.
+
+Layer Composite now accepts **Independent Effects A/B** for either layer.
+Its **Top Canvas / Panoramic Placement** can keep the foreground in a 1920×1080
+Left, Center or Right area while the backdrop fills the panoramic canvas.
+The **Effects A** and **Effects B** pages select any module or rack slot and
+open its complete controls in the correct independent branch. Puppet trails
+retain alpha as a top layer; Trail Amount controls strength without shortening
+the selected trail half-life. Show Control uses a **Show Control Section**
+dropdown instead of crowded tab headings, with aligned cue/notes rows.
+
+Prerecorded motion is analyzed locally and prepared as a 60-fps Hap Alpha movie;
+cue playback does not run pose inference. **Motion Files → Analyze New Video
+and Build** accepts another two-dancer clip. **Live Camera** is an explicit,
+local-only mode using a separate GPU-enabled Python process; loading a cue never
+opens a camera. Live tracking is not equivalent to the prepared 60-fps playback
+and needs rehearsal with the actual camera and choreography.
+
+See [Dance Puppet setup, cue creation and character profiles](docs/dance-puppet.md).
+
+This workstation's puppet analysis/live worker now uses **RTX 3080 Ti + CUDA**.
+TouchDesigner effects/compositing use the RTX through Vulkan; the external
+puppet renderer uses OpenGL on the same RTX. Start the project with
+`./tools/start_imagefx_rtx.ps1` for explicit GPU affinity. Rigging, camera
+stabilization, file handling and Hap Alpha encoding still use CPU code.
+See [GPU setup and verification](docs/dance-puppet.md#rtx-and-cuda-routing)
+for the isolated worker, fallback protection and measured limits.
+The v3/v4/v5 standalone prototypes and original artwork remain local. Character
+atlases, motion/video files, models and personal cues are not release assets.
+The clean distribution includes the modules with motion disabled and media
+paths empty; configure your local worker and media before enabling them.
+
 ## Edit a cue while it is running
 
 Select the visual cue's **PLAY** row, then **Edit Running Cue**. In **Look Editor**,
@@ -112,7 +185,14 @@ complete 3840×2160 processor canvas (P1/P2/P3 plus confidence monitor). It keep
 live cue playback and mapping intact, includes **Stop Wall Recording & Save**,
 and reports encoder dropped frames. Physical output windows must stay closed;
 this is silent rehearsal capture, not an offline whole-show render.
-See the [review/export instructions](docs/show-control.md#export-a-visual-cue-to-video).
+**Resolution → Panoramic / Full 3-Projector Canvas** exports a saved cue or
+current look draft as one wide movie (normally **5760×1080**), before projector
+splitting/mapping, without a confidence quadrant. It follows panel size/overlap;
+Auto media fit crops proportionally without stretching. Choose **MP4 / H.265
+HEVC (NVIDIA GPU)** for the standard 5760×1080 panorama on the RTX 3080 Ti
+(Commercial/Pro license). H.265 supports up to 8192 pixels per axis; use
+**MOV / Motion JPEG** for larger canvases. This offline preset does not change
+your live output layout. See the [review/export instructions](docs/show-control.md#export-a-visual-cue-to-video).
 
 **Review View → 2x2 Video Wall / Full 4K Canvas** previews the exact packed
 processor output, including the confidence quadrant. Auto chooses this view for
@@ -178,7 +258,11 @@ need rehearsal on the actual hardware.
 
 Captured looks are editable from the **Look Editor** tab: **Recall Look →
 Effect Module → Edit Controls → Update Cue / Save as New Cue / Cancel Changes**.
-**Open Preview** opens the full-size recalled look. The menu includes every
+**Open Preview** opens a resizable, aspect-fitted preview of the recalled look.
+This operator window stays on top while resizing, including panoramic cues;
+close it with its title-bar X when you finish previewing.
+Resizing or maximizing it does not crop, stretch, pan, or change the cue's render
+resolution. The menu includes every
 workflow module, workflow switches, and the eight individual rack slots.
 These shortcuts edit only the cue draft, not the main designer. It starts off-air;
 **Show Live Look** auditions it on the selected **Live Look Target Track** through
@@ -223,6 +307,15 @@ Duration and respects Post-Wait plus the next cue's Pre-Wait. Pause and Stop
 also control queued requests; missing media still reports ERROR. The fix adds
 20 portable regressions and 35 native rendered-image checks.
 
+The **2026-10-28 clean-publication recheck** passed 717 portable tests (four
+expected Windows symlink skips), 121 optional puppet tests, 29 blocking native
+groups (6,609 checks), 17 real-frame groups (590 checks), and focused motion,
+older-cue, preview and export checks. All 24 finished export fixtures decoded
+correctly. The 30-fps H.264 wall recorder still reported 10 startup dropped
+frames; physical camera/projector/audio and sustained show-load testing remain
+rehearsal tasks. Personal cues/media stay local. See the
+[current validation record](docs/control-validation.md) for coverage and limits.
+
 The **2026-10-25 panoramic-output recheck** passed 28 blocking groups (5,758
 checks), 17 real-frame groups (590 checks), 29 saved-file startup checks and
 600 portable tests (four expected Windows symlink skips). It verifies automatic
@@ -258,18 +351,21 @@ UHD clips decoded with correct projector quadrants and confidence diagnostics.
 The 30 FPS real-time test reported five startup drops; its warning is retained,
 so sustained recording and venue performance still require rehearsal.
 The audit also fixed review/export refresh hiding the Projection Mapping tab.
-The canonical TOE is a clean default build with no personal cues or media.
+That clean-release TOE had no personal cues or media. The later, local Dance
+Puppet integration described above adds a prepared example cue to this
+workstation's main TOE; it is not a new clean distribution artifact.
 See the [validation record](docs/control-validation.md) for coverage and hardware
 limits, and the repeatable audit commands below.
 
 ## Effect catalog
 
-The rejected 2.5D dance-puppet experiment is not integrated into the production
-TOE or effect counts. Its prototype, artwork, motion models and preview media
-remain local and are not included in this repository update.
+The earlier v3/v4 dance-puppet auditions remain isolated prototypes. The later
+approved Dance Puppet integration is an optional workflow stage, not one of
+the 96 versioned effects below. Its artwork, motion models, prepared movies
+and example show remain local.
 
-The rejected dance-driven backdrop audition also remains local and outside this
-release. Neither audition is part of the production workflow or release tests.
+The rejected dance-driven backdrop audition remains local and outside the
+production workflow and release tests.
 
 Package manifests under `packages/` are authoritative for versions, inputs, parameters, processing requirements, image behavior, provenance, assets, licenses, and compatibility. Discovery surfaces select the highest SemVer for each effect ID. Exact historical versions remain addressable for project locks and reproducible shows.
 
@@ -366,7 +462,7 @@ git clone https://github.com/wenjunii/td-imagefx-library.git
 cd td-imagefx-library
 ```
 
-The clean Windows release build used TouchDesigner `2025.32820` and validated all 96 current effects with 124 versioned effect `.tox` files, nineteen core `.tox` files, one library `.toe`, 96 previews, 96 visual baselines, and 96 benchmark samples. That build report contains zero shader, preview, or builder errors. A fresh repository run completed 600 tests successfully, with four expected Windows symlink-permission skips. The release TOE contains clean defaults, not personal cues or media. In-place patches and saved personal cues are not a new full native-build certification; regenerate and validate distributable artifacts before publishing a release. Read [TouchDesigner setup](docs/touchdesigner-setup.md) to reproduce the native build.
+The clean Windows release build used TouchDesigner `2025.32820` and validated all 96 current effects with 124 versioned effect `.tox` files, nineteen core `.tox` files, one library `.toe`, 96 previews, 96 visual baselines, and 96 benchmark samples. That build report contains zero shader, preview, or builder errors. A fresh repository run completed 717 tests successfully, with four expected Windows symlink-permission skips; install `requirements-test.txt` first (NumPy is used by motion-math tests, not by the package core). The release TOE contains clean defaults, not personal cues, private character artwork or prepared motion media. In-place patches and saved personal cues are not a new full native-build certification; regenerate and validate distributable artifacts before publishing a release. Read [TouchDesigner setup](docs/touchdesigner-setup.md) to reproduce the native build and [control validation](docs/control-validation.md) for measured results and limits.
 
 The generated project targets TouchDesigner 2025. Validate the exact TouchDesigner build, operating system, GPU, driver, resolution, pixel format, and color pipeline used by your production system. Python 3.11 or newer is required for repository tooling; it is not required merely to use already-built native components.
 
@@ -854,7 +950,7 @@ exec(compile(open(script, encoding="utf-8").read(), script, "exec"), scope)
 
 Copying `globals()` is required because rendered-pixel QA uses
 TouchDesigner-provided objects including `op`, `app`, `root`, `textDAT`, and
-`glslTOP`. The runner executes all 28 blocking validator groups, including
+`glslTOP`. The runner executes all 29 blocking validator groups, including
 Output Mode, Projector Review, projection mapping, every mapping reset and
 custom polygon masks and Go Back/blackout navigation. It continues long
 enough to report every failure, writes the ignored
@@ -862,7 +958,10 @@ enough to report every failure, writes the ignored
 report, and never saves the project. Each successful dispatch records the validator
 source hash and elapsed time; failures retain their diagnostic error in the
 summary, and a false check cannot be masked by an inconsistent overall success flag.
-A complete run can take several minutes.
+A complete run can take several minutes. The motion-control group checks the
+complete Dance Forces and Dance Puppet inventories, limits, menu values and
+callback wiring. Camera, analysis and external-viewer buttons are wiring-only
+in that sweep; separate real-frame tests cover prepared-media playback.
 Each mutating validator restores its parameters, rack preset, routing,
 resolution, source time, and timeline state in its own `finally` block.
 The blocking runner refuses active or paused cues, unfinished look drafts,
