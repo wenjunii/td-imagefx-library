@@ -4,6 +4,7 @@ from unittest.mock import Mock, patch
 
 from touchdesigner.scripts import show_readiness as readiness
 from touchdesigner.scripts import show_review_export as export
+from touchdesigner.scripts import validate_show_readiness as native_audit
 from touchdesigner.extensions.ShowControlExt import ShowControlExt
 
 
@@ -125,6 +126,58 @@ class ShowReadinessTests(unittest.TestCase):
             self.assertEqual(job['stage'],'warming'); self.assertEqual(job['warm_frames'],1)
             clock.frame=2; export._wall_step(show,job)
         self.assertEqual(job['stage'],'recording'); self.assertTrue(writer.par.record)
+
+
+class NativeReadinessAuditGuardTests(unittest.TestCase):
+    def make_show(self):
+        show = Mock()
+        show.ext.ShowControlExt.engine.state = 'stopped'
+        show.ext.ShowControlExt._look_edit = None
+        show.par.Audioenabled = False
+        show.par.Masterblackout = True
+        show.parent.return_value.op.return_value.par.Blackout = True
+        show.fetch.return_value = None
+        show.parent.return_value.fetch.return_value = False
+        show.op.return_value.module.windows.return_value = []
+        return show
+
+    def test_safe_session_is_accepted_without_mutation(self):
+        show = self.make_show()
+        native_audit._require_safe_session(show)
+        show.parent.return_value.copy.assert_not_called()
+
+    def test_rejects_armed_audio_or_released_blackouts(self):
+        for setting in ('audio', 'show_blackout', 'wall_blackout'):
+            with self.subTest(setting=setting):
+                show = self.make_show()
+                if setting == 'audio': show.par.Audioenabled = True
+                elif setting == 'show_blackout': show.par.Masterblackout = False
+                else: show.parent.return_value.op.return_value.par.Blackout = False
+                with self.assertRaisesRegex(RuntimeError, 'Disarm audio'):
+                    native_audit._require_safe_session(show)
+
+    def test_rejects_active_transport_or_look_draft(self):
+        for state, draft in (('playing', None), ('paused', None), ('stopped', {})):
+            with self.subTest(state=state, draft=draft):
+                show = self.make_show()
+                show.ext.ShowControlExt.engine.state = state
+                show.ext.ShowControlExt._look_edit = draft
+                with self.assertRaisesRegex(RuntimeError, 'Stop All'):
+                    native_audit._require_safe_session(show)
+
+    def test_rejects_export_sample_and_concurrent_audit(self):
+        for active in ('imagefx_export_job', 'imagefx_readiness_sample', 'deferred'):
+            with self.subTest(active=active):
+                show = self.make_show()
+                show.fetch.side_effect = lambda key, *args, **kwargs: {'id': 'running'} if key == active else None
+                show.parent.return_value.fetch.return_value = active == 'deferred'
+                with self.assertRaises(RuntimeError): native_audit._require_safe_session(show)
+
+    def test_rejects_open_audience_windows(self):
+        show = self.make_show()
+        show.op.return_value.module.windows.return_value = [None, SimpleNamespace(isOpen=True)]
+        with self.assertRaisesRegex(RuntimeError, 'Close all physical'):
+            native_audit._require_safe_session(show)
 
 
 if __name__ == '__main__': unittest.main()

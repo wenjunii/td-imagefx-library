@@ -478,7 +478,7 @@ git clone https://github.com/wenjunii/td-imagefx-library.git
 cd td-imagefx-library
 ```
 
-The clean Windows release build used TouchDesigner `2025.32820` and validated all 96 current effects with 124 versioned effect `.tox` files, nineteen core `.tox` files, one library `.toe`, 96 previews, 96 visual baselines, and 96 benchmark samples. That build report contains zero shader, preview, or builder errors. A fresh repository run completed 752 tests successfully, with four expected Windows symlink-permission skips; install `requirements-test.txt` first (NumPy is used by motion-math tests, not by the package core). The release TOE contains clean defaults, not personal cues, private character artwork or prepared motion media. In-place patches and saved personal cues are not a new full native-build certification; regenerate and validate distributable artifacts before publishing a release. Read [TouchDesigner setup](docs/touchdesigner-setup.md) to reproduce the native build and [control validation](docs/control-validation.md) for measured results and limits.
+The clean Windows release build used TouchDesigner `2025.32820` and validated all 96 current effects with 124 versioned effect `.tox` files, nineteen core `.tox` files, one library `.toe`, 96 previews, 96 visual baselines, and 96 benchmark samples. That build report contains zero shader, preview, or builder errors. A fresh repository run completed 757 tests successfully, with four expected Windows symlink-permission skips; install `requirements-test.txt` first (NumPy is used by motion-math tests, not by the package core). The release TOE contains clean defaults, not personal cues, private character artwork or prepared motion media. In-place patches and saved personal cues are not a new full native-build certification; regenerate and validate distributable artifacts before publishing a release. Read [TouchDesigner setup](docs/touchdesigner-setup.md) to reproduce the native build and [control validation](docs/control-validation.md) for measured results and limits.
 
 The generated project targets TouchDesigner 2025. Validate the exact TouchDesigner build, operating system, GPU, driver, resolution, pixel format, and color pipeline used by your production system. Python 3.11 or newer is required for repository tooling; it is not required merely to use already-built native components.
 
@@ -986,6 +986,18 @@ active exports and overlapping real-frame audits **before changing anything**.
 Stop All, finish or cancel the draft/export, close outputs, enable both blackouts
 and disarm audio first. It never closes an operator's window or cancels a job
 just to make a test proceed.
+
+For the new readiness/warm-up controls, load
+`touchdesigner/scripts/validate_show_readiness.py` into a temporary Text DAT and
+call its module's `start(repo_root)` in the disposable session. This separate
+real-frame regression checks slider endpoints/defaults, every target-FPS menu
+choice, cue warm-up and wall recording. It uses isolated Show Control **and**
+Wall Output copies, verifies calibration pixels, and preserves the original
+wall's values and bindings. Decode the resulting clips independently; a
+successful encoder status alone does not prove the intended picture was sent.
+Reports and recordings stay local under `build/show-readiness/`.
+See the [latest control recheck](docs/control-validation.md) for results and
+the physical-camera/audio/projector checks that still require rehearsal.
 
 The dedicated `validate_control_surface.py` pass exercises all 45 visible pulse
 buttons and all 42 rack value controls. It checks the library, updater, browser,
