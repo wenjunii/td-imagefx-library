@@ -1,5 +1,46 @@
 # Control validation
 
+## Pre-show readiness and render warm-up — 2026-10-28
+
+Show Control now includes a non-arming **Pre-Show Check**, a current-workload
+performance sample, distinct-render-frame cue warm-up, and a configurable
+0–10-second render warm-up before real-time wall recording (default 2 seconds).
+It never treats missing telemetry as a pass. GPU identity describes the selected
+TouchDesigner renderer, not whether every external worker is using CUDA.
+
+The portable suite contains **752 tests** with four expected Windows symlink
+skips. The 17 new regressions cover missing/invalid/slow performance samples,
+memory and dropped-frame warnings, callback dispatch, sample-job isolation,
+distinct-frame cue warm-up, preload timeout preserving the on-air cue, and wall
+recording warm-up timing and bounds. The existing layout test covers all 14
+Show Control sections.
+
+The native Show Control regression passed **50 groups**, including dispatch for
+all **58 pulses and 20 panel buttons** and rendered checks for 63 mapping/grade
+controls. The real-frame ink playback suite passed **15 checks** across all three
+ink modules: recall, GO, timed pixels, unchanged on-air pixels during preload,
+and continuous crossfade endpoints. No physical outputs or audio were armed.
+
+The isolated TouchDesigner 2025.32820 / RTX 3080 Ti Laptop GPU test exercised
+the pre-show button and performance sample, section navigation, cue warm-up at
+1/3/12 frames, wall recording with warm-up at 0 and 2 seconds, cancellation
+during warm-up, and preservation of the original cue document. Both 3-second
+UHD H.264 calibration clips decoded as 90 frames at 3840×2160 / 30 fps.
+The zero-second case reported **1 dropped frame**; the 2-second case reported
+**0 dropped frames**. These are short calibration tests, not a sustained show
+or heavy-effects performance guarantee. Warm-up prepares the render pipeline;
+the encoder still opens when recording starts and may stall on its first frame.
+
+Use **Sample Current Performance** while representative cues are running, then
+rehearse actual projector/processor routing, audio, codec, disk and duration.
+The earlier recording warning below is retained as historical evidence.
+Reports and test recordings stay local under `build/show-readiness/`.
+An offline expansion of the saved release TOE confirmed the exact new runtime
+sources, dispatch guard, page and warm-up value, clean test cue and no personal
+look/media. All **1,835 saved text DATs** passed the credential scan. This saved-
+content audit is not a fresh-open runtime test; that final runtime check and
+promotion to the operator's personal TOE remain pending desktop access.
+
 ## Local-first verification policy — 2026-10-28
 
 The local safety gate passed **735 portable tests** on Python 3.11.9 / NumPy

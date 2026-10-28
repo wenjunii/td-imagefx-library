@@ -97,7 +97,7 @@ def build_show_control(demo, context):
     parameter("Transport", "Cuepage", "int", 1, 1, 84, label="Cue List Page (12 per page)")
     for name, label in (
         ("Gocue", "GO"), ("Goback", "Go Back"), ("Pause", "Pause All"), ("Resume", "Resume All"), ("Stopcue", "Stop Selected Cue"),
-        ("Stopall", "STOP ALL"), ("Preload", "Preload Selected"), ("Preflight", "Check Media Files"),
+        ("Stopall", "STOP ALL"), ("Preload", "Preload Selected"), ("Preflight", "Run Pre-Show Check"),
         ("Saveshow", "Save Show"), ("Loadshow", "Load Show"), ("Selectcue", "Load Selected Cue Details"),
         ("Openoutputs", "Open Audience Canvas"), ("Closeoutputs", "Close Audience Canvas"),
     ):
@@ -372,6 +372,10 @@ def build_show_control(demo, context):
     live_scope = dict(context, __file__=str(live_path), __name__="_imagefx_live_look")
     exec(compile(live_path.read_text(encoding="utf-8"), str(live_path), "exec"), live_scope)
     live_scope["install"](show)
+    readiness_path = context["PROJECT_ROOT"] / "touchdesigner/scripts/show_readiness.py"
+    readiness_scope = dict(context, __file__=str(readiness_path), __name__="_imagefx_readiness")
+    exec(compile(readiness_path.read_text(encoding="utf-8"), str(readiness_path), "exec"), readiness_scope)
+    readiness_scope["install"](show)
     layout_path = context["PROJECT_ROOT"] / "touchdesigner/scripts/show_panel_layout.py"
     layout_scope = dict(context, __file__=str(layout_path), __name__="_imagefx_panel_layout")
     exec(compile(layout_path.read_text(encoding="utf-8"), str(layout_path), "exec"), layout_scope)

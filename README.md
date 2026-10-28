@@ -8,6 +8,22 @@ The current source contains **96 current effect IDs across 18 categories**, back
 
 Canonical repository: [github.com/wenjunii/td-imagefx-library](https://github.com/wenjunii/td-imagefx-library)
 
+## Pre-show readiness and warm-up
+
+Show Control now has a **Pre-Show Check** section: check media/workflow paths,
+selected render GPU, output/display configuration, blackout, audio and AC power,
+then **Sample Current Performance** for FPS, frame-time, dropped frames and GPU
+memory. These are local snapshots, not hardware certification; no check opens
+outputs, unmutes audio, changes cues or releases blackout. Use **Open Full Report**
+for details and repeat the sample with your actual running show.
+
+Visual cues now warm up over **3 rendered frames** by default (adjustable 1–12)
+before becoming ready. Cue animation clocks are not advanced by this preparation.
+UHD wall recording has **Wall Render Warm-up**, default 2 seconds, before recording.
+Wait for **RECORDING** before GO to capture the cue's beginning; the warm-up itself
+is not recorded and never rewinds the show. Encoder dropped-frame warnings remain
+visible. See [the pre-show checklist](docs/show-control.md#pre-show-check).
+
 ## Dance-driven flow forces
 
 `ink_dream_flow`, `ink_brush_flow` and `ink_radial_flow` include an optional,
@@ -462,7 +478,7 @@ git clone https://github.com/wenjunii/td-imagefx-library.git
 cd td-imagefx-library
 ```
 
-The clean Windows release build used TouchDesigner `2025.32820` and validated all 96 current effects with 124 versioned effect `.tox` files, nineteen core `.tox` files, one library `.toe`, 96 previews, 96 visual baselines, and 96 benchmark samples. That build report contains zero shader, preview, or builder errors. A fresh repository run completed 735 tests successfully, with four expected Windows symlink-permission skips; install `requirements-test.txt` first (NumPy is used by motion-math tests, not by the package core). The release TOE contains clean defaults, not personal cues, private character artwork or prepared motion media. In-place patches and saved personal cues are not a new full native-build certification; regenerate and validate distributable artifacts before publishing a release. Read [TouchDesigner setup](docs/touchdesigner-setup.md) to reproduce the native build and [control validation](docs/control-validation.md) for measured results and limits.
+The clean Windows release build used TouchDesigner `2025.32820` and validated all 96 current effects with 124 versioned effect `.tox` files, nineteen core `.tox` files, one library `.toe`, 96 previews, 96 visual baselines, and 96 benchmark samples. That build report contains zero shader, preview, or builder errors. A fresh repository run completed 752 tests successfully, with four expected Windows symlink-permission skips; install `requirements-test.txt` first (NumPy is used by motion-math tests, not by the package core). The release TOE contains clean defaults, not personal cues, private character artwork or prepared motion media. In-place patches and saved personal cues are not a new full native-build certification; regenerate and validate distributable artifacts before publishing a release. Read [TouchDesigner setup](docs/touchdesigner-setup.md) to reproduce the native build and [control validation](docs/control-validation.md) for measured results and limits.
 
 The generated project targets TouchDesigner 2025. Validate the exact TouchDesigner build, operating system, GPU, driver, resolution, pixel format, and color pipeline used by your production system. Python 3.11 or newer is required for repository tooling; it is not required merely to use already-built native components.
 
