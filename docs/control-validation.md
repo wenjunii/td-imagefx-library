@@ -37,9 +37,21 @@ The earlier recording warning below is retained as historical evidence.
 Reports and test recordings stay local under `build/show-readiness/`.
 An offline expansion of the saved release TOE confirmed the exact new runtime
 sources, dispatch guard, page and warm-up value, clean test cue and no personal
-look/media. All **1,835 saved text DATs** passed the credential scan. This saved-
-content audit is not a fresh-open runtime test; that final runtime check and
-promotion to the operator's personal TOE remain pending desktop access.
+look/media. All **1,835 saved text DATs** passed the credential scan. A subsequent
+fresh-open runtime check passed **62 startup/persistence checks** with no native
+errors or warnings; all **4,307 runtime text DATs** passed the credential scan.
+The render GPU remained the RTX 3080 Ti Laptop GPU, with audience windows closed
+and audio disarmed.
+
+The personal main TOE was separately upgraded through a backed-up candidate.
+Its fresh-open validation passed **29 checks**, preserving both cues, **19 effect
+components** (values, modes, expressions and bindings) and **199 existing Show
+Control values**. All 24 embedded puppet runtimes received the existing preview
+clock correction; this removed three cook-dependency warnings reproduced in the
+untouched original. The upgraded candidate reopened without native errors or
+warnings before promotion to `TD_ImageFX_Library.toe`. The original file and
+private preservation reports remain local in `build/show-readiness/` and are not
+part of the clean publication artifact.
 
 ## Local-first verification policy — 2026-10-28
 
