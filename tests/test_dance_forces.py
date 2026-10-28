@@ -121,7 +121,8 @@ class DanceForcesTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             path=Path(folder)/'motion.json'; path.write_text(json.dumps(document()))
             got=show.resolve_force_files({'ink_dream_flow':{'Dancecache':'motion.json','Dancevideo':'removed.mp4'}},folder,modules=modules,toggles=toggles)
-            self.assertEqual(got['ink_dream_flow']['Dancecache'],str(path))
+            # Compare canonical paths, not the platform's temporary-dir alias.
+            self.assertEqual(got['ink_dream_flow']['Dancecache'],str(path.resolve()))
         modules['ink_dream_flow']['Dancesource']='live'
         show.resolve_force_files({},'.',modules=modules,toggles=toggles)
 

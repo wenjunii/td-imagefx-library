@@ -32,7 +32,8 @@ class PuppetShowTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             movie=Path(directory)/'rgba.mov'; movie.touch()
             result=show.resolve_puppet_files({'Renderfile':'rgba.mov','Dancevideo':'no-longer-present.mp4'},directory)
-            self.assertEqual(result['Renderfile'],str(movie))
+            # macOS /var aliases and Windows 8.3 temp paths resolve canonically.
+            self.assertEqual(result['Renderfile'],str(movie.resolve()))
             with self.assertRaises(ValueError): show.resolve_puppet_files({},directory)
 
     def test_only_passive_local_files(self):

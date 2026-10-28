@@ -11,6 +11,8 @@ artwork, prepared motion, camera session, model weights or credentials.
 - **717 portable tests** passed with NumPy 1.24.4 and again with NumPy 2.4.6;
   four Windows symlink-permission skips are expected. Both GitHub verification
   workflows now install the motion-math test dependency explicitly.
+  Two media-path assertions now compare canonical paths, covering macOS `/var`
+  aliases and Windows 8.3 temporary-directory names found by cross-platform CI.
 - **121 optional puppet tests** passed in the configured worker environment.
 - **29 blocking native groups / 6,609 checks** cover the complete control
   inventory, slider ranges/endpoints, menus, values, bindings and callbacks.
