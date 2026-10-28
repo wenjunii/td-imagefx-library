@@ -58,8 +58,11 @@ final performance. Envoy's `capture_top` quality verdict must pass, and the
 images still require visual inspection. A clean operator graph does not prove
 that a frame is visible or aesthetically correct.
 
-`check_td_bridge.py` separates local MCP/knowledge health from live Envoy
-health; add `--require-envoy` only after the harness is open and Embody's Envoy
+`check_td_bridge.py` runs in the bridge's own `td-knowledge-mcp/.venv` environment
+with MCP SDK 2.x, not the assistant's separate `venv`. It checks all six local
+tools, uses the current SDK result fields, and includes passive server health.
+It separates local MCP/knowledge health from live Envoy health; add
+`--require-envoy` only after the harness is open and Embody's Envoy
 switch is enabled. Its child-server output is quiet by default; add `--verbose`
 for MCP diagnostics. If Embody advances from port 9870 during a rapid restart,
 the bridge follows the active project-local registry entry automatically;
