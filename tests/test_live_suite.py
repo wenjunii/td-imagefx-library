@@ -83,10 +83,10 @@ class LiveSuiteTests(unittest.TestCase):
 
     def test_all_output_and_mapping_groups_are_included(self):
         names = [item[0] for item in audit.VALIDATORS]
-        self.assertEqual(len(names), 29)
-        self.assertEqual(len(set(names)), 29)
+        self.assertEqual(len(names), 30)
+        self.assertEqual(len(set(names)), 30)
         self.assertTrue({"output_mode", "projector_review", "projection_mapping",
-                         "projection_resets", "projection_polygon", "show_navigation"} <= set(names))
+                         "projection_resets", "projection_polygon", "show_navigation", "cue_interpolation"} <= set(names))
         self.assertIn(("projection_resets", "validate_projection_mapping.py", "validate_resets"),
                       audit.VALIDATORS)
 

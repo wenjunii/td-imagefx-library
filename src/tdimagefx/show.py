@@ -282,7 +282,7 @@ def new_cue():
     return {
         "id": uuid.uuid4().hex, "name": "New cue", "kind": "visual", "enabled": True,
         "source": "", "track": 1, "at": None, "prewait": 0.0, "duration": 10.0,
-        "fade": 1.0, "follow": "manual", "postwait": 0.0, "loop": False,
+        "fade": 1.0, "transition": "crossfade", "follow": "manual", "postwait": 0.0, "loop": False,
         "media_in": 0.0, "speed": 1.0, "gain": 0.7, "hold": True, "movie_audio": False,
         "target": "calligraphic_shadow/Particleamount", "value": 1.0,
         "easing": "smooth", "look": {}, "notes": "", "blackout_scope": "all",
@@ -318,6 +318,7 @@ def validate_cue(value):
         ("blackout_scope", {"all", "track"}),
         ("follow", {"manual", "continue", "follow"}),
         ("easing", {"linear", "smooth"}),
+        ("transition", {"crossfade", "interpolate"}),
     ):
         if not isinstance(result[field], str) or result[field] not in choices:
             raise ValueError(f"Invalid {field}")
@@ -393,6 +394,68 @@ def inverse_quad(corners):
                 scale = matrix[row][col]
                 matrix[row] = [a - scale*b for a, b in zip(matrix[row], matrix[col])]
     return tuple(matrix[i][8] for i in range(8)) + (1.0,)
+
+
+def look_interpolation_changes(before, after, prefix=""):
+    """Plan numeric changes only when both rendered looks share one topology.
+
+    Paths address existing custom parameters, never operator creation or files.
+    Animation phases deliberately remain on the outgoing, continuous clock.
+    Selectors, seeds, routing, assets and clock rates require a crossfade.
+    """
+    changes = []
+
+    def same(a, b, label):
+        if a != b:
+            raise ValueError(label + " changed")
+
+    def values(a, b, component):
+        same(set(a), set(b), component + " controls")
+        for name, target in b.items():
+            current = a[name]
+            if current == target and isinstance(current, bool) == isinstance(target, bool):
+                continue
+            if (name.lower().endswith("seed") or name in {"Timescale", "Time", "Manualtime", "Autotime", "Enabled"}
+                    or isinstance(current, bool) or isinstance(target, bool)
+                    or not isinstance(current, (int, float)) or not isinstance(target, (int, float))
+                    or not math.isfinite(current) or not math.isfinite(target)):
+                raise ValueError(component + "/" + name + " is a discrete or clock control")
+            changes.append((prefix + component, name, current, target))
+
+    ignored = {"modules", "rack", "branches", "animation"}
+    same({k: v for k, v in before.items() if k not in ignored},
+         {k: v for k, v in after.items() if k not in ignored}, "Routing, order or media")
+    old_clocks, new_clocks = before.get("animation", {}), after.get("animation", {})
+    for name in set(old_clocks) | set(new_clocks):
+        same(old_clocks.get(name, {}).get("running", True),
+             new_clocks.get(name, {}).get("running", True), name + " clock running state")
+    old_modules, new_modules = before.get("modules", {}), after.get("modules", {})
+    same(set(old_modules), set(new_modules), "Effect modules")
+    for name in new_modules:
+        values(old_modules[name], new_modules[name], name)
+    old_rack, new_rack = before.get("rack", {}), after.get("rack", {})
+    rack_ignored = {"name", "time", "autotime", "slots"}
+    same({k: v for k, v in old_rack.items() if k not in rack_ignored},
+         {k: v for k, v in new_rack.items() if k not in rack_ignored}, "Rack clock or format")
+    old_slots, new_slots = old_rack.get("slots", []), new_rack.get("slots", [])
+    same(len(old_slots), len(new_slots), "Rack slots")
+    for old, new in zip(old_slots, new_slots):
+        same({k: v for k, v in old.items() if k not in {"mix", "modulation", "parameters"}},
+             {k: v for k, v in new.items() if k not in {"mix", "modulation", "parameters"}}, "Rack package or enable")
+        index = new["index"]
+        values({"Slot{}mix".format(index): old["mix"]},
+               {"Slot{}mix".format(index): new["mix"]}, "fx_rack")
+        old_mod, new_mod = old.get("modulation", {}), new.get("modulation", {})
+        same(old_mod.get("state"), new_mod.get("state"), "Rack modulation mode")
+        values({"Slot{}mod{}".format(index, k): v for k, v in old_mod.items() if k != "state"},
+               {"Slot{}mod{}".format(index, k): v for k, v in new_mod.items() if k != "state"}, "fx_rack")
+        values(old.get("parameters", {}), new.get("parameters", {}), "fx_rack/slot{}".format(index))
+    old_branches, new_branches = before.get("branches", {}), after.get("branches", {})
+    same(set(old_branches), set(new_branches), "Composition branches")
+    for name in new_branches:
+        changes.extend(look_interpolation_changes(old_branches[name], new_branches[name],
+                       prefix + "image_composition/" + name + "/"))
+    return changes
 
 
 class CuePreparationBusy(ValueError):

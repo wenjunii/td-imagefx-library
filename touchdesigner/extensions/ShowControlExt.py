@@ -139,7 +139,7 @@ class ShowControlExt:
             "Postwait": "postwait", "Loop": "loop", "Mediain": "media_in", "Speed": "speed",
             "Gain": "gain", "Hold": "hold", "Target": "target", "Easing": "easing",
             "Cueenabled": "enabled", "Notes": "notes", "Movieaudio": "movie_audio",
-            "Blackoutscope": "blackout_scope",
+            "Blackoutscope": "blackout_scope", "Transition": "transition",
         }
         self._busy = True
         try:
@@ -204,7 +204,7 @@ class ShowControlExt:
             "Postwait": "postwait", "Loop": "loop", "Mediain": "media_in", "Speed": "speed",
             "Gain": "gain", "Hold": "hold", "Target": "target", "Easing": "easing",
             "Cueenabled": "enabled", "Notes": "notes", "Movieaudio": "movie_audio",
-            "Blackoutscope": "blackout_scope",
+            "Blackoutscope": "blackout_scope", "Transition": "transition",
         }
         for parameter, field in names.items():
             cue[field] = self._p(parameter)
@@ -1286,6 +1286,8 @@ class ShowControlExt:
         state = self.tracks.get(cue["track"])
         if not state:
             raise ValueError("Parameter cue needs a running visual track")
+        if state.get("interpolation") and state.get("fading"):
+            raise ValueError("Wait for parameter interpolation before starting parameter automation")
         node, name = self.model.parse_target(cue["target"])
         component = state["deck"].op(node)
         if component is None:
@@ -1297,12 +1299,68 @@ class ShowControlExt:
         self._validate_assignment(component, name, cue["value"])
         return p, old
 
+    def _start_interpolation(self, cue, item, old, elapsed):
+        """Adopt the running deck; preserve media, motion and feedback history."""
+        if cue.get("transition", "crossfade") != "interpolate":
+            return False
+        reason = None
+        if not old or old.get("finished"):
+            reason = "no running visual to interpolate"
+        elif (old.get("fading") or float(self._p("Track{}level".format(cue["track"]))) < .999999
+              or getattr(self, "_level_fades", {}).get(cue["track"], {}).get("target", 1) < 1):
+            reason = "track is fading or blacked out"
+        elif any(old["cue"][k] != cue[k] for k in ("source", "media_in", "speed", "loop", "movie_audio")) or cue["movie_audio"]:
+            reason = "media or embedded audio settings changed"
+        if reason is None:
+            try:
+                before = self._capture_look(old["deck"], active=False)
+                after = self._capture_look(item["deck"], active=False)
+                before["animation"] = old["deck"].fetch("imagefx_look_animation", {}, search=False)
+                after["animation"] = item["deck"].fetch("imagefx_look_animation", {}, search=False)
+                bindings = []
+                for path, name, current, target in self.model.look_interpolation_changes(before, after):
+                    component = old["deck"].op(path)
+                    parameter = self._validate_assignment(component, name, target)
+                    if parameter.isMenu or parameter.isToggle:
+                        raise ValueError(path + "/" + name + " is discrete")
+                    bindings.append((parameter, current, target, bool(parameter.isInt)))
+            except ValueError as exc:
+                reason = str(exc)
+        if reason is not None:
+            self._status("Crossfade fallback: " + reason)
+            return False
+        self._detach_running_look(old)
+        self._halt_deck(item)  # The prepared destination is now only a value source.
+        self._release_audio(old["cue"]["id"])
+        item.update(deck=old["deck"], deck_id=old["deck"].id, movie=old.get("movie"),
+                    side=old["side"], started=elapsed, old=None, finished=False,
+                    clock_started=old.get("clock_started", old["started"]),
+                    interpolation=bindings, fading=cue["fade"] > 0)
+        self.tracks[cue["track"]] = item
+        self.ownerComp.par["Track{}blend".format(cue["track"])] = item["side"]
+        self.automations = {key: value for key, value in self.automations.items() if value["cue"]["track"] != cue["track"]}
+        if cue["fade"] == 0:
+            self._interpolate_values(item, 1.0)
+        self._status("Parameter Interpolation: {} values over {:g} seconds".format(len(bindings), cue["fade"]))
+        return True
+
+    @staticmethod
+    def _interpolate_values(item, progress):
+        for parameter, old, target, integer in item.get("interpolation", ()):
+            value = target if progress >= 1 else old + (target - old) * progress
+            parameter.val = int(round(value)) if integer else value
+        if progress >= 1:
+            item["interpolation"] = []
+
     def start(self, cue, elapsed):
         item = self.prepared[cue["id"]]
         kind = cue["kind"]
         if kind == "visual":
             track = cue["track"]
             old = self.tracks.get(track)
+            if self._start_interpolation(cue, item, old, elapsed):
+                self.prepared.pop(cue["id"], None)
+                return
             if old is not None:
                 self._detach_running_look(old)
             self.ownerComp.op("track{}_source{}".format(track, item["side"])).par.top = item["deck"].op("out1_image").path
@@ -1380,7 +1438,11 @@ class ShowControlExt:
             cue = item["cue"]
             age = max(0, elapsed - item["started"])
             progress = 1.0 if cue["fade"] == 0 else self.model.ease(age / cue["fade"], cue["easing"])
-            self.ownerComp.par["Track{}blend".format(track)] = progress if item["side"] else 1.0 - progress
+            if "interpolation" in item:
+                self._interpolate_values(item, progress)
+                self.ownerComp.par["Track{}blend".format(track)] = item["side"]
+            else:
+                self.ownerComp.par["Track{}blend".format(track)] = progress if item["side"] else 1.0 - progress
             self.ownerComp.par["Track{}visible".format(track)] = True
             if item.get("old") and progress >= 1:
                 self._release_audio(item["old"]["cue"]["id"])
@@ -1389,7 +1451,7 @@ class ShowControlExt:
             item["fading"] = progress < 1
             for active in (item, item.get("old")):
                 if active:
-                    local_time = max(0, elapsed - active["started"])
+                    local_time = max(0, elapsed - active.get("clock_started", active["started"]))
                     for module in (*self.model.MODULES, "fx_rack"):
                         component = active["deck"].op(module)
                         if getattr(component.par, "Manualtime", None) is not None:
@@ -1433,6 +1495,8 @@ class ShowControlExt:
         if cue["kind"] == "visual":
             item = self.tracks.get(cue["track"])
             if item and item["cue"]["id"] == cue["id"]:
+                if "interpolation" in item:
+                    self._interpolate_values(item, 1.0)
                 self._detach_running_look(item)
                 if cue["hold"]:
                     # A disabled COMP can invalidate textures selected outside
