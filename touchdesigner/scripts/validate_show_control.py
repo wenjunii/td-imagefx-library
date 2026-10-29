@@ -450,7 +450,7 @@ def validate(write_report=True):
                   "Hold": ("hold", False), "Speed": ("speed", 1.5), "Gain": ("gain", .35),
                   "Target": ("target", "calligraphic_shadow/Particleamount"),
                   "Targetvalue": ("value", "0.4"), "Easing": ("easing", "linear"),
-                  "Blackoutscope": ("blackout_scope", "track"),
+                  "Blackoutscope": ("blackout_scope", "track"), "Transition": ("transition", "interpolate"),
                   "Notes": ("notes", "QA: no physical output")}
         for name, (_, value) in editor.items(): show.par[name] = value
         ext.ApplyCue()

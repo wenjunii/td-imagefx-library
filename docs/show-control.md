@@ -489,7 +489,8 @@ the stored cue intact. This editor requires a stopped show, not just Pause.
 | Timestamp | Blank = manual GO. Seconds or `HH:MM:SS.mmm` schedules one trigger relative to the show clock. The clock begins with the first GO. This is not wall-clock time, SMPTE or MIDI timecode. |
 | Pre-wait | Delay after manual/scheduled trigger before cue start. GO also waits for media readiness. |
 | Duration | Seconds after actual start. Zero holds indefinitely until replaced/stopped, except zero-duration parameter/stop actions are immediate. |
-| Fade | Visual crossfade, or audio fade-in and fade-out within its duration. |
+| Visual Transition | Crossfade blends the two images. Parameter Interpolation moves compatible effect values toward the incoming cue's look while continuing the running animation. |
+| Fade / Transition Seconds | Duration of the visual transition, or audio fade-in and fade-out within its duration. Zero changes immediately. |
 | Next Cue Behavior | Manual: no automatic next cue. Continue: trigger next after this cue starts + post-wait. Follow: trigger next after this cue finishes + post-wait. Follow requires a nonzero duration. |
 | Hold Visual At End | Freeze the final visual rather than clearing that track at cue duration. Embedded audio stops at that point. |
 | Media In / Loop / Speed | Start offset in seconds, looping, and video speed. Standalone audio uses its original speed. |
@@ -569,8 +570,26 @@ Brush/particle/glitter value and its ten radial controls. For example,
 Enable the module and desired glitter layer before Capture Look. Its radiation
 and glitter use the same pauseable cue clock as the other modules.
 
+To interpolate a saved look into another, select the **incoming Visual cue**,
+open **Cue Editor**, set **Visual Transition** to **Parameter Interpolation**,
+set **Fade / Transition Seconds** and **Easing** (Linear or Smooth), then
+**Apply Cue Edits** and **Save Show**. Preload and GO as usual. Numeric module
+controls, color components, rack mixes/effect controls, and independent A/B
+branch controls move together. Integer controls advance in whole steps.
+Pause/Resume also pauses/resumes the transition. The running deck, media
+playhead, procedural phase and feedback history continue through the handoff;
+the incoming cue's saved animation phase is used when it starts normally from
+black, not as a seek during interpolation.
+
+Both cues must have the same media/transport, effect order, enabled modules,
+rack packages, selectors, seeds, and clock rates. Changing those, starting from
+a held/stopped/blackout image, or using embedded movie audio falls back to a
+crossfade, with the reason in Status. Existing shows default to Crossfade.
+Wait for interpolation to finish before live editing, preloading another visual
+on that track, or starting parameter automation. Other tracks remain independent.
+
 To change whole effect combinations or module on/off states, capture a new
-Visual cue using the same media and crossfade into it. A new Visual cue cancels
+Visual cue and crossfade into it. A new Visual cue cancels
 parameter automation on its track. Parameter cues must follow the target Visual
 cue; don't rely on simultaneous scheduled entries to establish that dependency.
 

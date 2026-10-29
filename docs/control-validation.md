@@ -1,5 +1,51 @@
 # Control validation
 
+## Cue interpolation and full control recheck — 2026-10-29
+
+The clean publication project was rebuilt in TouchDesigner **2025.32820** on
+the **RTX 3080 Ti Laptop GPU**, separately from the operator's two-cue TOE.
+All **96 current effects** compiled with zero builder, shader or preview errors;
+all **124 immutable package versions** remain unchanged.
+
+- **781 portable tests** completed successfully, including 13 interpolation
+  regressions (four expected Windows symlink-permission skips). The local gate
+  also passed source/artifact hashes, credentials, manifests, gallery baselines,
+  regenerated benchmark documentation and immutable-history checks.
+- **30 native groups / 6,633 checks** passed for module controls, slider ranges,
+  values, menus, bindings, pulses, panel buttons, mapping and output modes.
+  The standard runner now includes **24 rendered interpolation checks**:
+  compatible deck/media/clock reuse, visible pixel changes, linear and smooth
+  easing, exact endpoints, pause/resume, zero-time transitions, consecutive
+  transitions, short held cues, safe topology fallback and editor round-trips.
+- **17 real-frame groups / 590 checks** passed for actual event delivery,
+  images/videos, Continue/Follow, cue playback, live/running look edits,
+  mapping, particle motion and feedback.
+- **12 additional groups / 926 checks** passed for dance-force response,
+  activation and pattern-space motion, puppet/layer controls, navigation and
+  export. **16 readiness checks** passed, including slider endpoints, all FPS
+  choices, 1/3/12-frame cue warm-up and recording cancellation.
+- **36 panoramic-preview checks** passed, followed by a visible maximize and
+  restore smoke test: the image stayed letterboxed, accessible and animated.
+- **26 completed export clips** passed independent ffprobe/ffmpeg checks for
+  codec, dimensions, FPS, frame count, full decoding and silent audio. Packed
+  wall clips also passed RGB quadrant-order and nonblank-confidence checks.
+- Fresh reopening passed **65 startup/persistence checks**, with no native
+  errors or warnings. All **4,307 embedded text DATs** passed the credential
+  scan; the clean artifact's hash was unchanged by the audits.
+
+The two 3-second UHD readiness recordings each decoded to 90 frames at 30 FPS
+and reported zero encoder drops. A separate 1-second H.264 wall test reported
+**one dropped frame**; its warning remains visible. The performance sampler
+also reported 11 timeline drops during startup. These short calibration tests
+do **not** certify sustained recording or heavy-effects show performance.
+
+Crossfade remains the default for old shows. Interpolation deliberately falls
+back to crossfade for incompatible media, topology, selectors, seeds, clocks,
+held/blackout tracks or embedded movie audio. Reports and test media remain
+local under ignored `build/`; private cues, media and credentials are not
+publication content. Physical projector/processor routing, live cameras and
+audible stereo playback still require a venue rehearsal.
+
 ## Full control and publication recheck — 2026-10-28
 
 The clean publication TOE was reopened and audited again, separately from the

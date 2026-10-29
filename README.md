@@ -8,6 +8,16 @@ The current source contains **96 current effect IDs across 18 categories**, back
 
 Canonical repository: [github.com/wenjunii/td-imagefx-library](https://github.com/wenjunii/td-imagefx-library)
 
+## Cue transitions
+
+Show Control's **Cue Editor > Visual Transition** offers **Crossfade** and
+**Parameter Interpolation**. Interpolation moves numeric effect and color values
+from the running look toward the incoming cue over **Fade / Transition Seconds**,
+using Linear or Smooth easing. Compatible looks keep their media playhead,
+animation phase and feedback history. Media, routing, seed or effect-selector
+changes use a crossfade. Old shows keep Crossfade by default. See
+[cue transition controls](docs/show-control.md#change-parameters-during-a-cue).
+
 ## Pre-show readiness and warm-up
 
 Show Control now has a **Pre-Show Check** section: check media/workflow paths,
@@ -478,7 +488,7 @@ git clone https://github.com/wenjunii/td-imagefx-library.git
 cd td-imagefx-library
 ```
 
-The clean Windows release build used TouchDesigner `2025.32820` and validated all 96 current effects with 124 versioned effect `.tox` files, nineteen core `.tox` files, one library `.toe`, 96 previews, 96 visual baselines, and 96 benchmark samples. That build report contains zero shader, preview, or builder errors. A fresh repository run completed 768 tests successfully, with four expected Windows symlink-permission skips; install `requirements-test.txt` first (NumPy is used by motion-math tests, not by the package core). The release TOE contains clean defaults, not personal cues, private character artwork or prepared motion media. In-place patches and saved personal cues are not a new full native-build certification; regenerate and validate distributable artifacts before publishing a release. Read [TouchDesigner setup](docs/touchdesigner-setup.md) to reproduce the native build and [control validation](docs/control-validation.md) for measured results and limits.
+The clean Windows release build used TouchDesigner `2025.32820` and validated all 96 current effects with 124 versioned effect `.tox` files, nineteen core `.tox` files, one library `.toe`, 96 previews, 96 visual baselines, and 96 benchmark samples. That build report contains zero shader, preview, or builder errors. A fresh repository run completed 781 tests successfully, with four expected Windows symlink-permission skips; install `requirements-test.txt` first (NumPy is used by motion-math tests, not by the package core). The release TOE contains clean defaults, not personal cues, private character artwork or prepared motion media. In-place patches and saved personal cues are not a new full native-build certification; regenerate and validate distributable artifacts before publishing a release. Read [TouchDesigner setup](docs/touchdesigner-setup.md) to reproduce the native build and [control validation](docs/control-validation.md) for measured results and limits.
 
 The generated project targets TouchDesigner 2025. Validate the exact TouchDesigner build, operating system, GPU, driver, resolution, pixel format, and color pipeline used by your production system. Python 3.11 or newer is required for repository tooling; it is not required merely to use already-built native components.
 
@@ -971,8 +981,8 @@ exec(compile(open(script, encoding="utf-8").read(), script, "exec"), scope)
 
 Copying `globals()` is required because rendered-pixel QA uses
 TouchDesigner-provided objects including `op`, `app`, `root`, `textDAT`, and
-`glslTOP`. The runner executes all 29 blocking validator groups, including
-Output Mode, Projector Review, projection mapping, every mapping reset and
+`glslTOP`. The runner executes all 30 blocking validator groups, including
+cue interpolation, Output Mode, Projector Review, projection mapping, every mapping reset and
 custom polygon masks and Go Back/blackout navigation. It continues long
 enough to report every failure, writes the ignored
 `build/envoy-validation/live-suite.json` summary plus each validator's normal

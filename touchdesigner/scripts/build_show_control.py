@@ -117,7 +117,9 @@ def build_show_control(demo, context):
     parameter("Cue Editor", "Mediafile", "file", "", label="Image / Video / Audio File")
     parameter("Cue Editor", "Track", "int", 1, 1, 3, label="Visual / Audio Track")
     parameter("Cue Editor", "Timestamp", "string", "", label="Show Timestamp (blank = manual GO)")
-    for name, default, label in (("Prewait",0,"Pre-wait Seconds"),("Duration",10,"Duration (0 = indefinite)"),("Fade",1,"Fade Seconds"),("Postwait",0,"Post-wait Seconds"),("Mediain",0,"Media In Point (seconds)")):
+    menu("Cue Editor", "Transition", ["crossfade", "interpolate"], "crossfade", label="Visual Transition")
+    show.par.Transition.menuLabels = ["Crossfade", "Parameter Interpolation"]
+    for name, default, label in (("Prewait",0,"Pre-wait Seconds"),("Duration",10,"Duration (0 = indefinite)"),("Fade",1,"Fade / Transition Seconds"),("Postwait",0,"Post-wait Seconds"),("Mediain",0,"Media In Point (seconds)")):
         parameter("Cue Editor", name, default=default, maximum=86400,
                   norm_max=300 if name in {"Duration", "Mediain"} else 10, label=label)
     menu("Cue Editor", "Follow", ["manual", "continue", "follow"], "manual", label="Next Cue Behavior")
@@ -381,6 +383,21 @@ def build_show_control(demo, context):
     exec(compile(layout_path.read_text(encoding="utf-8"), str(layout_path), "exec"), layout_scope)
     layout_scope["install"](show)
     return show
+
+
+def install_transition_controls(show):
+    """Add the transition selector to an existing stopped show, preserving cues."""
+    page = next(p for p in show.customPages if p.name == "Cue Editor")
+    if show.par["Transition"] is None:
+        parameter = page.appendMenu("Transition", label="Visual Transition")[0]
+        parameter.menuNames = ["crossfade", "interpolate"]
+        parameter.default = parameter.val = "crossfade"
+    show.par.Transition.menuNames = ["crossfade", "interpolate"]
+    show.par.Transition.menuLabels = ["Crossfade", "Parameter Interpolation"]
+    show.par.Fade.label = "Fade / Transition Seconds"
+    names = [p.name for p in page.pars if p.name != "Transition"]
+    names.insert(names.index("Fade"), "Transition")
+    page.sort(*names)
 
 
 def install_navigation_controls(show):
