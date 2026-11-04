@@ -8,6 +8,24 @@ The current source contains **96 current effect IDs across 18 categories**, back
 
 Canonical repository: [github.com/wenjunii/td-imagefx-library](https://github.com/wenjunii/td-imagefx-library)
 
+## Task cleanup
+
+After verification, remove known disposable task files without another prompt:
+one-off scripts, scratch copies, completed installer archives, abandoned partial
+downloads and regenerable test files. Check exact targets and dependencies first;
+age alone does not establish that a file is unused. Prefer the Recycle Bin and
+report material cleanup. Keep source, cues, media, backups, active/shared models
+and runtime environments. This is task-completion housekeeping, not a background
+schedule or an in-show action.
+
+New disposable files belong under `build/task-artifacts/<task>/`.
+`tools/task_cleanup.py` records exact targets and fingerprints, previews cleanup
+by default, and requires `clean <task> --apply --verified` to request the Windows
+Recycle Bin. It refuses changed files, links, tracked files and paths outside
+that task's folder; it has no permanent-delete fallback. See
+[safe cleanup usage and limits](docs/task-cleanup.md). Never delete all of
+`build/` or `.imagefx/`: they also contain required runtime data.
+
 ## Cue transitions
 
 Show Control's **Cue Editor > Visual Transition** offers **Crossfade** and
@@ -488,7 +506,7 @@ git clone https://github.com/wenjunii/td-imagefx-library.git
 cd td-imagefx-library
 ```
 
-The clean Windows release build used TouchDesigner `2025.32820` and validated all 96 current effects with 124 versioned effect `.tox` files, nineteen core `.tox` files, one library `.toe`, 96 previews, 96 visual baselines, and 96 benchmark samples. That build report contains zero shader, preview, or builder errors. A fresh repository run completed 781 tests successfully, with four expected Windows symlink-permission skips; install `requirements-test.txt` first (NumPy is used by motion-math tests, not by the package core). The release TOE contains clean defaults, not personal cues, private character artwork or prepared motion media. In-place patches and saved personal cues are not a new full native-build certification; regenerate and validate distributable artifacts before publishing a release. Read [TouchDesigner setup](docs/touchdesigner-setup.md) to reproduce the native build and [control validation](docs/control-validation.md) for measured results and limits.
+The clean Windows release build used TouchDesigner `2025.32820` and validated all 96 current effects with 124 versioned effect `.tox` files, nineteen core `.tox` files, one library `.toe`, 96 previews, 96 visual baselines, and 96 benchmark samples. That build report contains zero shader, preview, or builder errors. A fresh repository run completed 811 tests successfully; Windows environments without symlink permissions may skip four link tests. Install `requirements-test.txt` first (NumPy is used by motion-math tests, not by the package core). The release TOE contains clean defaults, not personal cues, private character artwork or prepared motion media. In-place patches and saved personal cues are not a new full native-build certification; regenerate and validate distributable artifacts before publishing a release. Read [TouchDesigner setup](docs/touchdesigner-setup.md) to reproduce the native build and [control validation](docs/control-validation.md) for measured results and limits.
 
 The generated project targets TouchDesigner 2025. Validate the exact TouchDesigner build, operating system, GPU, driver, resolution, pixel format, and color pipeline used by your production system. Python 3.11 or newer is required for repository tooling; it is not required merely to use already-built native components.
 
