@@ -1,5 +1,25 @@
 # Control validation
 
+## Cleanup tooling and documentation — 2026-11-03
+
+This source-only maintenance update changes no TOE/TOX, shader, cue, media,
+effect parameter or playback behavior. Native artifact hashes and all 124
+immutable package versions remain unchanged.
+
+The local safety gate passed **811 portable tests**, with no skips in this run.
+The 30 new cleanup tests cover dry-run defaults, explicit verification, path
+containment, modified/missing files, directory contents, tracked descendants,
+links/reparse points, shared hard links, protected models/environments, metadata,
+failure handling and literal Windows argument passing. The actual Windows smoke
+test recycled two task-created fixtures (a quoted filename and a nested folder,
+89 bytes total), retained metadata and recorded no remaining targets.
+
+The helper is limited to explicitly registered files in a dedicated ignored
+task-artifact folder. It does not discover dependencies or run in the background;
+verification and dependency review are required before apply. Native show/control
+evidence below is retained from the unchanged October 29 build, not represented
+as a new physical-output or GPU-render validation.
+
 ## Cue interpolation and full control recheck — 2026-10-29
 
 The clean publication project was rebuilt in TouchDesigner **2025.32820** on

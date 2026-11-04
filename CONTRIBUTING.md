@@ -41,6 +41,21 @@ Before committing, stage only intended files and run
 by the tracked-file credential scan until they are added to the index. Never
 stage private show media, credentials, local caches or personal TOE backups.
 
+## Cleanup after a verified task
+
+Clean known disposable artifacts created/downloaded for the task once verification
+is complete. No extra confirmation is needed for this routine scope. Check exact
+targets and dependencies; neither age nor absence from the current workflow proves
+that a file is unused. Prefer the Recycle Bin, never empty it automatically, and
+briefly report material cleanup, approximate size and recoverability.
+
+Keep source, reference inputs, user outputs, cues, backups, shared/active models
+and required environments. A retired workflow's exclusive model downloads may be
+cleaned only after checking for shared dependencies. Ambiguous assets stay put.
+This policy adds no background schedule, GitHub job or runtime cleanup callback.
+Use the guarded, dry-run-first [task cleanup helper](docs/task-cleanup.md) for new
+scratch artifacts. Do not run cleanup on the render thread or during a show.
+
 ## Low-usage GitHub policy
 
 - **Verify repository** runs one Ubuntu/Python 3.11 job for each pull-request
