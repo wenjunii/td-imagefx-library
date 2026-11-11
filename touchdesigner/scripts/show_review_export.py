@@ -41,6 +41,11 @@ EXPORT_SOURCES = (
     ('review', 'Projector Review / Real-Time'),
 )
 REALTIME_SOURCES = ('wall', 'review')
+LIVE_ENCODER_QUALITIES = (
+    ('balanced', 'Balanced / Real-Time (recommended)'),
+    ('fast', 'Fast / More GPU Headroom'),
+    ('high', 'High Quality / More GPU Cost'),
+)
 EXPORT_CHANNELS = (
     ('canvas', 'Full Cue Canvas / No Projector Split'),
     ('cue', 'Follow Cue Projection Routing / Separate Files'),
@@ -436,7 +441,7 @@ def _later(show):
                fromOP=show)
 
 
-def wall_export_target(show):
+def wall_export_target(show, cook=True):
     wall = show.parent().op('wall_output')
     if wall is None:
         raise ValueError('Wall Output is unavailable')
@@ -445,7 +450,8 @@ def wall_export_target(show):
     target = wall.op('out1_wall_4k')
     if target is None or target.family != 'TOP':
         raise ValueError('The packed 2x2 wall TOP is unavailable')
-    target.cook(force=True)
+    if cook:
+        target.cook(force=True)
     if (target.width, target.height) != (3840, 2160):
         raise ValueError('Wall recording requires a 3840 x 2160 TOP; check license/resolution')
     errors = target.errors(recurse=True)
@@ -596,11 +602,24 @@ def _writer(parent, target, path, settings, name='export_writer'):
     writer.par.resolutionw, writer.par.resolutionh = settings['width'], settings['height']
     writer.par.resmult = False
     writer.par.audiochop = ''
-    # Keep the requested first input frame when opening the encoder. This can
-    # stall briefly; it does not guarantee subsequent real-time throughput.
+    # Preserve the first image and exact file length. This can still cause a
+    # startup repeat in real-time mode; never hide it with an asynchronous open
+    # that omits head frames while its progress counter claims a complete file.
     if getattr(writer.par, 'stallforopen', None) is not None:
         writer.par.stallforopen = True
     if live:
+        # TD defaults to high quality and four B-frames, which can saturate
+        # NVENC at 60 FPS on a wide review canvas. This is a visible operator
+        # choice, never a resolution/FPS reduction or CPU encoder fallback.
+        quality = settings.get('live_quality', 'balanced')
+        if quality not in dict(LIVE_ENCODER_QUALITIES):
+            raise ValueError('Choose a valid Live Encoder Quality')
+        quality_par = getattr(writer.par, 'qualitymode', None)
+        options = getattr(quality_par, 'menuNames', None)
+        if isinstance(options, (list,tuple)) and quality in options:
+            writer.par.qualitymode = quality
+        if getattr(writer.par, 'maxbframes', None) is not None:
+            writer.par.maxbframes = 0
         writer.par.limitlength = True
         # TD's frame unit uses the project rate, not Movie FPS. Seconds keeps
         # the requested duration correct at (for example) 30 FPS in a 60 Hz project.
@@ -610,8 +629,11 @@ def _writer(parent, target, path, settings, name='export_writer'):
         # from a local Select TOP instead of attempting an invalid direct wire.
         source = parent.create(td.selectTOP, 'export_source')
         source.par.top = target.path
+        needs_pad = (settings['width'],settings['height']) != (target.width,target.height)
         target = source
-        if settings['source'] == 'review':
+        # An exact-size review is already fitted. Another full-canvas pass at
+        # 5760x1080 wastes bandwidth; only odd native sizes need the even pad.
+        if settings['source'] == 'review' and needs_pad:
             code = parent.create(td.textDAT, 'review_recording_code')
             code.text = CHANNEL_SHADER
             canvas = parent.create(td.glslTOP, 'review_recording_canvas')
@@ -654,6 +676,11 @@ def start_export(show):
     panorama = current_panorama_size(show) if not live and values[1] == 'panoramic' else (5760, 1080)
     dimensions = (target.width, target.height) if values[0] == 'review' else (864,162)
     settings = export_settings(*values, panorama=panorama, review_size=dimensions)
+    if live:
+        quality = getattr(show.par, 'Liveencoderquality', None)
+        settings['live_quality'] = quality.eval() if quality is not None else 'balanced'
+        if settings['live_quality'] not in dict(LIVE_ENCODER_QUALITIES):
+            raise ValueError('Choose a valid Live Encoder Quality')
     warmup = getattr(show.par, 'Wallrecordwarmup', None)
     settings['warmup'] = wall_warmup_seconds(warmup.eval() if warmup is not None else 2) if live else 0
     cue = None if live else selected_snapshot(show, settings['source'])
@@ -806,11 +833,16 @@ def finish_export(show, outcome):
 
 def _wall_counts(job):
     job['info'].cook(force=True)
+    previous_dropped = job.get('dropped', 0)
     for key, channel in (('index', 'total_frames_written'), ('dropped', 'total_frames_dropped')):
         value = job['info'][channel]
         if value is None:
             raise ValueError('Encoder progress channel unavailable: ' + channel)
         job[key] = int(value[0])
+    if job['dropped'] > previous_dropped:
+        events = job.setdefault('drop_events', [])
+        if len(events) < 16:
+            events.append(dict(written=job['index'], dropped=job['dropped']))
 
 
 def stop_wall_export(show):
@@ -827,18 +859,20 @@ def _wall_step(show, job):
     if job['settings'].get('source', 'wall') == 'review':
         if review_selection(show) != job['review_view'] or show.par.Reviewroute.eval() != job['review_route']:
             raise ValueError('Projector Review view/output route changed during recording')
-        target = review_export_target(show)
+        target = review_export_target(show, cook=False)
         if target != job['target'] or (target.width,target.height) != job['review_dimensions']:
             raise ValueError('Projector Review target/resolution changed during recording')
         label = 'Projector Review ' + job['review_view']
     else:
-        if wall_export_target(show) != job['target']:
+        if wall_export_target(show, cook=False) != job['target']:
             raise ValueError('Wall output changed during recording')
         label = '2x2 wall + confidence'
     writer, settings = job['writer'], job['settings']
     if job['stage'] == 'warming':
-        # Target was cooked above. Spread GPU/media warm-up over actual frames,
-        # not a tight loop, and never seek or change a cue to create the pre-roll.
+        # Warm the WHOLE local capture branch (including any padding shader),
+        # not just its source. Normal cooks reuse this frame's rendered textures.
+        # Never force a second traversal of the live effect graph for validation.
+        writer.cook(force=False)
         import td
         frame = td.absTime.frame
         if job.get('warm_frame') != frame:
@@ -849,7 +883,7 @@ def _wall_step(show, job):
             remaining,job['warm_frames'])
         if remaining == 0 and job['warm_frames'] >= 2:
             writer.par.record = True
-            writer.cook(force=True)
+            writer.cook(force=False)
             if writer.errors():
                 raise ValueError(str(writer.errors()))
             job['stage'] = 'recording'
@@ -857,7 +891,7 @@ def _wall_step(show, job):
             show.par.Exportstatus = 'RECORDING {} — ready for GO; silent, real-time'.format(label)
         _later(show)
         return
-    writer.cook(force=True)
+    writer.cook(force=False)
     if writer.errors():
         raise ValueError(str(writer.errors()))
     _wall_counts(job)
@@ -1129,6 +1163,8 @@ def install(show):
     for name, label, default in [('Exportwidth','Width',1920), ('Exportheight','Height',1080)]:
         par(p, name, label, 'Int', default, (16,4096)).enableExpr = "not me.par.Exportbusy and me.par.Exportsource not in ('wall','review') and me.par.Exportresolution == 'custom'"
     par(p, 'Exportfps', 'Frames / Second', 'Menu', '30', menu=[(str(n),str(n)) for n in (24,25,30,50,60)])
+    quality = par(p, 'Liveencoderquality', 'Live Encoder Quality', 'Menu', 'balanced', menu=LIVE_ENCODER_QUALITIES)
+    quality.enableExpr = "not me.par.Exportbusy and me.par.Exportsource in ('wall','review') and me.par.Exportcodec in ('h264','h265')"
     par(p, 'Exportduration', 'Duration (seconds)', 'Float', 10, (.02,3600))
     par(p, 'Exportstart', 'Effect Start (seconds)', 'Float', 0, (0,86400))
     warmup = par(p, 'Wallrecordwarmup', 'Live Render Warm-up (seconds)', 'Float', 2, (0,10))

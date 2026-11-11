@@ -396,6 +396,8 @@ Hap Alpha preparation pipeline is unchanged.
    Mode). Confirm that the picture is what you want to record.
 2. In **Export Video → Export Source**, choose **Projector Review / Real-Time**.
    Choose an export folder, codec, FPS, maximum duration and **Live Render Warm-up**.
+   For H.264/H.265, start with **Live Encoder Quality → Balanced**; Fast provides
+   more headroom, while High costs more GPU time. Offline quality is unchanged.
    The canvas readout shows the selected view and its native recording dimensions.
 3. Close physical output windows, then press **Export Video (Silent)**. Wait for
    **RECORDING** before GO if you want to include a cue from its beginning.
@@ -451,8 +453,11 @@ into the file. The confidence preview and current diagnostics are recorded too.
    the cue's beginning. Existing playback continues through warm-up; it is not
    rewound or paused. Even at zero seconds, preparation spans two rendered frames.
    You can run/advance/pause cues during recording; the recorder never does this
-   automatically. Encoder startup preserves the first input frame, but can still
-   cause a brief stall; the actual dropped-frame count remains visible.
+   automatically. Encoder startup preserves the first image and exact file
+   length but can still repeat a frame at 60 FPS. The actual drop count remains
+   visible; it is not cleared or hidden. Offline cue export is frame-stepped.
+   Use **Live Encoder Quality → Balanced** (default), Fast for more headroom,
+   or High for greater quality/cost. Live H.264/H.265 uses zero B-frames.
 5. Recording finishes at the selected length. **Stop Recording & Save**
    finalizes a shorter usable file. **Cancel Export** keeps any partial file
    but labels it incomplete. Check **Export Status** and **Last Output File**.

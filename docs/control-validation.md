@@ -1,5 +1,45 @@
 # Control validation
 
+## Live recorder cadence follow-up — 2026-11-11
+
+Synthetic moving 1920×1080 feeds were recorded through the real packed-wall and
+full-size review paths on the RTX 3080 Ti Laptop GPU. The initial five-second
+60 FPS capture reported **1 startup repeat for the 3840×2160 wall**, and
+**21 repeats for 5760×1080 Projector Review**. At 30 FPS both reported zero.
+
+The live H.264/H.265 writer now defaults to an explicit **Balanced** encoder
+quality and zero B-frames, with Fast/High choices. Offline encoding is unchanged.
+The recorder reuses normal frame cooks, avoids an unnecessary exact-size review
+padding pass, and warms its whole local rendering branch. A balanced ten-second
+60 FPS trace reduced review repeats to **1 at startup**; the wall also reported
+**1 at startup**. No later drops occurred in that test. The warning is retained.
+These results are an improvement, **not a drop-free 60 FPS qualification**.
+
+The final built-runtime test produced four independently decoded ten-second
+movies: 600 frames at 60 FPS and 300 at 30 FPS, at the exact wall/review sizes,
+with no audio. Both 60 FPS captures reported one repeat at frame 3 and no later
+drops; both 30 FPS captures reported zero. All 69 native review/export control
+checks passed, including early stop and view-change rejection. The clean native
+rebuild has zero builder/shader/preview errors, and the full repository gate
+passes with 916 tests and source/native artifact hashes matched.
+
+Asynchronous encoder opening was tested and rejected: although the native drop
+counter read zero, independent decoding found only 597/598 frames instead of 600.
+It is not shipped. Paused/first-frame handoff experiments were also discarded.
+The production path retains blocking file-open so head frames are not omitted.
+Use 30 FPS for the verified live capture setting, or the existing frame-stepped
+offline cue/draft exporter when exact frame rendering is required. Whole-show
+wall/review capture remains real-time; selecting 60 FPS cannot make a slow
+effect combination render 60 unique pictures every second.
+
+`validate_live_recording_cadence.py` is an off-air, disposable-copy benchmark;
+it records no physical displays/audio, performs no GPU pixel readbacks during
+capture, records drop timing, checks the quality menu and zero warm-up frames,
+and preserves the original cues/private show. Reports and decoder evidence are
+kept in `build/recording-cadence/` and `build/recording-fix-20261111/` locally.
+The portable suite now contains **916 tests**. Full-show/hardware rehearsal is
+still required; this synthetic benchmark does not qualify every saved cue.
+
 ## Clean build and complete control recheck — 2026-11-11
 
 Rebuilt the distributable in a blank TouchDesigner 2025.32820 project on the

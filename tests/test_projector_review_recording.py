@@ -91,7 +91,7 @@ class ProjectorReviewRecordingTests(unittest.TestCase):
 
     def test_review_writer_is_real_time_silent_and_local(self):
         parent=Mock();writer,selector,code,canvas=Mock(),Mock(),Mock(name='review-code'),Mock()
-        parent.create.side_effect=[writer,selector,code,canvas]
+        parent.create.side_effect=[writer,selector]
         writer.par.videocodec.menuNames=['mjpa','h264']
         writer.inputConnectors=[Mock()];selector.outputConnectors=[Mock()]
         canvas.inputConnectors=[Mock()];canvas.outputConnectors=[Mock()]
@@ -101,12 +101,52 @@ class ProjectorReviewRecordingTests(unittest.TestCase):
             review._writer(parent,target,Path('review.mov'),self.settings())
         self.assertEqual(writer.par.type,'movie')
         self.assertFalse(writer.par.pause)
+        self.assertTrue(writer.par.stallforopen)
         self.assertFalse(writer.par.record)
         self.assertEqual(writer.par.audiochop,'')
         self.assertEqual(selector.par.top,target.path)
-        self.assertEqual((canvas.par.resolutionw,canvas.par.resolutionh),(864,162))
-        self.assertEqual((canvas.par.vec0valuex,canvas.par.vec0valuey),(0,1))
+        self.assertEqual(parent.create.call_count,2)
+        selector.outputConnectors[0].connect.assert_called_once_with(writer.inputConnectors[0])
         self.assertEqual(writer.par.lengthunit,'seconds')
+
+    def test_only_odd_review_sizes_add_a_padding_pass(self):
+        parent=Mock();writer,selector,code,canvas=Mock(),Mock(),Mock(),Mock()
+        parent.create.side_effect=[writer,selector,code,canvas]
+        writer.par.videocodec.menuNames=['mjpa']
+        writer.inputConnectors=[Mock()];selector.outputConnectors=[Mock()]
+        canvas.inputConnectors=[Mock()];canvas.outputConnectors=[Mock()]
+        target=self.target();target.width,target.height=863,161
+        kinds=SimpleNamespace(moviefileoutTOP='movie',selectTOP='select',textDAT='text',glslTOP='glsl')
+        with patch.dict('sys.modules',{'td':kinds}):
+            review._writer(parent,target,Path('review.mov'),self.settings())
+        self.assertEqual(parent.create.call_count,4)
+        self.assertEqual((canvas.par.resolutionw,canvas.par.resolutionh),(864,162))
+
+    def test_live_encoder_quality_is_explicit_and_keeps_requested_fps_and_size(self):
+        for quality in dict(review.LIVE_ENCODER_QUALITIES):
+            with self.subTest(quality=quality):
+                parent=Mock();writer,selector=Mock(),Mock()
+                parent.create.side_effect=[writer,selector]
+                writer.par.videocodec.menuNames=['h265']
+                writer.par.qualitymode.menuNames=list(dict(review.LIVE_ENCODER_QUALITIES))
+                writer.inputConnectors=[Mock()];selector.outputConnectors=[Mock()]
+                settings=self.settings(codec='h265',fps=60,review_size=(5760,1080))
+                settings['live_quality']=quality
+                target=self.target();target.width,target.height=5760,1080
+                with patch.dict('sys.modules',{'td':SimpleNamespace(moviefileoutTOP='movie',selectTOP='select')}):
+                    review._writer(parent,target,Path('review.mp4'),settings)
+                self.assertEqual(writer.par.qualitymode,quality)
+                self.assertEqual(writer.par.maxbframes,0)
+                self.assertEqual(writer.par.fps,60)
+                self.assertEqual((writer.par.resolutionw,writer.par.resolutionh),(5760,1080))
+
+    def test_invalid_live_quality_is_rejected(self):
+        parent=Mock();writer=Mock();parent.create.return_value=writer
+        writer.par.videocodec.menuNames=['mjpa']
+        settings=self.settings();settings['live_quality']='typo'
+        with patch.dict('sys.modules',{'td':SimpleNamespace(moviefileoutTOP='movie')}):
+            with self.assertRaisesRegex(ValueError,'Live Encoder Quality'):
+                review._writer(parent,self.target(),Path('review.mov'),settings)
 
     def test_review_step_uses_live_path_without_seeking_effects(self):
         show=Mock();job=self.job();show.fetch.return_value=job
@@ -143,6 +183,13 @@ class ProjectorReviewRecordingTests(unittest.TestCase):
             review._wall_step(show,job)
         self.assertIn('5/30 frames | 2 dropped',show.par.Exportstatus)
         self.assertEqual(job['index'],5)
+
+    def test_live_recording_reuses_current_frame_instead_of_forcing_render(self):
+        show=Mock();job=self.job();show.par.Reviewroute.eval.return_value='atlas'
+        with patch.object(review,'_export_windows',return_value=[]),patch.object(review,'review_selection',return_value='all'),patch.object(review,'review_export_target',return_value=job['target']) as target,patch.object(review,'_wall_counts'),patch.object(review,'_later'):
+            review._wall_step(show,job)
+        target.assert_called_once_with(show,cook=False)
+        job['writer'].cook.assert_called_once_with(force=False)
 
     def test_complete_status_identifies_review_view_and_native_resolution(self):
         with tempfile.TemporaryDirectory() as directory:

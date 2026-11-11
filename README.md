@@ -266,6 +266,13 @@ this is silent rehearsal capture, not an offline whole-show render.
 Projector Review (three-up, one projector, confidence or the full wall) at its
 native resolution. It includes displayed mapping/blackouts, not Show Control UI,
 and supports warm-up, Stop Recording & Save and dropped-frame reporting.
+For live H.264/H.265 capture, **Live Encoder Quality → Balanced** is the default;
+Fast provides more encoding headroom, and High retains the costlier quality mode.
+Live capture uses zero B-frames and avoids redundant full-canvas rendering.
+Wait for **RECORDING** before GO. Encoder opening can still cause a startup repeat;
+the actual dropped-frame count is retained, not cleared or concealed.
+This does not lower resolution/FPS or change offline export quality. A 60 FPS
+setting is not a guarantee: the live effects and encoder must both sustain it.
 In **Projector Review → Three-Up Resolution / Per Projector**, choose 720p,
 1080p (default: **5760×1080** total), 4K per projector, native feeds or custom
 cells. Enlarged review/recording uses the full-quality branch; the small embedded
@@ -552,7 +559,7 @@ cd td-imagefx-library
 
 The clean Windows release build used TouchDesigner `2025.32820` and validated all 96 current effects with 124 versioned effect `.tox` files, nineteen core `.tox` files, one library `.toe`, 96 previews, 96 visual baselines, and 96 benchmark samples.
 That build report contains zero shader, preview, or builder errors.
-A fresh repository run completed 912 tests successfully; Windows environments
+A fresh repository run completed 916 tests successfully; Windows environments
 without symlink permissions may skip four link tests. The retired dance-driven
 backdrop remains source/test-only and is not installed in the main TOE.
 Install `requirements-test.txt` first (NumPy is used by motion-math tests, not by
@@ -1154,6 +1161,7 @@ session, never while a show is playing:
 | `validate_show_file_limits.py` | Generated show larger than 8 MiB, safe load/save and backup round trip |
 | `validate_projection_export.py` | Actual synchronized projector-channel movies and panorama slices |
 | `validate_review_recording.py` | Review quality presets, full-size H.265 recording, early stop and view-change guard |
+| `validate_live_recording_cadence.py` | Off-air moving wall/review 30/60 FPS benchmark, encoder quality and drop timing |
 | `validate_show_review_export.py` | Cue/draft/flow exports, aspect preservation and full-resolution review color order |
 | `validate_show_readiness.py` | Pre-show controls, performance sampling and wall warm-up/recording |
 
