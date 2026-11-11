@@ -9,6 +9,14 @@ from touchdesigner.scripts import validate_show_review_export as validation
 
 
 class ReviewExportTests(unittest.TestCase):
+    def test_native_review_validation_samples_full_size_cells(self):
+        for width in (864, 3840, 4500, 5760, 11520):
+            cells = [validation.review_cell_range(width, index) for index in range(3)]
+            self.assertEqual(cells, [(0, width//3), (width//3, 2*width//3), (2*width//3, width)])
+        for width, index in ((0, 0), (1000, 0), (5760, -1), (5760, 3)):
+            with self.assertRaises(ValueError):
+                validation.review_cell_range(width, index)
+
     def test_flow_export_fixtures_cover_all_three_modules(self):
         self.assertEqual(validation.FLOW_MODULES, (
             'ink_dream_flow', 'ink_brush_flow', 'ink_radial_flow'))
@@ -131,6 +139,7 @@ class ReviewExportTests(unittest.TestCase):
     def test_wall_writer_bridges_comp_boundary_with_local_select(self):
         parent, writer, selector, target = Mock(), Mock(), Mock(), Mock(path='/demo/wall/out1_wall_4k')
         parent.create.side_effect = [writer, selector]
+        writer.par.videocodec.menuNames = ['mjpa', 'h264', 'h265']
         writer.inputConnectors = [Mock()]
         selector.outputConnectors = [Mock()]
         with patch.dict('sys.modules', {'td': SimpleNamespace(moviefileoutTOP='movie', selectTOP='select')}):

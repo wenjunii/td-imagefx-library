@@ -5,14 +5,14 @@ DEFAULT_ORDER = (
     "reference_particle_field", "calligraphic_shadow", "ink_orbit_canvas",
     "ink_dream_flow", "ink_brush_flow", "ink_radial_flow", "ink_flow",
     "particle_random_move", "glitch_fusion", "color_adjustment", "color_switch", "motion_studio",
-    "fx_rack", "image_composition", "layer_composite", "final_crop",
+    "fx_rack", "image_composition", "dance_puppet", "layer_composite", "final_crop",
 )
 LABELS = ("Chromatic Particle Field", "Calligraphic Shadow", "Ink Orbit Canvas",
           "Ink Dream Flow", "Ink Brush Flow", "Ink Radial Flow", "Ink Flow Fusion",
           "Random Particles", "Glitch Fusion", "Color Adjustment", "Color Switch", "Motion Studio",
-          "Eight-Slot FX Rack", "Two-Image Composition", "Layer Composite", "Final Crop")
+          "Eight-Slot FX Rack", "Two-Image Composition", "Dance Puppet", "Layer Composite", "Final Crop")
 BRANCH_ORDER = tuple(name for name in DEFAULT_ORDER if name != "image_composition")
-LEGACY_ORDER = tuple(name for name in DEFAULT_ORDER if name not in {"color_switch", "image_composition"})
+LEGACY_ORDER = tuple(name for name in DEFAULT_ORDER if name not in {"color_switch", "image_composition", "dance_puppet"})
 MODULE_TOGGLES = {
     "reference_particle_field": "Referenceparticlefieldenabled",
     "calligraphic_shadow": "Calligraphicshadowenabled", "ink_orbit_canvas": "Inkorbitenabled",
@@ -23,6 +23,7 @@ MODULE_TOGGLES = {
     "layer_composite": "Layercompositeenabled", "final_crop": "Finalcropenabled",
     "color_switch": "Colorswitchenabled", "image_composition": "Imagecompositionenabled",
     "fx_rack": "Applyvideofx",
+    "dance_puppet": "Dancepuppetenabled",
 }
 
 
@@ -35,6 +36,10 @@ def validate_order(order, branch=False):
         order = list(order)
         order.insert(order.index("color_adjustment")+1, "color_switch")
         if not branch: order.insert(order.index("layer_composite"), "image_composition")
+    # Add the opt-in puppet stage to existing saved shows without reordering
+    # any old stage or enabling the new module.
+    if len(order)==len(expected)-1 and set(order)==set(expected)-{'dance_puppet'}:
+        order=list(order); order.insert(order.index('layer_composite'),'dance_puppet')
     if len(order) != len(expected) or set(order) != set(expected):
         raise ValueError("Workflow must contain each of the {} stages exactly once".format(len(expected)))
     return list(order)
@@ -143,6 +148,9 @@ def apply_order(demo, order):
     # transient cook-feedback loop. Auxiliary rack inputs are left untouched.
     for name in (*order,"video_fx_router","out1_image"):
         demo.op(name).inputConnectors[0].disconnect()
+    # Publish the new order while disconnected. Layer Composite's independent
+    # branch guards can then prevent a cycle before any edge is reconnected.
+    demo.op("workflow_order").text = json.dumps(order,indent=2)
     previous = demo.op("source_image")
     for index,name in enumerate(order):
         node = demo.op(name)

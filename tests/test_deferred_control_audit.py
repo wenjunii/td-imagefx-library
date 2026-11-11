@@ -50,6 +50,12 @@ class DeferredControlAuditTests(unittest.TestCase):
             path.write_text('{"ok": false}', encoding="utf-8")
             self.assertNotEqual(audit._signature(path), before)
 
+    def test_deferred_audit_rejects_open_outputs_and_export_jobs(self):
+        source = Path(audit.__file__).read_text(encoding='utf-8')
+        self.assertIn('runtime.module.windows(show)', source)
+        self.assertIn("show.fetch('imagefx_export_job', None, search=False)", source)
+        self.assertLess(source.index('Close all physical output windows'), source.index('state = dict('))
+
 
 if __name__ == "__main__":
     unittest.main()

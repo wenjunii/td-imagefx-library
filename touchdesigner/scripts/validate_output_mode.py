@@ -63,8 +63,10 @@ def _panorama_checks(show, wall, checks):
     ext.UpdateMapping()
     checks['panorama_overlap_width'] = '4800 x 1080' in show.par.Outputcanvas.eval()
     checks['panorama_overlap_intervals'] = all(
-        abs(float(show.op('mapped%d' % i).par.vec3valuex) - (i-1)*.3) < 1e-6
-        and abs(float(show.op('mapped%d' % i).par.vec3valuez) - ((i-1)*.3+.4)) < 1e-6 for i in (1,2,3))
+        abs(float(show.op('cue_projection%d' % i).par.vec1valuey) - (i-1)*.3) < 1e-6
+        and abs(float(show.op('cue_projection%d' % i).par.vec1valuez) - ((i-1)*.3+.4)) < 1e-6
+        and float(show.op('mapped%d' % i).par.vec3valuex) == 0
+        and float(show.op('mapped%d' % i).par.vec3valuez) == 1 for i in (1,2,3))
     show.par.Routingmode = 'identical'
     ext.UpdateMapping()
     checks['identical_remains_available'] = np.array_equal(pixels(show.op('mapped1')), pixels(show.op('mapped3')))
@@ -172,7 +174,8 @@ def validate(write_report=True):
         checks['default_wall_mode'] = show.par.Outputmode.eval() == 'wall'
         checks['two_clear_mode_labels'] = list(show.par.Outputmode.menuNames) == ['direct', 'wall']
         checks['output_page_second'] = [p.name for p in show.customPages][:2] == ['Transport', 'Output Mode']
-        checks['output_page_visible'] = "'Output Mode'" in show.op('cue_inspector').par.pagescope.eval()
+        nav=show.op('inspector_navigation')
+        checks['output_page_visible'] = ('Output Mode' in nav.par.Section.menuNames if nav is not None else "'Output Mode'" in show.op('cue_inspector').par.pagescope.eval())
         checks['master_blackout_alias'] = show.par.Outputblackout.bindMaster == show.par.Masterblackout
         checks['processor_display_alias'] = show.par.Outputwalldisplay.bindMaster == wall.par.Displayindex
         checks['wall_blackout_alias'] = show.par.Outputwallblackout.bindMaster == wall.par.Blackout

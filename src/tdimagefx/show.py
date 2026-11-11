@@ -12,16 +12,86 @@ from pathlib import Path
 
 SHOW_KIND = "tdimagefx.show"
 MAX_CUES = 1000
-MAX_SHOW_BYTES = 8 * 1024 * 1024
+# A cue may capture three complete workflows (main plus independent A/B).
+# Keep a bounded show-only budget without relaxing other JSON readers.
+MAX_SHOW_BYTES = 64 * 1024 * 1024
+
+
+def check_show_size(size):
+    if size > MAX_SHOW_BYTES:
+        raise ValueError("Show file exceeds {:g} MiB".format(MAX_SHOW_BYTES / (1024 * 1024)))
+
+
+PROJECTION_ROUTES = {
+    "inherit": None, "p1": (1,), "p2": (2,), "p3": (3,),
+    "p1_p2": (1, 2), "p1_p3": (1, 3), "p2_p3": (2, 3),
+    "all": (1, 2, 3), "panoramic": (1, 2, 3),
+}
+OUTPUT_CHANNELS = {
+    'routing': None, '1': (1,), '2': (2,), '3': (3,),
+    '1_2': (1, 2), '1_3': (1, 3), '2_3': (2, 3), 'all': (1, 2, 3),
+}
+
+
+def cue_output_channels(cue):
+    selected = OUTPUT_CHANNELS[cue.get('channels', 'routing')]
+    return PROJECTION_ROUTES[cue.get('projection', 'inherit')] if selected is None else selected
+
+
+def cue_render_width(cue, show_layout, panel_width, overlap=0.0):
+    if cue_canvas_layout(cue, show_layout) != 'panoramic':
+        return int(panel_width)
+    count = len(cue_output_channels(cue) or (1, 2, 3))
+    return int(panel_width * (count - (count - 1) * overlap))
+
+
+def cue_canvas_layout(cue, show_layout):
+    route = cue.get("projection", "inherit")
+    return show_layout if route == "inherit" else "panoramic" if route == "panoramic" else "identical"
+
+
+def cue_projection_sample(cue, output, show_layout, output_tracks, overlap=0.0):
+    """Return enabled, U start/end; physical windows/calibration are untouched."""
+    outputs = cue_output_channels(cue)
+    enabled = output_tracks[output - 1] == cue["track"] if outputs is None else output in outputs
+    if cue_canvas_layout(cue, show_layout) == "panoramic":
+        channels = outputs or (1, 2, 3)
+        if output not in channels: return 0.0, 0.0, 1.0
+        width = len(channels) - (len(channels) - 1) * overlap
+        start = channels.index(output) * (1 - overlap) / width
+        return float(enabled), start, start + 1 / width
+    return float(enabled), 0.0, 1.0
+
+
+def cue_output_track(items, output, show_layout, output_tracks):
+    """Last triggered eligible track wins; held visuals keep their destination."""
+    candidates = []
+    for track, item in items.items():
+        cues = [item["cue"]]
+        if item.get("fading") and item.get("old"):
+            cues.append(item["old"]["cue"])
+        if any(cue_projection_sample(cue, output, show_layout, output_tracks)[0] for cue in cues):
+            # A global/fallback-routed track must not steal a projector from an
+            # explicitly routed cue, even when that inherited cue is newer.
+            explicit = any((cue.get('projection', 'inherit') != 'inherit' or cue.get('channels', 'routing') != 'routing')
+                           and cue_projection_sample(cue, output, show_layout, output_tracks)[0]
+                           for cue in cues)
+            candidates.append((int(explicit), item.get("route_order", item.get("started", 0)), track))
+    if candidates:
+        return max(candidates)[2]
+    fallback = output_tracks[output - 1]
+    return 0 if fallback in items else fallback
+
+
 MODULES = (
     "reference_particle_field", "calligraphic_shadow", "ink_orbit_canvas",
     "ink_flow", "particle_random_move", "glitch_fusion", "color_adjustment",
-    "motion_studio", "ink_dream_flow", "ink_brush_flow", "ink_radial_flow", "layer_composite", "final_crop", "color_switch", "image_composition",
+    "motion_studio", "ink_dream_flow", "ink_brush_flow", "ink_radial_flow", "layer_composite", "final_crop", "color_switch", "image_composition", "dance_puppet",
 )
 TOGGLES = (
     "Referenceparticlefieldenabled", "Calligraphicshadowenabled", "Inkorbitenabled",
     "Inkflowenabled", "Particlesenabled", "Glitchenabled", "Coloradjustmentenabled",
-    "Motionenabled", "Applyvideofx", "Inkdreamenabled", "Inkbrushenabled", "Inkradialenabled", "Layercompositeenabled", "Finalcropenabled", "Colorswitchenabled", "Imagecompositionenabled",
+    "Motionenabled", "Applyvideofx", "Inkdreamenabled", "Inkbrushenabled", "Inkradialenabled", "Layercompositeenabled", "Finalcropenabled", "Colorswitchenabled", "Imagecompositionenabled", "Dancepuppetenabled",
 )
 MODULE_TOGGLES = {
     "reference_particle_field": "Referenceparticlefieldenabled",
@@ -39,10 +109,106 @@ MODULE_TOGGLES = {
     "final_crop": "Finalcropenabled",
     "color_switch": "Colorswitchenabled",
     "image_composition": "Imagecompositionenabled",
+    "dance_puppet": "Dancepuppetenabled",
 }
 
 
-def resolve_composition_files(values, base_dir, *, selections=None, enabled=True):
+FLOW_MODULES = ('ink_dream_flow', 'ink_brush_flow', 'ink_radial_flow')
+
+
+def with_legacy_motion_media(look, *, force_files=None, puppet_files=None):
+    """Seed absent, pre-feature media from the local designer, never cue values.
+
+    Only the runtime/draft is expanded. Existing files (including explicit blank
+    paths) are authoritative. A cue that already has motion controls but lost its
+    media is not a legacy cue and must still fail normal media validation.
+    """
+    result = copy.deepcopy(look)
+    modules = result.get('modules', {})
+    for name in FLOW_MODULES:
+        if (name not in result.get('force_files', {})
+                and 'Danceenabled' not in modules.get(name, {})
+                and name in (force_files or {})):
+            result.setdefault('force_files', {})[name] = copy.deepcopy(force_files[name])
+    if ('puppet_files' not in result and 'dance_puppet' not in modules
+            and not result.get('toggles', {}).get('Dancepuppetenabled', False)
+            and puppet_files is not None):
+        result['puppet_files'] = copy.deepcopy(puppet_files)
+    return result
+
+
+def resolve_force_files(values, base_dir, *, modules=None, toggles=None, active=True):
+    """Passive local force caches only. A show cannot start inference/capture."""
+    if not isinstance(values, dict) or set(values)-set(FLOW_MODULES):
+        raise ValueError('Unknown Dance Forces module')
+    result = {}
+    for module in FLOW_MODULES:
+        files = values.get(module, {})
+        if not isinstance(files, dict) or set(files)-{'Dancevideo','Dancecache'}:
+            raise ValueError('Unknown Dance Forces media fields')
+        controls = (modules or {}).get(module,{})
+        mode = controls.get('Dancesource','recorded')
+        if mode not in {'recorded','live'}: raise ValueError('Invalid Dance Forces source')
+        needed = active and (toggles or {}).get(MODULE_TOGGLES[module],False) and controls.get('Danceenabled',False) and mode=='recorded'
+        result[module] = {}
+        for name in ('Dancevideo','Dancecache'):
+            raw = files.get(name,'')
+            if not isinstance(raw,str) or len(raw)>4096 or '://' in raw or '\x00' in raw:
+                raise ValueError('Dance Forces media must be local file paths')
+            if not raw.strip():
+                if needed and name=='Dancecache': raise ValueError('Analyze dancers video before capturing Dance Forces')
+                result[module][name] = ''; continue
+            path = Path(raw)
+            if not path.is_absolute(): path = Path(base_dir)/path
+            if needed and name=='Dancecache' and not path.is_file():
+                raise ValueError('Missing prepared Dance Forces cache: '+path.name)
+            result[module][name] = str(path.resolve())
+    return result
+
+
+def resolve_puppet_files(values, base_dir, *, selections=None, enabled=True):
+    """Passive puppet asset paths only. Shows cannot launch code or cameras."""
+    names={'Renderfile','Fanrenderfile','Chainrenderfile','Dancevideo','Motioncache','Characterprofile'}
+    if not isinstance(values,dict) or set(values)-names:
+        raise ValueError('Unknown puppet media fields')
+    mode=(selections or {}).get('Sourcemode','recorded')
+    if mode not in {'recorded','live'}: raise ValueError('Invalid puppet source mode')
+    characters=(selections or {}).get('Characters','both')
+    if characters not in {'both','fan','chain'}: raise ValueError('Invalid puppet character mode')
+    required={'both':'Renderfile','fan':'Fanrenderfile','chain':'Chainrenderfile'}[characters]
+    result={}
+    for name in names:
+        raw=values.get(name,'')
+        if not isinstance(raw,str) or len(raw)>4096 or '://' in raw or '\x00' in raw:
+            raise ValueError('Puppet media must be local file paths')
+        if not raw.strip():
+            if enabled and mode=='recorded' and name==required: raise ValueError('Puppet cue needs a prepared '+characters+' RGBA movie (rebuild motion)')
+            result[name]=''; continue
+        path=Path(raw)
+        if not path.is_absolute(): path=Path(base_dir)/path
+        if enabled and mode=='recorded' and name==required and not path.is_file():
+            raise ValueError('Missing prepared puppet movie: '+path.name)
+        result[name]=str(path.resolve())
+    return result
+
+
+def composition_activity(look, active=True, branch=False):
+    """A/B may be consumed by the layout or directly by Layer Composite."""
+    modules=look.get('modules',{}); toggles=look.get('toggles',{})
+    selected=modules.get('image_composition',{})
+    requested=set()
+    if active and toggles.get('Layercompositeenabled',False):
+        layer=modules.get('layer_composite',{})
+        requested={value[-1].upper() for value in (layer.get('Backdropsource'),layer.get('Topsource')) if value in {'effects_a','effects_b'}}
+    if requested:
+        if branch: raise ValueError('Independent A/B effects cannot recursively reference their own composition')
+        order=look.get('order',[])
+        if 'image_composition' in order and 'layer_composite' in order and order.index('image_composition')>order.index('layer_composite'):
+            raise ValueError('Two-Image Composition must precede Layer Composite for independent A/B sources')
+    return {p:bool(active and selected.get(p+'visible',True) and (toggles.get('Imagecompositionenabled',False) or p in requested)) for p in ('A','B')}
+
+
+def resolve_composition_files(values, base_dir, *, selections=None, enabled=True, active_prefixes=None):
     """Resolve only passive A/B media; never allow executable operator paths."""
     if not isinstance(values,dict) or set(values)-{'Afile','Bfile'}:
         raise ValueError('Unknown Two-Image Composition media fields')
@@ -56,7 +222,8 @@ def resolve_composition_files(values, base_dir, *, selections=None, enabled=True
         if not raw.strip(): result[name]=''; continue
         path=Path(raw)
         if not path.is_absolute(): path=Path(base_dir)/path
-        if enabled and selections.get(prefix+'visible',True) and selection in {'auto','file'} and not path.is_file():
+        needed=enabled and selections.get(prefix+'visible',True) and (active_prefixes is None or prefix in active_prefixes)
+        if needed and selection in {'auto','file'} and not path.is_file():
             raise ValueError('Missing composition media: '+path.name)
         result[name]=str(path.resolve())
     return result
@@ -67,16 +234,19 @@ def validate_look_media(look, base_dir, *, active=True, branch=False):
     if not isinstance(look,dict): raise ValueError('Look must be an object')
     validate_look_animation(look, branch=branch)
     modules=look.get('modules',{}); toggles=look.get('toggles',{})
+    resolve_force_files(look.get('force_files',{}),base_dir,modules=modules,toggles=toggles,active=active)
+    resolve_puppet_files(look.get('puppet_files',{}),base_dir,selections=modules.get('dance_puppet',{}),enabled=active and toggles.get('Dancepuppetenabled',False))
     resolve_layer_files(look.get('layer_files',{}),base_dir,selections=modules.get('layer_composite',{}),enabled=active and toggles.get('Layercompositeenabled',False))
     branches=look.get('branches',{})
     if not isinstance(branches,dict) or set(branches)-{'a_effects','b_effects'}: raise ValueError('Unknown composition branch')
     if branch and (branches or 'composition_files' in look or 'image_composition' in modules):
         raise ValueError('Recursive image composition is not allowed')
-    enabled=active and toggles.get('Imagecompositionenabled',False)
+    activity=composition_activity(look,active,branch)
+    enabled=any(activity.values())
     selection=modules.get('image_composition',{})
-    resolve_composition_files(look.get('composition_files',{}),base_dir,selections=selection,enabled=enabled)
+    resolve_composition_files(look.get('composition_files',{}),base_dir,selections=selection,enabled=enabled,active_prefixes={p for p,on in activity.items() if on})
     for name,child in branches.items():
-        validate_look_media(child,base_dir,active=enabled and selection.get(name[0].upper()+'visible',True),branch=True)
+        validate_look_media(child,base_dir,active=activity[name[0].upper()],branch=True)
 
 
 def resolve_layer_files(values, base_dir, *, selections=None, enabled=True):
@@ -87,6 +257,9 @@ def resolve_layer_files(values, base_dir, *, selections=None, enabled=True):
     result = {}
     selections = selections or {}
     for name in names:
+        selection = selections.get(name.replace("file", "source"), "auto")
+        if selection not in {"auto", "file", "effects", "second", "transparent", "effects_a", "effects_b"}:
+            raise ValueError("Invalid layer source selection")
         raw = values.get(name, "")
         if not isinstance(raw, str) or len(raw) > 4096 or "://" in raw or "\x00" in raw:
             raise ValueError("Layer media must be local file paths")
@@ -96,9 +269,6 @@ def resolve_layer_files(values, base_dir, *, selections=None, enabled=True):
         path = Path(raw)
         if not path.is_absolute():
             path = Path(base_dir) / path
-        selection = selections.get(name.replace("file", "source"), "auto")
-        if selection not in {"auto", "file", "effects", "second", "transparent"}:
-            raise ValueError("Invalid layer source selection")
         if enabled and selection in {"auto", "file"} and not path.is_file():
             raise ValueError("Missing layer media: " + path.name)
         result[name] = str(path.resolve())
@@ -149,6 +319,33 @@ def animation_time(animation, name, elapsed, scale=1.0):
     return clock.get("time", 0.0) + (elapsed * scale if clock.get("running", True) else 0.0)
 
 
+def cue_start_look(look):
+    """Restart baked puppet motion for playback, without editing the saved look.
+
+    Other procedural phases, explicit motion in-points and live cameras retain
+    their existing behavior. A/B puppets use the same opening-frame policy.
+    """
+    result=copy.deepcopy(look)
+    puppet=result.get('modules',{}).get('dance_puppet',{})
+    present=('dance_puppet' in result.get('modules',{}) or 'puppet_files' in result
+             or 'dance_puppet' in result.get('animation',{})
+             or result.get('toggles',{}).get('Dancepuppetenabled',False))
+    if present and puppet.get('Sourcemode','recorded')=='recorded':
+        result.setdefault('animation',{})['dance_puppet']={'time':0.,'running':True}
+    for name,child in result.get('branches',{}).items():
+        result['branches'][name]=cue_start_look(child)
+    return result
+
+
+def has_recorded_puppet(look,active=True):
+    if active and look.get('toggles',{}).get('Dancepuppetenabled',False):
+        if look.get('modules',{}).get('dance_puppet',{}).get('Sourcemode','recorded')=='recorded':
+            return True
+    activity=composition_activity(look,active)
+    return any(has_recorded_puppet(child,activity[name[0].upper()])
+               for name,child in look.get('branches',{}).items())
+
+
 INK_CLOCK_KEY = "imagefx_ink_animation_clock"
 INK_FIELD_CLOCK_KEY = "imagefx_ink_field_clock"
 
@@ -182,10 +379,10 @@ def new_cue():
     return {
         "id": uuid.uuid4().hex, "name": "New cue", "kind": "visual", "enabled": True,
         "source": "", "track": 1, "at": None, "prewait": 0.0, "duration": 10.0,
-        "fade": 1.0, "follow": "manual", "postwait": 0.0, "loop": False,
+        "fade": 1.0, "transition": "crossfade", "follow": "manual", "postwait": 0.0, "loop": False,
         "media_in": 0.0, "speed": 1.0, "gain": 0.7, "hold": True, "movie_audio": False,
         "target": "calligraphic_shadow/Particleamount", "value": 1.0,
-        "easing": "smooth", "look": {}, "notes": "", "blackout_scope": "all",
+        "easing": "smooth", "look": {}, "notes": "", "blackout_scope": "all", "projection": "inherit", "channels": "routing",
     }
 
 
@@ -218,6 +415,9 @@ def validate_cue(value):
         ("blackout_scope", {"all", "track"}),
         ("follow", {"manual", "continue", "follow"}),
         ("easing", {"linear", "smooth"}),
+        ("transition", {"crossfade", "interpolate"}),
+        ("projection", set(PROJECTION_ROUTES)),
+        ("channels", set(OUTPUT_CHANNELS)),
     ):
         if not isinstance(result[field], str) or result[field] not in choices:
             raise ValueError(f"Invalid {field}")
@@ -293,6 +493,68 @@ def inverse_quad(corners):
                 scale = matrix[row][col]
                 matrix[row] = [a - scale*b for a, b in zip(matrix[row], matrix[col])]
     return tuple(matrix[i][8] for i in range(8)) + (1.0,)
+
+
+def look_interpolation_changes(before, after, prefix=""):
+    """Plan numeric changes only when both rendered looks share one topology.
+
+    Paths address existing custom parameters, never operator creation or files.
+    Animation phases deliberately remain on the outgoing, continuous clock.
+    Selectors, seeds, routing, assets and clock rates require a crossfade.
+    """
+    changes = []
+
+    def same(a, b, label):
+        if a != b:
+            raise ValueError(label + " changed")
+
+    def values(a, b, component):
+        same(set(a), set(b), component + " controls")
+        for name, target in b.items():
+            current = a[name]
+            if current == target and isinstance(current, bool) == isinstance(target, bool):
+                continue
+            if (name.lower().endswith("seed") or name in {"Timescale", "Time", "Manualtime", "Autotime", "Enabled"}
+                    or isinstance(current, bool) or isinstance(target, bool)
+                    or not isinstance(current, (int, float)) or not isinstance(target, (int, float))
+                    or not math.isfinite(current) or not math.isfinite(target)):
+                raise ValueError(component + "/" + name + " is a discrete or clock control")
+            changes.append((prefix + component, name, current, target))
+
+    ignored = {"modules", "rack", "branches", "animation"}
+    same({k: v for k, v in before.items() if k not in ignored},
+         {k: v for k, v in after.items() if k not in ignored}, "Routing, order or media")
+    old_clocks, new_clocks = before.get("animation", {}), after.get("animation", {})
+    for name in set(old_clocks) | set(new_clocks):
+        same(old_clocks.get(name, {}).get("running", True),
+             new_clocks.get(name, {}).get("running", True), name + " clock running state")
+    old_modules, new_modules = before.get("modules", {}), after.get("modules", {})
+    same(set(old_modules), set(new_modules), "Effect modules")
+    for name in new_modules:
+        values(old_modules[name], new_modules[name], name)
+    old_rack, new_rack = before.get("rack", {}), after.get("rack", {})
+    rack_ignored = {"name", "time", "autotime", "slots"}
+    same({k: v for k, v in old_rack.items() if k not in rack_ignored},
+         {k: v for k, v in new_rack.items() if k not in rack_ignored}, "Rack clock or format")
+    old_slots, new_slots = old_rack.get("slots", []), new_rack.get("slots", [])
+    same(len(old_slots), len(new_slots), "Rack slots")
+    for old, new in zip(old_slots, new_slots):
+        same({k: v for k, v in old.items() if k not in {"mix", "modulation", "parameters"}},
+             {k: v for k, v in new.items() if k not in {"mix", "modulation", "parameters"}}, "Rack package or enable")
+        index = new["index"]
+        values({"Slot{}mix".format(index): old["mix"]},
+               {"Slot{}mix".format(index): new["mix"]}, "fx_rack")
+        old_mod, new_mod = old.get("modulation", {}), new.get("modulation", {})
+        same(old_mod.get("state"), new_mod.get("state"), "Rack modulation mode")
+        values({"Slot{}mod{}".format(index, k): v for k, v in old_mod.items() if k != "state"},
+               {"Slot{}mod{}".format(index, k): v for k, v in new_mod.items() if k != "state"}, "fx_rack")
+        values(old.get("parameters", {}), new.get("parameters", {}), "fx_rack/slot{}".format(index))
+    old_branches, new_branches = before.get("branches", {}), after.get("branches", {})
+    same(set(old_branches), set(new_branches), "Composition branches")
+    for name in new_branches:
+        changes.extend(look_interpolation_changes(old_branches[name], new_branches[name],
+                       prefix + "image_composition/" + name + "/"))
+    return changes
 
 
 class CuePreparationBusy(ValueError):

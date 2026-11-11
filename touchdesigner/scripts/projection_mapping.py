@@ -402,7 +402,7 @@ def install(show, mapping_shader):
                 node.par['vec{}name'.format(block)]=name
                 for axis_id,axis in enumerate('xyzw'):
                     node.par['vec{}value{}'.format(block,axis)].expr="parent().op('projection_mapping').module.wall_uniform(parent(),{},{},{})".format(index,block,axis_id)
-            node.par.vec11name='uMapping';node.par.vec11valuex.expr="int(parent().par.Sourcemode == 'show' and not parent().par.Testpattern)"
+            node.par.vec11name='uMapping';node.par.vec11valuex.expr="int(parent().op('controller').module.effective_source_mode(parent()) == 'show' and not parent().par.Testpattern)"
             node.outputConnectors[0].connect(wall.op('p'+str(index)+'_out').inputConnectors[0])
     polygon_path=Path(__file__).with_name('projection_polygon.py')
     scope=dict(__file__=str(polygon_path),__name__='_projection_polygon_install')
@@ -410,3 +410,5 @@ def install(show, mapping_shader):
     scope['install'](show,POLYGON_SHADER)
     show.ext.ShowControlExt._mapping_key=None
     show.UpdateMapping()
+    if show.op('show_panel_layout') is not None:
+        show.op('show_panel_layout').module.configure(show)

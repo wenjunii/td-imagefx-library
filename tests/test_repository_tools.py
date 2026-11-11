@@ -395,12 +395,16 @@ class VerifyRepositoryToolTests(unittest.TestCase):
                        if isinstance(node, ast.Assign) and any(
                            isinstance(target, ast.Name) and target.id == 'MODULE_SOURCES'
                            for target in node.targets))
-        additions = next(ast.literal_eval(node.value) for node in tree.body
-                         if isinstance(node, ast.AugAssign) and isinstance(node.target, ast.Name)
-                         and node.target.id == 'MODULE_SOURCES')
+        additions = tuple(path for node in tree.body
+                          if isinstance(node, ast.AugAssign) and isinstance(node.target, ast.Name)
+                          and node.target.id == 'MODULE_SOURCES'
+                          for path in ast.literal_eval(node.value))
         self.assertEqual(sources + additions, record_native_validation.MODULE_SOURCES)
         self.assertIn('touchdesigner/scripts/show_live_look.py', additions)
         self.assertIn('touchdesigner/extensions/FxRackExt.py', additions)
+        for name in ('dance_puppet.py', 'dance_puppet_runtime.py', 'dance_forces.py',
+                     'dance_forces_runtime.py', 'dance_forces_math.py', 'show_panel_layout.py'):
+            self.assertIn('touchdesigner/scripts/' + name, additions)
         for name in ('look_editor_controls.py', 'show_review_export.py', 'show_output_mode.py', 'projection_mapping.py', 'projection_polygon.py'):
             self.assertIn('touchdesigner/scripts/' + name, sources)
 

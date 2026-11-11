@@ -20,6 +20,123 @@ alone did not fix that issue. Maximize the viewer if its outer window extends
 beyond your desktop. The media `+` picker and cue/export dropdowns have been
 checked directly in TouchDesigner after the custom-parameter-only correction.
 
+Use **Show Control Section** at the upper right to choose Transport, Pre-Show Check, Output
+Mode, Wall Output, Projection Mapping, Cue Editor, Cue Notes, Look Editor,
+Projector Review, Export Video, Routing or Output 1/2/3. Only the selected page
+is shown, so long tab headings do not overlap. Cue buttons and notes share
+aligned rows; live-edit status/help have separate space below the edit buttons.
+**Cue Notes** selects that section directly in the panel, without opening
+another crowded parameter window. This navigation does not change cue content.
+Each selection explicitly refreshes the native parameter list; this avoids
+TouchDesigner's cached Transport controls remaining visible after a menu change.
+
+**Look Editor > Open Preview** uses a separate window titled **ImageFX - Look
+Preview (Fit / No Crop)**. Resize or maximize it freely: the complete frame stays
+aspect-fitted with black padding as needed, including panoramic video. It has no
+mouse pan/zoom interaction and does not change the cue's output resolution or
+projector routing. The preview stays on top so a border resize or focus change
+does not send it behind TouchDesigner. The small in-panel preview is also
+aspect-fitted. Close the floating preview with the title-bar X; Open Preview
+reopens it. It is an operator preview, not an audience output window.
+
+## Pre-Show Check
+
+1. Choose **Pre-Show Check → Run Pre-Show Check** (also available on Transport).
+   The full report separates errors, warnings and information. It checks the
+   existing media/workflow contract, the GPU selected by TouchDesigner, connected
+   display configuration, blackout/calibration state, audio controls and AC power.
+   File existence is not a decoding test: use **Preload Selected** for each cue.
+2. Resolve media/output errors. Blackout and closed-window warnings may be
+   intentional before a show; this check never changes them for you. GPU identity
+   does not certify that every external CUDA motion worker is running.
+3. Run representative cues, then **Sample Current Performance**. The default
+   sample is 5 seconds, adjustable 1–30, against a selectable 24/25/30/50/60 FPS
+   target. It reports mean/minimum FPS, 95th-percentile frame time, timeline drops
+   and peak GPU memory. Missing telemetry is a warning, not a passing zero.
+4. **Open Full Report** for the timestamped local snapshot. Repeat after changing
+   media, effects, resolution or output mode. Idle/blackout samples are not a
+   stress test. Verify projector order, EDID/refresh, masking/focus and audible
+   stereo output in a full rehearsal; software cannot confirm those connections.
+
+**Cue Warm-up (rendered frames)** defaults to 3, with a 1–12 range. The standby
+deck cooks across distinct TouchDesigner frames before it is published; the
+current cue stays on air. This does not advance the new cue's animation clock or
+change its saved parameters. A stalled visual preload reports an error after 90
+seconds without stopping the current track. It is a readiness improvement, not
+a guarantee that an expensive shader/decoder can never stall a frame.
+
+## Per-cue projection routing
+
+**Visual Output Channels** chooses the physical destinations separately from
+**Playback / Audio Track**. Choose channel 1, 2, 3, 1+2, 1+3, 2+3, or **All Three
+Channels**. The track is an internal playback lane, not a projector number: one
+cue on track 2 can still feed all three projectors. Audio remains one stereo
+voice, not duplicated for every projector. Cue rows show destinations such as
+`track 2 >P123` to make this distinction visible.
+Any playback lane can drive any destination: for example, channel 2 plus
+Projector 2 works on playback track 1, 2 or 3. The native expressions read the
+cue routing revision's value explicitly so stopped-show fallback paths cannot
+remain cached after GO. No forced cook or matching track number is required.
+
+For a three-channel panorama, choose **Visual Output Channels > All Three
+Channels** and **Projection Routing > All Three (Panoramic)**. At 1080p per
+panel and zero overlap the cue renders 5760×1080 once, then sends the left,
+center and right slices to channels 1/2/3. With a pair selected, the panorama
+renders 3840×1080 and splits over those two channels in numerical order; an
+unselected channel stays unused by that cue. Non-panoramic modes repeat the
+complete image on the selected channels. No playback-track duplication is needed.
+
+**Use Projection Routing** on the channel selector preserves older cues' existing
+destination presets. Explicit channel selection overrides those presets. Both
+selectors commit immediately while stopped; Save Show persists them. The normal
+blackout, per-projector mask/calibration, and hardware display assignments still
+apply and are not released automatically.
+
+Select a cue, open **Cue Editor**, and set **Projection Routing**:
+
+The Routing tab also offers **Follow Show Routing (Per Cue)**. Keep that selected
+to let each cue choose its projection layout and destinations. Identical,
+Panoramic and Independent remain available as fallback layouts. An explicit cue
+route always takes priority, including over a newer globally routed track.
+If both selectors follow routing, there is no recursion: cues without an explicit
+route use the Output 1/2/3 track assignments at panel resolution.
+
+- **Follow Show Routing** keeps the existing global Routing / Output Mode layout
+  and track assignments. This is the default for new and older cues.
+- **Projector 1 (Left)**, **2 (Center)**, **3 (Right)**, or a projector pair sends
+  the complete panel-sized image only to those destinations.
+- **All Three (Identical)** repeats the complete image on all three.
+- **All Three (Panoramic)** renders one wide canvas and slices it left/center/right.
+  At 1920×1080 per panel and zero overlap this is 5760×1080. Auto media fit crops
+  uniformly to fill without distortion; custom media-fit settings still apply.
+
+Changing the routing selector while stopped immediately commits that route in
+the workspace and discards a stale preload. Other edited fields are untouched;
+use **Apply Cue Edits** for those. Press **Save Show** to persist the route in the
+show JSON. Selecting a cue row, preloading, or recalling a cue does
+not reroute the running show. GO / Go Back / Continue / Follow use the incoming
+visual cue's saved route. Look Editor live audition uses that cue's route too.
+Routing is separate from the saved visual look, so Update Cue Look does not
+overwrite it. Routing controls are disabled for non-visual cue types.
+
+Use different **Track** values for simultaneous independent visual cues (one
+running visual per track, up to three). If cues target the same projector, the
+explicit routes take priority over inherited/global routes; among routes of
+equal priority the most recently triggered eligible track wins. Stopping it reveals an eligible
+older track. Held end frames retain their route. When a cue changes destinations
+on the same track, its outgoing and incoming images are faded independently on
+their own destinations. Parameter interpolation falls back to crossfade for a
+route change. Transitions between different tracks switch output ownership to
+the newest track; they are not a cross-track dissolve.
+
+The same routed feeds supply **Direct Projectors**, **2×2 Video Wall**, the
+projector review and wall recording. Explicit cue routing/channel selections take
+priority over the Wall Output source modes as well. Those manual source modes
+remain fallbacks when no explicitly routed visual is running or held. Cue routing
+never opens/closes a physical window, changes a display index, resets mapping,
+releases Master Blackout, or enables audio. Projector calibration and masking
+remain shared venue settings, applied after cue routing.
+
 ## Cue notes
 
 Select a cue and click **Cue Notes** (or open the **Cue Notes** tab). Enter up to
@@ -155,6 +272,57 @@ original controls. Wall hardware settings are saved with the TOE, not cue looks
 or Save Show JSON. See [4K wall setup](wall-output.md) for display assignment and
 the fixed quadrant map. Adding the tab does not open or arm any display.
 
+## Export a panoramic video
+
+1. **STOP ALL** and close physical output windows.
+2. In **Show Control → Export Video**, choose **Selected Saved Cue / Offline**
+   or **Current Look Draft / Offline** as Export Source.
+3. Set **Resolution → Panoramic / Full 3-Projector Canvas** and
+   **Format → MP4 / H.265 HEVC (NVIDIA GPU, Commercial/Pro)** for the standard
+   5760×1080 canvas on the RTX 3080 Ti. **MOV / Motion JPEG** remains available.
+   Choose duration, FPS, start time and folder,
+   then press **Export Video (Silent)**.
+
+The file contains one continuous canvas, normally **5760×1080**, not a 4K 2×2
+wall. Its dimensions follow **Output Mode → Canvas Render Width Per Panel**,
+**Canvas Render Height** and **Panorama Overlap**: width = panel width × (3 − 2 × overlap). An odd pixel
+dimension is rounded up by one for movie compatibility; the exact size appears
+in **Export Mode / Canvas**. You can export a panorama even while the output
+layout is Identical or Independent: the export never changes the live layout.
+
+The selected cue's saved effects, or the current draft's edits, render on this
+wide canvas. **Canvas Media Fit → Auto** uses proportional **Fill / Crop**;
+explicit Fit/Letterbox and Stretch remain available. If Final Crop changes the
+aspect ratio, the exported result is fitted with the same rule, not silently
+stretched. Size and fit are frozen for each export, so later setting changes
+cannot alter a movie halfway through. Projector masks/warps/blackouts, confidence
+stats, other cue tracks and audio are not included. For the actual packed wall,
+keep using **2x2 Wall + Confidence / Real-Time** instead.
+
+H.264 exports above 4096 pixels on either axis are rejected. H.265 uses NVIDIA's
+dedicated NVENC encoder on supported Windows GPUs and allows up to **8192×8192**;
+it does not use CUDA cores for encoding. The standard 5760×1080 panorama fits,
+but a three-panel 4K panorama (11520×2160) requires Motion JPEG. Unsupported
+sizes/codecs are rejected; there is no silent downscaling or software fallback.
+The existing H.264/Motion JPEG menu values are retained for older saved shows.
+Motion JPEG files can be large:
+test a short clip and check storage/playback performance before a long export.
+TouchDesigner license and GPU resolution limits still apply. The underlying
+[Movie File Out TOP](https://derivative.ca/UserGuide/Movie_File_Out_TOP) supports
+frame-stepped recording; this option uses it to render offline, not in real time.
+
+The focused 2026-10-27 check rendered and independently decoded 21 test files,
+including H.265 at 1080p, 4K and 5760×1080. Panoramic saved cues, look drafts,
+proportional source-media cropping and all three ink/particle-flow modules were
+checked; custom values and feedback history remained active. The user's cues,
+main look, editor fields and output routing were preserved. These short off-air
+tests do not certify sustained real-time wall recording or venue playback.
+The same follow-up passed 675 portable tests (four expected Windows skips),
+121 puppet tests, 49 native review/export assertions and 15 reopened-TOE checks.
+The prior personal TOE is backed up under
+`build/dance-puppet/h265-backup-20261027/`; this is a local in-place update, not
+a newly built clean distribution.
+
 ## Export a visual cue to video
 
 1. **STOP ALL** and close audience/wall output windows. Export shares the GPU;
@@ -177,6 +345,35 @@ copy is rendered; saved cues, the main workflow and an active draft stay intact.
 The global project frame rate/realtime setting is not changed. Playback or an
 audience window opening during export aborts it. Concurrent exports are rejected.
 
+### Export the cue's projector channels
+
+In **Export Video → Export Projection Channels**, choose **Follow Cue Projection
+Routing / Separate Files** to export the channels assigned to the saved cue (or
+the recalled draft's cue). Explicit cue routing and Visual Output Channels take
+priority over global routing, just as during GO. Inherited routing follows the
+show's output-track assignments. Playback/audio track does not restrict an
+explicit destination.
+
+You can also select a single projector, any pair, or all three. This selects
+existing routed feeds; it does not change the cue's destinations. Choosing a
+channel the cue does not use gives an actionable error, not a black export.
+Panoramic cues retain their original full render size, overlap and slice ranges;
+exporting only P2 still exports the center slice. A P1+P3 panorama produces the
+left/right halves in `projector-1` and `projector-3`, respectively.
+
+**Resolution is per projector file.** Use 1080p, 4K, 720p or Custom, not the full
+Panoramic preset. All files share one rendered effect network and frame clock,
+FPS, start and duration. Different output aspect ratios are letterboxed, not
+stretched. The output folder contains `projector-1.mp4`/`.mov`, etc. and an
+`export.json` manifest with channel/file assignments and timing. Cancel/failure
+retains partial files without claiming a complete synchronized set.
+
+These are clean cue channel feeds, before projector calibration, masks, safety
+blackouts and audio. For the exact mapped 2×2 processor canvas including confidence,
+use the existing wall recording mode. **Full Cue Canvas / No Projector Split**
+keeps the original unsplit export behavior (and is retained as the default for
+compatibility). The existing Panoramic resolution preset works with that choice.
+
 The **cue/draft** export includes the **cue visual and captured effect chain/final crop**, resized
 to the chosen dimensions. It does not export a whole cue sequence, projector
 calibration/blackout, packed 4K wall or audio. Use dimensions matching a cropped
@@ -184,10 +381,52 @@ aspect ratio to avoid stretching. Effect start offsets the effect clock and
 source-video position; feedback/history effects start fresh, without a precomputed
 simulation history. Duration rounds to whole output frames (minimum one).
 
-MP4/H.264 needs a Commercial/Pro license and supported encoding hardware;
+MP4/H.264 and MP4/H.265 need a Commercial/Pro license and supported NVIDIA
+encoding hardware on Windows;
 **MOV / Motion JPEG** is also available. TouchDesigner's license resolution
 limits still apply. See the official
 [Movie File Out TOP documentation](https://docs.derivative.ca/Movie_File_Out_TOP).
+H.265 exports are ordinary video, not transparent alpha media; the puppet's
+Hap Alpha preparation pipeline is unchanged.
+
+### Record Projector Review
+
+1. In **Projector Review**, choose **Review View**: three projectors side by
+   side, one projector, confidence monitor, full 2×2 wall, or Auto (follow Output
+   Mode). Confirm that the picture is what you want to record.
+2. In **Export Video → Export Source**, choose **Projector Review / Real-Time**.
+   Choose an export folder, codec, FPS, maximum duration and **Live Render Warm-up**.
+   The canvas readout shows the selected view and its native recording dimensions.
+3. Close physical output windows, then press **Export Video (Silent)**. Wait for
+   **RECORDING** before GO if you want to include a cue from its beginning.
+   Existing playback is not rewound, recalled, paused or stopped by the recorder.
+4. Let the duration finish, or use **Stop Recording & Save** to finalize earlier.
+   Cancel retains a partial file labelled incomplete. Check the dropped-frame count.
+
+This records the selected review TOP, not the Show Control UI or mouse cursor.
+It includes the mapping, masks, grading and blackouts visible in that view.
+It is silent, real-time rehearsal capture, not an offline cue/timeline export.
+The three-up view now defaults to **5760×1080** (1920×1080 per projector).
+Under **Projector Review → Three-Up Resolution / Per Projector**, choose 720p
+(3840×720 total), 1080p, 4K per projector (11520×2160 total), Native (the largest
+feed dimensions shared by all three cells), or Custom cell width/height (16–4096).
+Cells preserve source aspect ratio with letterboxing. This does not change cue
+render size or physical projector outputs; source quality still limits real detail.
+Only enlarged review/recording demands the full-quality three-up layout; the
+embedded preview uses a separate small thumbnail (normally 864×162).
+Individual-projector views use their mapped-output resolution, confidence uses
+**1920×1080**, and the full wall remains **3840×2160**. Use **H.265 HEVC** for a
+5760-wide review recording; **Motion JPEG** is needed above 8192 pixels per axis.
+The canvas readout provides the matching codec guidance. Odd native dimensions are padded to even movie pixels without
+stretching. The offline resolution, projection-channel selection and start-time
+controls are disabled/ignored in this mode. For full-quality separate projector
+files, use the offline projection-channel export instead.
+
+Do not change Review View or Output Mode during recording. The view selector is
+locked in the UI, and changes to the selected view, route, target or dimensions
+abort safely rather than silently changing the movie. Cue changes within the same
+review view are expected and are recorded. No output window is opened, blackout
+released, cue saved, or audio enabled automatically.
 
 ### Record the complete 2x2 wall, including confidence monitor
 
@@ -203,13 +442,18 @@ into the file. The confidence preview and current diagnostics are recorded too.
    Enable **Wall Output → Enable Confidence Quadrant**. Turn **Show Diagnostics**
    on if you want the statistics text included. Clear blackouts only when ready;
    the recorder never changes them for you.
-3. Choose the export folder, MP4/H.264 or MOV/Motion JPEG, FPS, and maximum duration.
+3. Choose the export folder, MP4/H.264, MP4/H.265 or MOV/Motion JPEG, FPS, and maximum duration.
    Wall resolution is fixed at UHD. The offline resolution/size/start-time
    fields are disabled and ignored; the **Export Mode / Canvas** readout confirms it.
-4. Press **Export Video (Silent)**. It records the wall as it currently plays.
-   You can run/advance/pause cues during recording; it does not start or rewind
-   cues automatically. To capture the lead-in, start recording before **GO**.
-5. Recording finishes at the selected length. **Stop Wall Recording & Save**
+4. Set **Live Render Warm-up** (0–10 seconds, default 2), then press
+   **Export Video (Silent)**. During **WARMING**, the wall pipeline cooks but
+   nothing is recorded. Wait for **RECORDING** before pressing **GO** to capture
+   the cue's beginning. Existing playback continues through warm-up; it is not
+   rewound or paused. Even at zero seconds, preparation spans two rendered frames.
+   You can run/advance/pause cues during recording; the recorder never does this
+   automatically. Encoder startup preserves the first input frame, but can still
+   cause a brief stall; the actual dropped-frame count remains visible.
+5. Recording finishes at the selected length. **Stop Recording & Save**
    finalizes a shorter usable file. **Cancel Export** keeps any partial file
    but labels it incomplete. Check **Export Status** and **Last Output File**.
 
@@ -271,7 +515,21 @@ Keep a separate backup of both the JSON and its media. Relative media paths are
 resolved against the JSON's directory. Save Show is separate from saving the TOE;
 rebuilding the library resets the built-in demo cue, but not your saved JSON.
 
+Show JSON files support up to **64 MiB** and **1,000 cues**. The budget includes
+captured main/A/B effect settings and projection mappings, not the referenced
+media files. Loading, editing and saving use the same bounded show-file budget;
+the save check includes UTF-8 formatting so a saved file can be loaded again.
+Existing valid files still receive a uniquely named backup before replacement.
+Other library JSON readers keep their separate, smaller limits.
+
 ### Edit the running cue live
+
+Older cues that predate Dance Forces or Dance Puppet can now be edited without
+losing the prepared local motion media. Missing pre-feature media blocks inherit
+the matching main/A/B workflow's files; effects still start disabled. Already
+saved media and effect settings are never replaced. Enable motion in the cue's
+Edit Controls panel, then Update Cue Look and Save Show to commit it. Cancel keeps
+the original cue unchanged. No camera or analysis process starts automatically.
 
 You do not have to stop playback or Recall Look to adjust the cue on air:
 
@@ -327,7 +585,7 @@ Capture Look or Update Cue again.
    A parameter window opens for that module in the recalled cue, with its custom
    parameter tabs visible. Choose **Workflow / Module Switches** for the draft's
    enable switches and ordering, or **FX Rack / Slot 1–8** for individual slot
-   parameters. **Open Preview** opens the full-size silent off-air output; the
+   parameters. **Open Preview** opens the aspect-fitted silent off-air output; the
    small preview at the bottom remains available. These shortcuts never open
    the original `imagefx_demo` modules. The temporary workspace is still
    `/project1/imagefx_demo/show_control/look_editor` if you prefer node editing;
@@ -378,7 +636,8 @@ the stored cue intact. This editor requires a stopped show, not just Pause.
 | Timestamp | Blank = manual GO. Seconds or `HH:MM:SS.mmm` schedules one trigger relative to the show clock. The clock begins with the first GO. This is not wall-clock time, SMPTE or MIDI timecode. |
 | Pre-wait | Delay after manual/scheduled trigger before cue start. GO also waits for media readiness. |
 | Duration | Seconds after actual start. Zero holds indefinitely until replaced/stopped, except zero-duration parameter/stop actions are immediate. |
-| Fade | Visual crossfade, or audio fade-in and fade-out within its duration. |
+| Visual Transition | Crossfade blends the two images. Parameter Interpolation moves compatible effect values toward the incoming cue's look while continuing the running animation. |
+| Fade / Transition Seconds | Duration of the visual transition, or audio fade-in and fade-out within its duration. Zero changes immediately. |
 | Next Cue Behavior | Manual: no automatic next cue. Continue: trigger next after this cue starts + post-wait. Follow: trigger next after this cue finishes + post-wait. Follow requires a nonzero duration. |
 | Hold Visual At End | Freeze the final visual rather than clearing that track at cue duration. Embedded audio stops at that point. |
 | Media In / Loop / Speed | Start offset in seconds, looping, and video speed. Standalone audio uses its original speed. |
@@ -458,8 +717,26 @@ Brush/particle/glitter value and its ten radial controls. For example,
 Enable the module and desired glitter layer before Capture Look. Its radiation
 and glitter use the same pauseable cue clock as the other modules.
 
+To interpolate a saved look into another, select the **incoming Visual cue**,
+open **Cue Editor**, set **Visual Transition** to **Parameter Interpolation**,
+set **Fade / Transition Seconds** and **Easing** (Linear or Smooth), then
+**Apply Cue Edits** and **Save Show**. Preload and GO as usual. Numeric module
+controls, color components, rack mixes/effect controls, and independent A/B
+branch controls move together. Integer controls advance in whole steps.
+Pause/Resume also pauses/resumes the transition. The running deck, media
+playhead, procedural phase and feedback history continue through the handoff;
+the incoming cue's saved animation phase is used when it starts normally from
+black, not as a seek during interpolation.
+
+Both cues must have the same media/transport, effect order, enabled modules,
+rack packages, selectors, seeds, and clock rates. Changing those, starting from
+a held/stopped/blackout image, or using embedded movie audio falls back to a
+crossfade, with the reason in Status. Existing shows default to Crossfade.
+Wait for interpolation to finish before live editing, preloading another visual
+on that track, or starting parameter automation. Other tracks remain independent.
+
 To change whole effect combinations or module on/off states, capture a new
-Visual cue using the same media and crossfade into it. A new Visual cue cancels
+Visual cue and crossfade into it. A new Visual cue cancels
 parameter automation on its track. Parameter cues must follow the target Visual
 cue; don't rely on simultaneous scheduled entries to establish that dependency.
 
@@ -484,7 +761,8 @@ Select its Show Control source mode to retain all cue and output mapping below.
    and become active again when Follow Show Canvas is off.
 4. Choose physical **Output Mode → Direct Displays** or **4K Wall Processor**.
    For the processor, keep **Wall Output → Wall Source Mode → Show Control**;
-   a standalone wall source override bypasses cue routing and is flagged in Canvas Summary.
+   explicit cue channels take priority even if a standalone wall source fallback
+   is selected. Show Control remains the clearest setting for cue playback.
 5. Select the cue, Preload, and GO. P1 receives the left third, P2 the center
    third, P3 the right third. **Projector Review → Three Projectors / Side by
    Side** shows the continuous panorama; wall review shows its packed tiles.

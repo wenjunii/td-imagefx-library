@@ -100,6 +100,10 @@ def validate(write_report=True, brush=False, radial=False):
             "Patternspeed": (-.5, .8), "Patternstagger": (0., .5),
         }
         for par in test.customPars:
+            if par.name.startswith('Dance'):
+                # Optional motion-force inputs, pulses and GPU warp are tested
+                # separately, without starting cameras in a scalar sweep.
+                continue
             if par.readOnly:
                 checks[par.name + "_readonly"] = par.name == "Time" and bool(par.expr)
                 continue
@@ -470,7 +474,15 @@ def validate(write_report=True, brush=False, radial=False):
             first=capture()
             test.par.Manualtime=20.
             checks["radial_inherited_clocks_freeze"] = np.array_equal(first,capture())
-        checks["all_controls_covered"] = set(controls) == {p.name for p in test.customPars if not p.readOnly and not p.isPulse}
+        dance_scope = {}
+        dance_path = ROOT / 'touchdesigner/scripts/dance_forces.py'
+        exec(compile(dance_path.read_text(encoding='utf-8'), str(dance_path), 'exec'), dance_scope)
+        dance_names = {d[1] for d in dance_scope['PARAMETERS']}
+        checks['dance_controls_declared_and_separately_audited'] = {
+            p.name for p in test.customPars if p.name.startswith('Dance')} == dance_names
+        checks["all_controls_covered"] = set(controls) | {
+            p.name for p in test.customPars if p.name in dance_names and not p.readOnly and not p.isPulse
+        } == {p.name for p in test.customPars if not p.readOnly and not p.isPulse}
         toggle = "Inkradialenabled" if radial else "Inkbrushenabled" if brush else "Inkdreamenabled"
         upstream = "ink_brush_flow" if radial else "ink_dream_flow" if brush else "ink_orbit_canvas"
         downstream = "ink_flow" if radial else "ink_radial_flow" if brush else "ink_brush_flow"

@@ -1,4 +1,5 @@
 """Portable coverage guards for the complete native control audit."""
+import ast
 import tempfile
 import unittest
 from pathlib import Path
@@ -9,6 +10,21 @@ from touchdesigner.scripts import validate_live_suite as audit
 
 
 class LiveSuiteTests(unittest.TestCase):
+    def test_rendered_transport_validators_use_the_complete_tick_path(self):
+        root = Path(audit.__file__).parent
+        for filename in ('validate_show_control.py', 'validate_show_navigation.py', 'validate_show_live_look.py'):
+            with self.subTest(script=filename):
+                tree = ast.parse((root / filename).read_text(encoding='utf-8'))
+                steps = [node for node in ast.walk(tree) if isinstance(node, ast.FunctionDef) and node.name == 'step']
+                self.assertEqual(len(steps), 1)
+                calls = {ast.unparse(node.func) for node in ast.walk(steps[0]) if isinstance(node, ast.Call)}
+                self.assertIn('ext.Tick', calls)
+                self.assertNotIn('ext.engine.tick', calls)
+        layer = (root / 'validate_layer_preview.py').read_text(encoding='utf-8')
+        self.assertIn("self.stage='after_update'", layer)
+        self.assertIn('self.ext=h.ext.ShowControlExt', layer)
+        self.assertNotIn('e.UpdateLook();e.Go()', layer)
+
     def safe_session(self):
         show = Mock(par=SimpleNamespace(Audioenabled=False, Masterblackout=True))
         show.ext.ShowControlExt = SimpleNamespace(
@@ -83,10 +99,10 @@ class LiveSuiteTests(unittest.TestCase):
 
     def test_all_output_and_mapping_groups_are_included(self):
         names = [item[0] for item in audit.VALIDATORS]
-        self.assertEqual(len(names), 28)
-        self.assertEqual(len(set(names)), 28)
+        self.assertEqual(len(names), 30)
+        self.assertEqual(len(set(names)), 30)
         self.assertTrue({"output_mode", "projector_review", "projection_mapping",
-                         "projection_resets", "projection_polygon", "show_navigation"} <= set(names))
+                         "projection_resets", "projection_polygon", "show_navigation", "cue_interpolation"} <= set(names))
         self.assertIn(("projection_resets", "validate_projection_mapping.py", "validate_resets"),
                       audit.VALIDATORS)
 

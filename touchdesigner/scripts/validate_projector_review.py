@@ -20,6 +20,24 @@ def validate(write_report=True):
     checks = {}
     report = dict(ok=False, generated_at=datetime.now(timezone.utc).isoformat(), hardware_output_tested=False)
     try:
+        checks['quality_menu_complete'] = list(show.par.Reviewresolution.menuNames) == [item[0] for item in runtime.REVIEW_RESOLUTIONS]
+        checks['quality_default_1080p'] = show.par.Reviewresolution.eval() == '1080p'
+        checks['quality_status_readonly'] = bool(show.par.Reviewcanvasinfo.readOnly)
+        show.par.Reviewresolution = 'custom'
+        for name in ('Reviewwidth', 'Reviewheight'):
+            parameter = show.par[name]
+            checks[name+'_range'] = (parameter.min, parameter.max, parameter.normMin, parameter.normMax) == (16, 4096, 16, 4096)
+            checks[name+'_clamped'] = bool(parameter.clampMin and parameter.clampMax)
+            saved = parameter.eval()
+            for value in (16, 2048, 4096):
+                parameter.val = value
+                checks[name+'_value_'+str(value)] = parameter.eval() == value
+                checks[name+'_geometry_'+str(value)] = runtime.review_panel_size(show) == (int(show.par.Reviewwidth), int(show.par.Reviewheight))
+            parameter.val = saved
+        show.par.Reviewresolution = '1080p'
+        checks['quality_total_5760_by_1080'] = runtime.review_canvas_size(show) == (5760, 1080)
+        show.par.Reviewprojector = 'all'
+        checks['embedded_uses_thumbnail_branch'] = show.op('review_selected').par.top.eval() == show.op('projector_review_thumbnail')
         wall.par.Sourcemode, wall.par.Blackout, wall.par.Enabled = 'independent', False, True
         wall.par.Testpattern, wall.par.Monitorenabled = False, True
         for i, color in enumerate(((1, 0, 0), (0, 1, 0), (0, 0, 1)), 1):
@@ -76,7 +94,8 @@ def validate(write_report=True):
         checks['reinstall_preserves_view'] = show.par.Reviewprojector == 'wall'
         checks['reinstall_updates_menu'] = show.par.Reviewprojector.menuNames == [x[0] for x in runtime.REVIEW_VIEWS]
         checks['no_duplicate_parameters'] = len(show.customPars) == count
-        checks['reinstall_keeps_mapping_tab'] = "'Projection Mapping'" in show.op('cue_inspector').par.pagescope.eval()
+        nav=show.op('inspector_navigation')
+        checks['reinstall_keeps_mapping_tab'] = ('Projection Mapping' in nav.par.Section.menuNames if nav is not None else "'Projection Mapping'" in show.op('cue_inspector').par.pagescope.eval())
         checks['cues_unchanged'] = show.ext.ShowControlExt.document == before and original.ext.ShowControlExt.document == document
         checks['no_output_windows_opened'] = not any(n is not None and n.isOpen for n in runtime._export_windows(show))
         checks['no_operator_errors'] = not show.errors(recurse=True)

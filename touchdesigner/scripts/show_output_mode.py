@@ -16,10 +16,12 @@ def canvas_size(layout, panel_width, panel_height, overlap=0.):
     return int(float(panel_width) * factor), int(panel_height)
 
 
-def cue_media_fit(show):
+def cue_media_fit(show, deck=None):
     fit = show.par.Cuemediafit.eval()
     if fit == 'auto':
-        return 'cover' if show.par.Routingmode == 'panoramic' else 'contain'
+        route = deck.fetch('imagefx_cue_projection', 'inherit', search=False) if deck is not None else 'inherit'
+        panoramic = show.par.Routingmode == 'panoramic' if route == 'inherit' else route == 'panoramic'
+        return 'cover' if panoramic else 'contain'
     return fit
 
 
@@ -86,7 +88,7 @@ def fit_cue_media(show, deck, movie):
     fitted.par.resolutionh.expr = 'int(parent().par.Customheight)'
     fitted.seq.vec.numBlocks = 1
     fitted.par.vec0name = 'uFit'
-    fitted.par.vec0valuex.expr = "('contain','cover','stretch').index(parent().parent().op('show_output_mode').module.cue_media_fit(parent().parent()))"
+    fitted.par.vec0valuex.expr = "('contain','cover','stretch').index(parent().parent().op('show_output_mode').module.cue_media_fit(parent().parent(), parent()))"
     movie.outputConnectors[0].connect(fitted.inputConnectors[0])
     fitted.outputConnectors[0].connect(deck.op('source_image').inputConnectors[1])
     return fitted
@@ -132,6 +134,8 @@ def canvas_summary(show):
             width, height, int(show.par.Sharedtrack))
     elif mode == 'identical':
         content = '{} x {} | Track {} repeated on P1/P2/P3'.format(width, height, int(show.par.Sharedtrack))
+    elif mode == 'cue':
+        content = '{} x {} per panel | Per-cue routing first; inherited cues use Output 1/2/3 track assignments'.format(width, height)
     else:
         content = '{} x {} per track | separate canvases; assign tracks on Output 1/2/3'.format(width, height)
     wall = show.parent().op('wall_output')
@@ -301,10 +305,11 @@ def install(show):
         fit.default, fit.val = 'auto', 'auto'
     layout = show.par.Routingmode
     saved_layout = layout.eval()
-    layout.menuLabels = ['Identical (repeat one cue)', 'Panoramic (one wide canvas)', 'Independent (separate canvases)']
+    layout.menuNames = ['cue', 'identical', 'panoramic', 'independent']
+    layout.menuLabels = ['Follow Show Routing (Per Cue)', 'Identical (fallback)', 'Panoramic (fallback)', 'Independent (fallback)']
     layout.val = saved_layout
-    show.par.Sharedtrack.enableExpr = "me.par.Routingmode != 'independent'"
-    show.par.Panoramaoverlap.enableExpr = "me.par.Routingmode == 'panoramic'"
+    show.par.Sharedtrack.enableExpr = "me.par.Routingmode in ('identical', 'panoramic')"
+    show.par.Panoramaoverlap.enableExpr = "True"  # Also used by per-cue panoramas.
     for alias, target, label in (
         ('Outputlayout', 'Routingmode', 'Canvas Layout'),
         ('Outputsharedtrack', 'Sharedtrack', 'Shared Canvas Cue Track'),
@@ -404,4 +409,6 @@ def install(show):
     inspector.cook(force=True)
     inspector.par.op = '..'
     inspector.cook(force=True)
+    if show.op('show_panel_layout') is not None:
+        show.op('show_panel_layout').module.configure(show)
     return runtime

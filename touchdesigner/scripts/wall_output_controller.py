@@ -6,8 +6,21 @@ def _show(wall):
     return wall.parent().op("show_control")
 
 
-def _source(wall, i):
+def effective_source_mode(wall):
+    """Explicit cue destinations outrank manual wall-source fallback modes."""
     mode=wall.par.Sourcemode.eval()
+    if mode=='show': return mode
+    show=_show(wall)
+    if show is not None:
+        revision=getattr(show.par,'Cueroutingrevision',None)
+        if revision is not None: revision.eval()  # Native expression dependency.
+        override=getattr(show,'HasCueOutputRouting',None)
+        if callable(override) and override() is True: return 'show'
+    return mode
+
+
+def _source(wall, i):
+    mode=effective_source_mode(wall)
     if mode == "show":
         show=_show(wall)
         return show.op("out{}_projector".format(i)) if show else None
@@ -28,15 +41,16 @@ def source_status(wall):
     sources=[_source(wall,i) for i in (1,2,3)]
     missing=[str(i+1) for i,s in enumerate(sources) if s is None]
     if missing: return "Missing/unsafe TOP for P"+", P".join(missing)+" (black fallback)"
-    if wall.par.Sourcemode == "panoramic" and (sources[0].width,sources[0].height)!=(5760,1080):
+    mode=effective_source_mode(wall)
+    if mode == "panoramic" and (sources[0].width,sources[0].height)!=(5760,1080):
         return "Panorama {}x{} scaled; prepare 5760x1080 for 1:1 pixels".format(sources[0].width,sources[0].height)
-    if wall.par.Sourcemode == "show": return "Show Control: {} / three mapped feeds".format(_show(wall).par.Routingmode.eval())
+    if mode == "show": return "Show Control / cue channels take priority / three mapped feeds"
     return "Sources OK / " + wall.par.Sourcemode.eval()
 
 
 def blackout(wall):
     show=_show(wall)
-    return bool(wall.par.Blackout or (wall.par.Sourcemode=="show" and show is not None and show.par.Masterblackout))
+    return bool(wall.par.Blackout or (effective_source_mode(wall)=="show" and show is not None and show.par.Masterblackout))
 
 
 def _display_list():

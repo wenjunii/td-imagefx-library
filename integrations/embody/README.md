@@ -121,11 +121,13 @@ get_td_project_context -> project_id: td-imagefx-library
 ### Check the complete bridge
 
 Run the standalone checker with the Python interpreter from the
-`td-ai-assistant` virtual environment. With the three repositories next to one
+`td-knowledge-mcp/.venv` environment (official MCP SDK 2.x). The assistant's
+environment has a separate dependency graph and must not launch this server.
+With the three repositories next to one
 another in the same workspace, its default paths are sufficient:
 
 ```powershell
-..\td-ai-assistant\venv\Scripts\python.exe integrations\embody\check_td_bridge.py
+..\td-knowledge-mcp\.venv\Scripts\python.exe integrations\embody\check_td_bridge.py
 ```
 
 This checks the MCP subprocess, the ImageFX project contract, and knowledge
@@ -133,8 +135,23 @@ retrieval even when TouchDesigner is closed. Require the live Envoy connection,
 managed-root diagnostics, and project performance as well with:
 
 ```powershell
-..\td-ai-assistant\venv\Scripts\python.exe integrations\embody\check_td_bridge.py --require-envoy
+..\td-knowledge-mcp\.venv\Scripts\python.exe integrations\embody\check_td_bridge.py --require-envoy
 ```
+
+The checker uses the MCP 2.x `Client`, snake-case result fields and protocol
+auto-negotiation. It verifies all six local tools and includes the passive
+`get_td_server_health` report, which separates knowledge readiness from registry,
+identity and live-connection problems. A normal knowledge-only pass does not
+mean TouchDesigner is connected. `--require-envoy` also requires clean managed
+roots in the running harness. All calls are read-only; the checker does not
+reload the index, edit operators, save a TOE or open audience outputs.
+
+If the old environment reports `No module named mcp`, update only this project's
+ignored `.codex/config.toml` command to the bridge's `.venv` Python and set `cwd`
+to the bridge directory. Do not install bridge dependencies into the assistant's
+environment. Reconnect/restart the client's MCP server after changing its
+configuration. If an old checker reports a missing `isError` attribute, use the
+updated checker rather than downgrading the bridge SDK.
 
 Child-server diagnostics are quiet by default so a normal successful shutdown
 does not print transport cleanup noise. Add `--verbose` when diagnosing MCP
@@ -147,8 +164,8 @@ ImageFX harness. During a rapid restart, Embody may select the next free port
 while Windows releases the previous socket; the bridge now follows that active
 registry entry automatically. Use `--port` only as a fallback when the registry
 is unavailable.
-Clients that honor MCP `tools/list_changed` notifications refresh the live
-catalog automatically. If Codex still shows only the five local tools after
+Clients that honor the bridge's tool-catalog change notifications refresh the live
+catalog automatically. If Codex still shows only the six local tools after
 Envoy is listening, restart the Codex task once to reconnect the
 project-scoped MCP process.
 

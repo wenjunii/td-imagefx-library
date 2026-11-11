@@ -48,7 +48,11 @@ def _check_show_wall_bindings(host,wall,checks):
     checks['show_reinstall_preserves_values']=before=={p.name:p.eval() for p in show.customPars if not p.isPulse}
     checks['show_reinstall_no_duplicates']=len(show.customPars)==count and sum(p.name=='Wall Output' for p in show.customPages)==1
     checks['show_readonly_status']=all(show.par[n].readOnly for n in ('Wallstatus','Walldisplays','Wallsourcesstatus','Wallactionstatus'))
-    checks['show_wall_tab_visible']="'Wall Output'" in op('/project1/imagefx_demo/show_control/cue_inspector').par.pagescope.eval()
+    # The lightweight binding fixture has no UI. Check the actual installed
+    # inspector rather than accidentally resolving a suffixed fixture name.
+    panel=op('/project1/imagefx_demo/show_control')
+    nav=panel.op('inspector_navigation')
+    checks['show_wall_tab_visible']=nav is not None and 'Wall Output' in nav.par.Section.menuNames
     checks['show_install_keeps_window_closed']=not wall.op('wall_window').isOpen
     for name,value in wall_before.items():
         if not wall.par[name].readOnly: wall.par[name].val=value

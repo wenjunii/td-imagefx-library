@@ -74,7 +74,8 @@ def install(show):
 
     for output in (1, 2, 3):
         source = show.op('output_source{}'.format(output))
-        source.par.top.expr = "parent().ProjectionSource(parent().OutputTrack({}))".format(output)
+        if show.op('cue_projection') is None:
+            source.par.top.expr = "parent().ProjectionSource(parent().OutputTrack({}))".format(output)
 
     for action, label, x, width in (('Showlooklive', 'Show Live Look', 20, 214),
                                     ('Stoplooklive', 'Stop Live Look', 244, 188),
@@ -113,4 +114,6 @@ def install(show):
     inspector.cook(force=True)
     inspector.par.op = '..'
     inspector.cook(force=True)
+    if show.op('show_panel_layout') is not None:
+        show.op('show_panel_layout').module.configure(show)
     return show

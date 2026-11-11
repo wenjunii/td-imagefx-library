@@ -1,7 +1,8 @@
 """Check the project-scoped TD Knowledge MCP server and optional Envoy bridge.
 
-Run this script with the Python interpreter from the td-ai-assistant virtual
-environment so the official ``mcp`` client package is available.
+Run this script with the Python interpreter from td-knowledge-mcp/.venv.
+The bridge owns its MCP 2.x dependencies; the assistant environment does not.
+Only read-only knowledge, health and live diagnostic tools are called.
 """
 
 from __future__ import annotations
@@ -13,12 +14,6 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-
-import anyio
-import mcp.types as types
-from mcp.client.session import ClientSession
-from mcp.client.stdio import StdioServerParameters, stdio_client
-
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 WORKSPACE_ROOT = PROJECT_ROOT.parent
@@ -35,6 +30,7 @@ LOCAL_TOOL_NAMES = {
     "get_knowledge_stats",
     "reload_td_knowledge",
     "get_td_project_context",
+    "get_td_server_health",
 }
 
 
@@ -114,14 +110,19 @@ def _arguments(argv=None):
 
 
 def _payload(result):
-    if result.isError:
+    if result.is_error:
         message = result.content[0].text if result.content else "Unknown tool error"
         raise RuntimeError(message)
-    if result.structuredContent is not None:
-        return result.structuredContent
+    if result.structured_content is not None:
+        if not isinstance(result.structured_content, dict):
+            raise RuntimeError("Tool structured content must be a JSON object")
+        return result.structured_content
     for block in result.content:
-        if isinstance(block, types.TextContent):
-            return json.loads(block.text)
+        if getattr(block, "type", None) == "text":
+            payload = json.loads(block.text)
+            if not isinstance(payload, dict):
+                raise RuntimeError("Tool text content must be a JSON object")
+            return payload
     raise RuntimeError("Tool result did not include JSON content")
 
 
@@ -155,6 +156,8 @@ def _root_exception(error):
 
 
 async def _wait_for_knowledge(session, timeout):
+    import anyio
+
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         stats = _payload(await session.call_tool("get_knowledge_stats", {}))
@@ -168,6 +171,8 @@ async def _wait_for_knowledge(session, timeout):
 
 
 async def _wait_for_envoy(session, timeout):
+    import anyio
+
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         listed = await session.list_tools()
@@ -175,10 +180,22 @@ async def _wait_for_envoy(session, timeout):
         if "get_td_info" in names:
             return names
         await anyio.sleep(0.5)
-    raise TimeoutError("Timed out waiting for Envoy")
+    health = _payload(await session.call_tool("get_td_server_health", {}))
+    envoy = health.get("envoy", {})
+    raise TimeoutError(
+        "Timed out waiting for Envoy: status={}, registry={}, identity_verified={}. "
+        "Open the ImageFX development harness and enable Embody Envoy.".format(
+            envoy.get("status"), envoy.get("registry_status"),
+            envoy.get("identity_verified"),
+        )
+    )
 
 
 async def _check(config):
+    import anyio
+    from mcp.client import Client
+    from mcp.client.stdio import StdioServerParameters, stdio_client
+
     server = config.server.expanduser().resolve()
     faiss_db = config.faiss_db.expanduser().resolve()
     project_context = config.project_context.expanduser().resolve()
@@ -223,13 +240,10 @@ async def _check(config):
     )
 
     child_log = sys.stderr if config.verbose else subprocess.DEVNULL
-    async with stdio_client(parameters, errlog=child_log) as (
-        read_stream,
-        write_stream,
-    ):
-        async with ClientSession(read_stream, write_stream) as session:
-            initialized = await session.initialize()
-            await session.send_ping()
+    with anyio.fail_after(config.wait_seconds * 2 + 60):
+        async with Client(
+            stdio_client(parameters, errlog=child_log), read_timeout_seconds=30,
+        ) as session:
             context = _payload(
                 await session.call_tool(
                     "get_td_project_context",
@@ -260,10 +274,15 @@ async def _check(config):
             )
             listed = await session.list_tools()
             names = {tool.name for tool in listed.tools}
+            missing = LOCAL_TOOL_NAMES - names
+            if missing:
+                raise RuntimeError("Missing local MCP tools: " + ", ".join(sorted(missing)))
             envoy_online = "get_td_info" in names
             if config.require_envoy and not envoy_online:
                 names = await _wait_for_envoy(session, config.wait_seconds)
                 envoy_online = "get_td_info" in names
+
+            health = _payload(await session.call_tool("get_td_server_health", {}))
 
             live = {"status": "online" if envoy_online else "offline"}
             live_clean = True
@@ -326,8 +345,9 @@ async def _check(config):
                     and live_clean
                 ),
                 "server": {
-                    "name": initialized.serverInfo.name,
-                    "version": initialized.serverInfo.version,
+                    "name": session.server_info.name,
+                    "version": session.server_info.version,
+                    "protocol": session.protocol_version,
                     "local_tools": len(LOCAL_TOOL_NAMES.intersection(names)),
                     "total_tools": len(names),
                 },
@@ -342,13 +362,25 @@ async def _check(config):
                     "query_results": len(query.get("results", [])),
                 },
                 "envoy": live,
+                "health": health,
             }
 
 
 def main(argv=None):
     config = _arguments(argv)
     try:
+        import anyio
+
         report = anyio.run(_check, config)
+    except ImportError:
+        report = {
+            "ok": False,
+            "error": (
+                "MCP 2.x runtime is unavailable. Run this checker with "
+                "td-knowledge-mcp/.venv/Scripts/python.exe on Windows "
+                "(or .venv/bin/python on macOS/Linux), not td-ai-assistant/venv."
+            ),
+        }
     except Exception as exc:
         exc = _root_exception(exc)
         report = {

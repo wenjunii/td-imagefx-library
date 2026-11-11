@@ -14,6 +14,51 @@ MODULE = runpy.run_path(str(ROOT / "touchdesigner/scripts/layer_composite.py"))
 
 
 class LayerCompositeTests(unittest.TestCase):
+    def branch_editor_fixture(self,enabled=False):
+        class Value:
+            def __init__(self,value): self.val=value
+            def eval(self): return self.val
+        class Pars(SimpleNamespace):
+            def __getitem__(self,key): return getattr(self,key)
+        target=SimpleNamespace(name='ink_dream_flow',path='/cue/image_composition/a_effects/ink_dream_flow',
+                               par=Pars(Enabled=Value(enabled)))
+        composition=SimpleNamespace(par=Pars(Avisible=Value(True)))
+        component=Mock()
+        component.par=Pars(Enabled=Value(True),Backdropsource=Value('effects_a'),Topsource=Value('transparent'))
+        component.parent.return_value.op.return_value=composition
+        runtime={};exec(MODULE['STATUS'],runtime)
+        runtime['edit_target']=Mock(return_value=target)
+        return runtime,component,target,composition
+
+    def test_branch_editor_reports_bypassed_selected_effect(self):
+        runtime,c,target,composition=self.branch_editor_fixture()
+        self.assertIn('OFF / BYPASSED',runtime['edit_state'](c,'A'))
+        self.assertIn('used as backdrop',runtime['edit_state'](c,'A'))
+        target.par.Enabled.val=True
+        self.assertIn(' | ON | ',runtime['edit_state'](c,'A'))
+        composition.par.Avisible.val=False
+        self.assertIn('branch hidden',runtime['edit_state'](c,'A'))
+        c.par.Backdropsource.val='effects_b'
+        self.assertIn('not selected',runtime['edit_state'](c,'A'))
+
+    def test_explicit_branch_enable_does_not_open_or_modify_other_targets(self):
+        runtime,c,target,_=self.branch_editor_fixture()
+        self.assertIs(runtime['edit_action'](c,'A','enable'),target)
+        self.assertTrue(target.par.Enabled.eval())
+        runtime['edit_target'].assert_called_once_with(c,'A',None)
+        self.assertEqual(c.par.Editstatus,'Effects A: '+target.path)
+        definitions={d['name']:d for d in MODULE['PARAMETERS']}
+        for p in ('A','B'):
+            self.assertEqual(definitions[p+'enable']['type'],'pulse')
+            self.assertTrue(definitions[p+'status']['read_only'])
+            self.assertFalse(definitions[p+'status']['animatable'])
+
+    def test_branch_enable_workflow_requires_explicit_module_choice(self):
+        runtime,c,target,_=self.branch_editor_fixture()
+        target.par=SimpleNamespace()
+        self.assertIsNone(runtime['edit_action'](c,'A','enable'))
+        self.assertIn('Choose an effect module',c.par.Editstatus)
+
     def test_parameter_contracts(self):
         definitions = MODULE["PARAMETERS"]
         self.assertEqual(len(definitions), len({d["name"] for d in definitions}))

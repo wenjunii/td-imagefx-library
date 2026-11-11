@@ -89,13 +89,15 @@ def build_show_control(demo, context):
     def menu(page, name, values, default, **extra):
         parameter(page, name, "menu", default, menu_names=values, menu_labels=[v.replace("_", " ").title() for v in values], **extra)
 
-    parameter("Transport", "Libraryroot", "folder", str(context["PROJECT_ROOT"]), read_only=True)
-    parameter("Transport", "Showfile", "file", str(context["PROJECT_ROOT"] / ".imagefx" / "shows" / "current.json"), label="Show File (local JSON)")
+    parameter("Transport", "Libraryroot", "folder", "", read_only=True)
+    show.par.Libraryroot.expr = 'project.folder'
+    parameter("Transport", "Showfile", "file", ".imagefx/shows/current.json", label="Show File (local JSON)")
+    show.par.Showfile.expr = "project.folder + '/.imagefx/shows/current.json'"
     parameter("Transport", "Selectedcue", "int", 1, 1, 1000, label="Selected Cue Number")
     parameter("Transport", "Cuepage", "int", 1, 1, 84, label="Cue List Page (12 per page)")
     for name, label in (
         ("Gocue", "GO"), ("Goback", "Go Back"), ("Pause", "Pause All"), ("Resume", "Resume All"), ("Stopcue", "Stop Selected Cue"),
-        ("Stopall", "STOP ALL"), ("Preload", "Preload Selected"), ("Preflight", "Check Media Files"),
+        ("Stopall", "STOP ALL"), ("Preload", "Preload Selected"), ("Preflight", "Run Pre-Show Check"),
         ("Saveshow", "Save Show"), ("Loadshow", "Load Show"), ("Selectcue", "Load Selected Cue Details"),
         ("Openoutputs", "Open Audience Canvas"), ("Closeoutputs", "Close Audience Canvas"),
     ):
@@ -114,8 +116,12 @@ def build_show_control(demo, context):
     parameter("Cue Editor", "Cueenabled", "toggle", True, label="Cue Enabled")
     parameter("Cue Editor", "Mediafile", "file", "", label="Image / Video / Audio File")
     parameter("Cue Editor", "Track", "int", 1, 1, 3, label="Visual / Audio Track")
+    menu("Cue Editor", "Cueprojection", ["inherit", "p1", "p2", "p3", "p1_p2", "p1_p3", "p2_p3", "all", "panoramic"], "inherit", label="Projection Routing")
+    menu("Cue Editor", "Cuechannels", ["routing","1","2","3","1_2","1_3","2_3","all"], "routing", label="Visual Output Channels")
     parameter("Cue Editor", "Timestamp", "string", "", label="Show Timestamp (blank = manual GO)")
-    for name, default, label in (("Prewait",0,"Pre-wait Seconds"),("Duration",10,"Duration (0 = indefinite)"),("Fade",1,"Fade Seconds"),("Postwait",0,"Post-wait Seconds"),("Mediain",0,"Media In Point (seconds)")):
+    menu("Cue Editor", "Transition", ["crossfade", "interpolate"], "crossfade", label="Visual Transition")
+    show.par.Transition.menuLabels = ["Crossfade", "Parameter Interpolation"]
+    for name, default, label in (("Prewait",0,"Pre-wait Seconds"),("Duration",10,"Duration (0 = indefinite)"),("Fade",1,"Fade / Transition Seconds"),("Postwait",0,"Post-wait Seconds"),("Mediain",0,"Media In Point (seconds)")):
         parameter("Cue Editor", name, default=default, maximum=86400,
                   norm_max=300 if name in {"Duration", "Mediain"} else 10, label=label)
     menu("Cue Editor", "Follow", ["manual", "continue", "follow"], "manual", label="Next Cue Behavior")
@@ -137,7 +143,7 @@ def build_show_control(demo, context):
     parameter("Look Editor", "Lookediting", "toggle", False, read_only=True, label="Look Draft Active")
     parameter("Look Editor", "Lookstatus", "string", "No look draft", read_only=True, label="Look Editor Status")
 
-    menu("Routing", "Routingmode", ["identical", "panoramic", "independent"], "identical", label="Three-Output Content Mapping")
+    menu("Routing", "Routingmode", ["cue", "identical", "panoramic", "independent"], "cue", label="Three-Output Content Mapping")
     parameter("Routing", "Renderwidth", "int", 1920, 320, 3840, label="Render Width Per Panel")
     parameter("Routing", "Renderheight", "int", 1080, 180, 2160, label="Render Height")
     parameter("Routing", "Panoramaoverlap", default=0, maximum=0.5, label="Panorama Shared Edge Overlap")
@@ -370,7 +376,34 @@ def build_show_control(demo, context):
     live_scope = dict(context, __file__=str(live_path), __name__="_imagefx_live_look")
     exec(compile(live_path.read_text(encoding="utf-8"), str(live_path), "exec"), live_scope)
     live_scope["install"](show)
+    readiness_path = context["PROJECT_ROOT"] / "touchdesigner/scripts/show_readiness.py"
+    readiness_scope = dict(context, __file__=str(readiness_path), __name__="_imagefx_readiness")
+    exec(compile(readiness_path.read_text(encoding="utf-8"), str(readiness_path), "exec"), readiness_scope)
+    readiness_scope["install"](show)
+    layout_path = context["PROJECT_ROOT"] / "touchdesigner/scripts/show_panel_layout.py"
+    layout_scope = dict(context, __file__=str(layout_path), __name__="_imagefx_panel_layout")
+    exec(compile(layout_path.read_text(encoding="utf-8"), str(layout_path), "exec"), layout_scope)
+    layout_scope["install"](show)
+    routing_path = context["PROJECT_ROOT"] / "touchdesigner/scripts/cue_projection.py"
+    routing_scope = dict(context, __file__=str(routing_path), __name__="_imagefx_cue_projection")
+    exec(compile(routing_path.read_text(encoding="utf-8"), str(routing_path), "exec"), routing_scope)
+    routing_scope["install"](show)
     return show
+
+
+def install_transition_controls(show):
+    """Add the transition selector to an existing stopped show, preserving cues."""
+    page = next(p for p in show.customPages if p.name == "Cue Editor")
+    if show.par["Transition"] is None:
+        parameter = page.appendMenu("Transition", label="Visual Transition")[0]
+        parameter.menuNames = ["crossfade", "interpolate"]
+        parameter.default = parameter.val = "crossfade"
+    show.par.Transition.menuNames = ["crossfade", "interpolate"]
+    show.par.Transition.menuLabels = ["Crossfade", "Parameter Interpolation"]
+    show.par.Fade.label = "Fade / Transition Seconds"
+    names = [p.name for p in page.pars if p.name != "Transition"]
+    names.insert(names.index("Fade"), "Transition")
+    page.sort(*names)
 
 
 def install_navigation_controls(show):
