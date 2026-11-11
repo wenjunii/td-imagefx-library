@@ -104,7 +104,7 @@ class ShowReadinessTests(unittest.TestCase):
             with self.subTest(value=value),self.assertRaises(ValueError): export.wall_warmup_seconds(value)
 
     def test_wall_warmup_never_records_early(self):
-        show=Mock(); writer=Mock(); target=Mock(); job={'stage':'warming','writer':writer,
+        show=Mock(); writer=Mock(); writer.errors.return_value=''; target=Mock(); job={'stage':'warming','writer':writer,
             'settings':{'duration':10},'target':target,'warm_until':12,'warm_frames':0}
         with patch.dict('sys.modules',{'td':SimpleNamespace(absTime=SimpleNamespace(frame=1))}), \
              patch.object(export,'_export_windows',return_value=[]), \
@@ -112,7 +112,8 @@ class ShowReadinessTests(unittest.TestCase):
              patch.object(export.time,'monotonic',return_value=10),patch.object(export,'_later'):
             export._wall_step(show,job)
         self.assertEqual(job['stage'],'warming'); self.assertEqual(job['warm_frames'],1)
-        writer.cook.assert_not_called()
+        writer.cook.assert_called_once_with(force=False)
+        self.assertIsNot(writer.par.record,True)
 
     def test_wall_warmup_start_needs_two_frames_even_when_zero_seconds(self):
         show=Mock(); writer=Mock(); writer.errors.return_value=''; target=Mock()

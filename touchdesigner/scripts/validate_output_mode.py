@@ -63,8 +63,10 @@ def _panorama_checks(show, wall, checks):
     ext.UpdateMapping()
     checks['panorama_overlap_width'] = '4800 x 1080' in show.par.Outputcanvas.eval()
     checks['panorama_overlap_intervals'] = all(
-        abs(float(show.op('mapped%d' % i).par.vec3valuex) - (i-1)*.3) < 1e-6
-        and abs(float(show.op('mapped%d' % i).par.vec3valuez) - ((i-1)*.3+.4)) < 1e-6 for i in (1,2,3))
+        abs(float(show.op('cue_projection%d' % i).par.vec1valuey) - (i-1)*.3) < 1e-6
+        and abs(float(show.op('cue_projection%d' % i).par.vec1valuez) - ((i-1)*.3+.4)) < 1e-6
+        and float(show.op('mapped%d' % i).par.vec3valuex) == 0
+        and float(show.op('mapped%d' % i).par.vec3valuez) == 1 for i in (1,2,3))
     show.par.Routingmode = 'identical'
     ext.UpdateMapping()
     checks['identical_remains_available'] = np.array_equal(pixels(show.op('mapped1')), pixels(show.op('mapped3')))

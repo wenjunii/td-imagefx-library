@@ -128,6 +128,14 @@ class InterpolationRuntimeTests(unittest.TestCase):
         self.assertEqual(self.parameter.val, .2)
         self.ext._capture_look.assert_not_called()
 
+    def test_puppet_restart_uses_fresh_deck_not_continuous_interpolation_clock(self):
+        self.cue['look']={'toggles':{'Dancepuppetenabled':True}}
+        self.ext.start(self.cue,10)
+        self.assertIs(self.item['deck'],self.standby)
+        self.assertNotIn('interpolation',self.item)
+        self.ext._capture_look.assert_not_called()
+        self.assertIn('opening frame',self.ext._status.call_args.args[0])
+
     def test_all_discrete_controls_are_checked_before_any_mutation(self):
         destination = look(.8)
         destination["modules"]["ink_dream_flow"]["Seed"] = 5

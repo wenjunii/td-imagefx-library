@@ -12,7 +12,77 @@ from pathlib import Path
 
 SHOW_KIND = "tdimagefx.show"
 MAX_CUES = 1000
-MAX_SHOW_BYTES = 8 * 1024 * 1024
+# A cue may capture three complete workflows (main plus independent A/B).
+# Keep a bounded show-only budget without relaxing other JSON readers.
+MAX_SHOW_BYTES = 64 * 1024 * 1024
+
+
+def check_show_size(size):
+    if size > MAX_SHOW_BYTES:
+        raise ValueError("Show file exceeds {:g} MiB".format(MAX_SHOW_BYTES / (1024 * 1024)))
+
+
+PROJECTION_ROUTES = {
+    "inherit": None, "p1": (1,), "p2": (2,), "p3": (3,),
+    "p1_p2": (1, 2), "p1_p3": (1, 3), "p2_p3": (2, 3),
+    "all": (1, 2, 3), "panoramic": (1, 2, 3),
+}
+OUTPUT_CHANNELS = {
+    'routing': None, '1': (1,), '2': (2,), '3': (3,),
+    '1_2': (1, 2), '1_3': (1, 3), '2_3': (2, 3), 'all': (1, 2, 3),
+}
+
+
+def cue_output_channels(cue):
+    selected = OUTPUT_CHANNELS[cue.get('channels', 'routing')]
+    return PROJECTION_ROUTES[cue.get('projection', 'inherit')] if selected is None else selected
+
+
+def cue_render_width(cue, show_layout, panel_width, overlap=0.0):
+    if cue_canvas_layout(cue, show_layout) != 'panoramic':
+        return int(panel_width)
+    count = len(cue_output_channels(cue) or (1, 2, 3))
+    return int(panel_width * (count - (count - 1) * overlap))
+
+
+def cue_canvas_layout(cue, show_layout):
+    route = cue.get("projection", "inherit")
+    return show_layout if route == "inherit" else "panoramic" if route == "panoramic" else "identical"
+
+
+def cue_projection_sample(cue, output, show_layout, output_tracks, overlap=0.0):
+    """Return enabled, U start/end; physical windows/calibration are untouched."""
+    outputs = cue_output_channels(cue)
+    enabled = output_tracks[output - 1] == cue["track"] if outputs is None else output in outputs
+    if cue_canvas_layout(cue, show_layout) == "panoramic":
+        channels = outputs or (1, 2, 3)
+        if output not in channels: return 0.0, 0.0, 1.0
+        width = len(channels) - (len(channels) - 1) * overlap
+        start = channels.index(output) * (1 - overlap) / width
+        return float(enabled), start, start + 1 / width
+    return float(enabled), 0.0, 1.0
+
+
+def cue_output_track(items, output, show_layout, output_tracks):
+    """Last triggered eligible track wins; held visuals keep their destination."""
+    candidates = []
+    for track, item in items.items():
+        cues = [item["cue"]]
+        if item.get("fading") and item.get("old"):
+            cues.append(item["old"]["cue"])
+        if any(cue_projection_sample(cue, output, show_layout, output_tracks)[0] for cue in cues):
+            # A global/fallback-routed track must not steal a projector from an
+            # explicitly routed cue, even when that inherited cue is newer.
+            explicit = any((cue.get('projection', 'inherit') != 'inherit' or cue.get('channels', 'routing') != 'routing')
+                           and cue_projection_sample(cue, output, show_layout, output_tracks)[0]
+                           for cue in cues)
+            candidates.append((int(explicit), item.get("route_order", item.get("started", 0)), track))
+    if candidates:
+        return max(candidates)[2]
+    fallback = output_tracks[output - 1]
+    return 0 if fallback in items else fallback
+
+
 MODULES = (
     "reference_particle_field", "calligraphic_shadow", "ink_orbit_canvas",
     "ink_flow", "particle_random_move", "glitch_fusion", "color_adjustment",
@@ -249,6 +319,33 @@ def animation_time(animation, name, elapsed, scale=1.0):
     return clock.get("time", 0.0) + (elapsed * scale if clock.get("running", True) else 0.0)
 
 
+def cue_start_look(look):
+    """Restart baked puppet motion for playback, without editing the saved look.
+
+    Other procedural phases, explicit motion in-points and live cameras retain
+    their existing behavior. A/B puppets use the same opening-frame policy.
+    """
+    result=copy.deepcopy(look)
+    puppet=result.get('modules',{}).get('dance_puppet',{})
+    present=('dance_puppet' in result.get('modules',{}) or 'puppet_files' in result
+             or 'dance_puppet' in result.get('animation',{})
+             or result.get('toggles',{}).get('Dancepuppetenabled',False))
+    if present and puppet.get('Sourcemode','recorded')=='recorded':
+        result.setdefault('animation',{})['dance_puppet']={'time':0.,'running':True}
+    for name,child in result.get('branches',{}).items():
+        result['branches'][name]=cue_start_look(child)
+    return result
+
+
+def has_recorded_puppet(look,active=True):
+    if active and look.get('toggles',{}).get('Dancepuppetenabled',False):
+        if look.get('modules',{}).get('dance_puppet',{}).get('Sourcemode','recorded')=='recorded':
+            return True
+    activity=composition_activity(look,active)
+    return any(has_recorded_puppet(child,activity[name[0].upper()])
+               for name,child in look.get('branches',{}).items())
+
+
 INK_CLOCK_KEY = "imagefx_ink_animation_clock"
 INK_FIELD_CLOCK_KEY = "imagefx_ink_field_clock"
 
@@ -285,7 +382,7 @@ def new_cue():
         "fade": 1.0, "transition": "crossfade", "follow": "manual", "postwait": 0.0, "loop": False,
         "media_in": 0.0, "speed": 1.0, "gain": 0.7, "hold": True, "movie_audio": False,
         "target": "calligraphic_shadow/Particleamount", "value": 1.0,
-        "easing": "smooth", "look": {}, "notes": "", "blackout_scope": "all",
+        "easing": "smooth", "look": {}, "notes": "", "blackout_scope": "all", "projection": "inherit", "channels": "routing",
     }
 
 
@@ -319,6 +416,8 @@ def validate_cue(value):
         ("follow", {"manual", "continue", "follow"}),
         ("easing", {"linear", "smooth"}),
         ("transition", {"crossfade", "interpolate"}),
+        ("projection", set(PROJECTION_ROUTES)),
+        ("channels", set(OUTPUT_CHANNELS)),
     ):
         if not isinstance(result[field], str) or result[field] not in choices:
             raise ValueError(f"Invalid {field}")

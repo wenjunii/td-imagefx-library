@@ -29,8 +29,18 @@ cue settings and media paths. The prepared movie remains an external local file.
 To make another puppet cue, enable Dance Puppet in the designer, choose a
 prepared movie and the desired appearance, then Add Cue / Capture Look.
 **Reset Preview to Opening Pose** sets preview time to zero and pauses it;
-enable **Animate Preview** to run again. Cue capture stores the current phase,
-so use the opening pose when a cue should start at the beginning.
+enable **Animate Preview** to run again. Recorded puppets now start at cue-relative
+time zero on every **GO**, replay and **Go Back**, even if the look was captured
+later in the animation or with Animate Preview paused. Saved looks are not
+rewritten. **Motion In Point = 0** means the first movie frame; an explicitly
+chosen nonzero in-point is still honored, as are Playback Speed and Loop.
+Pause/Resume holds and continues the current position rather than restarting.
+The same policy applies to puppets inside independent layers A/B and cue video
+export. A/B puppet cue time is independent of a paused/nonzero composition clock;
+other effects retain their saved animation phases. Live cameras are not restarted.
+If Parameter Interpolation is selected for a recorded-puppet cue, it falls back
+to a fresh-deck crossfade so the puppet can restart cleanly without rewinding
+the outgoing cue or carrying its feedback history into the new cue.
 
 ## Black/white style, framing and transparency
 
@@ -72,8 +82,9 @@ Turning **Animate Preview** on starts at motion time zero (plus Motion In
 Point). Turning it off holds the current frame. **Pause Preview** holds and
 **Resume Preview** continues from that frame. **Reset Preview to Opening Pose**
 returns to zero and pauses. Playback Speed changes do not jump the phase. Show
-Control owns running cue clocks; use its Pause/Resume for a running cue. A/B
-branches inherit their parent composition clock.
+Control owns running cue clocks; use its Pause/Resume for a running cue. Standalone
+A/B preview branches inherit their parent composition clock; during cue playback,
+recorded puppets use their own zero-based cue clock.
 
 ### Together or on separate projectors
 

@@ -20,6 +20,24 @@ def validate(write_report=True):
     checks = {}
     report = dict(ok=False, generated_at=datetime.now(timezone.utc).isoformat(), hardware_output_tested=False)
     try:
+        checks['quality_menu_complete'] = list(show.par.Reviewresolution.menuNames) == [item[0] for item in runtime.REVIEW_RESOLUTIONS]
+        checks['quality_default_1080p'] = show.par.Reviewresolution.eval() == '1080p'
+        checks['quality_status_readonly'] = bool(show.par.Reviewcanvasinfo.readOnly)
+        show.par.Reviewresolution = 'custom'
+        for name in ('Reviewwidth', 'Reviewheight'):
+            parameter = show.par[name]
+            checks[name+'_range'] = (parameter.min, parameter.max, parameter.normMin, parameter.normMax) == (16, 4096, 16, 4096)
+            checks[name+'_clamped'] = bool(parameter.clampMin and parameter.clampMax)
+            saved = parameter.eval()
+            for value in (16, 2048, 4096):
+                parameter.val = value
+                checks[name+'_value_'+str(value)] = parameter.eval() == value
+                checks[name+'_geometry_'+str(value)] = runtime.review_panel_size(show) == (int(show.par.Reviewwidth), int(show.par.Reviewheight))
+            parameter.val = saved
+        show.par.Reviewresolution = '1080p'
+        checks['quality_total_5760_by_1080'] = runtime.review_canvas_size(show) == (5760, 1080)
+        show.par.Reviewprojector = 'all'
+        checks['embedded_uses_thumbnail_branch'] = show.op('review_selected').par.top.eval() == show.op('projector_review_thumbnail')
         wall.par.Sourcemode, wall.par.Blackout, wall.par.Enabled = 'independent', False, True
         wall.par.Testpattern, wall.par.Monitorenabled = False, True
         for i, color in enumerate(((1, 0, 0), (0, 1, 0), (0, 0, 1)), 1):

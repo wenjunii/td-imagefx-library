@@ -28,6 +28,24 @@ that task's folder; it has no permanent-delete fallback. See
 
 ## Cue transitions
 
+**Cue Editor > Visual Output Channels** selects channel 1, 2, 3, any pair, or
+all three, separately from the internal **Playback / Audio Track**. A panorama
+spans the selected channels from one renderer (1920×1080 per panel gives
+3840×1080 for two channels or 5760×1080 for three at zero overlap). **Use Projection
+Routing** retains older cues' destination presets. Explicit cue assignments also
+take priority over Wall Output source fallback modes; they do not duplicate audio.
+Native routing dependencies explicitly read the cue revision so changing cues
+updates cached selectors without requiring a matching playback-track number.
+
+Show Control's **Cue Editor > Projection Routing** stores a destination for each
+visual cue: follow the show's routing, projector 1/2/3, any projector pair, all
+three identical, or all three panoramic. Routing selections commit immediately
+while stopped; use **Save Show** to persist them. The Routing tab now offers
+**Follow Show Routing (Per Cue)** alongside the existing fallback layouts.
+Explicit cue routes have first priority. Old cues follow the show by default. Direct displays and the 2×2 wall
+use the same routed feeds; their physical display settings do not change.
+See [per-cue routing](docs/show-control.md#per-cue-projection-routing).
+
 Show Control's **Cue Editor > Visual Transition** offers **Crossfade** and
 **Parameter Interpolation**. Interpolation moves numeric effect and color values
 from the running look toward the incoming cue over **Fade / Transition Seconds**,
@@ -38,6 +56,12 @@ changes use a crossfade. Old shows keep Crossfade by default. See
 
 ## Pre-show readiness and warm-up
 
+The main `TD_ImageFX_Library.toe` was rebuilt with clean defaults on 2026-11-11,
+including the current cue, routing and high-resolution review improvements.
+The previous local TOE and its cues remain backed up in
+`build/control-audit-20261111/before/`; external show JSON and media are unchanged.
+The distributable contains no personal show cues, character artwork or motion media.
+
 Show Control now has a **Pre-Show Check** section: check media/workflow paths,
 selected render GPU, output/display configuration, blackout, audio and AC power,
 then **Sample Current Performance** for FPS, frame-time, dropped frames and GPU
@@ -47,7 +71,7 @@ for details and repeat the sample with your actual running show.
 
 Visual cues now warm up over **3 rendered frames** by default (adjustable 1–12)
 before becoming ready. Cue animation clocks are not advanced by this preparation.
-UHD wall recording has **Wall Render Warm-up**, default 2 seconds, before recording.
+Live wall/review recording has **Live Render Warm-up**, default 2 seconds, before recording.
 Wait for **RECORDING** before GO to capture the cue's beginning; the warm-up itself
 is not recorded and never rewinds the show. Encoder dropped-frame warnings remain
 visible. See [the pre-show checklist](docs/show-control.md#pre-show-check).
@@ -110,6 +134,11 @@ and Build** accepts another two-dancer clip. **Live Camera** is an explicit,
 local-only mode using a separate GPU-enabled Python process; loading a cue never
 opens a camera. Live tracking is not equivalent to the prepared 60-fps playback
 and needs rehearsal with the actual camera and choreography.
+
+Recorded puppets restart at cue-relative time zero on every GO/replay/Go Back,
+including independent layers A/B; a later captured preview phase is ignored for
+playback. Motion In Point, speed, Loop and Pause/Resume still apply. Other effect
+clocks and saved looks are unchanged, and camera sessions are not restarted.
 
 See [Dance Puppet setup, cue creation and character profiles](docs/dance-puppet.md).
 
@@ -224,11 +253,31 @@ automatic Output Mode routing, blackout/window status and enlarged views. **Expo
 renders a selected visual cue or off-air look draft to a silent MP4/MOV, with
 duration, FPS and 1080p/4K/custom resolution controls. It uses an isolated copy,
 requires stopped playback/closed output windows, and never overwrites an export.
+**Export Projection Channels** can follow the selected cue's routing or export
+a chosen projector/pair/all three. It writes synchronized per-projector files;
+panoramas keep their original slices, including nonadjacent channel pairs.
+Resolution applies to each file. Full Cue Canvas retains the unsplit export.
 **Export Source → 2x2 Wall + Confidence / Real-Time** additionally records the
 complete 3840×2160 processor canvas (P1/P2/P3 plus confidence monitor). It keeps
-live cue playback and mapping intact, includes **Stop Wall Recording & Save**,
+live cue playback and mapping intact, includes **Stop Recording & Save**,
 and reports encoder dropped frames. Physical output windows must stay closed;
 this is silent rehearsal capture, not an offline whole-show render.
+**Export Source → Projector Review / Real-Time** records the picture selected in
+Projector Review (three-up, one projector, confidence or the full wall) at its
+native resolution. It includes displayed mapping/blackouts, not Show Control UI,
+and supports warm-up, Stop Recording & Save and dropped-frame reporting.
+For live H.264/H.265 capture, **Live Encoder Quality → Balanced** is the default;
+Fast provides more encoding headroom, and High retains the costlier quality mode.
+Live capture uses zero B-frames and avoids redundant full-canvas rendering.
+Wait for **RECORDING** before GO. Encoder opening can still cause a startup repeat;
+the actual dropped-frame count is retained, not cleared or concealed.
+This does not lower resolution/FPS or change offline export quality. A 60 FPS
+setting is not a guarantee: the live effects and encoder must both sustain it.
+In **Projector Review → Three-Up Resolution / Per Projector**, choose 720p,
+1080p (default: **5760×1080** total), 4K per projector, native feeds or custom
+cells. Enlarged review/recording uses the full-quality branch; the small embedded
+preview uses a separate thumbnail. Cells letterbox without stretching. Use H.265
+for the standard full-HD three-up export, or Motion JPEG above 8192 pixels wide.
 **Resolution → Panoramic / Full 3-Projector Canvas** exports a saved cue or
 current look draft as one wide movie (normally **5760×1080**), before projector
 splitting/mapping, without a confidence quadrant. It follows panel size/overlap;
@@ -318,6 +367,8 @@ or committing a look draft. Saved notes appear next to each cue in the **Notes**
 column; select either cell to edit that cue's full note in **Cue Notes**.
 **Save Show** persists committed edits and notes;
 new copies start disabled to avoid accidental triggers.
+Show files support up to **64 MiB / 1,000 cues**, including independent A/B looks;
+strict validation and automatic backups are retained.
 Updating an **off-air recalled** cue retains a **saved/frozen preview** and captures the current
 procedural animation phase plus its running/frozen state. Recall Look reopens
 that phase instead of resetting the ink pattern; GO and offline export use the
@@ -506,7 +557,18 @@ git clone https://github.com/wenjunii/td-imagefx-library.git
 cd td-imagefx-library
 ```
 
-The clean Windows release build used TouchDesigner `2025.32820` and validated all 96 current effects with 124 versioned effect `.tox` files, nineteen core `.tox` files, one library `.toe`, 96 previews, 96 visual baselines, and 96 benchmark samples. That build report contains zero shader, preview, or builder errors. A fresh repository run completed 811 tests successfully; Windows environments without symlink permissions may skip four link tests. Install `requirements-test.txt` first (NumPy is used by motion-math tests, not by the package core). The release TOE contains clean defaults, not personal cues, private character artwork or prepared motion media. In-place patches and saved personal cues are not a new full native-build certification; regenerate and validate distributable artifacts before publishing a release. Read [TouchDesigner setup](docs/touchdesigner-setup.md) to reproduce the native build and [control validation](docs/control-validation.md) for measured results and limits.
+The clean Windows release build used TouchDesigner `2025.32820` and validated all 96 current effects with 124 versioned effect `.tox` files, nineteen core `.tox` files, one library `.toe`, 96 previews, 96 visual baselines, and 96 benchmark samples.
+That build report contains zero shader, preview, or builder errors.
+A fresh repository run completed 916 tests successfully; Windows environments
+without symlink permissions may skip four link tests. The retired dance-driven
+backdrop remains source/test-only and is not installed in the main TOE.
+Install `requirements-test.txt` first (NumPy is used by motion-math tests, not by
+the package core). The release TOE contains clean defaults, not personal cues,
+private character artwork or prepared motion media. In-place patches and saved
+personal cues are not a new full native-build certification; regenerate and
+validate distributable artifacts before publishing a release. Read
+[TouchDesigner setup](docs/touchdesigner-setup.md) to reproduce the native build
+and [control validation](docs/control-validation.md) for measured results and limits.
 
 The generated project targets TouchDesigner 2025. Validate the exact TouchDesigner build, operating system, GPU, driver, resolution, pixel format, and color pipeline used by your production system. Python 3.11 or newer is required for repository tooling; it is not required merely to use already-built native components.
 
@@ -1085,6 +1147,30 @@ fails. It uses only generated fixtures; no private media is needed or uploaded.
 Missing fixtures fail before changes begin. A timeout is not a pass: reopen the
 disposable session without saving before another run. The commands below remain
 available for diagnosing individual event checks.
+
+After the two suites, the focused maintenance regressions cover the newer cue
+and review paths. Run them sequentially in the same stopped, disarmed disposable
+session, never while a show is playing:
+
+| Validator in `touchdesigner/scripts/` | Coverage |
+| --- | --- |
+| `validate_cue_projection.py` | Cue destination selectors, legacy cues and routing priority |
+| `validate_cue_routing_frames.py` | Native cache invalidation and GO across playback tracks, projector pairs and panoramas |
+| `validate_layer_preview.py` | Independent A/B enable buttons, grading and live-edit preview pixels |
+| `validate_puppet_cue_start.py` | Opening frame, in-point, speed, pause/resume and Go Back in main/A/B layers |
+| `validate_show_file_limits.py` | Generated show larger than 8 MiB, safe load/save and backup round trip |
+| `validate_projection_export.py` | Actual synchronized projector-channel movies and panorama slices |
+| `validate_review_recording.py` | Review quality presets, full-size H.265 recording, early stop and view-change guard |
+| `validate_live_recording_cadence.py` | Off-air moving wall/review 30/60 FPS benchmark, encoder quality and drop timing |
+| `validate_show_review_export.py` | Cue/draft/flow exports, aspect preservation and full-resolution review color order |
+| `validate_show_readiness.py` | Pre-show controls, performance sampling and wall warm-up/recording |
+
+The puppet clock test defaults to the generated AV fixture above, not private
+character movies; explicit prepared files can be supplied for a separate artistic
+rehearsal. The large-show test generates its own look data. An existing external
+show file is checked for preservation, but these QA scripts do not require one.
+Actual recordings must also be decoded and checked; a successful encoder status
+does not prove correct dimensions, colors, smooth playback or audio.
 
 For an additional check of actual event delivery, run this separately after
 the blocking suite has finished:

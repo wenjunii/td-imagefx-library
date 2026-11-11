@@ -175,7 +175,7 @@ def build_wall_output(demo, context):
         feed=shader("projector{}".format(i),PROJECTOR_SHADER,[source,label],1920,1080)
         feed.seq.vec.numBlocks=2
         feed.par.vec0name="uSource"
-        feed.par.vec0valuex.expr="int(parent().par.Sourcemode == 'panoramic')"
+        feed.par.vec0valuex.expr="int(parent().op('controller').module.effective_source_mode(parent()) == 'panoramic')"
         feed.par.vec0valuey=i-1
         feed.par.vec0valuez.expr="parent().par.Fit.menuIndex"
         feed.par.vec0valuew.expr="parent().par.Testpattern"

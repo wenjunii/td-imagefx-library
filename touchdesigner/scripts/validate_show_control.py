@@ -79,8 +79,7 @@ def validate(write_report=True):
             ext._service_preloads()
         require(not any(item.get('loading') for item in ext.prepared.values()), 'Synthetic preparation timed out')
         clock[0] = now
-        ext.engine.tick()
-        ext.UpdateMapping()
+        ext.Tick()
         require(not ext.engine.errors, str(ext.engine.errors))
 
     try:
@@ -155,7 +154,11 @@ def validate(write_report=True):
         ext.engine.stop(); show.par.Panoramaoverlap = .25; ext.UpdateMapping()
         load([cue(duration=0, fade=0)]); ext.engine.go(0); step(0)
         require(show.op("track1").width == 800, "Panorama overlap did not change render width")
-        require(abs(show.op("mapped2").par.vec3valuex.eval() - .3) < 1e-6, "Panorama overlap crop incorrect")
+        side = ext.tracks[1]['side']
+        interval = show.op('cue_projection2').par['vec{}valuey'.format(side+1)].eval()
+        require(abs(interval - .3) < 1e-6, "Panorama overlap crop incorrect")
+        require(show.op('mapped2').par.vec3valuex.eval() == 0 and show.op('mapped2').par.vec3valuez.eval() == 1,
+                "Calibration must not crop the panorama a second time")
         show.par.Panoramaoverlap = 0; ext.UpdateMapping()
         checks["panorama_overlap_render_and_crop"] = True
 

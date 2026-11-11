@@ -136,6 +136,8 @@ class LiveLookTests(unittest.TestCase):
         self.assertIn('> 001', label)
         self.assertIn('…', label)
         self.assertTrue(label.endswith('| visual / track 1 | WAIT'))
+        self.cue['channels']='all'
+        self.assertTrue(self.ext.CueLabel(0,compact=True).endswith('| visual / track 1 >P123 | WAIT'))
 
     def test_refresh_updates_both_columns_and_clears_unused_rows(self):
         self.cue['notes'] = 'Ready for dancer'

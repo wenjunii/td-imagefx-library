@@ -9,6 +9,7 @@ import copy
 import json
 from pathlib import Path
 import time
+import uuid
 
 STATE = {}
 
@@ -80,6 +81,7 @@ def start(root):
     wall=host.copy(original_wall,name='wall_output')
     s.initializeExtensions()
     STATE.update(root=Path(root),driver=me.path,host=host,original=original,show=s,wall=wall,
+        task='show-readiness-' + uuid.uuid4().hex[:8],
         original_wall=original_wall,
         document=copy.deepcopy(ext.document),checks=[],recordings=[],
         wall_pars={p.name:(p.val,p.expr,p.mode) for p in original_wall.customPars if not p.isPulse and not p.readOnly},
@@ -159,7 +161,7 @@ def poll():
                 assert pixels[y,x,channel]>.9,(y,x,pixels[y,x].tolist())
             assert pixels[:1080,1920:,:3].max()>.1,'Confidence monitor is blank'
             s.par.Exportsource='wall'; s.par.Exportcodec='h264'; s.par.Exportfps='30'; s.par.Exportduration=3
-            s.par.Exportfolder=str(STATE['root']/'build/show-readiness/recordings')
+            s.par.Exportfolder=str(STATE['root']/'build/task-artifacts'/STATE['task']/'recordings')
             s.par.Wallrecordwarmup=(0,2)[index]
             s.par.Startexport.pulse(); STATE.update(stage='recording',saw_warm=False,saw_record=False)
         elif stage=='recording':
@@ -203,7 +205,7 @@ def finish(error=''):
     if not error: STATE['checks'].append('Original cue document preserved; no audience windows/audio started')
     if not error: STATE['checks'].append('Original wall values, expressions and modes preserved; calibration pixels verified')
     STATE['host'].destroy()
-    report={key:STATE.get(key) for key in ('checks','recordings','performance')}
+    report={key:STATE.get(key) for key in ('checks','recordings','performance','task')}
     report.update(ok=not error,error=error)
     path=STATE['root']/'build/show-readiness/native-validation.json'
     path.parent.mkdir(parents=True,exist_ok=True)

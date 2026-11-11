@@ -50,6 +50,20 @@ the rendered look or get captured as effect parameters. When this Layer
 Composite belongs to a recalled/running cue, the controls stay within that
 cue's own A/B branches, never the main designer workflow.
 
+Each Effects A/B page also shows the selected module's **Effect / Routing
+Status**. `OFF / BYPASSED` means its sliders can be edited but do not affect the
+image yet. Press **Enable Selected A/B Effect**, or turn on **Module Enabled**
+inside that effect's controls. This explicit action enables only the selected
+effect; opening Edit Controls never enables it automatically. Branches start
+with all effects off. The status also identifies a hidden branch, an unused
+layer source, or a disabled Layer Composite.
+
+If **Preview A Result** changes but the full look does not, inspect the top
+layer: an opaque full-screen top image at opacity 1 covers the backdrop. Lower
+Top Opacity, use an alpha-channel foreground, or temporarily select Transparent
+for Top Source to inspect the backdrop. Keep these diagnostic changes only if
+desired, then Update Cue Look and Save Show to retain the chosen settings.
+
 For a puppet on top, keep the puppet's **Transparent Background** on and
 enable its **Feedback**. Trail Amount sets visible strength, Trail Half-Life
 sets decay in seconds, and Trail Softness spreads the history. The accumulator

@@ -72,6 +72,9 @@ for _prefix in ('A', 'B'):
              type='menu', default='workflow', menu_names=['workflow'],
              menu_labels=['Workflow / Module Switches'], animatable=False),
         dict(name=_prefix+'edit', label='Edit Selected '+_prefix+' Controls', page='Effects '+_prefix, type='pulse'),
+        dict(name=_prefix+'enable', label='Enable Selected '+_prefix+' Effect', page='Effects '+_prefix, type='pulse'),
+        dict(name=_prefix+'status', label='Selected '+_prefix+' Effect / Routing Status', page='Effects '+_prefix,
+             type='string', default='', read_only=True, animatable=False),
         dict(name=_prefix+'workflow', label='Open '+_prefix+' Module Switches / Order', page='Effects '+_prefix, type='pulse'),
         dict(name=_prefix+'preview', label='Preview '+_prefix+' Result', page='Effects '+_prefix, type='pulse'),
     )
@@ -110,7 +113,11 @@ def edit_target(component, prefix, selection=None):
 def edit_action(component, prefix, action):
     try:
         target=edit_target(component,prefix,'workflow' if action in ('workflow','preview') else None)
-        if action=='preview':
+        if action=='enable':
+            enabled=getattr(target.par,'Enabled',None)
+            if enabled is None: raise ValueError('Choose an effect module first, or open the branch module switches')
+            enabled.val=True
+        elif action=='preview':
             target=target.op('out1_image')
             target.openViewer()
         else:
@@ -122,6 +129,22 @@ def edit_action(component, prefix, action):
     except Exception as exc:
         component.par.Editstatus=str(exc)
         return None
+
+def edit_state(component,prefix):
+    try:
+        target=edit_target(component,prefix)
+        enabled=getattr(target.par,'Enabled',None)
+        state='MODULE SWITCHES' if enabled is None else 'ON' if enabled.eval() else 'OFF / BYPASSED - enable this effect to see edits'
+        layers=[label for field,label in (('Backdropsource','backdrop'),('Topsource','top'))
+                if component.par[field].eval()=='effects_'+prefix.lower()]
+        composition=component.parent().op('image_composition')
+        if not layers: route='not selected by Layer Composite'
+        elif not composition.par[prefix+'visible'].eval(): route='branch hidden - turn Image '+prefix+' Visible on'
+        elif not component.par.Enabled.eval(): route='Layer Composite is OFF'
+        else: route='used as '+' + '.join(layers)
+        return '{} | {} | {}'.format(target.name,state,route)
+    except Exception as exc:
+        return 'Unavailable: '+str(exc)
 
 def branch_error(component):
     demo=component.parent()
@@ -191,7 +214,7 @@ def onValueChange(par, prev):
 
 def onPulse(par):
     component = par.owner
-    if par.name in ('Aedit','Bedit','Aworkflow','Bworkflow','Apreview','Bpreview','Edita','Editb'):
+    if par.name in ('Aedit','Bedit','Aenable','Benable','Aworkflow','Bworkflow','Apreview','Bpreview','Edita','Editb'):
         prefix=par.name[-1].upper() if par.name.startswith('Edit') else par.name[0]
         action='edit' if par.name.startswith('Edit') else par.name[1:]
         component.op('media_status').module.edit_action(component,prefix,action)
@@ -259,6 +282,8 @@ def install_independent_sources(component):
             parameter.menuLabels=[label for n,path,label in targets]
             parameter.val=selection if selection in parameter.menuNames else 'workflow'
         parameter.readOnly=definition.get('read_only',False)
+        if name in ('Astatus','Bstatus'):
+            parameter.expr="me.op('media_status').module.edit_state(me,'{}')".format(name[0])
         if name!='Editstatus': parameter.enableExpr="me.parent().op('image_composition') is not None"
     definition=next(d for d in PARAMETERS if d['name']=='Topcanvas')
     if getattr(component.par,'Topcanvas',None) is None:
@@ -284,7 +309,7 @@ def install_independent_sources(component):
             select.outputConnectors[0].connect(component.op(prefix+'_source').inputConnectors[index])
     component.op('media_status').text=STATUS
     callback=component.op('media_callbacks'); callback.text=CALLBACKS
-    callback.par.pars='Backdropfile Topfile Backdropsource Topsource Backdropin Topin Preview Backdroprestart Toprestart Backdropreload Topreload Setupab Edita Editb Abmedia Aedit Bedit Aworkflow Bworkflow Apreview Bpreview'
+    callback.par.pars='Backdropfile Topfile Backdropsource Topsource Backdropin Topin Preview Backdroprestart Toprestart Backdropreload Topreload Setupab Edita Editb Abmedia Aedit Bedit Aenable Benable Aworkflow Bworkflow Apreview Bpreview'
 
 
 SHADER = r"""

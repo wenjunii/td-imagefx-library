@@ -94,7 +94,7 @@ def validate(write_report=True):
         checks["viewer_enabled"] = module.viewer
         for par in test.customPars:
             if par.readOnly:
-                checks[par.name+"_readonly"] = par.name == "Editstatus" or (par.name in ("Time","Routingstatus","Backdropstatus","Topstatus") and bool(par.expr))
+                checks[par.name+"_readonly"] = par.name == "Editstatus" or (par.name in ("Time","Routingstatus","Backdropstatus","Topstatus","Astatus","Bstatus") and bool(par.expr))
                 checks[par.name+"_evaluates"] = isinstance(par.eval(), (str,float,int))
                 continue
             if par.isPulse or par.name in transport_names:

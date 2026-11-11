@@ -3,6 +3,9 @@ from pathlib import Path
 import runpy
 import tempfile
 import unittest
+import copy
+from types import SimpleNamespace
+from touchdesigner.extensions.ShowControlExt import ShowControlExt
 
 from tdimagefx import show
 
@@ -10,6 +13,63 @@ FLOW=runpy.run_path(str(Path(__file__).resolve().parents[1]/'touchdesigner/scrip
 
 
 class PuppetShowTests(unittest.TestCase):
+    def test_cue_start_resets_only_recorded_puppet_clock_and_preserves_look(self):
+        look={'toggles':{'Dancepuppetenabled':True},
+              'modules':{'dance_puppet':{'Timescale':.5,'Offset':3.}},
+              'animation':{'dance_puppet':{'time':912.,'running':False},
+                           'ink_dream_flow':{'time':45.,'running':True,'render_time':22.}}}
+        before=copy.deepcopy(look)
+        playback=show.cue_start_look(look)
+        self.assertEqual(look,before)
+        self.assertEqual(playback['animation']['dance_puppet'],dict(time=0.,running=True))
+        self.assertEqual(playback['animation']['ink_dream_flow'],look['animation']['ink_dream_flow'])
+        self.assertEqual(playback['modules'],look['modules'])
+        self.assertEqual(show.cue_start_look({}),{})
+
+    def test_cue_start_restarts_A_B_puppets_without_resuming_composition(self):
+        child={'toggles':{'Dancepuppetenabled':True},'animation':{'dance_puppet':dict(time=83.,running=False)}}
+        look={'animation':{'image_composition':dict(time=500.,running=False)},
+              'branches':{p:copy.deepcopy(child) for p in ('a_effects','b_effects')}}
+        playback=show.cue_start_look(look)
+        self.assertEqual(playback['animation'],look['animation'])
+        for branch in playback['branches'].values():
+            self.assertEqual(branch['animation']['dance_puppet'],dict(time=0.,running=True))
+        self.assertEqual(look['branches']['a_effects']['animation']['dance_puppet']['time'],83.)
+
+    def test_live_puppet_and_unused_branch_do_not_force_restart_transition(self):
+        live={'toggles':{'Dancepuppetenabled':True},'modules':{'dance_puppet':{'Sourcemode':'live'}},
+              'animation':{'dance_puppet':dict(time=9.,running=False)}}
+        self.assertEqual(show.cue_start_look(live),live)
+        self.assertFalse(show.has_recorded_puppet(live))
+        recorded={'toggles':{'Dancepuppetenabled':True}}
+        self.assertTrue(show.has_recorded_puppet(recorded))
+        look={'toggles':{'Layercompositeenabled':True},
+              'modules':{'layer_composite':{'Backdropsource':'effects_a'}},
+              'branches':{'a_effects':recorded,'b_effects':live}}
+        self.assertTrue(show.has_recorded_puppet(look))
+        look['modules']['layer_composite']['Backdropsource']='effects_b'
+        self.assertFalse(show.has_recorded_puppet(look))
+
+    def test_puppet_cue_clock_drives_branches_from_elapsed_and_keeps_inpoint(self):
+        def puppet(speed,source='recorded'):
+            return SimpleNamespace(par=SimpleNamespace(Sourcemode=SimpleNamespace(eval=lambda:source),
+                Manualtime=123.,Autotime=True,Offset=3.,Timescale=SimpleNamespace(eval=lambda:speed)))
+        main,a,b=puppet(.5),puppet(2.),puppet(1.,'live')
+        wa=SimpleNamespace(op=lambda name:a)
+        wb=SimpleNamespace(op=lambda name:b)
+        nodes={'dance_puppet':main,'image_composition/a_effects':wa,'image_composition/b_effects':wb}
+        deck=SimpleNamespace(op=nodes.get,fetch=lambda *args,**kw:True)
+        ShowControlExt._tick_puppet_cue_clocks(deck,0.)
+        self.assertEqual((main.par.Manualtime,a.par.Manualtime,b.par.Manualtime),(0.,0.,123.))
+        ShowControlExt._tick_puppet_cue_clocks(deck,4.)
+        self.assertEqual((main.par.Manualtime,a.par.Manualtime),(2.,8.))
+        self.assertEqual(main.par.Offset,3.)
+        self.assertFalse(a.par.Autotime)
+        self.assertTrue(b.par.Autotime)
+        deck.fetch=lambda *args,**kw:False
+        ShowControlExt._tick_puppet_cue_clocks(deck,10.)
+        self.assertEqual(main.par.Manualtime,2.)
+
     def test_old_orders_migrate_without_moving_existing_stages(self):
         for branch in (False,True):
             order=list(FLOW['BRANCH_ORDER'] if branch else FLOW['DEFAULT_ORDER'])

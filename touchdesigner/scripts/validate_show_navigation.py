@@ -46,8 +46,8 @@ def validate(write_report=True):
             ext._service_preloads()
         assert not any(item.get('loading') for item in ext.prepared.values()), 'Preparation timeout'
         clock[0] = now
-        ext.engine.tick()
-        ext.UpdateMapping()
+        # Use the real transport path, including Python-owned route invalidation.
+        ext.Tick()
         assert not ext.engine.errors, str(ext.engine.errors)
 
     try:

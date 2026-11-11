@@ -116,6 +116,8 @@ def build_show_control(demo, context):
     parameter("Cue Editor", "Cueenabled", "toggle", True, label="Cue Enabled")
     parameter("Cue Editor", "Mediafile", "file", "", label="Image / Video / Audio File")
     parameter("Cue Editor", "Track", "int", 1, 1, 3, label="Visual / Audio Track")
+    menu("Cue Editor", "Cueprojection", ["inherit", "p1", "p2", "p3", "p1_p2", "p1_p3", "p2_p3", "all", "panoramic"], "inherit", label="Projection Routing")
+    menu("Cue Editor", "Cuechannels", ["routing","1","2","3","1_2","1_3","2_3","all"], "routing", label="Visual Output Channels")
     parameter("Cue Editor", "Timestamp", "string", "", label="Show Timestamp (blank = manual GO)")
     menu("Cue Editor", "Transition", ["crossfade", "interpolate"], "crossfade", label="Visual Transition")
     show.par.Transition.menuLabels = ["Crossfade", "Parameter Interpolation"]
@@ -141,7 +143,7 @@ def build_show_control(demo, context):
     parameter("Look Editor", "Lookediting", "toggle", False, read_only=True, label="Look Draft Active")
     parameter("Look Editor", "Lookstatus", "string", "No look draft", read_only=True, label="Look Editor Status")
 
-    menu("Routing", "Routingmode", ["identical", "panoramic", "independent"], "identical", label="Three-Output Content Mapping")
+    menu("Routing", "Routingmode", ["cue", "identical", "panoramic", "independent"], "cue", label="Three-Output Content Mapping")
     parameter("Routing", "Renderwidth", "int", 1920, 320, 3840, label="Render Width Per Panel")
     parameter("Routing", "Renderheight", "int", 1080, 180, 2160, label="Render Height")
     parameter("Routing", "Panoramaoverlap", default=0, maximum=0.5, label="Panorama Shared Edge Overlap")
@@ -382,6 +384,10 @@ def build_show_control(demo, context):
     layout_scope = dict(context, __file__=str(layout_path), __name__="_imagefx_panel_layout")
     exec(compile(layout_path.read_text(encoding="utf-8"), str(layout_path), "exec"), layout_scope)
     layout_scope["install"](show)
+    routing_path = context["PROJECT_ROOT"] / "touchdesigner/scripts/cue_projection.py"
+    routing_scope = dict(context, __file__=str(routing_path), __name__="_imagefx_cue_projection")
+    exec(compile(routing_path.read_text(encoding="utf-8"), str(routing_path), "exec"), routing_scope)
+    routing_scope["install"](show)
     return show
 
 

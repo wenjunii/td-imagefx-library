@@ -101,11 +101,16 @@ class ShowControlExt:
     def _save_document_dat(self):
         self.ownerComp.op("show_data").text = json.dumps(self.document, indent=2, allow_nan=False)
 
-    def _validated_cues(self, cues):
-        document = self.model.validate_show(dict(self.document, cues=cues))
-        if len(json.dumps(document, ensure_ascii=False, allow_nan=False).encode("utf-8")) > self.model.MAX_SHOW_BYTES:
-            raise ValueError("Show exceeds 8 MiB")
+    def _validated_document(self, value):
+        document = self.model.validate_show(value)
+        # Match atomic_write_json's on-disk UTF-8 formatting, not the smaller
+        # compact form, so a file we save can always pass the loader's budget.
+        payload = json.dumps(document, indent=2, sort_keys=True, ensure_ascii=False, allow_nan=False) + "\n"
+        self.model.check_show_size(len(payload.encode("utf-8")))
         return document
+
+    def _validated_cues(self, cues):
+        return self._validated_document(dict(self.document, cues=cues))
 
     def _replace_cues(self, cues, allow_look_edit=False):
         self._guard_edit(allow_look_edit=allow_look_edit)
@@ -139,7 +144,7 @@ class ShowControlExt:
             "Postwait": "postwait", "Loop": "loop", "Mediain": "media_in", "Speed": "speed",
             "Gain": "gain", "Hold": "hold", "Target": "target", "Easing": "easing",
             "Cueenabled": "enabled", "Notes": "notes", "Movieaudio": "movie_audio",
-            "Blackoutscope": "blackout_scope", "Transition": "transition",
+            "Blackoutscope": "blackout_scope", "Transition": "transition", "Cueprojection": "projection", "Cuechannels": "channels",
         }
         self._busy = True
         try:
@@ -163,8 +168,10 @@ class ShowControlExt:
             return ""
         cue = self.document["cues"][index]
         state = "ERROR" if cue["id"] in self.engine.errors else "PLAY" if cue["id"] in self.engine.active else "WAIT" if cue["id"] in self.engine.pending else "disabled" if not cue["enabled"] else "ready"
-        name = self._row_preview(cue["name"], 24) if compact else cue["name"][:48]
-        return "{} {:03d}   {}   | {} / track {} | {}".format(">" if int(self._p("Selectedcue")) == index + 1 else "", index + 1, name, cue["kind"], cue["track"], state)
+        outputs=self.model.cue_output_channels(cue) if cue['kind']=='visual' else None
+        destination=(' >P'+''.join(map(str,outputs))) if outputs is not None else ''
+        name = self._row_preview(cue["name"], 18 if destination else 24) if compact else cue["name"][:48]
+        return "{} {:03d}   {}   | {} / track {}{} | {}".format(">" if int(self._p("Selectedcue")) == index + 1 else "", index + 1, name, cue["kind"], cue["track"], destination, state)
 
     @staticmethod
     def _row_preview(value, columns):
@@ -204,7 +211,7 @@ class ShowControlExt:
             "Postwait": "postwait", "Loop": "loop", "Mediain": "media_in", "Speed": "speed",
             "Gain": "gain", "Hold": "hold", "Target": "target", "Easing": "easing",
             "Cueenabled": "enabled", "Notes": "notes", "Movieaudio": "movie_audio",
-            "Blackoutscope": "blackout_scope", "Transition": "transition",
+            "Blackoutscope": "blackout_scope", "Transition": "transition", "Cueprojection": "projection", "Cuechannels": "channels",
         }
         for parameter, field in names.items():
             cue[field] = self._p(parameter)
@@ -217,6 +224,24 @@ class ShowControlExt:
         self._replace_cues(cues)
         self.SelectCue(index + 1)
         self._status("Cue saved in workspace; Save Show writes it to disk")
+
+    def SetCueProjection(self, parameter='Cueprojection'):
+        """Commit only the routing selector; leave other editor buffers alone."""
+        if self._busy: return
+        self._guard_edit()
+        index = int(self._p('Selectedcue')) - 1
+        if not 0 <= index < len(self.document['cues']):
+            raise ValueError('Select a cue first')
+        field, default = {'Cueprojection': ('projection','inherit'), 'Cuechannels': ('channels','routing')}[parameter]
+        route = self._p(parameter)
+        if self.document['cues'][index].get(field, default) == route:
+            return
+        if self.document['cues'][index]['kind'] != 'visual':
+            raise ValueError('Projection routing is only available for visual cues')
+        cues = copy.deepcopy(self.document['cues'])
+        cues[index][field] = route
+        self._replace_cues(cues)  # Discard stale off-air preloads, not editor values.
+        self._status('Cue routing saved in workspace and takes priority on GO. Save Show writes it to disk.')
 
     def SaveCueNotes(self):
         """Metadata-only edit: never restart transport, reload media or commit a look."""
@@ -440,7 +465,7 @@ class ShowControlExt:
         try:
             deck = self._new_deck("look_editor")
             self._apply_look(deck, cue["look"])
-            self._set_deck_resolution(deck)
+            self._set_deck_resolution(deck, cue)
             movie = self._load_deck_media(deck, cue, path)
             for name in (*self.model.MODULES, "fx_rack"):
                 module = deck.op(name)
@@ -849,7 +874,9 @@ class ShowControlExt:
                 # Main-workflow manual sliders are intentionally bounded; cue
                 # copies also need to represent long-running/reverse phases.
                 module.par.Manualtime.min, module.par.Manualtime.max = -1.0e9, 1.0e9
-                if branch and clock.get("running", True):
+                cue_puppet=(module_name=='dance_puppet' and deck.fetch('imagefx_cue_playback',False,search=False) is True
+                            and module.par.Sourcemode.eval()=='recorded')
+                if branch and clock.get("running", True) and not cue_puppet:
                     parent_phase = deck.parent().parent().fetch("imagefx_look_animation", {}, search=False).get("image_composition", {}).get("time", 0.0)
                     module.par.Manualtime.expr = "{} + (parent(2).par.Time - {}) * me.par.Timescale".format(phase, parent_phase)
                 else:
@@ -1090,8 +1117,8 @@ class ShowControlExt:
 
     def _prepare_visual_steps(self, item, path):
         cue, deck = item["cue"], item["deck"]
-        yield from self._apply_look_steps(deck, cue["look"])
-        self._set_deck_resolution(deck)
+        yield from self._apply_look_steps(deck, self._prepare_cue_look(deck,cue["look"]))
+        self._set_deck_resolution(deck, cue)
         movie = self._load_deck_media(deck, cue, path)
         item["movie"] = movie
         yield
@@ -1116,6 +1143,21 @@ class ShowControlExt:
             reader.par.moviefileintop = movie.path
             reader.par.play = False
             self._connect_audio(item)
+
+    def _prepare_cue_look(self,deck,look):
+        for workflow in (deck,deck.op('image_composition/a_effects'),deck.op('image_composition/b_effects')):
+            if workflow is not None:
+                workflow.store('imagefx_cue_playback',True)
+        return self.model.cue_start_look(look)
+
+    @staticmethod
+    def _tick_puppet_cue_clocks(deck,seconds):
+        if deck.fetch('imagefx_cue_playback',False,search=False) is not True: return
+        for workflow in (deck,deck.op('image_composition/a_effects'),deck.op('image_composition/b_effects')):
+            puppet=workflow.op('dance_puppet') if workflow is not None else None
+            if puppet is not None and puppet.par.Sourcemode.eval()=='recorded':
+                puppet.par.Autotime=False
+                puppet.par.Manualtime=max(0.,seconds)*float(puppet.par.Timescale.eval())
 
     def _warm_prepared_deck(self, item):
         """Compile/cook off-air across real frames, without advancing cue clocks."""
@@ -1160,30 +1202,114 @@ class ShowControlExt:
             if time.perf_counter() >= deadline:
                 break
 
-    def _set_deck_resolution(self, deck):
+    def _set_deck_resolution(self, deck, cue=None):
+        from tdimagefx.show import cue_render_width
+        if cue is not None:
+            deck.store('imagefx_cue_projection', cue.get('projection', 'inherit'))
+            deck.store('imagefx_cue_channels', cue.get('channels', 'routing'))
+        route = deck.fetch('imagefx_cue_projection', 'inherit', search=False) if cue is None else cue.get('projection', 'inherit')
+        channels = deck.fetch('imagefx_cue_channels', 'routing', search=False) if cue is None else cue.get('channels', 'routing')
+        if not isinstance(route, str): route = 'inherit'
+        if not isinstance(channels, str): channels = 'routing'
         deck.par.Resolutionpreset = "custom"
         deck.par.Customwidth.max = 16384
         deck.par.Customwidth.normMax = 16384
-        deck.par.Customwidth = int(self._p("Renderwidth") * ((3-2*self._p("Panoramaoverlap")) if self._p("Routingmode") == "panoramic" else 1))
+        deck.par.Customwidth = cue_render_width(dict(projection=route, channels=channels), self._p('Routingmode'),
+                                                self._p('Renderwidth'), self._p('Panoramaoverlap'))
         deck.par.Customheight = int(self._p("Renderheight"))
 
     def OutputTrack(self, output):
         """Physical delivery does not change which cue track supplies a canvas."""
-        if self._p('Routingmode') == 'independent':
-            return int(self._p('Output{}track'.format(output)))
+        items = self._projection_items()
+        if items:
+            return self.model.cue_output_track(items, output, self._p('Routingmode'), self._output_tracks())
+        return self._output_tracks()[output - 1]
+
+    def _output_tracks(self):
+        if self._p('Routingmode') in {'independent', 'cue'}:
+            return [int(self._p('Output{}track'.format(i))) for i in (1, 2, 3)]
         shared = getattr(self.ownerComp.par, 'Sharedtrack', None)
-        return int(shared.eval()) if shared is not None else 1
+        return [int(shared.eval()) if shared is not None else 1] * 3
+
+    def _projection_items(self):
+        items = dict(getattr(self, 'tracks', {}))
+        draft = getattr(self, '_look_edit', None)
+        live = getattr(self.ownerComp.par, 'Looklive', None)
+        if (draft is not None and live is not None and live.eval()
+                and self.engine.state == 'stopped'):
+            track = int(self._p('Looklivetrack'))
+            items[track] = dict(cue=dict(draft['cue'], track=track), route_order=float('inf'), draft=True)
+        return items
+
+    def HasCueOutputRouting(self):
+        return any(cue.get('projection', 'inherit') != 'inherit' or cue.get('channels', 'routing') != 'routing'
+                   for item in self._projection_items().values()
+                   for cue in ([item['cue']] + ([item['old']['cue']] if item.get('fading') and item.get('old') else [])))
+
+    def ProjectionInput(self, output, side):
+        track = self.OutputTrack(output)
+        item = self._projection_items().get(track, {})
+        if item.get('draft'):
+            return self.ProjectionSource(track)
+        return 'track{}_source{}'.format(track, side) if track else 'black'
+
+    def UpdateCueRouting(self):
+        """Invalidate native expressions when Python-only cue ownership changes."""
+        revision = getattr(self.ownerComp.par, 'Cueroutingrevision', None)
+        if revision is None: return
+        items = self._projection_items()
+        key = (self._p('Routingmode'), tuple(self._output_tracks()), self._p('Panoramaoverlap'),
+               tuple((track, item['cue']['id'], item['cue'].get('projection', 'inherit'), item['cue'].get('channels','routing'),
+                      item.get('route_order', item.get('started', 0)), item.get('side'),
+                      item.get('fading', False), item.get('draft', False),
+                      (item['old']['cue'].get('projection','inherit'),item['old']['cue'].get('channels','routing')) if item.get('old') else None)
+                     for track, item in sorted(items.items())))
+        if key != getattr(self, '_cue_routing_key', None):
+            revision.val = (int(revision.eval()) + 1) % 1000000
+            self._cue_routing_key = key
+
+    def ProjectionSample(self, output, side):
+        track = self.OutputTrack(output)
+        item = self._projection_items().get(track)
+        if not track: return (0, 0, 1)
+        if item is None:
+            cue = {'track': track, 'projection': 'inherit'}
+        elif item.get('draft') or item.get('side') == side:
+            cue = item['cue']
+        elif item.get('old') is not None:
+            cue = item['old']['cue']
+        else:
+            return (0, 0, 1)
+        return self.model.cue_projection_sample(cue, output, self._p('Routingmode'),
+                                                self._output_tracks(), float(self._p('Panoramaoverlap')))
+
+    def ProjectionBlend(self, output, component):
+        track = self.OutputTrack(output)
+        if not track: return 0
+        if self._projection_items().get(track, {}).get('draft'):
+            return 1
+        return float(self._p('Track{}{}'.format(track, ('blend', 'visible', 'level')[component])))
+
+    def TrackCanvasWidth(self, track):
+        from tdimagefx.show import cue_render_width
+        item = getattr(self, 'tracks', {}).get(track)
+        return cue_render_width(item['cue'] if item else {}, self._p('Routingmode'),
+                                self._p('Renderwidth'), self._p('Panoramaoverlap'))
 
     def _sync_canvas_resolution(self):
         """Resize prepared/live/edit decks without reloading media or cue time."""
-        width = int(self._p('Renderwidth') * (
-            (3 - 2 * self._p('Panoramaoverlap')) if self._p('Routingmode') == 'panoramic' else 1))
+        from tdimagefx.show import cue_render_width
         height = int(self._p('Renderheight'))
         names = ['deck{}_{}'.format(t, s) for t in (1, 2, 3) for s in (0, 1)] + ['look_editor']
         for name in names:
             deck = self.ownerComp.op(name)
+            route = deck.fetch('imagefx_cue_projection', 'inherit', search=False) if deck is not None else 'inherit'
+            channels = deck.fetch('imagefx_cue_channels', 'routing', search=False) if deck is not None else 'routing'
+            expected = cue_render_width(dict(projection=route if isinstance(route,str) else 'inherit',
+                channels=channels if isinstance(channels,str) else 'routing'),self._p('Routingmode'),
+                self._p('Renderwidth'),self._p('Panoramaoverlap'))
             if deck is not None and (deck.par.Resolutionpreset != 'custom'
-                    or int(deck.par.Customwidth) != width or int(deck.par.Customheight) != height):
+                    or int(deck.par.Customwidth) != expected or int(deck.par.Customheight) != height):
                 self._set_deck_resolution(deck)
 
     def _load_deck_media(self, deck, cue, path):
@@ -1311,6 +1437,12 @@ class ShowControlExt:
             reason = "track is fading or blacked out"
         elif any(old["cue"][k] != cue[k] for k in ("source", "media_in", "speed", "loop", "movie_audio")) or cue["movie_audio"]:
             reason = "media or embedded audio settings changed"
+        elif old['cue'].get('projection', 'inherit') != cue.get('projection', 'inherit'):
+            reason = "projection routing changed"
+        elif old['cue'].get('channels','routing') != cue.get('channels','routing'):
+            reason = "output channels changed"
+        elif self.model.has_recorded_puppet(cue.get('look',{})):
+            reason = "puppet motion restarts at the opening frame"
         if reason is None:
             try:
                 before = self._capture_look(old["deck"], active=False)
@@ -1356,6 +1488,8 @@ class ShowControlExt:
         item = self.prepared[cue["id"]]
         kind = cue["kind"]
         if kind == "visual":
+            self._route_order = getattr(self, '_route_order', 0) + 1
+            item['route_order'] = self._route_order
             track = cue["track"]
             old = self.tracks.get(track)
             if self._start_interpolation(cue, item, old, elapsed):
@@ -1459,6 +1593,9 @@ class ShowControlExt:
                             component.par.Manualtime = self.model.animation_time(
                                 active["deck"].fetch("imagefx_look_animation", {}, search=False), module,
                                 local_time, float(scale.eval()) if scale is not None else 1.0)
+                    # The puppet belongs to this cue's start, even when an A/B
+                    # composition clock is paused or has a captured nonzero phase.
+                    self._tick_puppet_cue_clocks(active['deck'],max(0,elapsed-active['started']))
         for item in self.audio.values():
             if item["started"] is not None:
                 cue = item["cue"]
@@ -1685,13 +1822,10 @@ class ShowControlExt:
         for name, value in mapping.items():
             self._validate_mapping_assignment(name, value)
         self._mapping_matrices(mapping)
-        document = self.model.validate_show(dict(self.document, mapping=mapping))
-        if len(json.dumps(document, ensure_ascii=False, allow_nan=False).encode("utf-8")) > self.model.MAX_SHOW_BYTES:
-            raise ValueError("Show exceeds 8 MiB")
+        document = self._validated_document(dict(self.document, mapping=mapping))
         if path.is_file():
-            if path.stat().st_size > self.model.MAX_SHOW_BYTES:
-                raise ValueError("Existing show file is unexpectedly large")
-            previous = load_json(path)
+            self.model.check_show_size(path.stat().st_size)
+            previous = load_json(path, max_bytes=self.model.MAX_SHOW_BYTES)
             self.model.validate_show(previous)
             atomic_write_json(path.with_name(path.stem + ".backup-" + self.model.new_cue()["id"] + ".json"), previous)
         atomic_write_json(path, document)
@@ -1703,9 +1837,8 @@ class ShowControlExt:
         self._guard_edit()
         from tdimagefx.jsonutil import load_json
         path = Path(self._p("Showfile")).resolve()
-        if path.stat().st_size > self.model.MAX_SHOW_BYTES:
-            raise ValueError("Show file exceeds 8 MiB")
-        document = self.model.validate_show(load_json(path))
+        self.model.check_show_size(path.stat().st_size)
+        document = self.model.validate_show(load_json(path, max_bytes=self.model.MAX_SHOW_BYTES))
         parameters = {p.name:p for p in self.ownerComp.customPars if self._mapping_parameter(p)}
         if set(document["mapping"]) - set(parameters):
             raise ValueError("Show contains unknown mapping controls")
@@ -1753,6 +1886,7 @@ class ShowControlExt:
             self.engine.tick()
             if self.engine.selected != selected_before:
                 self.SelectCue(self.engine.selected + 1)
+            self.UpdateCueRouting()
             self.UpdateMapping()
             if self.engine.errors:
                 self._status("Cue error: " + next(reversed(self.engine.errors.values())))
@@ -1807,7 +1941,8 @@ class ShowControlExt:
                 crop = self._p(prefix + "crop" + edge)
                 if data is not None:
                     data[output-1, column] = crop
-                if edge in {"left", "right"} and self._p("Routingmode") == "panoramic":
+                if (edge in {"left", "right"} and self._p("Routingmode") == "panoramic"
+                        and self.ownerComp.op('cue_projection') is None):
                     overlap = self._p("Panoramaoverlap")
                     crop = ((output - 1) * (1 - overlap) + crop) / (3 - 2 * overlap)
                 shader.par["vec3value" + axis] = crop

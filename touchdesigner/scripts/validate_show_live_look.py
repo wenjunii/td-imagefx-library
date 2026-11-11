@@ -64,8 +64,7 @@ def validate():
             ext._service_preloads()
         assert not any(item.get('loading') for item in ext.prepared.values()), 'Preparation timeout'
         clock[0] = now
-        ext.engine.tick()
-        ext.UpdateMapping()
+        ext.Tick()
         assert not ext.engine.errors, str(ext.engine.errors)
 
     def load(cues):

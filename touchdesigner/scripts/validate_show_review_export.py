@@ -2,16 +2,24 @@
 
 Run as a Text DAT module in TouchDesigner using start(root), with physical
 output windows closed and no look draft. The DAT stays alive until completion.
-Exports small local test files under ignored build/export-tests; never uploads.
+Exports local test files under ignored build/task-artifacts; never uploads.
 """
 from pathlib import Path
 import copy
 import json
 import time
+import uuid
 from datetime import datetime, timezone
 
 STATE = {}
 FLOW_MODULES = ('ink_dream_flow', 'ink_brush_flow', 'ink_radial_flow')
+
+
+def review_cell_range(width, index):
+    """Sample the actual review canvas, never the old 288-pixel thumbnail cells."""
+    if width < 3 or width % 3 or index not in (0, 1, 2):
+        raise ValueError('Expected three equal review cells')
+    return index * width // 3, (index + 1) * width // 3
 
 
 def flow_export_look(template, name, toggle_name):
@@ -77,7 +85,8 @@ def start(root=None):
         top=s.op('projector_review'); top.cook(force=True)
         arr=top.numpyArray(delayed=False)
         for i in range(3):
-            means=arr[:,i*288:(i+1)*288,:3].mean(axis=(0,1))
+            left,right=review_cell_range(arr.shape[1],i)
+            means=arr[:,left:right,:3].mean(axis=(0,1))
             assert int(means.argmax())==i,(i,means,list(top.inputs),arr.shape)
         STATE['checks'].append('3-up ordering is left / center / right')
         wall.par.Blackout=True
@@ -98,7 +107,8 @@ def start(root=None):
         e._replace_cues([cue])
         e.SelectCue(1)
         STATE['base_cue'] = copy.deepcopy(cue)
-        s.par.Exportfolder=str(root/'build/export-tests')
+        STATE['task'] = 'review-export-' + uuid.uuid4().hex[:8]
+        s.par.Exportfolder=str(root/'build/task-artifacts'/STATE['task']/'exports')
         s.par.Exportfps='30'
         s.par.Exportstart=0
         STATE['cases']=[('1080p','h264',.2,'cue'),('4k','h264',.1,'cue'),
@@ -287,7 +297,7 @@ def finish(error=''):
         error=error or 'State preservation failed: '+repr(exc)
     finally:
         s.destroy()
-    report=dict(ok=not error,error=error,generated_at=datetime.now(timezone.utc).isoformat(),
+    report=dict(ok=not error,error=error,task=STATE.get('task'),generated_at=datetime.now(timezone.utc).isoformat(),
                 checks=STATE['checks'],exports=STATE['exports'])
     path=STATE['root']/'build/envoy-validation/show-review-export.json'
     path.parent.mkdir(parents=True,exist_ok=True)

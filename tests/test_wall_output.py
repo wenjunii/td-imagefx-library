@@ -2,6 +2,8 @@
 import importlib.util
 from pathlib import Path
 import unittest
+from types import SimpleNamespace
+from unittest.mock import Mock
 
 ROOT=Path(__file__).resolve().parents[1]
 
@@ -18,6 +20,16 @@ controller=load('wall_output_controller')
 
 
 class WallOutputTests(unittest.TestCase):
+    def test_explicit_cue_channels_override_wall_source_fallback(self):
+        mode=SimpleNamespace(eval=lambda:'identical')
+        show=SimpleNamespace(par=SimpleNamespace(),HasCueOutputRouting=lambda:True)
+        fixture=Mock(par=SimpleNamespace(Sourcemode=mode))
+        fixture.parent.return_value.op.return_value=show
+        self.assertEqual(controller.effective_source_mode(fixture),'show')
+        show.HasCueOutputRouting=lambda:False
+        self.assertEqual(controller.effective_source_mode(fixture),'identical')
+        fixture.parent.return_value.op.return_value=None
+        self.assertEqual(controller.effective_source_mode(fixture),'identical')
     def test_quadrant_centres_follow_processor_scan_order(self):
         self.assertEqual([wall.quadrant_at(x,y) for x,y in ((960,540),(2880,540),(960,1620),(2880,1620))],[1,2,3,4])
 

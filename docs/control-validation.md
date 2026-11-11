@@ -1,5 +1,296 @@
 # Control validation
 
+## Live recorder cadence follow-up — 2026-11-11
+
+Synthetic moving 1920×1080 feeds were recorded through the real packed-wall and
+full-size review paths on the RTX 3080 Ti Laptop GPU. The initial five-second
+60 FPS capture reported **1 startup repeat for the 3840×2160 wall**, and
+**21 repeats for 5760×1080 Projector Review**. At 30 FPS both reported zero.
+
+The live H.264/H.265 writer now defaults to an explicit **Balanced** encoder
+quality and zero B-frames, with Fast/High choices. Offline encoding is unchanged.
+The recorder reuses normal frame cooks, avoids an unnecessary exact-size review
+padding pass, and warms its whole local rendering branch. A balanced ten-second
+60 FPS trace reduced review repeats to **1 at startup**; the wall also reported
+**1 at startup**. No later drops occurred in that test. The warning is retained.
+These results are an improvement, **not a drop-free 60 FPS qualification**.
+
+The final built-runtime test produced four independently decoded ten-second
+movies: 600 frames at 60 FPS and 300 at 30 FPS, at the exact wall/review sizes,
+with no audio. Both 60 FPS captures reported one repeat at frame 3 and no later
+drops; both 30 FPS captures reported zero. All 69 native review/export control
+checks passed, including early stop and view-change rejection. The clean native
+rebuild has zero builder/shader/preview errors, and the full repository gate
+passes with 916 tests and source/native artifact hashes matched.
+
+Asynchronous encoder opening was tested and rejected: although the native drop
+counter read zero, independent decoding found only 597/598 frames instead of 600.
+It is not shipped. Paused/first-frame handoff experiments were also discarded.
+The production path retains blocking file-open so head frames are not omitted.
+Use 30 FPS for the verified live capture setting, or the existing frame-stepped
+offline cue/draft exporter when exact frame rendering is required. Whole-show
+wall/review capture remains real-time; selecting 60 FPS cannot make a slow
+effect combination render 60 unique pictures every second.
+
+`validate_live_recording_cadence.py` is an off-air, disposable-copy benchmark;
+it records no physical displays/audio, performs no GPU pixel readbacks during
+capture, records drop timing, checks the quality menu and zero warm-up frames,
+and preserves the original cues/private show. Reports and decoder evidence are
+kept in `build/recording-cadence/` and `build/recording-fix-20261111/` locally.
+The portable suite now contains **916 tests**. Full-show/hardware rehearsal is
+still required; this synthetic benchmark does not qualify every saved cue.
+
+## Clean build and complete control recheck — 2026-11-11
+
+Rebuilt the distributable in a blank TouchDesigner 2025.32820 project on the
+RTX 3080 Ti Laptop GPU, then reopened the saved TOE before the control audit.
+The build has zero builder, shader or preview errors. All 96 current effects,
+124 immutable package versions, nineteen core TOXs, gallery baselines and
+generated benchmark records pass the repository gate; package history is unchanged.
+The canonical TOE contains clean defaults and its example cue, not personal cues,
+artwork or prepared motion. The previous local TOE/core files are preserved in
+`build/control-audit-20261111/before/`; the external show JSON was not rewritten.
+
+| Check | Measured result |
+| --- | --- |
+| Portable safety gate | 912 tests passed; credentials, immutable history, source/native hashes, manifests, gallery and benchmark checks passed |
+| Saved-TOE live suite | 30 groups / 6,658 checks passed |
+| Actual frame-driven controls/media | 17 groups / 590 checks passed, including running-cue edits, Continue/Follow, particles and feedback |
+| Cue projection | 212 checks and 93 normal-frame routing cases passed across tracks, pairs, panoramas and wall fallback modes |
+| Independent A/B editing | 36 checks passed, including enable buttons, all three flow Scale sliders, saved-look GO and live edits |
+| Puppet cue clocks | 43 checks passed with generated test media in main/A/B; no private character movie required |
+| Large show round trip | 13 checks passed with a generated 9,566,215-byte, 74-cue document, including backup/reload |
+| Projection-channel export | 62 checks passed; 13 synchronized channel movies produced |
+| Full-size review recording | 69 checks passed, covering five quality modes, thumbnail separation, early stop and deliberate view-change failure |
+| Cue/draft/flow export | 49 checks passed; 21 movies produced, including panoramic H.265/Motion JPEG and custom particle/feedback looks |
+| Pre-show readiness | 16 checks passed; two 4K wall captures each contained 90 frames at 30 FPS, with zero reported drops |
+| Independent video decoding | All 42 silent movies decoded at expected sizes/frame counts and 30 FPS; identical-pair decoded frame hashes matched |
+
+The audit scripts now use the full transport Tick path (including cue-route
+invalidation), inspect panorama intervals before calibration, sample full-size
+review cells rather than old thumbnail coordinates, and resolve the GUI extension
+again after Update Look removes its draft network. Review width/height endpoints,
+slider bounds and clamping are checked natively. Test recordings and large-show
+fixtures use unique ignored task folders for guarded cleanup. Generated fixtures
+allow these regressions to run without a private show or prepared character media.
+
+The 5760×1080 three-up recording reported one dropped frame despite the normal
+two-second warm-up; the warning remains visible. This is not a stutter-free
+recording or sustained three-projector performance certification. Camera/device,
+audible audio and physical output-window actions remain wiring-only/off-air checks;
+the actual venue chain still needs rehearsal. No hardware output or camera was
+opened, no audio was auditioned, and shared MCP/bridge settings were not modified.
+The knowledge index was available; Envoy was offline during this native-app audit.
+
+Detailed reports, decoder metadata and the retained backup are under
+`build/control-audit-20261111/`. No test state was saved into the distributable TOE.
+
+## Higher-resolution Projector Review — 2026-11-11
+
+Three-Up Resolution / Per Projector now defaults to 1080p cells (5760×1080
+total), with 720p, 4K-per-projector, native-feed and custom cell sizes. Fitted
+cells preserve aspect ratio. Enlarged review and recording use the full canvas;
+the embedded three-up preview has its own 864×162 thumbnail path. Review sizing
+does not change cue looks, physical projector feeds or the 3840×2160 wall.
+Wide recording requires H.265, or Motion JPEG above the encoder's 8192-pixel
+limit; actual source detail still depends on the projector feeds.
+
+All 910 portable tests passed, including 10 new resolution tests. Isolated
+TouchDesigner validation passed 69 checks, including all five resolution modes,
+thumbnail separation, color order, recording guards and state preservation.
+The main TOE was saved with both cues and all 207 pre-existing controls preserved,
+then passed the same 69 checks after reopening without reapplying the patch.
+Six final files decoded at the expected dimensions and 30 FPS: three-up HEVC
+5760×1080, center 320×180 (QA feed), confidence 1920×1080, wall 3840×2160, plus
+valid shorter early-stop and deliberately aborted three-up recordings.
+
+The full-length cases contained 12 frames. The initial three-up recording
+reported one dropped frame with zero warm-up; the saved-file check reported two
+with the normal two-second warm-up. Other completed final cases reported zero.
+These warnings are retained: full-resolution recording is not certified stutter
+free, and 720p is available for lighter workloads. No camera, audio or physical
+output was opened; the external show JSON stayed unchanged. Reports and the
+pre-update TOE are retained under `build/review-resolution/`. The two sets of
+generated synthetic QA media (about 0.45 MiB total) were moved to the Recycle Bin;
+this is not a full release or hardware-output certification.
+
+## Projector Review recording — 2026-11-11
+
+Added Projector Review / Real-Time as a fourth Export Source, retaining the old
+menu indices and export settings. It captures the selected review TOP at native
+resolution, pads odd sizes without stretching, and includes visible mapping and
+blackouts but no Show Control widgets or audio. Live Render Warm-up and Stop
+Recording & Save now apply to both live sources. Changing review view/route or
+target dimensions aborts safely; encoder frame/drop counts remain authoritative.
+
+All 900 portable tests passed, including 18 new focused checks. An isolated native
+copy passed 60 checks with three real running cue tracks: three-up color order,
+individual center feed, confidence, full 4K wall, early Stop & Save and deliberate
+view-change failure. Six actual H.264 files decoded at the expected sizes and
+30 FPS; full-length cases had 12 frames, while early/aborted recordings retained
+valid shorter prefixes. No native shader/encoder errors were found in the capture
+copies. The main TOE upgrade preserved both cues and 207 existing controls, was
+saved, then passed all 60 checks again after reopening without reapplying the patch.
+The original show JSON stayed unchanged; no camera, audio or physical output was
+opened. Reports and pre-update TOE are under `build/review-recording/`; synthetic
+QA media is disposable. This is not a full release or hardware-output certification.
+
+## Cue projection-channel exports — 2026-11-11
+
+Added Export Projection Channels: unsplit legacy canvas, follow cue routing,
+P1/P2/P3, any pair and all three. Channel exports use one isolated effect render
+and clock, preserve original panorama slices/overlap, and write per-projector
+movies plus a timing/channel manifest. Explicit cue destinations take priority
+over playback track/global defaults. Unrouted requests fail clearly. Resolutions
+apply per file; different frame ratios letterbox instead of stretching. These
+are clean cue feeds, not calibrated/masked outputs; exact 2×2 wall capture remains
+the existing real-time recording mode.
+
+All 882 portable tests passed (20 new tests). The initial off-air native copy
+passed 44 checks. The main TOE was upgraded with both cues and 206 pre-existing
+writable controls unchanged. After save/reopen, 62 checks passed without
+reapplying the patch, across seven actual export cases: paired identical feeds,
+three-way panorama, center-only original slice, nonadjacent two-channel panorama,
+three simultaneous 1080p H.264 encoders, square letterboxing, and legacy canvas.
+All 13 final movies independently decoded with the expected dimensions, 30 FPS
+and six frames; the initial identical pair matched every decoded frame hash.
+Native shader/encoder checks passed, no audience/camera/audio was opened, and
+the private show JSON was unchanged. Reports and pre-update TOE are retained
+under `build/projection-export/`; generated QA media is disposable. This is not
+a full release rebuild or physical-projector timing certification.
+
+## Larger show files — 2026-11-11
+
+Raised only the show-file budget from 8 MiB to 64 MiB, including the explicit
+JSON reader budget used by Load Show and Save Show's backup reader. Editing and
+saving now check the actual formatted UTF-8 byte count. The 1,000-cue ceiling,
+strict schema/duplicate-key validation, automatic backup and atomic save remain.
+Unrelated library JSON readers retain their original limits.
+
+All 862 portable tests passed. An isolated native copy passed 13 checks with an
+85-cue, 9,509,858-byte show: load, save, valid backup, reload, data preservation,
+safe blackout/audio state and zero native errors/warnings. After upgrading and
+saving the main TOE, all 13 checks passed again after reopening, with no patch
+reapplied. Both existing TOE cues and the user's external show JSON were unchanged.
+Reports and the pre-update TOE are retained under `build/show-file-limits/`.
+Synthetic large-show fixtures are disposable task artifacts, not user show files.
+No camera, audio or audience output was opened; this is not a new release build.
+
+## Puppet cue opening-frame playback — 2026-11-11
+
+Recorded puppets now use a zero-based cue clock, independent of the preview time
+captured with a look. Main/A/B puppets restart on GO and Go Back, including when
+the composition clock was captured paused at a nonzero time. Explicit Motion In
+Point and speed remain decisive; Pause/Resume continues instead of restarting.
+Only the runtime playback copy is normalized: saved cue looks and other effect
+phases are retained. Camera sessions are not restarted. Recorded-puppet parameter
+interpolation uses the normal fresh-deck crossfade fallback to isolate histories.
+
+The pre-update main TOE reproduced the captured-phase failure. The patched
+off-air copy passed 43 real-frame checks using the existing prepared movies:
+opening indices/pixels, progression, main/A/B, frozen composition, pause/resume,
+Go Back, feedback reset, retained in-point/speed, unaffected effect clocks and
+export clock parity. The main document was untouched by validation. All 854
+portable tests passed. Reports and the pre-update TOE are retained under
+`build/puppet-cue-start/`; no cameras, output windows or audio were armed.
+The main runtime was upgraded in place and saved with both existing cues intact,
+zero native errors/warnings, and the external show JSON unchanged. This is not
+a full distributable rebuild or physical-projector timing certification.
+After reopening the saved TOE, all 43 native checks passed again without
+reapplying the patch, including the opening-frame and feedback pixel comparisons.
+
+## Independent layer editing feedback — 2026-11-10
+
+The saved show's independent-A backdrop cue had every branch effect bypassed;
+its centered JPEG foreground was also fully opaque. Enabling a module and
+inspecting A alone distinguishes bypass from foreground occlusion. Existing cue
+values and media were deliberately not changed.
+
+Added selected-effect/routing status and explicit Enable Selected A/B Effect
+buttons. Edit/navigation still do not enable anything automatically. The additive
+installer upgraded 24 main/template/standby/branch workflows while preserving
+all existing artist values and both main-TOE cues, without extension reinitialization.
+All 849 portable tests and 35 normal-frame native checks passed. Native checks
+cover recalled A/B grading pixels, enable callbacks, synchronized parent switches,
+all three flow Scale controls, and live running-cue A edits in the full preview.
+The off-air sandbox was destroyed and no output/camera/audio was armed. Reports
+are under `build/layer-preview/`; the pre-update TOE is retained in its
+`backup-before-enable-controls/` folder. This is an in-place UI patch, not a new
+full distributable build or physical-projector certification.
+The saved TOE was reopened and all 35 checks passed again without reapplying
+the patch. The existing 63-cue show JSON retained its original modification time.
+
+## Native routing-cache regression — 2026-11-10
+
+Reproduced the operator's failure with real frame boundaries: channel 2 plus
+Projector 2 on playback track 1 was black because the native source selector
+still referenced track 2 and its shader uniforms retained fallback values.
+The previous synchronous sweep forced cooks and did not expose this cache bug.
+
+Routing expressions now evaluate `Cueroutingrevision.eval()` explicitly instead
+of discarding an unevaluated Par object. The new frame-based regression performs
+editor changes through native callbacks, Apply Cue, Preload and GO without any
+forced cooks. All 93 cases passed: every single/pair/all channel group from every
+playback lane under four global layouts, plus selected-channel panoramas. Each
+case checks final projector pixels and corresponding quadrants in the 4K wall.
+Tests remain off-air and preserve the main document; no hardware windows open.
+Reports include the reproduced pre-fix failure and patched result under
+`build/cue-projection/routing-frames*.json`.
+All 846 portable tests passed. The main TOE was patched in place with both cues
+unchanged and zero native errors/warnings, then saved. Its previous version is
+retained under `build/cue-projection/backup-before-track-decoupling/`.
+After reopening that saved TOE, all 93 frame-based cases passed again without
+reapplying the patch. The disposable test network was removed and the main cue
+document stayed unchanged (`routing-frames-fresh-open.json`).
+
+## Per-cue visual output channels — 2026-11-10
+
+Added a Visual Output Channels selector for one projector, any pair or all three,
+separate from the internal Playback / Audio Track. Panoramic cues span the selected
+channels in numerical order without unused slices. Explicit cue destinations also
+take priority over the wall controller's manual source fallback; safety blackout
+and physical display assignments are unchanged.
+
+All 845 portable tests and 212 off-air native checks passed in a disposable
+Show Control / wall copy.
+These include actual preload and GO from each playback track, distinct panoramic
+pixels on all three outputs, selected-pair panorama sizing, all four wall source
+modes, 4K quadrant pixels, selector callbacks and JSON Save/Load. A metadata edit
+against the older 57-cue show preserved its cue count, look and timing; the original
+show file was not changed. These checks do not certify physical projector timing.
+The main TOE was upgraded in place, saved and reopened with both original cues,
+all eight channel choices, active real-frame selector callback and cue-priority
+wall sources intact. Startup stayed stopped, blacked out and audio-disabled;
+native errors and warnings were empty. The pre-upgrade TOE is retained under
+`build/cue-projection/backup-before-channel-selector/`. Three generated round-trip
+test JSON files (about 13 KB) were recycled after verification; reports were kept.
+
+## Cue routing priority — 2026-11-10
+
+Added Routing > Follow Show Routing (Per Cue), retained the three fallback
+layouts, and gave explicit cue routes priority over inherited/global routes.
+The stopped-show routing selector commits metadata immediately without applying
+other editor buffers. Output connections now replace dormant global expressions
+explicitly. All 840 portable tests passed; 151 off-air native checks cover every
+cue choice under all four global modes, callback commits, route precedence,
+panorama slices, fades, blackout, Save/Load and GO. No physical output was opened.
+The main TOE was saved and reopened: both cues, four global modes, active route
+callback and explicit output expressions persisted, with no errors or warnings.
+
+## Per-cue projection routing — 2026-11-10
+
+Added Cue Editor routing with backward-compatible Follow Show Routing defaults.
+All 837 local portable tests passed. Off-air native checks in a disposable Show
+Control copy verified all nine editor choices, projector pixel destinations,
+simultaneous tracks, distinct panorama slices, no double crop under a global
+panorama, destination-specific fades, blackout priority, JSON Save/Load, actual
+preload and GO, and preservation of the two original cues. No physical audience
+windows were opened. The upgraded graph reported zero native errors/warnings.
+After saving and reopening the main TOE, both cues and all nine routing choices
+were present, with zero errors/warnings, transport stopped, blackout on and audio off.
+The main personal TOE is backed up under `build/cue-projection/backup-before-upgrade/`.
+This patch is not a full rebuild or a venue/display stress certification.
+
 ## Cleanup tooling and documentation — 2026-11-03
 
 This source-only maintenance update changes no TOE/TOX, shader, cue, media,
@@ -20,51 +311,39 @@ verification and dependency review are required before apply. Native show/contro
 evidence below is retained from the unchanged October 29 build, not represented
 as a new physical-output or GPU-render validation.
 
-## Cue interpolation and full control recheck — 2026-10-29
+## Clean publication control recheck — 2026-10-29
 
-The clean publication project was rebuilt in TouchDesigner **2025.32820** on
-the **RTX 3080 Ti Laptop GPU**, separately from the operator's two-cue TOE.
-All **96 current effects** compiled with zero builder, shader or preview errors;
-all **124 immutable package versions** remain unchanged.
+A separate clean checkout based on current `main` was rebuilt with cue
+interpolation. It passed **781 portable tests** (four expected Windows symlink
+skips), **30 native groups / 6,633 checks**, **17 frame-based groups / 590
+checks**, **12 additional groups / 926 checks**, **16 readiness checks** and
+**36 panoramic-preview checks**. The interpolation group now has 24 checks,
+including smooth easing, zero-time changes, consecutive transitions and short
+held cues. All 96 effects compiled; 124 published package versions were retained.
 
-- **781 portable tests** completed successfully, including 13 interpolation
-  regressions (four expected Windows symlink-permission skips). The local gate
-  also passed source/artifact hashes, credentials, manifests, gallery baselines,
-  regenerated benchmark documentation and immutable-history checks.
-- **30 native groups / 6,633 checks** passed for module controls, slider ranges,
-  values, menus, bindings, pulses, panel buttons, mapping and output modes.
-  The standard runner now includes **24 rendered interpolation checks**:
-  compatible deck/media/clock reuse, visible pixel changes, linear and smooth
-  easing, exact endpoints, pause/resume, zero-time transitions, consecutive
-  transitions, short held cues, safe topology fallback and editor round-trips.
-- **17 real-frame groups / 590 checks** passed for actual event delivery,
-  images/videos, Continue/Follow, cue playback, live/running look edits,
-  mapping, particle motion and feedback.
-- **12 additional groups / 926 checks** passed for dance-force response,
-  activation and pattern-space motion, puppet/layer controls, navigation and
-  export. **16 readiness checks** passed, including slider endpoints, all FPS
-  choices, 1/3/12-frame cue warm-up and recording cancellation.
-- **36 panoramic-preview checks** passed, followed by a visible maximize and
-  restore smoke test: the image stayed letterboxed, accessible and animated.
-- **26 completed export clips** passed independent ffprobe/ffmpeg checks for
-  codec, dimensions, FPS, frame count, full decoding and silent audio. Packed
-  wall clips also passed RGB quadrant-order and nonblank-confidence checks.
-- Fresh reopening passed **65 startup/persistence checks**, with no native
-  errors or warnings. All **4,307 embedded text DATs** passed the credential
-  scan; the clean artifact's hash was unchanged by the audits.
+Independent decoding verified 26 HD/UHD/panoramic/wall export clips. Two short
+readiness recordings reported zero encoder drops; a separate H.264 wall test
+reported one dropped frame. These calibration tests are not sustained show
+performance certification. Physical outputs, cameras and audible audio were
+not armed. Private cues/media are excluded from the clean publication TOE;
+the personal main TOE remains unchanged by these release checks.
 
-The two 3-second UHD readiness recordings each decoded to 90 frames at 30 FPS
-and reported zero encoder drops. A separate 1-second H.264 wall test reported
-**one dropped frame**; its warning remains visible. The performance sampler
-also reported 11 timeline drops during startup. These short calibration tests
-do **not** certify sustained recording or heavy-effects show performance.
+## Cue parameter interpolation — 2026-10-29
 
-Crossfade remains the default for old shows. Interpolation deliberately falls
-back to crossfade for incompatible media, topology, selectors, seeds, clocks,
-held/blackout tracks or embedded movie audio. Reports and test media remain
-local under ignored `build/`; private cues, media and credentials are not
-publication content. Physical projector/processor routing, live cameras and
-audible stereo playback still require a venue rehearsal.
+The local main TOE includes the new Visual Transition selector. The upgrade
+retained its two cue looks and existing control values, expressions and bindings.
+Its prior TOE is backed up under `build/cue-interpolation/backups/`.
+
+The **798-test local suite** passed with four expected Windows symlink skips,
+including 13 interpolation regressions. An isolated Show Control copy passed
+**19 native checks** on TouchDesigner 2025.32820: rendered pixels, midpoint and
+destination values, continuous phase and deck identity, pause/resume, crossfade
+fallback, editor/save round trips, original-cue preservation and clean native
+diagnostics. Reports are `build/cue-interpolation/native-validation.json` and
+`build/cue-interpolation/main-install.json`. Eight fresh-open checks also passed
+for the saved control/runtime, cue defaults, safe startup and clean diagnostics;
+see `build/cue-interpolation/fresh-open.json`. These checks do not certify physical
+projector timing or a new distributable native build.
 
 ## Full control and publication recheck — 2026-10-28
 
@@ -169,23 +448,6 @@ untouched original. The upgraded candidate reopened without native errors or
 warnings before promotion to `TD_ImageFX_Library.toe`. The original file and
 private preservation reports remain local in `build/show-readiness/` and are not
 part of the clean publication artifact.
-
-## Local-first verification policy — 2026-10-28
-
-The local safety gate passed **735 portable tests** on Python 3.11.9 / NumPy
-1.24.4 (four expected Windows symlink-permission skips). Its 18 new regressions
-cover failure propagation, missing prerequisites, safe subprocess arguments,
-single-pass verification and the low-usage workflow policy. Immutable package
-history, tracked/staged credential scans, generated artifacts and documentation
-checks passed; all three workflow files passed actionlint 1.7.12.
-
-Routine repository verification now has one Ubuntu job on PR updates and `main`
-pushes, with no duplicate feature-branch push run. The full six-way OS/Python
-matrix is manual. Security settings and branch protection are unchanged.
-That initial local-first commit changed no TOE, TOX, shader, runtime, cue or media
-files. Later readiness/control commits include rebuilt clean native artifacts
-and the validation described above. Neither stage certifies live-camera,
-physical projector or sustained recording performance.
 
 ## Motion, controls and clean publication recheck — 2026-10-28
 
