@@ -12,6 +12,13 @@ from touchdesigner.scripts.show_output_mode import cue_media_fit
 
 
 class CueProjectionTests(unittest.TestCase):
+    def test_finished_look_is_fitted_before_each_projector_slice(self):
+        shader = cue_projection.SHADER
+        self.assertIn('uTDOutputInfo.res.z / span', shader)
+        self.assertIn('sampleCanvas(sTD2DInputs[0], uTD2DInfos[0].res.zw, uSide0)', shader)
+        self.assertIn('sampleCanvas(sTD2DInputs[1], uTD2DInfos[1].res.zw, uSide1)', shader)
+        self.assertIn('return vec4(0.);', shader)
+
     def test_routing_expressions_read_revision_value_not_discarded_par_object(self):
         expression=cue_projection.routing_expression('parent().ProjectionInput(2, 1)')
         self.assertEqual(expression,'(parent().par.Cueroutingrevision.eval(), parent().ProjectionInput(2, 1))[1]')

@@ -56,10 +56,10 @@ changes use a crossfade. Old shows keep Crossfade by default. See
 
 ## Pre-show readiness and warm-up
 
-The main `TD_ImageFX_Library.toe` was rebuilt with clean defaults on 2026-11-11,
-including the current cue, routing and high-resolution review improvements.
-The previous local TOE and its cues remain backed up in
-`build/control-audit-20261111/before/`; external show JSON and media are unchanged.
+The main `TD_ImageFX_Library.toe` was rebuilt with clean defaults on 2026-11-16,
+including the current cue, routing, high-resolution review and panoramic Final
+Crop improvements. The previous local TOE remains backed up in
+`build/panoramic-crop-fix/before/`; external show JSON and media are unchanged.
 The distributable contains no personal show cues, character artwork or motion media.
 
 Show Control now has a **Pre-Show Check** section: check media/workflow paths,
@@ -559,7 +559,7 @@ cd td-imagefx-library
 
 The clean Windows release build used TouchDesigner `2025.32820` and validated all 96 current effects with 124 versioned effect `.tox` files, nineteen core `.tox` files, one library `.toe`, 96 previews, 96 visual baselines, and 96 benchmark samples.
 That build report contains zero shader, preview, or builder errors.
-A fresh repository run completed 916 tests successfully; Windows environments
+A fresh repository run completed 921 tests successfully; Windows environments
 without symlink permissions may skip four link tests. The retired dance-driven
 backdrop remains source/test-only and is not installed in the main TOE.
 Install `requirements-test.txt` first (NumPy is used by motion-math tests, not by
@@ -951,6 +951,12 @@ the aspect crop within those trims. **Crop to Size** changes output dimensions;
 regions. Final Crop defaults last but can move earlier too. See the
 [workflow and crop guide](docs/workflow-and-crop.md).
 
+Projection fits the **finished cropped look** onto the delivery canvas before
+splitting a panorama. It does not stretch the crop back to the full width.
+The cropped aspect ratio stays intact, centered with blank unused areas, in
+direct outputs, the 2×2 wall and panoramic/channel exports. Canvas Media Fit
+still controls source media before effects, not the framing after Final Crop.
+
 ### Ink Dream Flow
 
 `InkDreamFlow.tox` combines dreamy random liquid marbling with flowing pigment
@@ -1048,6 +1054,18 @@ The canonical demo supplies deterministic fixtures to all six auxiliary rack inp
 Presets capture exact package versions, slot order, enable/mix state, modulation, manual time, and eligible effect parameters. They do not install packages, approve updates, or replace a production project lock.
 
 ### Complete live validation suite
+
+The **2026-11-16 saved-TOE recheck** passed all **30 blocking groups / 6,658
+checks** and **17 real-frame groups / 590 checks**. Numeric controls, toggles,
+menus, reset/pulse routes and native event delivery are covered; physical
+camera, audio and projector actions remain separate rehearsal checks. See the
+[current validation record](docs/control-validation.md) for detailed results
+and the retained live-recording limitations.
+
+This recheck also corrected Puppet feedback startup: a held opening/seek frame
+now keeps the current picture while history initializes, avoiding intermittent
+dimming on GO / Go Back. Main and independent A/B puppets use the same fix;
+normal pause/resume retains existing trails.
 
 Run every live project, resolution, rack, module, and all-effect check from one
 TouchDesigner Textport command. Use only a disposable development harness:
@@ -1156,6 +1174,7 @@ session, never while a show is playing:
 | --- | --- |
 | `validate_cue_projection.py` | Cue destination selectors, legacy cues and routing priority |
 | `validate_cue_routing_frames.py` | Native cache invalidation and GO across playback tracks, projector pairs and panoramas |
+| `validate_panoramic_crop.py` | Finished Final Crop pixels through recall, live editing, GO, projector slices, wall packing and export fitting |
 | `validate_layer_preview.py` | Independent A/B enable buttons, grading and live-edit preview pixels |
 | `validate_puppet_cue_start.py` | Opening frame, in-point, speed, pause/resume and Go Back in main/A/B layers |
 | `validate_show_file_limits.py` | Generated show larger than 8 MiB, safe load/save and backup round trip |
@@ -1171,6 +1190,12 @@ rehearsal. The large-show test generates its own look data. An existing external
 show file is checked for preservation, but these QA scripts do not require one.
 Actual recordings must also be decoded and checked; a successful encoder status
 does not prove correct dimensions, colors, smooth playback or audio.
+
+The crop regression exposes `start(reproduce=False)` and runs on the installed
+TOE without patching its initial compositor. Use `reproduce=True` only when
+deliberately demonstrating the old stretching bug on an older disposable TOE.
+It keeps fixed delivery dimensions, checks proportional fitting against an
+independent reference and preserves the original cues/private show JSON.
 
 For an additional check of actual event delivery, run this separately after
 the blocking suite has finished:

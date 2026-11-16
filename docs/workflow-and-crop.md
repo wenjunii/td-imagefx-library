@@ -85,9 +85,16 @@ Pixel dimensions are rounded down when needed for aspect ratios. Overlapping
 trims are reduced proportionally so at least one pixel survives on each axis;
 the status reports this adjustment. Source resolution remains set on the demo's
 Output page. Example: a 1920×1080 canvas cropped to square becomes 1080×1080 in
-Crop to Size, or remains 1920×1080 in either fixed-canvas mode. For a projector
-with a fixed canvas, prefer Mask Outside or Fit Crop and calibrate show mapping
-after setting your crop. This module does not rewrite source media files.
+Crop to Size, or remains 1920×1080 in either fixed-canvas mode. A projector still
+needs a fixed output raster: the finished cropped image is proportionally fitted
+and centered on that delivery canvas, with blank unused areas. For a panorama,
+this happens once across the full canvas before its projector slices are taken;
+the crop is not stretched separately across the projectors. The recalled look,
+GO/live editing, direct feeds, 2×2 wall and panoramic/channel exports retain the
+same cropped aspect ratio. Source Media Fit affects input media before effects,
+not the finished crop. Use Mask Outside when you need the crop's original canvas
+position retained rather than centered fitting. Calibrate show mapping after
+setting your crop. This module does not rewrite source media files.
 
 ## Show cues and compatibility
 

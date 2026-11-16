@@ -563,7 +563,9 @@ def export_render_target(show, deck, settings):
                                                    else (settings['width'], settings['height']))
     target.seq.vec.numBlocks = 1
     target.par.vec0name = 'uFit'
-    target.par.vec0valuex = ('contain', 'cover', 'stretch').index(settings['fit'])
+    # Media Fit applies BEFORE effects. Fitting the completed/cropped look with
+    # cover/stretch here would undo Final Crop's composition on the panorama.
+    target.par.vec0valuex = 0  # contain; same finished-canvas policy as projection
     output.outputConnectors[0].connect(target.inputConnectors[0])
     return target
 

@@ -24,11 +24,22 @@ def routing_expression(value):
 SHADER = r'''
 layout(location=0) out vec4 fragColor;
 uniform vec4 uBlend, uSide0, uSide1;
+vec4 sampleCanvas(sampler2D image, vec2 inputSize, vec4 side) {
+    // Fit the FINISHED look onto its full cue canvas before taking a projector
+    // slice. Final Crop can reduce either dimension; stretching that texture
+    // back across the panorama undoes its visible framing and distorts it.
+    float span = max(side.z - side.y, 1e-6);
+    vec2 canvas = vec2(uTDOutputInfo.res.z / span, uTDOutputInfo.res.w);
+    float ratio = (inputSize.x / max(inputSize.y, 1.)) / (canvas.x / max(canvas.y, 1.));
+    vec2 extent = vec2(min(1., ratio), min(1., 1. / max(ratio, 1e-6)));
+    vec2 uv = (vec2(mix(side.y, side.z, vUV.x), vUV.y) - .5) / extent + .5;
+    if (any(lessThan(uv, vec2(0.))) || any(greaterThan(uv, vec2(1.))))
+        return vec4(0.);
+    return texture(image, uv) * side.x;
+}
 void main() {
-    vec2 a = vec2(mix(uSide0.y, uSide0.z, vUV.x), vUV.y);
-    vec2 b = vec2(mix(uSide1.y, uSide1.z, vUV.x), vUV.y);
-    vec4 c0 = texture(sTD2DInputs[0], a) * uSide0.x;
-    vec4 c1 = texture(sTD2DInputs[1], b) * uSide1.x;
+    vec4 c0 = sampleCanvas(sTD2DInputs[0], uTD2DInfos[0].res.zw, uSide0);
+    vec4 c1 = sampleCanvas(sTD2DInputs[1], uTD2DInfos[1].res.zw, uSide1);
     fragColor = TDOutputSwizzle(mix(c0, c1, uBlend.x) * uBlend.y * uBlend.z);
 }
 '''

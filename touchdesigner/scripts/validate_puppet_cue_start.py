@@ -102,6 +102,13 @@ class PuppetCueStartChecks:
                         self.check(self.label+'_go_back_restarts_clock',abs(float(self.module().par.Time))<1e-6)
                         self.check(self.label+'_go_back_decodes_same_opening',np.allclose(self.pixels(),self.opening,atol=.01))
                         finished=self.module().op('puppet_rgba').numpyArray(delayed=False)
+                        style=self.module().op('puppet_style').numpyArray(delayed=False)
+                        self.report['samples'][self.label]=dict(
+                            finished_mean_error=float(np.abs(finished-self.opening_finished).mean()),
+                            finished_max_error=float(np.abs(finished-self.opening_finished).max()),
+                            style_mean_error=float(np.abs(style-self.opening_style).mean()),
+                            style_max_error=float(np.abs(style-self.opening_style).max()),
+                            feedback_clock=self.module().fetch('puppet_finish_clock',None,search=False))
                         self.check(self.label+'_go_back_clears_previous_feedback',np.allclose(finished,self.opening_finished,atol=.01))
                         deck=item['deck'];export=h.op('show_review_export').module
                         export._set_time(deck,e.model.MODULES,2.)
@@ -119,6 +126,9 @@ class PuppetCueStartChecks:
                         self.check(self.label+'_other_effect_phase_preserved',float(item['deck'].op('ink_dream_flow').par.Manualtime)==71.)
                         self.opening=self.pixels()
                         self.opening_finished=np.array(p.op('puppet_rgba').numpyArray(delayed=False),copy=True)
+                        self.opening_style=np.array(p.op('puppet_style').numpyArray(delayed=False),copy=True)
+                        self.check(self.label+'_opening_history_contains_current_frame',
+                                   np.allclose(self.opening_finished,self.opening_style,atol=.01))
                         self.clock+=4.;e.Tick();self.stage='advanced'
                 elif self.wait>900: raise AssertionError('Timed out: '+self.stage)
             elif self.stage=='advanced':

@@ -30,6 +30,17 @@ class LayerFeedbackLayoutTests(unittest.TestCase):
 
     def test_first_frame_resets_and_pause_holds(self):
         self.assertEqual(self.clock(self.component),(0.,1.,0.,0.))
+        self.assertEqual(self.tick(0.,.04),(0.,1.,0.,0.))
+        self.assertEqual(self.tick(.1),(.1,0.,0.,0.))
+        self.assertEqual(self.tick(0.,.04),(0.,0.,1.,0.))
+
+    def test_held_seek_keeps_seeding_until_motion_resumes(self):
+        self.clock(self.component)
+        self.tick(.1)
+        self.assertEqual(self.tick(-.1,.04),(0.,1.,0.,0.))
+        for _ in range(3):
+            self.assertEqual(self.tick(0.,.04),(0.,1.,0.,0.))
+        self.assertEqual(self.tick(.1),(.1,0.,0.,0.))
         self.assertEqual(self.tick(0.,.04),(0.,0.,1.,0.))
 
     def test_low_fps_does_not_reset_or_cap_decay(self):
