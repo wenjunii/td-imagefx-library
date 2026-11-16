@@ -292,9 +292,12 @@ layout is Identical or Independent: the export never changes the live layout.
 
 The selected cue's saved effects, or the current draft's edits, render on this
 wide canvas. **Canvas Media Fit → Auto** uses proportional **Fill / Crop**;
-explicit Fit/Letterbox and Stretch remain available. If Final Crop changes the
-aspect ratio, the exported result is fitted with the same rule, not silently
-stretched. Size and fit are frozen for each export, so later setting changes
+explicit Fit/Letterbox and Stretch remain available for the source media.
+After effects, the finished result is always proportionally fitted onto the
+delivery canvas. If Final Crop changes the aspect ratio, that cropped composition
+is centered with blank unused areas; it is not enlarged with Fill/Crop or
+stretched back across the panorama. Live projection uses the same rule before
+projector slicing, in direct and 2×2 wall modes. Size and fit are frozen for each export, so later setting changes
 cannot alter a movie halfway through. Projector masks/warps/blackouts, confidence
 stats, other cue tracks and audio are not included. For the actual packed wall,
 keep using **2x2 Wall + Confidence / Real-Time** instead.

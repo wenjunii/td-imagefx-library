@@ -13,9 +13,10 @@ def validate():
     import numpy as np
     original = td.op('/project1/imagefx_demo/show_control')
     before = copy.deepcopy(original.ext.ShowControlExt.document)
-    if original.ext.ShowControlExt.engine.state != 'stopped':
-        raise RuntimeError('Stop All before validation')
-    sandbox=td.op('/project1').create(td.baseCOMP,'imagefx_channel_validation')
+    runpy.run_path(str(ROOT/'touchdesigner/scripts/validate_show_readiness.py'))['_require_safe_session'](original)
+    if td.op('/project1/imagefx_sandbox') is not None:
+        raise RuntimeError('An ImageFX sandbox already exists')
+    sandbox=td.op('/project1').create(td.baseCOMP,'imagefx_sandbox')
     wall=sandbox.copy(original.parent().op('wall_output'),name='wall_output')
     host=sandbox.copy(original,name='show_control')
     checks = {}
@@ -44,7 +45,10 @@ def validate():
         for i, color in enumerate(((1,0,0),(0,1,0),(0,0,1)),1):
             node = host.create(td.constantTOP, 'route_fixture'+str(i))
             node.par.colorr, node.par.colorg, node.par.colorb = color
-            node.par.outputresolution = 'custom'; node.par.resolutionw, node.par.resolutionh = 320,180
+            # These sources also stand in for a complete three-panel panorama;
+            # use a panoramic texture so fitting does not legitimately leave
+            # the outer projector centers blank for a panel-shaped image.
+            node.par.outputresolution = 'custom'; node.par.resolutionw, node.par.resolutionh = 960,180
             sources.append(node)
             for side in (0,1):
                 selected = host.op('track{}_source{}'.format(i,side))

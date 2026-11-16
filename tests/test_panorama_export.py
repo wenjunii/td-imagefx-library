@@ -7,6 +7,38 @@ from touchdesigner.scripts import show_review_export as review
 
 
 class PanoramaExportTests(unittest.TestCase):
+    def test_post_effect_panorama_fit_does_not_reapply_input_cover_or_stretch(self):
+        for fit in ('contain','cover','stretch'):
+            with self.subTest(fit=fit):
+                show,deck,reader,output,code,canvas=Mock(),Mock(),Mock(),Mock(),Mock(),Mock()
+                deck.op.side_effect=lambda name: {'cue_media_fit':reader,'out1_image':output}.get(name)
+                deck.create.side_effect=[code,canvas]
+                output.outputConnectors=[Mock()];canvas.inputConnectors=[Mock()]
+                settings=dict(panoramic=True,projection=None,width=5760,height=1080,fit=fit)
+                with patch.dict('sys.modules',{'td':SimpleNamespace(textDAT='text',glslTOP='glsl')}):
+                    self.assertIs(review.export_render_target(show,deck,settings),canvas)
+                self.assertEqual(reader.par.vec0valuex,('contain','cover','stretch').index(fit))
+                self.assertEqual(canvas.par.vec0valuex,0)
+                self.assertEqual((canvas.par.resolutionw,canvas.par.resolutionh),(5760,1080))
+
+    def test_channel_export_keeps_crop_on_full_canvas_before_splitting(self):
+        show,deck,output,code,canvas=Mock(),Mock(),Mock(),Mock(),Mock()
+        deck.op.side_effect=lambda name: output if name=='out1_image' else None
+        deck.create.side_effect=[code,canvas]
+        output.outputConnectors=[Mock()];canvas.inputConnectors=[Mock()]
+        settings=dict(panoramic=False,projection=dict(render_width=3840,render_height=1080),
+                      width=1920,height=1080,fit='cover')
+        with patch.dict('sys.modules',{'td':SimpleNamespace(textDAT='text',glslTOP='glsl')}):
+            review.export_render_target(show,deck,settings)
+        self.assertEqual(canvas.par.vec0valuex,0)
+        self.assertEqual((canvas.par.resolutionw,canvas.par.resolutionh),(3840,1080))
+
+    def test_native_cue_canvas_still_returns_the_finished_crop(self):
+        deck=Mock();output=Mock();deck.op.side_effect=lambda name: output if name=='out1_image' else None
+        with patch.dict('sys.modules',{'td':SimpleNamespace()}):
+            self.assertIs(review.export_render_target(Mock(),deck,dict(panoramic=False,projection=None)),output)
+        deck.create.assert_not_called()
+
     def settings(self, **changes):
         values = dict(source='cue', preset='panoramic', width=640, height=360,
                       fps=30, duration=.2, start=2, codec='mjpeg')

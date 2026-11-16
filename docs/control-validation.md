@@ -1,5 +1,82 @@
 # Control validation
 
+## Complete control recheck and Puppet feedback startup — 2026-11-16
+
+The audit found and reproduced an intermittent Puppet opening-frame mismatch:
+the motion reader and styled pixels were identical, but a held clock could latch
+Feedback TOP's empty reset buffer. Finished RGBA differed by up to 0.230 despite
+the correct motion time. Main and independent A/B branches were affected.
+
+The feedback clock now keeps seeding current pixels while holding a fresh or
+sought frame, until animation time advances. Normal pause after movement still
+holds the accumulated trails. No appearance controls or saved cue values change.
+A portable regression covers held opening/seek frames and later pause/resume;
+the isolated native test passed all 46 strengthened checks with zero opening-frame
+error in main/A/B. Diagnostics retain the actual style/finished differences.
+
+The original failed reports, isolated-fix evidence, clean TOE backup and subsequent
+saved-file audit reports are retained locally in `build/control-audit-20261116/`.
+Private show JSON, media and shared MCP/bridge settings are not part of the sync.
+
+After the fix, the clean TOE and nineteen core TOXs were genuinely rebuilt in
+TouchDesigner 2025.32820 (zero builder/shader/preview errors), then the saved TOE
+was reopened. The final Puppet, crop, frame-routing and export tests used the
+installed runtime with their optional patch modes off; the broad route sweep
+also separately exercises its idempotent upgrade path on a disposable copy.
+
+| Check | Final result |
+| --- | --- |
+| Portable safety gate | 921 tests; credentials, immutable history, native hashes, gallery and benchmarks passed |
+| Saved-TOE control sweep | 30 groups / 6,658 checks passed |
+| Real-frame events/media | 17 groups / 590 checks passed |
+| Focused maintenance | 11 groups passed: 571 checks, 93 routing cases and four cadence cases |
+| Independent movie decoding | 46 silent movies at expected dimensions, FPS and decoded frame counts |
+| Decoded pixels | 23 checks passed: channel colors/order, identical-pair frame hashes and nonblank confidence quadrants |
+
+The final Puppet test passed 46 checks with exactly matching opening RGBA in
+main/A/B. Panoramic Final Crop passed all 68 checks again. The 75-cue private
+show remained byte-identical and no test state was saved into the clean TOE.
+
+The five-second cadence recheck still reported **one startup repeat at 60 FPS**
+for both the 3840×2160 wall and 5760×1080 review; each movie decoded to 300 frames.
+At 30 FPS, both reported zero repeats and decoded to 150 frames. These are
+synthetic off-air checks, not drop-free 60 FPS or full-show certification.
+Camera/device, audible audio and actual venue projector/processor output actions
+remain separate rehearsal checks; no physical output or audio was opened.
+
+## Panoramic Final Crop — 2026-11-16
+
+Reproduced the mismatch with an Ink Dream Flow cue: Recall Look correctly
+produced a 480×180 cropped image, while the old projector compositor stretched
+it across a 960×180 panoramic delivery canvas. The mean RGB difference against
+an independent fitted-crop reference was 0.443.
+
+The projector shader now fits each finished A/B look onto its whole cue canvas
+before taking projector slices. No saved crop values, input-media fit, channel
+assignments, mapping or cue clocks are changed. Panoramic/channel export also
+uses proportional post-effect fitting; source Fill/Crop is not applied again
+after Final Crop.
+
+An isolated native test passed **68 checks**: recalled horizontal/vertical/square
+crops, both fixed-canvas crop modes, uncropped compatibility, live draft edits,
+Update Cue Look followed by GO, offline fitted-canvas pixels, shader compilation,
+fixed 3840×2160 packing and all three wall quadrants. Assembled projector pixels
+matched the reference exactly in the tested recall/live/GO cases. Wall quadrant
+mean RGB values matched their direct feeds within 0.004 after resampling. The
+original cue document and private show JSON were unchanged, no physical output
+or audio was opened, and the sandbox was removed.
+
+Local evidence is in `build/panoramic-crop-fix/`. The previous main TOE and the
+opened-project state are backed up under its `before/` directory. The portable
+suite now has **920 tests**. `cue_projection.py` is included in native source
+hash binding so this shader fix cannot silently diverge from the built TOE.
+
+The clean main TOE and 19 core TOXs were rebuilt in TouchDesigner 2025.32820
+with zero build/shader/preview errors. After reopening the saved TOE, all 68
+crop checks passed again (including the installed, unpatched compositor), as
+did all **212 broader cue-routing checks** and the full local-first safety gate.
+The 75-cue private show was checked in a disposable copy and remained unchanged.
+
 ## Live recorder cadence follow-up — 2026-11-11
 
 Synthetic moving 1920×1080 feeds were recorded through the real packed-wall and

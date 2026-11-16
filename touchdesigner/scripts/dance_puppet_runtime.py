@@ -288,6 +288,11 @@ def finish_clock(c):
     # playback rates); decay by seconds, not by an arbitrary .25-second cap.
     jumped=dt>max(1.,elapsed*8.+.1)
     reset=old is None or dt<0 or jumped or not bool(c.par.Feedbackenabled) or old.get('cycle',cycle)!=cycle
-    value=(max(0,dt),float(reset),float(dt==0 and old is not None),0.)
-    c.store('puppet_finish_clock',dict(frame=frame,time=current,wall=wall,value=value,cycle=cycle)); c.storeStartupValue('puppet_finish_clock',None)
+    advanced=not reset and (dt>0 or bool(old.get('advanced',False)))
+    # Feedback TOP reset is frame-delayed. While staging/holding an opening
+    # frame, keep seeding CURRENT pixels until the clock actually advances;
+    # otherwise pause can latch an empty reset buffer and dim the first pose.
+    reset=reset or (dt==0 and not advanced)
+    value=(max(0,dt),float(reset),float(dt==0 and old is not None and not reset),0.)
+    c.store('puppet_finish_clock',dict(frame=frame,time=current,wall=wall,value=value,cycle=cycle,advanced=advanced)); c.storeStartupValue('puppet_finish_clock',None)
     return value
