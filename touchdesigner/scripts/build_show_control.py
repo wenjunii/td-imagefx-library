@@ -388,6 +388,7 @@ def build_show_control(demo, context):
     routing_scope = dict(context, __file__=str(routing_path), __name__="_imagefx_cue_projection")
     exec(compile(routing_path.read_text(encoding="utf-8"), str(routing_path), "exec"), routing_scope)
     routing_scope["install"](show)
+    show.Refresh()
     return show
 
 

@@ -1,5 +1,62 @@
 # Control validation
 
+## Complete saved-TOE control recheck — 2026-11-17
+
+Reopened the clean main TOE in TouchDesigner 2025.32820 and ran the complete
+control audit off-air, without saving the test session. The installed runtime
+passed all **30 blocking groups / 6,658 checks** and **17 real-frame groups /
+590 checks**. These cover numeric endpoints, toggles, menus, pulse routes,
+native event delivery, decoded media, flow/feedback animation, Continue/Follow
+and live running-cue editing.
+
+The additional **12 focused groups** passed **759 checks**, **93 real-frame
+routing cases** and **four cadence cases**. Coverage includes the strengthened
+188-check highlight regression, independent A/B previews, puppet opening frames,
+large-show save/load, channel exports, high-resolution review, wall recording,
+readiness controls and all 68 panoramic Final Crop checks. The focused checks
+used the installed runtime with optional patch modes off.
+
+Independent FFprobe decoding verified **46 silent movies** at the expected
+dimensions, FPS and frame counts (including bounded partial output from the
+deliberately interrupted review). FFmpeg pixel decoding passed **23 checks**
+for projector-channel colors/order, identical-pair frame hashes and nonblank
+confidence-monitor quadrants. Full local repository verification passed all
+**931 tests**, credential scanning, immutable history and native source/artifact
+hash checks.
+
+The five-second synthetic recording test still reported **one startup repeat at
+60 FPS** for both the 3840×2160 wall and 5760×1080 review (300 frames each).
+Both 30 FPS cases reported zero repeats (150 frames each). The short 0.4-second
+three-up review test also reported one startup repeat. These results are not
+drop-free 60 FPS or full-show certification; warnings remain visible.
+
+The private 75-cue show stayed byte-identical and the canonical main TOE hash
+was unchanged throughout QA. No physical projector/processor window was opened
+and no audio was auditioned. Camera/device, audible audio and venue output
+checks remain rehearsal tasks. Local reports are retained in
+`build/control-audit-20261117/`; private cues, media and shared MCP settings are
+not included in the sync.
+
+## Running-cue highlight — 2026-11-17
+
+Show Control now distinguishes playback from cue selection. Running and outgoing
+crossfade rows are green, paused rows amber, held visual frames teal and errors
+red. A blue border preserves selection independently of playback; the cue and
+notes columns share the same state. Superseded visual cues no longer appear to
+be playing merely because the scheduler retains their IDs for navigation.
+
+The clean main TOE and nineteen core TOXs were rebuilt in TouchDesigner
+2025.32820 with zero builder, shader or preview errors. After reopening the saved
+TOE, the strengthened native regression passed **188 checks**, including three-track
+playback, pause/resume, incoming/outgoing crossfades, Go Back, held frames, paging,
+empty rows and Stop. The playing and paused appearances were also checked in
+the native Show Control viewer. The full local safety gate passed **931 tests**.
+
+The original cue document and private show JSON remained unchanged; no physical
+output or audio was opened. The off-air inspection network was removed without
+saving test cues into the main TOE. Reports and the previous native files are
+retained locally in `build/cue-highlight/`.
+
 ## Complete control recheck and Puppet feedback startup — 2026-11-16
 
 The audit found and reproduced an intermittent Puppet opening-frame mismatch:

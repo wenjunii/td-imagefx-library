@@ -5,7 +5,7 @@ def install_cue_notes_column(show):
     """Keep notes beside their cue, inside the existing 880-unit list area."""
     import td
     for name, label, x, width in (
-            ('cue_column_heading', 'CUE / TYPE / TRACK / STATE', 20, 490),
+            ('cue_column_heading', 'CUES | GREEN: PLAY  AMBER: PAUSE  BLUE: SELECT', 20, 490),
             ('notes_column_heading', 'NOTES (edit in Cue Notes)', 520, 380)):
         heading = show.op(name) or show.create(td.textCOMP, name)
         heading.par.x, heading.par.y, heading.par.w, heading.par.h = x, 676, width, 20
