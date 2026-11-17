@@ -28,6 +28,12 @@ that task's folder; it has no permanent-delete fallback. See
 
 ## Cue transitions
 
+The cue list highlights actual playback independently of selection: **green**
+for playing/crossfading cues, **amber** when paused, and **blue** for the selected
+standby row. A blue border keeps selection visible on a playing row. Held frames
+show **HOLD** in teal; replaced cues return to neutral. Both the cue and its note
+share the highlight, including multiple playback tracks and paged cue lists.
+
 **Cue Editor > Visual Output Channels** selects channel 1, 2, 3, any pair, or
 all three, separately from the internal **Playback / Audio Track**. A panorama
 spans the selected channels from one renderer (1920×1080 per panel gives
@@ -56,10 +62,10 @@ changes use a crossfade. Old shows keep Crossfade by default. See
 
 ## Pre-show readiness and warm-up
 
-The main `TD_ImageFX_Library.toe` was rebuilt with clean defaults on 2026-11-16,
-including the current cue, routing, high-resolution review and panoramic Final
-Crop improvements. The previous local TOE remains backed up in
-`build/panoramic-crop-fix/before/`; external show JSON and media are unchanged.
+The main `TD_ImageFX_Library.toe` was rebuilt with clean defaults on 2026-11-17,
+including running-cue highlights and the current cue, routing, high-resolution
+review and panoramic Final Crop improvements. The previous local TOE remains
+backed up in `build/cue-highlight/before/`; external show JSON and media are unchanged.
 The distributable contains no personal show cues, character artwork or motion media.
 
 Show Control now has a **Pre-Show Check** section: check media/workflow paths,
@@ -559,7 +565,7 @@ cd td-imagefx-library
 
 The clean Windows release build used TouchDesigner `2025.32820` and validated all 96 current effects with 124 versioned effect `.tox` files, nineteen core `.tox` files, one library `.toe`, 96 previews, 96 visual baselines, and 96 benchmark samples.
 That build report contains zero shader, preview, or builder errors.
-A fresh repository run completed 921 tests successfully; Windows environments
+A fresh repository run completed 931 tests successfully; Windows environments
 without symlink permissions may skip four link tests. The retired dance-driven
 backdrop remains source/test-only and is not installed in the main TOE.
 Install `requirements-test.txt` first (NumPy is used by motion-math tests, not by
@@ -1055,7 +1061,7 @@ Presets capture exact package versions, slot order, enable/mix state, modulation
 
 ### Complete live validation suite
 
-The **2026-11-16 saved-TOE recheck** passed all **30 blocking groups / 6,658
+The **2026-11-17 saved-TOE recheck** passed all **30 blocking groups / 6,658
 checks** and **17 real-frame groups / 590 checks**. Numeric controls, toggles,
 menus, reset/pulse routes and native event delivery are covered; physical
 camera, audio and projector actions remain separate rehearsal checks. See the
@@ -1173,6 +1179,7 @@ session, never while a show is playing:
 | Validator in `touchdesigner/scripts/` | Coverage |
 | --- | --- |
 | `validate_cue_projection.py` | Cue destination selectors, legacy cues and routing priority |
+| `validate_cue_highlight.py` | Actual playback-row colors, selection borders, crossfades, held frames, paging and Stop |
 | `validate_cue_routing_frames.py` | Native cache invalidation and GO across playback tracks, projector pairs and panoramas |
 | `validate_panoramic_crop.py` | Finished Final Crop pixels through recall, live editing, GO, projector slices, wall packing and export fitting |
 | `validate_layer_preview.py` | Independent A/B enable buttons, grading and live-edit preview pixels |
@@ -1196,6 +1203,12 @@ TOE without patching its initial compositor. Use `reproduce=True` only when
 deliberately demonstrating the old stretching bug on an older disposable TOE.
 It keeps fixed delivery dimensions, checks proportional fitting against an
 independent reference and preserves the original cues/private show JSON.
+
+The cue-highlight regression exposes `start(inspect=False)` and uses synthetic
+off-air cues, preserving the original cue document and private show file. The
+default run removes its sandbox automatically. For visual inspection only, use
+`inspect=True`, close the QA viewer when finished, then call the returned
+check object's `close_inspection()` method to remove its network.
 
 For an additional check of actual event delivery, run this separately after
 the blocking suite has finished:

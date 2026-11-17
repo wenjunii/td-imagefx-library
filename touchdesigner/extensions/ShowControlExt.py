@@ -28,6 +28,7 @@ class ShowControlExt:
         self._level_fades = {}
         self._mapping_key = None
         self._ui_time = 0.0
+        self._cue_row_style_cache = {}
         self._busy = False
         self._look_edit = None
         self._look_preview_cue_id = None
@@ -167,11 +168,67 @@ class ShowControlExt:
         if not 0 <= row < 12 or not 0 <= index < len(self.document["cues"]):
             return ""
         cue = self.document["cues"][index]
-        state = "ERROR" if cue["id"] in self.engine.errors else "PLAY" if cue["id"] in self.engine.active else "WAIT" if cue["id"] in self.engine.pending else "disabled" if not cue["enabled"] else "ready"
+        status = self._cue_display_state(cue)
+        state = {"running": "PLAY", "fading": "FADE", "paused": "PAUSE", "held": "HOLD",
+                 "waiting": "WAIT", "error": "ERROR", "replaced": "done"}.get(status, status)
         outputs=self.model.cue_output_channels(cue) if cue['kind']=='visual' else None
         destination=(' >P'+''.join(map(str,outputs))) if outputs is not None else ''
         name = self._row_preview(cue["name"], 18 if destination else 24) if compact else cue["name"][:48]
         return "{} {:03d}   {}   | {} / track {}{} | {}".format(">" if int(self._p("Selectedcue")) == index + 1 else "", index + 1, name, cue["kind"], cue["track"], destination, state)
+
+    def _cue_display_state(self, cue):
+        """Presentation only: distinguish real playback from superseded engine entries."""
+        cue_id = cue["id"]
+        if cue_id in self.engine.errors:
+            return "error"
+        if cue["kind"] == "visual":
+            item = getattr(self, "tracks", {}).get(cue["track"])
+            if item and item["cue"]["id"] == cue_id:
+                if item.get("finished"):
+                    return "held"
+                return "paused" if self.engine.state == "paused" else "running"
+            if item and item.get("fading") and item.get("old") and item["old"]["cue"]["id"] == cue_id:
+                return "paused" if self.engine.state == "paused" else "fading"
+            # The scheduler retains some superseded cues for timing/navigation.
+            # They must not look as though their old deck is still playing.
+            if cue_id in self.engine.active:
+                return "replaced"
+        elif cue_id in self.engine.active:
+            return "paused" if self.engine.state == "paused" else "running"
+        if cue_id in self.engine.pending:
+            return "waiting"
+        if cue_id in getattr(self, "prepared", {}):
+            return "loaded"
+        return "ready" if cue["enabled"] else "disabled"
+
+    def CueRowStyle(self, row):
+        index = (int(self._p("Cuepage")) - 1) * 12 + row
+        valid = 0 <= row < 12 and 0 <= index < len(self.document["cues"])
+        selected = valid and int(self._p("Selectedcue")) == index + 1
+        state = self._cue_display_state(self.document["cues"][index]) if valid else "empty"
+        colors = {"running": (.08, .42, .23), "fading": (.08, .42, .23),
+                  "paused": (.55, .32, .04), "held": (.07, .31, .36),
+                  "error": (.50, .09, .12), "disabled": (.10, .10, .11)}
+        color = colors.get(state, (.10, .24, .48) if selected else (.18, .18, .20))
+        return {"state": state, "selected": selected, "color": color}
+
+    def _style_cue_row(self, node, style):
+        """Style both list columns without changing button value or firing cues."""
+        cache = getattr(self, "_cue_row_style_cache", {})
+        key = (style["color"], style["selected"])
+        if cache.get(node.id) == key:
+            return
+        for axis, value in zip("rgb", style["color"]):
+            setattr(node.par, "color" + axis, value)
+            setattr(node.par, "bgcolor" + axis, value)
+        node.par.bgalpha = 1
+        for axis, value in zip("rgb", (.35, .70, 1.)):
+            setattr(node.par, "bordera" + axis, value)
+        node.par.borderaalpha = 1
+        for edge in ("leftborder", "rightborder", "topborder", "bottomborder"):
+            setattr(node.par, edge, "bordera" if style["selected"] else "off")
+        cache[node.id] = key
+        self._cue_row_style_cache = cache
 
     @staticmethod
     def _row_preview(value, columns):
@@ -1969,7 +2026,7 @@ class ShowControlExt:
         table.appendRow(["#", "Cue", "Type", "Track", "At", "Duration", "State"])
         lines = [" #   CUE                              TYPE        TRACK    AT        STATE"]
         for index, cue in enumerate(self.document["cues"]):
-            state = "error" if cue["id"] in self.engine.errors else "running" if cue["id"] in self.engine.active else "waiting" if cue["id"] in self.engine.pending else "loaded" if cue["id"] in self.prepared else "disabled" if not cue["enabled"] else "ready"
+            state = self._cue_display_state(cue)
             at = "GO" if cue["at"] is None else "{:.2f}".format(cue["at"])
             table.appendRow([index + 1, cue["name"], cue["kind"], cue["track"], at, cue["duration"], state])
             marker = ">" if index + 1 == int(self._p("Selectedcue")) else " "
@@ -1978,12 +2035,15 @@ class ShowControlExt:
         self.ownerComp.par.Showtime = self.engine.elapsed
         self.ownerComp.par.Transport = self.engine.state
         for row in range(12):
+            style = self.CueRowStyle(row)
             button = self.ownerComp.op("cue_row_{}".format(row))
             notes = self.ownerComp.op("cue_notes_{}".format(row))
             if button is not None:
                 button.par.label = self.CueLabel(row, compact=notes is not None)
+                self._style_cue_row(button, style)
             if notes is not None:
                 notes.par.label = self.CueRowNotes(row)
+                self._style_cue_row(notes, style)
 
     def Action(self, name):
         try:

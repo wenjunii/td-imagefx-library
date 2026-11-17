@@ -137,6 +137,20 @@ never opens/closes a physical window, changes a display index, resets mapping,
 releases Master Blackout, or enables audio. Projector calibration and masking
 remain shared venue settings, applied after cue routing.
 
+## Running-cue highlight
+
+The cue and its note share a persistent **green** background while playing;
+**amber** means playback is paused. Selection is separate: a standby row is
+**blue**, and a selected playing row keeps its state color with a blue border.
+The text also says PLAY, PAUSE or FADE, so color is not the only signal.
+
+All running tracks are highlighted. Both incoming/outgoing rows remain green
+during a crossfade; the old row clears when its deck retires, even if the
+scheduler retains that cue for timing/navigation. A held final frame shows
+**HOLD** in teal. Stop clears playback emphasis, and paging never transfers an
+old row's highlight to a different cue. These are display-only changes: they
+do not alter cue selection, playback, projector routing, notes or saved looks.
+
 ## Cue notes
 
 Select a cue and click **Cue Notes** (or open the **Cue Notes** tab). Enter up to
