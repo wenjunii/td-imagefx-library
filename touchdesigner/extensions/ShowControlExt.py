@@ -29,6 +29,7 @@ class ShowControlExt:
         self._mapping_key = None
         self._ui_time = 0.0
         self._cue_row_style_cache = {}
+        self._notes_go_anchor = None
         self._busy = False
         self._look_edit = None
         self._look_preview_cue_id = None
@@ -121,6 +122,7 @@ class ShowControlExt:
         self.stop_all()
         self.document = document
         self.engine = self.model.CueEngine(document["cues"], self)
+        self._notes_go_anchor = None
         self._save_document_dat()
         self.Refresh()
 
@@ -137,6 +139,8 @@ class ShowControlExt:
                 return
         self.ownerComp.par.Selectedcue = index
         cue = self.document["cues"][index - 1]
+        if getattr(self, "_notes_go_anchor", None) != cue["id"]:
+            self._notes_go_anchor = None
         if getattr(self, "_look_preview_cue_id", None) not in (None, cue["id"]):
             self._clear_look_result()
         names = {
@@ -319,7 +323,12 @@ class ShowControlExt:
             self._look_edit["cue"]["notes"] = cue["notes"]
         self._save_document_dat()
         self.Refresh()
-        self._status("Cue notes updated without changing playback or the look. Save Show writes them to disk.")
+        # Clicking the Notes column also selects its cue. Keep the note visible,
+        # but don't let the next GO retry that already-fired row.
+        if (self.engine.state != "stopped" and cue["id"] in self.engine.triggered):
+            self._notes_go_anchor = cue["id"]
+        hint = " GO continues forward." if getattr(self, "_notes_go_anchor", None) == cue["id"] else ""
+        self._status("Cue notes updated without changing playback or the look." + hint + " Save Show writes them to disk.")
 
     def OpenCueNotes(self):
         self.ownerComp.currentPage = "Cue Notes"
@@ -590,13 +599,22 @@ class ShowControlExt:
         if self.engine.state != "running":
             raise ValueError("Run or resume a visual cue, select its PLAY row, then Edit Running Cue")
         index = int(self._p("Selectedcue")) - 1
-        if not 0 <= index < len(self.document["cues"]):
-            raise ValueError("Select the running visual cue")
-        cue = self.document["cues"][index]
-        item = self.tracks.get(cue["track"])
-        if (cue["kind"] != "visual" or not item or item["cue"]["id"] != cue["id"]
-                or item.get("finished") or cue["id"] not in self.engine.active):
-            raise ValueError("Select the visual cue currently showing PLAY on its track")
+        playing = {}
+        for row, cue in enumerate(self.document["cues"]):
+            item = self.tracks.get(cue["track"])
+            if (cue["kind"] == "visual" and item and item["cue"]["id"] == cue["id"]
+                    and not item.get("finished") and cue["id"] in self.engine.active):
+                playing[row] = cue, item
+        if index in playing:
+            cue, item = playing[index]
+        elif len(playing) == 1:
+            # GO has already armed the next row. Audition the only current
+            # visual cue without changing that selection or the GO cursor.
+            cue, item = next(iter(playing.values()))
+        elif playing:
+            raise ValueError("Multiple visual cues are playing. Select the PLAY row you want to edit.")
+        else:
+            raise ValueError("No visual cue is showing PLAY. Wait for GO to start the cue.")
         if item.get("fading"):
             raise ValueError("Wait for this cue's crossfade to finish before editing")
         if any(value["cue"]["track"] == cue["track"] for value in self.automations.values()):
@@ -613,7 +631,10 @@ class ShowControlExt:
         self.ownerComp.op("look_preview").par.top = "track{}_source{}".format(item["track"], item["side"])
         self.ownerComp.par.Lookediting = True
         self.ownerComp.par.Lookstatus = "LIVE EDIT: " + cue["name"]
-        self._status("Running cue stays on air. Choose Effect Module > Edit Controls; Update Cue Look or Cancel Changes.")
+        navigation = self.ownerComp.op('inspector_navigation')
+        if navigation is not None:
+            navigation.par.Section = 'Look Editor'
+        self._status("LIVE EDIT: {} | Effect Module > Edit Controls. Update or Cancel when done.".format(cue['name']))
 
     @staticmethod
     def _keep_starting_clocks(look, saved):
@@ -1797,7 +1818,26 @@ class ShowControlExt:
 
     def Go(self):
         self._guard_no_look_edit(allow_running=True)
-        queued = self.engine.go(int(self._p("Selectedcue")) - 1)
+        index = int(self._p("Selectedcue")) - 1
+        engine = self.engine
+        after_note = (engine.state != "stopped" and 0 <= index < len(engine.cues)
+                      and engine.cues[index]["id"] == getattr(self, "_notes_go_anchor", None))
+        if after_note:
+            # Older active tracks may still be visible. Continue after the
+            # latest navigation point instead of refiring intervening cues.
+            anchor = engine.navigation_index
+            index = max(index, anchor if anchor is not None else index) + 1
+            while index < len(engine.cues):
+                cue = engine.cues[index]
+                if cue["enabled"] and cue["id"] not in engine.triggered:
+                    break
+                index += 1
+            if index == len(engine.cues):
+                self._status("No remaining cue after the saved note. Select a cue or use Go Back.")
+                return
+            queued = engine.go(index, wait_for_resources=True)
+        else:
+            queued = engine.go(index)
         self.SelectCue(min(len(self.document["cues"]), self.engine.selected + 1))
         self._status("GO queued; waiting for pre-wait and media readiness" if queued else "No cue queued (disabled or end of list)")
         self.Refresh()
@@ -1821,6 +1861,7 @@ class ShowControlExt:
 
     def Stopall(self):
         self.engine.stop()
+        self._notes_go_anchor = None
         self._status("Stopped; all tracks and audio voices cleared")
         self.Refresh()
 

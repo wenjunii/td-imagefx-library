@@ -22,6 +22,7 @@ class RunningLookTests(unittest.TestCase):
                                                   cues=[self.cue, show.new_cue()], mapping={}))
         self.cue = self.ext.document["cues"][0]
         self.ext.engine = Mock(state="running", elapsed=42.0, selected=1,
+                               triggered={self.cue["id"]},
                                active={self.cue["id"]: (0, 4.0)}, cues=copy.deepcopy(self.ext.document["cues"]))
         self.deck = Mock(id=123, path="/show/deck2_0")
         self.item = dict(cue=copy.deepcopy(self.cue), deck=self.deck, movie=Mock(),
@@ -93,7 +94,7 @@ class RunningLookTests(unittest.TestCase):
         self.ext.engine.resume.assert_called_once()
         self.ext.CancelLook()
 
-    def test_rejects_stopped_paused_nonvisual_or_wrong_row(self):
+    def test_rejects_stopped_paused_or_nonvisual(self):
         for state in ("stopped", "paused"):
             self.ext.engine.state = state
             with self.assertRaisesRegex(ValueError, "Run or resume"):
@@ -103,10 +104,27 @@ class RunningLookTests(unittest.TestCase):
             self.cue["kind"] = kind
             with self.assertRaisesRegex(ValueError, "PLAY"):
                 self.ext.EditRunningLook()
-        self.cue["kind"] = "visual"
+    def test_armed_next_row_does_not_prevent_editing_only_playing_cue(self):
         self.ext._p.return_value = 2
-        with self.assertRaisesRegex(ValueError, "PLAY"):
+        self.ext._notes_go_anchor = self.cue['id']
+        self.ext.EditRunningLook()
+        self.assertIs(self.ext.RunningLookDeck(), self.deck)
+        self.assertEqual(self.ext.engine.selected, 1)
+        self.assertEqual(self.ext._notes_go_anchor, self.cue['id'])
+        self.assertEqual(self.preview.par.Section, 'Look Editor')
+
+    def test_multiple_playing_cues_require_explicit_selection(self):
+        other = self.ext.document['cues'][1]
+        self.ext.tracks[1] = dict(cue=other, finished=False)
+        self.ext.engine.active[other['id']] = (1, 0.)
+        self.ext.document['cues'].append(show.new_cue())
+        self.ext._p.return_value = 3
+        with self.assertRaisesRegex(ValueError, 'Multiple visual cues'):
             self.ext.EditRunningLook()
+        self.assertIsNone(self.ext._look_edit)
+        self.ext._p.return_value = 1
+        self.ext.EditRunningLook()
+        self.assertIs(self.ext.RunningLookDeck(), self.deck)
 
     def test_rejects_fade_automation_and_held_cue(self):
         self.item["fading"] = True

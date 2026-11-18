@@ -7,6 +7,7 @@ import copy
 import json
 import traceback
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 import numpy as np
 
@@ -78,7 +79,8 @@ def validate():
         ext._replace_cues(cues)
         ext.engine.clock = lambda: clock[0]
         ext.engine._last = clock[0]
-        ext.engine.go(0)
+        ext.SelectCue(1)
+        ext.Go()
 
     try:
         yield  # Finish copy/extension initialization before operating the decks.
@@ -96,9 +98,11 @@ def validate():
         path = folder/'running-look-image.png'
         fixture.save(str(path))
         cue = dict(ext.model.new_cue(), name='Live test', source=str(path), duration=0, fade=0)
-        load([cue])
+        standby = dict(ext.model.new_cue(), name='Standby after GO', duration=0, fade=0)
+        load([cue, standby])
         yield from until(lambda: cue['id'] in ext.engine.active)
-        ext.SelectCue(1)
+        check('go_leaves_standby_selected', int(qa.par.Selectedcue) == 2 and ext.engine.selected == 1)
+        qa.op('inspector_navigation').par.Section = 'Cue Notes'
         initial, saved = pixels(), copy.deepcopy(ext.document)
         item = ext.tracks[1]
         deck, engine_id, started = item['deck'], id(ext.engine), item['started']
@@ -110,9 +114,11 @@ def validate():
               and button.par.label.eval() == 'Edit Running Cue'
               and button.width == 266 and button.height == 30
               and preview.par.y.eval() + preview.height < button.par.y.eval())
-        qa.par.Editrunninglook.pulse()
+        next(n for n in button.children if n.name.startswith('clicked')).module.onOffToOn(None)
         yield
-        check('pulse_starts_running_draft', ext.IsRunningLookEdit() and ext.RunningLookDeck() == deck)
+        check('button_starts_running_draft_from_standby', ext.IsRunningLookEdit() and ext.RunningLookDeck() == deck)
+        check('running_edit_opens_look_editor_section', qa.op('cue_inspector').par.pagescope.eval() == repr('Look Editor'))
+        check('running_edit_preserves_go_selection', int(qa.par.Selectedcue) == 2 and ext.engine.selected == 1)
         check('editing_does_not_allocate_workflow', child_ids == {node.id for node in qa.children})
         check('offair_buttons_disabled', not qa.par.Looklive.enable and not qa.par.Showlooklive.enable
               and not qa.par.Savelookasnew.enable)
@@ -188,11 +194,23 @@ def validate():
               and ext.engine.elapsed == elapsed and ext.tracks[1] is item)
         check('update_commits_selected_values', ext.document['cues'][0]['look']['modules']['color_adjustment']['Invert'] == 1)
         check('update_finishes_without_destroying_deck', ext._look_edit is None and deck.valid)
-        show_path = folder/'running-look-saved.json'
-        qa.par.Showfile = str(show_path)
-        ext.SaveShow()
-        check('save_show_while_running', ext.engine.state == 'running'
-              and json.loads(show_path.read_text(encoding='utf-8'))['cues'][0]['look'] == ext.document['cues'][0]['look'])
+        show_file = qa.par.Showfile
+        path_settings = show_file.val, show_file.expr, show_file.mode
+        try:
+            with TemporaryDirectory(prefix='running-look-', dir=folder) as scratch:
+                show_path = Path(scratch) / 'show.json'
+                show_file.mode = type(show_file.mode).CONSTANT
+                show_file.val = str(show_path)
+                assert Path(show_file.eval()).resolve() == show_path.resolve()
+                ext.SaveShow()
+                check('save_show_while_running', ext.engine.state == 'running'
+                      and json.loads(show_path.read_text(encoding='utf-8'))['cues'][0]['look'] == ext.document['cues'][0]['look'])
+        finally:
+            show_file.val, show_file.expr, show_file.mode = path_settings
+        qa.par.Gocue.pulse()
+        yield
+        yield from until(lambda: standby['id'] in ext.engine.active)
+        check('go_after_edit_starts_armed_standby', ext.tracks[1]['cue']['id'] == standby['id'])
 
         for module, toggle in (('ink_dream_flow', 'Inkdreamenabled'),
                                ('ink_brush_flow', 'Inkbrushenabled'), ('ink_radial_flow', 'Inkradialenabled')):

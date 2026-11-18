@@ -157,7 +157,10 @@ Select a cue and click **Cue Notes** (or open the **Cue Notes** tab). Enter up t
 4000 characters in **Notes**, then press **Save Cue Notes**. This changes only
 that cue's notes: playback, timing and the Look Editor draft are untouched.
 It also works while the show is running. The legacy Notes field on Cue Editor
-is linked to the same value. A **Notes** column beside each cue shows its saved
+is linked to the same value. If you save notes on an already-fired cue, the
+next GO continues forward from the last fired cue instead of trying to play
+the note's cue again. Selecting another row still lets you choose a GO target.
+A **Notes** column beside each cue shows its saved
 notes on every cue-list page. Click either the cue or its note to select that
 cue. Long or multiline notes are shortened to a one-line preview; the full text
 remains in **Cue Notes**. A dash means that cue has no saved notes. Press **Save
@@ -555,9 +558,11 @@ the original cue unchanged. No camera or analysis process starts automatically.
 
 You do not have to stop playback or Recall Look to adjust the cue on air:
 
-1. Select the Visual cue row marked **PLAY**. GO normally advances selection to
-   the next row, so reselect the cue you actually want to edit.
-2. Click **Edit Running Cue** on the Show Control panel or Look Editor tab.
+1. Click **Edit Running Cue** on the Show Control panel. If only one visual cue
+   is playing, the button can edit it without moving the selection off the
+   next cue. If multiple visual cues are playing, select the **PLAY** row you
+   want to edit before clicking the button.
+2. The panel switches to **Look Editor** and names the cue being edited.
    Wait for any crossfade or parameter automation on its track to finish first.
 3. In **Look Editor**, choose **Effect Module → Edit Controls**. Edit its module
    sliders, colors, switches, workflow order, rack slots or composition branches.

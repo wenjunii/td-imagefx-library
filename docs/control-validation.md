@@ -1,5 +1,69 @@
 # Control validation
 
+## Complete saved-TOE control recheck — 2026-11-18
+
+Reopened the clean release TOE in TouchDesigner 2025.32820 and tested with
+synthetic cues, both blackouts enabled and audio disarmed. All **30 blocking
+groups / 6,659 checks** and **17 real-frame groups / 601 checks** passed.
+The audit covers numeric controls, toggles, menus, reset and pulse actions,
+native events, decoded media, and rendered cue changes. The local repository
+gate passed **938 tests**, credential scanning, immutable package history,
+and native source and artifact hashes.
+
+Specifically, the wall controller uses a normal Window COMP open rather than
+entering Perform Mode; the actual separate-display and blackout checks remain.
+The native cue regression saves a note on an already-fired row and verifies
+the next cue's pixels after clicking GO. The running-look regression opens
+Look Editor from the next armed row, edits the live picture, and checks both
+Cancel and Update without losing the next GO selection.
+
+All **12 focused groups** passed: **759 checks**, **93 routing cases** and
+**four recording cadence cases**. Independent decoding verified **46 silent
+movies** at the expected dimensions, frame rates and counts, including the
+bounded partial output from the deliberately interrupted recording. All
+**23 decoded-pixel checks** passed for projector colors/order, identical-pair
+frame hashes and the confidence-monitor quadrant.
+
+The five-second synthetic **3840×2160 wall recording at 60 FPS** reported
+four dropped render frames (filled by repeats); **5760×1080 Projector Review
+at 60 FPS** reported none in that run. Both movies decoded to 300 frames.
+Both 30 FPS cases decoded to 150 frames with zero reported drops. The short
+0.4-second, three-up review separately reported one repeat. These results
+do not certify drop-free recording for a live show; encoder warnings remain
+visible. Rehearse with the actual show load, camera, audio and wall processor.
+
+The private show and the shipped TOE remained byte-identical during the audit.
+No physical output was opened or audio auditioned. Local evidence is retained
+in `build/control-audit-20261118/`; no private cues or media are published.
+
+## Running-cue editor opens from standby — 2026-11-18
+
+After GO arms the next row, **Edit Running Cue** now binds to the only playing
+visual deck when selection does not identify a playing cue. With several visual
+cues playing, a PLAY row must identify the target. Opening the editor switches
+the inspector to Look Editor without changing the armed GO row.
+
+The rebuilt, reopened main TOE passed all 67 native running-look checks,
+including opening from a standby row on the Cue Notes tab, live pixel edits,
+Cancel/Update, and starting the still-armed next cue after saving. The local
+gate passed 938 tests. Validation used a disposable off-air cue copy; the
+private show JSON was unchanged and no physical output or audio was opened.
+
+## Wall window recovery and GO after saving notes — 2026-11-17
+
+Rebuilt and reopened the main TOE in TouchDesigner 2025.32820. The wall,
+Output Mode and Show Control suites passed 319 native checks. The real-frame
+live-look suite passed 59 more, including saving a running cue's note to the
+workspace and a disposable show JSON, pressing the GO button, and comparing
+the next cue's output pixels. The local safety gate passed 936 tests.
+
+With a small black test window opened using the shipped wall controller, the
+main editor could be restored after minimizing both it and Show Control.
+Closing Show Control did not close the test window. The actual wall output and
+audio stayed closed; fullscreen delivery and FPS still need a venue check.
+The private show JSON was unchanged. Local evidence and the prior TOE are in
+`build/wall-window-cue-note-fix/`.
+
 ## Complete saved-TOE control recheck — 2026-11-17
 
 Reopened the clean main TOE in TouchDesigner 2025.32820 and ran the complete

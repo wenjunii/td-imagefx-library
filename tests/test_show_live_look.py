@@ -83,6 +83,52 @@ class LiveLookTests(unittest.TestCase):
         self.ext.SaveCueNotes()
         self.assertEqual((self.ext.engine.state, self.ext.engine.elapsed), ('running', 8.25))
 
+    def _start_note_transport(self, count=4):
+        self.ext._look_edit = None
+        self.ext.document['cues'].extend(show.new_cue() for _ in range(count - 1))
+        self.ext.engine = show.CueEngine(self.ext.document['cues'], Mock())
+        self.ext.SelectCue = Mock()
+        return self.ext.engine
+
+    def test_go_after_saving_running_note_keeps_next_cue(self):
+        engine = self._start_note_transport()
+        engine.go(0); engine.tick()
+        engine.backend.prepare.reset_mock()
+        self.ext.SaveCueNotes()
+        self.assertEqual(self.values['Selectedcue'], 1)
+        self.assertEqual(engine.navigation_index, 0)
+        engine.backend.prepare.assert_not_called()
+        self.ext.Go()
+        self.assertEqual(engine.navigation_index, 1)
+        self.assertIn(self.cue['id'], engine.active)
+        self.assertIn(engine.cues[1]['id'], engine.pending)
+
+    def test_older_note_does_not_refire_or_skip_back_after_later_go(self):
+        engine = self._start_note_transport(5)
+        engine.cues[3]['enabled'] = False
+        engine.go(0); engine.tick(); engine.go(2)
+        self.ext.SaveCueNotes()
+        self.ext.Go()
+        self.assertEqual(engine.navigation_index, 4)
+        self.assertNotIn(engine.cues[1]['id'], engine.triggered)
+
+    def test_saving_unfired_cue_note_does_not_skip_selected_cue(self):
+        engine = self._start_note_transport()
+        engine.go(0); engine.tick()
+        self.values['Selectedcue'] = 3
+        self.ext.SaveCueNotes()
+        self.ext.Go()
+        self.assertEqual(engine.navigation_index, 2)
+
+    def test_go_after_last_cue_note_is_safe_noop(self):
+        engine = self._start_note_transport(1)
+        engine.go(0); engine.tick()
+        self.ext.SaveCueNotes()
+        engine.backend.prepare.reset_mock()
+        self.ext.Go()
+        engine.backend.prepare.assert_not_called()
+        self.ext._status.assert_called_with('No remaining cue after the saved note. Select a cue or use Go Back.')
+
     def test_invalid_notes_rejected_atomically(self):
         original = copy.deepcopy(self.ext.document)
         for value in ('x' * 4001, 12, None):

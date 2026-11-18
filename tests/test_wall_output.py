@@ -3,7 +3,7 @@ import importlib.util
 from pathlib import Path
 import unittest
 from types import SimpleNamespace
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 ROOT=Path(__file__).resolve().parents[1]
 
@@ -55,6 +55,19 @@ class WallOutputTests(unittest.TestCase):
 
     def test_valid_processor_display_accepted(self):
         self.assertEqual(controller.display_problem(1,[dict(index=1,width=3840,height=2160,primary=False)]),'')
+
+    def test_wall_open_preserves_designer_and_validates_before_opening(self):
+        window = Mock()
+        fixture = Mock(par=SimpleNamespace(Displayindex=2))
+        fixture.op.return_value = window
+        fixture.parent.return_value.op.return_value = None
+        with patch.object(controller, 'check_display', side_effect=['Not ready', '']):
+            controller.action(fixture, 'Openwall')
+            window.par.winopen.pulse.assert_not_called()
+            controller.action(fixture, 'Openwall')
+        window.par.winopen.pulse.assert_called_once()
+        window.par.performance.pulse.assert_not_called()
+        self.assertEqual(fixture.par.Status, '4K wall opened on display 2')
 
     def test_modes_include_show_and_all_three_content_mappings(self):
         self.assertEqual(wall.SOURCE_MODES,('show','identical','panoramic','independent'))

@@ -183,7 +183,10 @@ def validate(write_report=True):
             fixture.op('wall_parameters').module.onPulse(fixture.par[action])
             checks['button_'+action]=('NOT OPENED' in fixture.par.Status.eval() if action!='Closewall' else 'closed' in fixture.par.Status.eval())
         checks['display_native_and_borderless']=fixture.op('wall_window').par.size=='fill' and fixture.op('wall_window').par.dpiscaling=='native' and not fixture.op('wall_window').par.borders
-        checks['window_never_auto_opens']='performance.pulse' not in fixture.op('safe_start').text
+        checks['window_never_auto_opens']=not fixture.op('wall_window').isOpen
+        checks['wall_is_separate_from_designer']=('winopen.pulse' in fixture.op('controller').text
+            and 'performance.pulse' not in fixture.op('controller').text
+            and not fixture.op('wall_window').par.alwaysontop)
         checks['display_binding']=fixture.op('wall_window').par.display.expr=='max(0,int(parent().par.Displayindex))'
         checks['startup_callback_active']=bool(fixture.op('safe_start').par.start)
         controller.safe_start(fixture)

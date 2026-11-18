@@ -2,6 +2,7 @@
 import copy
 import json
 from pathlib import Path
+from tempfile import TemporaryDirectory
 import traceback
 
 import numpy as np
@@ -227,11 +228,34 @@ def validate():
         ext.RecallLook(); ext.ShowLiveLook(); ext.Stopall()
         check('stop_all_disarms_live_but_keeps_draft', not qa.par.Looklive and ext._look_edit is not None)
         ext.CancelLook()
-        ext.engine.go(0); step(clock[0]); qa.par.Cuenotes = 'Notes during playback'
+        load([dict(red, fade=0), dict(blue, fade=0)])
+        ext.SelectCue(1); ext.Go(); step(clock[0])
+        check('go_arms_next_row_before_note_edit', int(qa.par.Selectedcue) == 2)
+        qa.op('cue_notes_0').op('clicked').module.onOffToOn(None)
+        check('running_note_click_selects_running_row', int(qa.par.Selectedcue) == 1)
+        qa.par.Cuenotes = 'Notes during playback'
         engine_id, elapsed = id(ext.engine), ext.engine.elapsed
-        ext.SaveCueNotes()
+        qa.par.Savecuenotes.pulse()
+        yield
         check('notes_can_save_during_playback', id(ext.engine) == engine_id and ext.engine.state == 'running' and ext.engine.elapsed == elapsed)
         check('row_notes_refresh_during_playback', qa.op('cue_notes_0').par.label.eval() == 'Notes during playback')
+        # Also exercise Save Show, without pointing the fixture at the user show.
+        with TemporaryDirectory(prefix='note-go-', dir=report_dir) as scratch:
+            show_path = Path(scratch) / 'show.json'
+            qa.par.Showfile = str(show_path)
+            check('notes_test_save_path_is_isolated', Path(qa.par.Showfile.eval()).resolve() == show_path.resolve())
+            qa.par.Saveshow.pulse()
+            yield
+            check('saved_running_note_roundtrips_to_disk', json.loads(show_path.read_text(encoding='utf-8'))['cues'][0]['notes']
+                  == 'Notes during playback')
+            check('save_show_preserves_running_transport', id(ext.engine) == engine_id and ext.engine.state == 'running')
+        go_button = next(node for node in qa.children if node.fetch('show_action', None, search=False) == 'Gocue')
+        go_click = next(node for node in go_button.children if node.name.startswith('clicked'))
+        go_click.module.onOffToOn(None)
+        step(clock[0])
+        check('go_after_saving_running_note_plays_next_cue', ext.tracks[1]['cue']['id'] == blue['id']
+              and ext.engine.navigation_index == 1)
+        check('go_after_note_changes_projected_pixels', np.allclose(pixels('mapped1'), blue_pixels, atol=1/255))
         check('no_hardware_outputs_opened', not any(w.isOpen for w in qa.op('show_output_mode').module.windows(qa) if w))
         check('audio_stays_off', not qa.par.Audioenabled)
         check('original_show_unchanged', original.op('show_data').text == document)
