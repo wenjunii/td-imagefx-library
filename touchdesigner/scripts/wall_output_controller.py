@@ -99,6 +99,11 @@ def safe_start(wall):
     refresh_displays(wall)
 
 
+def open_window(window):
+    """Keep Designer Mode accessible while the 4K wall window is open."""
+    window.par.winopen.pulse()
+
+
 def action(wall,name):
     if name=="Closewall":
         wall.op("wall_window").par.winclose.pulse()
@@ -122,7 +127,7 @@ def action(wall,name):
                 for name in ('audience_window','direct_window1','direct_window2','direct_window3'):
                     window=show.op(name)
                     if window is not None: window.par.winclose.pulse()
-            wall.op("wall_window").par.performance.pulse()
+            open_window(wall.op("wall_window"))
             wall.par.Status="4K wall opened on display {}".format(int(wall.par.Displayindex))
         else: wall.par.Status="Display check passed: 3840x2160 native. Check processor 2x2 / no overscan."
 

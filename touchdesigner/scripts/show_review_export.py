@@ -1065,7 +1065,7 @@ def install_wall_controls(show):
         item.mode = type(item.mode).BIND
     for name, label in (
         ('Wallcheckdisplay', 'Check Display / Refresh List'),
-        ('Wallopen', 'OPEN 4K WALL (Perform Mode)'),
+        ('Wallopen', 'OPEN 4K WALL'),
         ('Wallclose', 'CLOSE 4K WALL'),
     ):
         if show.par[name] is None:

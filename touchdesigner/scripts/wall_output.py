@@ -123,7 +123,7 @@ def build_wall_output(demo, context):
     parameter("Wall Output", "Showstats", "toggle", True, label="Show Diagnostics / Cue Status")
     parameter("Wall Output", "Displayindex", "int", -1, min=-1, max=31, label="4K Processor Display Index (-1 = unassigned)")
     parameter("Wall Output", "Allowprimary", "toggle", False, label="Allow Primary Display (use with care)")
-    for name,label in (("Checkdisplay","Check Display / Refresh List"),("Openwall","OPEN 4K WALL (Perform Mode)"),("Closewall","CLOSE 4K WALL")):
+    for name,label in (("Checkdisplay","Check Display / Refresh List"),("Openwall","OPEN 4K WALL"),("Closewall","CLOSE 4K WALL")):
         parameter("Wall Output",name,"pulse",label=label)
     parameter("Wall Output", "Status", "string", "Wall window closed; display not yet checked", read_only=True)
     parameter("Wall Output", "Displays", "string", "", read_only=True, label="Connected Displays")
@@ -214,6 +214,7 @@ def build_wall_output(demo, context):
     window.par.dpiscaling="native"
     window.par.borders=False
     window.par.cursorvisible="nocursor"
+    window.par.alwaysontop=False
     callbacks=wall.create(td.parameterexecuteDAT,"wall_parameters")
     callbacks.par.op=".."
     callbacks.par.pars="*"

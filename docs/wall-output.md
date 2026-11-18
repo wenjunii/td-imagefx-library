@@ -111,9 +111,14 @@ is TouchDesigner process cook time, not measured HDMI/processor latency.
    match the number in Windows display settings. Default -1 is deliberately
    unassigned. A non-3840x2160 display is rejected, and the primary desktop is
    protected unless **Allow Primary Display** is explicitly enabled.
-4. Keep **Projector Blackout** on, then press **OPEN 4K WALL (Perform Mode)**.
+4. Keep **Projector Blackout** on, then press **OPEN 4K WALL** (or **OPEN SELECTED OUTPUT** in Wall mode).
    The Window COMP uses Fill, native DPI pixels, no borders, no cursor and V-sync.
-   Opening this window closes this demo's legacy wide audience window.
+   It opens as a separate window without entering Perform Mode, so you can
+   restore the main TouchDesigner editor from the Windows taskbar even if Show
+   Control is minimized or closed. Opening it closes the other audience windows
+   from this project. Keep the editor restored during a live show: Windows can
+   temporarily hide TouchDesigner's other windows when its main window is
+   minimized. Recheck display behavior and FPS with the venue processor.
 5. Enable **Numbered Calibration Pattern**, then release wall blackout. In Show
    Control mode also release its **Master Blackout**. Verify large labels 1/2/3,
    yellow top-left and cyan bottom-right markers, and uncut white outside borders.

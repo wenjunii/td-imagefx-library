@@ -34,6 +34,10 @@ standby row. A blue border keeps selection visible on a playing row. Held frames
 show **HOLD** in teal; replaced cues return to neutral. Both the cue and its note
 share the highlight, including multiple playback tracks and paged cue lists.
 
+Saving a note on an already-fired cue no longer makes the next **GO** retry
+that cue. In 4K Wall Processor mode the output opens separately from Designer,
+so minimizing or closing Show Control does not lock you out of the main editor.
+
 **Cue Editor > Visual Output Channels** selects channel 1, 2, 3, any pair, or
 all three, separately from the internal **Playback / Audio Track**. A panorama
 spans the selected channels from one renderer (1920×1080 per panel gives
@@ -62,10 +66,11 @@ changes use a crossfade. Old shows keep Crossfade by default. See
 
 ## Pre-show readiness and warm-up
 
-The main `TD_ImageFX_Library.toe` was rebuilt with clean defaults on 2026-11-17,
-including running-cue highlights and the current cue, routing, high-resolution
-review and panoramic Final Crop improvements. The previous local TOE remains
-backed up in `build/cue-highlight/before/`; external show JSON and media are unchanged.
+The main `TD_ImageFX_Library.toe` was rebuilt with clean defaults on 2026-11-18.
+It includes the wall-window recovery, GO after saving Cue Notes, and running-cue
+editor fixes, in addition to the running-cue highlights, routing, high-resolution
+review and panoramic Final Crop improvements. Local rebuilds keep their previous
+TOE in a timestamped backup; external show JSON and media are unchanged.
 The distributable contains no personal show cues, character artwork or motion media.
 
 Show Control now has a **Pre-Show Check** section: check media/workflow paths,
@@ -162,7 +167,9 @@ paths empty; configure your local worker and media before enabling them.
 
 ## Edit a cue while it is running
 
-Select the visual cue's **PLAY** row, then **Edit Running Cue**. In **Look Editor**,
+Press **Edit Running Cue** to open **Look Editor** for the only playing visual
+cue without changing what's armed for GO. If several visual cues are playing,
+select the desired **PLAY** row first. In **Look Editor**,
 choose **Effect Module → Edit Controls**. The cue stays on air, and changes appear
 immediately in Projector Review and the mapped projector/4K Wall feeds. No Stop or
 Recall is needed; its video, audio and animation clocks keep running.
@@ -565,7 +572,7 @@ cd td-imagefx-library
 
 The clean Windows release build used TouchDesigner `2025.32820` and validated all 96 current effects with 124 versioned effect `.tox` files, nineteen core `.tox` files, one library `.toe`, 96 previews, 96 visual baselines, and 96 benchmark samples.
 That build report contains zero shader, preview, or builder errors.
-A fresh repository run completed 931 tests successfully; Windows environments
+A fresh repository run completed 938 tests successfully; Windows environments
 without symlink permissions may skip four link tests. The retired dance-driven
 backdrop remains source/test-only and is not installed in the main TOE.
 Install `requirements-test.txt` first (NumPy is used by motion-math tests, not by
@@ -1061,15 +1068,16 @@ Presets capture exact package versions, slot order, enable/mix state, modulation
 
 ### Complete live validation suite
 
-The **2026-11-17 saved-TOE recheck** passed all **30 blocking groups / 6,658
-checks** and **17 real-frame groups / 590 checks**. Numeric controls, toggles,
-menus, reset/pulse routes and native event delivery are covered; physical
-camera, audio and projector actions remain separate rehearsal checks. See the
-[current validation record](docs/control-validation.md) for detailed results
-and the retained live-recording limitations.
+The **2026-11-18 saved-TOE recheck** passed all **30 blocking groups / 6,659
+checks**, **17 real-frame groups / 601 checks**, and **938 portable tests**.
+It covered sliders, switches, menus, reset buttons and native event delivery,
+including GO after saving Cue Notes and opening the running-cue editor from
+the next armed row. Physical camera, audio and projector actions remain
+separate rehearsal checks. See the [current validation record](docs/control-validation.md)
+for details and live-recording limitations.
 
-This recheck also corrected Puppet feedback startup: a held opening/seek frame
-now keeps the current picture while history initializes, avoiding intermittent
+The previous Puppet feedback fix keeps the current picture on a held
+opening/seek frame while history initializes, avoiding intermittent
 dimming on GO / Go Back. Main and independent A/B puppets use the same fix;
 normal pause/resume retains existing trails.
 
