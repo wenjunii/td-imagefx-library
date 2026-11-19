@@ -12,6 +12,18 @@ right-click `show_control`, and choose **View** to open its control panel.
 The original ImageFX demo and effects remain available for designing looks.
 Audience windows start closed, Master Blackout starts on, and audio starts off.
 
+Press and release **Spacebar** to run the same action as **GO (Space)**.
+On Windows, the floating Show Control viewer accepts Space as soon as its
+window is in front, even before clicking its contents. Space in Designer,
+Projector Review, or another app does not run a cue.
+Transport pulses in the right-hand inspector return keyboard focus to the
+Show Control panel, so Space still works after an automatic Continue chain.
+If you just edited a field or used a dropdown in the right-hand inspector,
+click a cue row or the left-side panel background to return focus before
+using the shortcut. Holding Space does not advance through multiple cues.
+The shortcut is local to Show Control, not a global remapping of
+TouchDesigner's Spacebar.
+
 The panel uses a 1660x900 design canvas with a 720-unit right-hand inspector at
 normal text size. It displays only the custom show-control parameters; including
 the container's built-in parameters caused dropdown arrows and file-picker `+`
@@ -193,8 +205,9 @@ To insert a blackout:
 2. On **Cue Editor**, choose **Blackout Scope → All Visual Tracks** (default)
    or **Selected Track Only**, and set **Track** for the latter.
 3. Set **Fade Seconds** (`0` = instant), pre-wait/timestamp and other cue timing,
-   then **Apply edits**. **Duration = 0** keeps it active indefinitely. A finite
-   duration completes at black and can auto-follow; it does not restore video.
+   then **Apply edits**. With **Duration = 0**, the row shows **DONE** when the
+   fade finishes (immediately for an instant cut). A positive duration sets when
+   the cue completes and is required for **Follow**. Neither restores video.
 4. Select the blackout row and press **GO**, or let its timestamp/follow fire.
    **Save Show** includes the blackout cue and its settings in the show JSON.
 
@@ -675,8 +688,14 @@ It then prepares and starts automatically. This also applies to Follow and
 timestamp triggers. Other tracks are not blocked. Pre-wait remains measured
 from the original request; resource waiting does not consume the media-decoding
 timeout. Pause holds the queue; Stop Selected, Stop All and Go Back can cancel
-it. Missing files or decoding failures still show **ERROR**. Manual GO/Preload
-during a busy crossfade still reports that the track is busy without queuing.
+it. Missing files or decoding failures still show **ERROR**.
+
+If you press **GO** or **Spacebar** while the selected cue's visual track is
+crossfading or interpolating, the selected cue shows **WAIT** and starts when
+the transition finishes and its media is ready. This includes the first
+manual GO after a Continue chain. A repeated GO does not stack additional
+visual cues on that track while one is queued; other tracks remain available.
+**Preload** alone does not queue playback.
 
 Timed cues and auto-follow fire at most once in a run. Stop All resets that
 history. Stop Selected also disarms that cue's future timestamp/auto-follow for
@@ -684,8 +703,8 @@ the current run. A Stop-type cue cancels running, pending and preloaded cues on
 its track and their pending follow actions; other tracks keep playing. Automatic
 chains skip disabled rows. Timing sliders use practical drag ranges (0–10 seconds
 for waits/fades, 0–300 seconds for duration/media in); type exact values for longer
-times, up to 86400 seconds. Scheduled cues on a busy standby track report an error instead of
-silently replacing its prepared content. Prepare the next cue well ahead of GO:
+times, up to 86400 seconds. Scheduled cues wait rather than replacing an
+occupied standby. Prepare the next cue well ahead of GO:
 loading effect networks may cause a hitch and is not guaranteed seamless under
 all GPU loads. Each visual track has two decks; finish a crossfade before loading
 another cue on that same track. There can be up to eight loaded audio voices.

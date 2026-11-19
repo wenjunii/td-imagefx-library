@@ -28,6 +28,14 @@ that task's folder; it has no permanent-delete fallback. See
 
 ## Cue transitions
 
+With the **Show Control** window in front, press **Spacebar** to GO. On Windows
+the floating viewer works without clicking its contents again after switching
+windows. If an inspector field or menu is active, click the left panel
+background to leave it; Spacebar keeps its usual editing behavior.
+Using the inspector's transport buttons returns focus so Space works again.
+If the selected cue's track is still transitioning, GO waits for the track
+instead of making you press again, including after a Continue chain.
+
 The cue list highlights actual playback independently of selection: **green**
 for playing/crossfading cues, **amber** when paused, and **blue** for the selected
 standby row. A blue border keeps selection visible on a playing row. Held frames
@@ -66,9 +74,10 @@ changes use a crossfade. Old shows keep Crossfade by default. See
 
 ## Pre-show readiness and warm-up
 
-The main `TD_ImageFX_Library.toe` was rebuilt with clean defaults on 2026-11-18.
-It includes the wall-window recovery, GO after saving Cue Notes, and running-cue
-editor fixes, in addition to the running-cue highlights, routing, high-resolution
+The main `TD_ImageFX_Library.toe` was rebuilt with clean defaults on 2026-11-19.
+It includes Spacebar GO, blackout rows that show DONE while the output stays black,
+wall-window recovery, GO after saving Cue Notes, and running-cue editor fixes,
+in addition to the running-cue highlights, routing, high-resolution
 review and panoramic Final Crop improvements. Local rebuilds keep their previous
 TOE in a timestamped backup; external show JSON and media are unchanged.
 The distributable contains no personal show cues, character artwork or motion media.
@@ -572,7 +581,7 @@ cd td-imagefx-library
 
 The clean Windows release build used TouchDesigner `2025.32820` and validated all 96 current effects with 124 versioned effect `.tox` files, nineteen core `.tox` files, one library `.toe`, 96 previews, 96 visual baselines, and 96 benchmark samples.
 That build report contains zero shader, preview, or builder errors.
-A fresh repository run completed 938 tests successfully; Windows environments
+A fresh repository run completed 950 tests successfully; Windows environments
 without symlink permissions may skip four link tests. The retired dance-driven
 backdrop remains source/test-only and is not installed in the main TOE.
 Install `requirements-test.txt` first (NumPy is used by motion-math tests, not by

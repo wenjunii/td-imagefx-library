@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import sys
 
 
 MAPPING_SHADER = r'''
@@ -57,6 +58,140 @@ void main(){
     fragColor=TDOutputSwizzle(c);
 }
 '''
+
+
+SPACE_GO_CALLBACKS = r"""
+import os
+import re
+import sys
+
+
+def inspector_focused(show):
+    for name in ('cue_inspector', 'inspector_selector'):
+        panel = show.op(name)
+        if panel is not None and panel.panel.focusselect:
+            return True
+    return False
+
+
+def can_go(show):
+    # focusselect is inherited by ancestor panels. Do not use only the
+    # Show Control container's focus: an inspector field also sets it.
+    return bool(show.panel.focusselect) and not inspector_focused(show)
+
+
+def viewer_title_matches(title, path):
+    # TouchDesigner floating viewer: "/project1/.../show_control (w,h) (w,h)".
+    # Do not match the Designer window, other viewers, or similar node names.
+    return re.fullmatch(re.escape(path) + r'\s+\(\d+,\d+\)(?:\s+\(\d+,\d+\))?\s*', title) is not None
+
+
+def foreground_viewer(show):
+    if sys.platform != 'win32' or not show.panel.winopen:
+        return False
+    # Read the exact foreground window identity; never install an OS hook,
+    # change focus, or recognize a window that belongs to another process.
+    try:
+        import ctypes
+        from ctypes import wintypes
+        user32 = ctypes.WinDLL('user32')
+        user32.GetForegroundWindow.argtypes = ()
+        user32.GetForegroundWindow.restype = wintypes.HWND
+        hwnd = user32.GetForegroundWindow()
+        if not hwnd:
+            return False
+        process = wintypes.DWORD()
+        user32.GetWindowThreadProcessId.argtypes = (wintypes.HWND, ctypes.POINTER(wintypes.DWORD))
+        user32.GetWindowThreadProcessId.restype = wintypes.DWORD
+        if not user32.GetWindowThreadProcessId(hwnd, ctypes.byref(process)) or process.value != os.getpid():
+            return False
+        title = ctypes.create_unicode_buffer(512)
+        user32.GetWindowTextW.argtypes = (wintypes.HWND, wintypes.LPWSTR, ctypes.c_int)
+        user32.GetWindowTextW.restype = ctypes.c_int
+        if not user32.GetWindowTextW(hwnd, title, len(title)):
+            return False
+        return viewer_title_matches(title.value, show.path)
+    except (AttributeError, OSError, ImportError):
+        return False
+
+
+def onKey(dat, key, character, alt, lAlt, rAlt, ctrl, lCtrl, rCtrl,
+          shift, lShift, rShift, state, time, cmd=False, lCmd=False, rCmd=False):
+    if key.lower() != 'space' and character != ' ':
+        return
+    show = dat.parent()
+    fallback = dat.fetch('space_windows_fallback', False, search=False)
+    eligible = not (alt or ctrl or shift or cmd) and (
+        not show.panel.focusselect and not inspector_focused(show) and foreground_viewer(show)
+        if fallback else can_go(show)
+    )
+    # Dispatch on release, never on repeated key-down events. A release
+    # without a preceding eligible press (e.g. entering the panel mid-key)
+    # does not GO.
+    if state:
+        dat.store('space_go_pressed', eligible)
+    else:
+        pressed = dat.fetch('space_go_pressed', False, search=False)
+        dat.store('space_go_pressed', False)
+        if pressed and eligible:
+            show.Action('Gocue')
+"""
+
+
+SHOW_PARAMETER_CALLBACKS = """\
+# A transport action is an explicit handoff from editing to operating.
+# Don't leave the keyboard on the right inspector's last clicked button.
+TRANSPORT_ACTIONS = frozenset({
+    'Gocue', 'Goback', 'Pause', 'Resume', 'Stopcue', 'Stopall', 'Preload',
+    'Loadshow', 'Saveshow', 'Savecuenotes',
+})
+
+
+def onPulse(par):
+    show = parent()
+    show.Action(par.name)
+    if par.name not in TRANSPORT_ACTIONS or not show.panel.focusselect:
+        return
+    inspector = show.op('cue_inspector')
+    if inspector is not None and inspector.panel.focusselect:
+        show.setFocus()
+
+
+def onValueChange(par, prev):
+    return
+"""
+
+
+def install_space_go(show):
+    """Install the native shortcut without reinitializing the cue extension."""
+    import td
+    callbacks = show.op('show_space_callbacks') or show.create(td.textDAT, 'show_space_callbacks')
+    callbacks.text = SPACE_GO_CALLBACKS
+    listeners = []
+    # Keep the native panel-scoped listener for normal operation. On Windows
+    # a separate Space-only path is used for a foreground floating viewer
+    # before a click has given its content hierarchical focus.
+    specs = [('show_space_key', False)]
+    if sys.platform == 'win32':
+        specs.append(('show_space_foreground', True))
+    for name, fallback in specs:
+        keys = show.op(name) or show.create(td.keyboardinDAT, name)
+        keys.par.active = False
+        keys.par.keys = 'space'
+        keys.par.panels = '' if fallback else '..'
+        keys.par.callbacks = callbacks.name
+        keys.par.clamp = True
+        keys.par.maxlines = 4
+        keys.store('space_windows_fallback', fallback)
+        keys.store('space_go_pressed', False)
+        keys.storeStartupValue('space_go_pressed', False)
+        keys.par.active = True
+        listeners.append(keys)
+    button = next((item for item in show.children
+                   if item.fetch('show_action', None, search=False) == 'Gocue'), None)
+    if button is not None:
+        button.par.label = 'GO (Space)'
+    return listeners[0]
 
 
 def build_show_control(demo, context):
@@ -341,7 +476,7 @@ def build_show_control(demo, context):
     callbacks.par.pars = "*"
     callbacks.par.valuechange = True
     callbacks.par.onpulse = True
-    callbacks.text = "def onPulse(par):\n    parent().Action(par.name)\n    return\ndef onValueChange(par, prev):\n    return\n"
+    callbacks.text = SHOW_PARAMETER_CALLBACKS
     tick = node("executeDAT", "show_tick")
     tick.par.frameend = True
     tick.text = "def onFrameEnd(frame):\n    parent().Tick()\n    return\n"
@@ -388,6 +523,7 @@ def build_show_control(demo, context):
     routing_scope = dict(context, __file__=str(routing_path), __name__="_imagefx_cue_projection")
     exec(compile(routing_path.read_text(encoding="utf-8"), str(routing_path), "exec"), routing_scope)
     routing_scope["install"](show)
+    install_space_go(show)
     show.Refresh()
     return show
 

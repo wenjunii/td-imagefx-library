@@ -44,6 +44,50 @@ class NavigationTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 show.validate_cue(dict(old, blackout_scope=invalid))
 
+    def test_blackout_retires_at_fade_end_and_can_be_replayed(self):
+        for fade, duration, finish_at in ((2, 0, 2), (0, 0, 0), (3, 1, 1), (1, 3, 3)):
+            with self.subTest(fade=fade, duration=duration):
+                self.now = 0
+                self.backend.events.clear()
+                e = self.engine(dict(kind="blackout", duration=duration, fade=fade))
+                cue_id = e.cues[0]["id"]
+                e.go(0); e.tick()
+                if finish_at:
+                    self.now = finish_at - .125
+                    e.tick()
+                    self.assertIn(cue_id, e.active)
+                    self.assertNotIn(cue_id, e.completed_blackouts)
+                self.now = finish_at
+                e.tick()
+                self.assertNotIn(cue_id, e.active)
+                self.assertIn(cue_id, e.completed_blackouts)
+                self.assertEqual(self.backend.events.count(("finish", cue_id)), 1)
+                self.assertNotIn(("stop", cue_id), self.backend.events)
+                self.assertTrue(e.go(0))
+                self.assertNotIn(cue_id, e.completed_blackouts)
+                e.tick()
+                self.now += finish_at
+                e.tick()
+                e.stop()
+                self.assertFalse(e.completed_blackouts)
+
+    def test_blackout_follow_waits_for_duration_but_continue_does_not(self):
+        for mode, duration, due in (("follow", 3, 3.5), ("continue", 0, .5)):
+            with self.subTest(mode=mode):
+                self.now = 0
+                e = self.engine(dict(kind="blackout", duration=duration, fade=2, follow=mode, postwait=.5), {})
+                e.go(0); e.tick()
+                self.now = due - .25
+                if mode == "follow":
+                    self.now = duration
+                    e.tick()
+                    self.now = due - .25
+                e.tick()
+                self.assertNotIn(e.cues[1]["id"], e.active)
+                self.now = due
+                e.tick()
+                self.assertIn(e.cues[1]["id"], e.active)
+
     def test_no_previous_is_noop(self):
         e = self.engine({})
         self.assertFalse(e.go_back())

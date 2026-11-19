@@ -575,6 +575,7 @@ class CueEngine:
         self.pending = {}
         self._waiting_preparation = {}
         self.active = {}
+        self.completed_blackouts = set()
         self.follows = []
         self.errors = {}
         self.navigation_index = None
@@ -612,6 +613,7 @@ class CueEngine:
         if replay:
             self.active.pop(cue["id"], None)
         self.errors.pop(cue["id"], None)
+        self.completed_blackouts.discard(cue["id"])
         if self.state == "stopped":
             self.state = "running"
             self._last = self.clock()
@@ -663,6 +665,7 @@ class CueEngine:
         self.pending.clear()
         self._waiting_preparation.clear()
         self.active.clear()
+        self.completed_blackouts.clear()
         self.follows.clear()
         self.errors.clear()
         self.navigation_index = None
@@ -679,6 +682,7 @@ class CueEngine:
         self.pending.pop(cue["id"], None)
         self._waiting_preparation.pop(cue["id"], None)
         self.active.pop(cue["id"], None)
+        self.completed_blackouts.discard(cue["id"])
         self.follows = [entry for entry in self.follows if entry[2] != cue["id"]]
 
     def tick(self):
@@ -739,9 +743,17 @@ class CueEngine:
         self.backend.tick(self.elapsed)
         for cue_id, (index, started) in list(self.active.items()):
             cue = self.cues[index]
-            if (cue["duration"] > 0 and self.elapsed - started >= cue["duration"]) or (cue["duration"] == 0 and cue["kind"] in {"parameters", "stop"}):
+            duration = cue["duration"]
+            one_shot = cue["kind"] in {"parameters", "stop", "blackout"}
+            if cue["kind"] == "blackout" and duration == 0:
+                # The fade is the action. The resulting black level latches
+                # independently of whether this cue is still running.
+                duration = cue["fade"]
+            if (duration > 0 and self.elapsed - started >= duration) or (duration == 0 and one_shot):
                 self.backend.finish(cue)
                 self.active.pop(cue_id)
+                if cue["kind"] == "blackout":
+                    self.completed_blackouts.add(cue_id)
                 if cue["follow"] == "follow" and cue_id not in self._suppress_follows:
                     self.follows.append((self.elapsed + cue["postwait"], index + 1, cue_id))
 

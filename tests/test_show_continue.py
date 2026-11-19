@@ -211,6 +211,47 @@ class ContinueTests(unittest.TestCase):
         self.assertNotIn(e.cues[1]['id'], e.pending)
         self.assertFalse(e.errors or e._waiting_preparation)
 
+    def operator_after_continue_chain(self):
+        e = self.engine({'follow': 'continue', 'fade': 0},
+                        {'follow': 'continue', 'fade': 0},
+                        {'follow': 'manual', 'fade': 5, 'transition': 'interpolate'},
+                        {}, {}, {'track': 2})
+        b = self.backend
+        b.document = {'cues': copy.deepcopy(e.cues)}
+        b.SelectCue = Mock()
+        b.Refresh = Mock()
+        b._status = Mock()
+        b._p = lambda _: e.selected + 1
+        e.go(0); e.tick()
+        self.step(e, .1); self.step(e, .2)
+        self.assertEqual(e.selected, 3)
+        self.assertTrue(b.tracks[1]['fading'])
+        return e
+
+    def test_show_control_go_waits_at_continue_to_manual_boundary(self):
+        e = self.operator_after_continue_chain()
+        live = self.backend.tracks[1]
+        self.backend.Action('Gocue')
+        self.waiting(e, 3)
+        self.assertIs(self.backend.tracks[1], live)
+        self.assertIn('transition', self.backend._status.call_args.args[0])
+        self.step(e, 5.2); self.step(e, 5.3)
+        self.assertEqual(self.backend.starts[-1][0], e.cues[3]['id'])
+        self.assertFalse(e.errors or e.pending)
+        self.assertEqual(e.cues, self.backend.document['cues'])
+
+    def test_show_control_does_not_stack_go_on_one_busy_track(self):
+        e = self.operator_after_continue_chain()
+        self.backend.Action('Gocue')
+        self.backend.Action('Gocue')
+        self.assertNotIn(e.cues[4]['id'], e.pending)
+        self.assertIn('already', self.backend._status.call_args.args[0])
+        e.selected = 5
+        self.backend.Action('Gocue')
+        self.step(e, 1)
+        self.waiting(e, 3)
+        self.assertIn(e.cues[5]['id'], e.active)
+
     def test_auto_skips_disabled_row_and_nonvisual_can_run_during_fade(self):
         e = self.engine({'follow': 'continue'}, {'enabled': False}, {'kind': 'wait'})
         e.go(0); e.tick(); self.step(e, .1)

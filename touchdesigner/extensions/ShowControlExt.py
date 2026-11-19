@@ -174,7 +174,7 @@ class ShowControlExt:
         cue = self.document["cues"][index]
         status = self._cue_display_state(cue)
         state = {"running": "PLAY", "fading": "FADE", "paused": "PAUSE", "held": "HOLD",
-                 "waiting": "WAIT", "error": "ERROR", "replaced": "done"}.get(status, status)
+                 "waiting": "WAIT", "error": "ERROR", "replaced": "done", "completed": "DONE"}.get(status, status)
         outputs=self.model.cue_output_channels(cue) if cue['kind']=='visual' else None
         destination=(' >P'+''.join(map(str,outputs))) if outputs is not None else ''
         name = self._row_preview(cue["name"], 18 if destination else 24) if compact else cue["name"][:48]
@@ -201,6 +201,8 @@ class ShowControlExt:
             return "paused" if self.engine.state == "paused" else "running"
         if cue_id in self.engine.pending:
             return "waiting"
+        if cue["kind"] == "blackout" and cue_id in self.engine.completed_blackouts:
+            return "completed"
         if cue_id in getattr(self, "prepared", {}):
             return "loaded"
         return "ready" if cue["enabled"] else "disabled"
@@ -1835,11 +1837,28 @@ class ShowControlExt:
             if index == len(engine.cues):
                 self._status("No remaining cue after the saved note. Select a cue or use Go Back.")
                 return
+        cue = engine.cues[index] if 0 <= index < len(engine.cues) else None
+        waiting_for_transition = False
+        if engine.state == "running" and cue and cue["enabled"] and cue["kind"] == "visual":
+            track = cue["track"]
+            waiting_for_transition = bool(getattr(self, "tracks", {}).get(track, {}).get("fading"))
+            if waiting_for_transition or not after_note:
+                for pending_index, _due, _queued in engine.pending.values():
+                    pending = engine.cues[pending_index]
+                    if pending["kind"] == "visual" and pending["track"] == track:
+                        self._status("Cue {:03d} is already queued on track {}. Wait for it to start or stop it."
+                                     .format(pending_index + 1, track))
+                        return
+        if after_note or waiting_for_transition:
             queued = engine.go(index, wait_for_resources=True)
         else:
             queued = engine.go(index)
         self.SelectCue(min(len(self.document["cues"]), self.engine.selected + 1))
-        self._status("GO queued; waiting for pre-wait and media readiness" if queued else "No cue queued (disabled or end of list)")
+        if queued and waiting_for_transition:
+            self._status("GO queued for cue {:03d}; waiting for track {}'s transition"
+                         .format(index + 1, cue["track"]))
+        else:
+            self._status("GO queued; waiting for pre-wait and media readiness" if queued else "No cue queued (disabled or end of list)")
         self.Refresh()
 
     def Pause(self):
