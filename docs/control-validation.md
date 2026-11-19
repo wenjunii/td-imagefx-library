@@ -1,5 +1,67 @@
 # Control validation
 
+## Complete saved-TOE control recheck — 2026-11-19
+
+Built and reopened the clean TOE in TouchDesigner 2025.32820. All **30
+blocking groups / 6,665 checks** and **17 real-frame groups / 601 checks**
+passed. The parameter sweep across 96 effect packages included **511 numeric
+controls**, **116 toggles**, and **14 pulse controls**. The local safety gate
+passed **950 tests**, artifact and source hashes, the credential scan, and
+immutable package history.
+
+All **12 focused groups** passed: **759 checks**, **93 rendered routing
+cases**, and **four recording cadence cases**. Independent decoding verified
+**46 silent movies** and **23 pixel checks**, including projection order,
+matching pairs, the wall's confidence quadrant, and a bounded partial file
+from a deliberately interrupted export. A real Spacebar test checked the
+Continue handoff, returning to the floating window without a panel click,
+and no GO from Textport or a focused Cue Notes field.
+
+In the five-second synthetic test, the **3840×2160 wall at 60 FPS** reported
+one dropped render frame (filled by a repeat); **5760×1080 Projector Review
+at 60 FPS** reported none. Both files decoded to 300 frames. Both 30 FPS
+tests decoded to 150 frames with zero reported drops. A separate short
+three-up review reported one repeat. These results are not a throughput
+guarantee for a live show.
+
+The saved show files were unchanged, and no physical output was opened or
+audio auditioned. Local evidence is in `build/control-audit-20261119/`. The
+venue processor, cameras, and audible audio still need an on-site check.
+
+## Blackout completion and replay — 2026-11-19
+
+Blackout no longer stays on the active-cue list after its action has finished.
+With zero Duration, the fade length is the action length; an instant blackout
+completes in the same tick. The row shows DONE and can be triggered again.
+Output stays black until a visual cue raises its own track level. Explicit
+duration, Continue/Follow timing, pause and manual Stop behavior are preserved.
+The native navigation checks compare rendered frames before, during and after
+blackout, check row states, and replay the completed cue.
+
+## Spacebar after returning to Show Control — 2026-11-19
+
+On Windows, the floating Show Control viewer can be in front without its
+contents having a clicked panel selection. The native panel-scoped keyboard
+listener did not receive Space in that state. A second Space-only listener
+now accepts the press and release only for the exact foreground Show Control
+viewer in the current process. The native scoped path remains for a focused
+panel. Off-air checks confirmed no extra click is needed, one action per
+tap, and no action from another viewer or a focused Notes field.
+
+## Spacebar after Continue chains — 2026-11-19
+
+The right-hand Transport inspector could keep keyboard focus after a GO
+pulse, even after an automatic chain armed the next manual cue. Space reached
+Show Control but the text-entry guard correctly declined to run it from the
+inspector. Explicit transport pulses now return focus to Show Control;
+typing in the inspector still does not trigger GO.
+
+Off-air playback with the original cue timings and media reproduced the
+failure with the inspector focused. With the callback fixed, the two real
+Continue chains handed back to Space for cues 17 and 50, without reselecting
+the row or clicking the panel again. Pressing Space in the Notes field did
+not fire the next cue. The saved show was unchanged.
+
 ## Complete saved-TOE control recheck — 2026-11-18
 
 Reopened the clean release TOE in TouchDesigner 2025.32820 and tested with

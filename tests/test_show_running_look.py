@@ -22,7 +22,7 @@ class RunningLookTests(unittest.TestCase):
                                                   cues=[self.cue, show.new_cue()], mapping={}))
         self.cue = self.ext.document["cues"][0]
         self.ext.engine = Mock(state="running", elapsed=42.0, selected=1,
-                               triggered={self.cue["id"]},
+                               triggered={self.cue["id"]}, pending={},
                                active={self.cue["id"]: (0, 4.0)}, cues=copy.deepcopy(self.ext.document["cues"]))
         self.deck = Mock(id=123, path="/show/deck2_0")
         self.item = dict(cue=copy.deepcopy(self.cue), deck=self.deck, movie=Mock(),
