@@ -574,7 +574,7 @@ The browser source adds channel, processing-model, capability, input-readiness, 
 | `src/tdimagefx/` | Validation, registry, compatibility, updater, archive, state, lockfile, and CLI logic |
 | `touchdesigner/` | TouchDesigner extensions, callbacks, native builder, and reusable core component sources |
 | `integrations/embody/` | Project-scoped TD knowledge, Envoy live-QA contract, and safe harness setup |
-| `tools/` | Effect scaffolding, release packaging, gallery/benchmark generation, and repository verification |
+| `tools/` | Effect scaffolding, release and offline handoff packaging, gallery/benchmark generation, and repository verification |
 | `.github/workflows/` | Lightweight PR/main safety check, manual compatibility matrix, and prepare-only release automation |
 | `tests/` | Unit and integration checks that do not require a live TouchDesigner process |
 | `docs/` | Architecture, setup, authoring, security, gallery, benchmarks, coverage, and references |
@@ -590,7 +590,7 @@ cd td-imagefx-library
 
 The clean Windows release build used TouchDesigner `2025.32820` and validated all 96 current effects with 124 versioned effect `.tox` files, nineteen core `.tox` files, one library `.toe`, 96 previews, 96 visual baselines, and 96 benchmark samples.
 That build report contains zero shader, preview, or builder errors.
-A fresh repository run completed 965 tests successfully; Windows environments
+A fresh repository run completed 975 tests successfully; Windows environments
 without symlink permissions may skip four link tests. The retired dance-driven
 backdrop remains source/test-only and is not installed in the main TOE.
 Install `requirements-test.txt` first (NumPy is used by motion-math tests, not by
@@ -602,6 +602,21 @@ validate distributable artifacts before publishing a release. Read
 and [control validation](docs/control-validation.md) for measured results and limits.
 
 The generated project targets TouchDesigner 2025. Validate the exact TouchDesigner build, operating system, GPU, driver, resolution, pixel format, and color pipeline used by your production system. Python 3.11 or newer is required for repository tooling; it is not required merely to use already-built native components.
+
+### Prepare an offline machine handoff
+
+To prepare a copy for another machine without deploying it:
+
+```console
+python tools/prepare_offline_handoff.py --revision fa3051363d222367f526a3c5b7c4a6cca17a3568 --target 5090
+```
+
+Replace the revision with the reviewed commit you want. The command packages
+the complete committed checkout, verifies the native build and archive hashes,
+and writes a ZIP, checksum and install notes under ignored
+`build/handoffs/<target>/<commit>/`. It never connects to the target, copies
+local show data, or overwrites a previous handoff. See the
+[offline install and rollback checklist](docs/offline-handoff.md).
 
 ### Credential safety
 
