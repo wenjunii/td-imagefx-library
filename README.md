@@ -74,8 +74,8 @@ changes use a crossfade. Old shows keep Crossfade by default. See
 
 ## Pre-show readiness and warm-up
 
-The main `TD_ImageFX_Library.toe` was rebuilt with clean defaults on 2026-11-19.
-It includes Spacebar GO, blackout rows that show DONE while the output stays black,
+The main `TD_ImageFX_Library.toe` was rebuilt with clean defaults on 2026-11-27.
+It includes Rehearsal Log, Spacebar GO, blackout rows that show DONE while the output stays black,
 wall-window recovery, GO after saving Cue Notes, and running-cue editor fixes,
 in addition to the running-cue highlights, routing, high-resolution
 review and panoramic Final Crop improvements. Local rebuilds keep their previous
@@ -88,6 +88,15 @@ then **Sample Current Performance** for FPS, frame-time, dropped frames and GPU
 memory. These are local snapshots, not hardware certification; no check opens
 outputs, unmutes audio, changes cues or releases blackout. Use **Open Full Report**
 for details and repeat the sample with your actual running show.
+
+For a longer run, choose **Pre-Show Check → Start Rehearsal Log** before GO.
+It tracks each cue's wait, first rendered frame, transitions, timeline drops
+and peak GPU memory, with real-time recorder drops listed separately. After
+stopping transport and any recording, use **Stop & Save Rehearsal Log**.
+Reports stay local in `.imagefx/rehearsals/`; they do not contain media or
+cue notes. Use **Open Rehearsal Log** for the in-session summary or **Last Local
+Log** to find the full JSON. See the [operator guide](docs/show-control.md#rehearsal-log)
+and [off-air verification](docs/control-validation.md#rehearsal-log--2026-11-27).
 
 Visual cues now warm up over **3 rendered frames** by default (adjustable 1–12)
 before becoming ready. Cue animation clocks are not advanced by this preparation.
@@ -581,7 +590,7 @@ cd td-imagefx-library
 
 The clean Windows release build used TouchDesigner `2025.32820` and validated all 96 current effects with 124 versioned effect `.tox` files, nineteen core `.tox` files, one library `.toe`, 96 previews, 96 visual baselines, and 96 benchmark samples.
 That build report contains zero shader, preview, or builder errors.
-A fresh repository run completed 950 tests successfully; Windows environments
+A fresh repository run completed 965 tests successfully; Windows environments
 without symlink permissions may skip four link tests. The retired dance-driven
 backdrop remains source/test-only and is not installed in the main TOE.
 Install `requirements-test.txt` first (NumPy is used by motion-math tests, not by

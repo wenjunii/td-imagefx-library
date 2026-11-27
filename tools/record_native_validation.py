@@ -45,6 +45,7 @@ MODULE_SOURCES += ("touchdesigner/scripts/show_live_look.py", "touchdesigner/ext
 MODULE_SOURCES += ("touchdesigner/scripts/dance_puppet.py", "touchdesigner/scripts/dance_puppet_runtime.py")
 MODULE_SOURCES += ("touchdesigner/scripts/dance_forces.py", "touchdesigner/scripts/dance_forces_runtime.py", "touchdesigner/scripts/dance_forces_math.py")
 MODULE_SOURCES += ("touchdesigner/scripts/show_readiness.py",)
+MODULE_SOURCES += ("touchdesigner/scripts/show_rehearsal.py", "src/tdimagefx/rehearsal.py")
 MODULE_SOURCES += ("touchdesigner/scripts/cue_projection.py",)
 
 

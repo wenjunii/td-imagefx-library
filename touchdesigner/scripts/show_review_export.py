@@ -800,6 +800,13 @@ def finish_export(show, outcome):
                 files={str(i): p.name for i, p in zip(settings['projection']['channels'], paths)}))
         except Exception as exc:
             outcome = 'FAILED: could not write channel export manifest: ' + str(exc)
+    if job['settings']['source'] in REALTIME_SOURCES:
+        try:
+            capture = getattr(show.ext.ShowControlExt, '_rehearsal', None)
+            if capture is not None:
+                capture.recording(job, outcome=outcome.split(':', 1)[0].lower())
+        except Exception:
+            pass  # An optional diagnostic never changes export outcome.
     show.unstore(JOB_KEY)
     if deck is not None:
         try:

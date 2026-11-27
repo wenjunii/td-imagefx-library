@@ -515,6 +515,10 @@ def build_show_control(demo, context):
     readiness_scope = dict(context, __file__=str(readiness_path), __name__="_imagefx_readiness")
     exec(compile(readiness_path.read_text(encoding="utf-8"), str(readiness_path), "exec"), readiness_scope)
     readiness_scope["install"](show)
+    rehearsal_path = context["PROJECT_ROOT"] / "touchdesigner/scripts/show_rehearsal.py"
+    rehearsal_scope = dict(context, __file__=str(rehearsal_path), __name__="_imagefx_rehearsal")
+    exec(compile(rehearsal_path.read_text(encoding="utf-8"), str(rehearsal_path), "exec"), rehearsal_scope)
+    rehearsal_scope["install"](show)
     layout_path = context["PROJECT_ROOT"] / "touchdesigner/scripts/show_panel_layout.py"
     layout_scope = dict(context, __file__=str(layout_path), __name__="_imagefx_panel_layout")
     exec(compile(layout_path.read_text(encoding="utf-8"), str(layout_path), "exec"), layout_scope)

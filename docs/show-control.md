@@ -77,6 +77,40 @@ change its saved parameters. A stalled visual preload reports an error after 90
 seconds without stopping the current track. It is a readiness improvement, not
 a guarantee that an expensive shader/decoder can never stall a frame.
 
+### Rehearsal Log
+
+1. Open **Show Control → Pre-Show Check**. Set **Performance Target FPS** to the
+   rate you intend to run, then press **Start Rehearsal Log** before GO.
+   This sets the log's frame-time budget; it does not change the project FPS.
+2. Rehearse normally. The log watches playback; it does not trigger cues,
+   warm decks, open windows, release blackout, enable audio, or start an export.
+   If you explicitly run a real-time Wall or Projector Review recording, the
+   log also records that writer's frames and encoder drops separately.
+3. **STOP ALL** and finish or stop any recording first, then press **Stop &
+   Save Rehearsal Log**. **Open Rehearsal Log** shows the summary; **Last Local
+   Log** shows the path to the full JSON under `.imagefx/rehearsals/`. The
+   report stays local by default and does not modify the show file. Save before
+   closing or reloading the project; an unsaved log lives in memory only.
+
+Each GO, Go Back, automatic next cue, and timestamp creates its own attempt.
+**GO → start** includes intentional pre-wait and preparation after the request.
+**GO → rendered** means the logger observed a new frame on the activated cue's
+source inside TouchDesigner. Waiting while paused counts toward these wall-clock
+times. A missing measurement is **—**, not zero: audio, blackout, and a video
+feed that was never cooked do not produce this timing.
+
+The JSON breaks down waiting, playback and transitions with sample counts,
+worst/mean frame time, frames over budget, timeline drops and peak GPU memory.
+Frame time and GPU memory describe the whole running workload; overlapping cues
+can share samples. Use the overall row for totals rather than adding cue rows.
+Recorder drops come from the writer, not the timeline. The log covers at most
+2,000 cue attempts and 128 recordings and flags when that limit is reached.
+It includes cue names/numbers, not media paths, notes, or rendered frames.
+
+An off-air run can find playback or decoding trouble, but a cooked TouchDesigner
+frame does not confirm light reached a screen. Verify the actual routed outputs,
+refresh rate, and audio in the venue separately.
+
 ## Per-cue projection routing
 
 **Visual Output Channels** chooses the physical destinations separately from
@@ -924,6 +958,23 @@ process may be preferable. The software tests do not prove glitch-free physical
 audio. See [Audio Device Out CHOP](https://docs.derivative.ca/Audio_Device_Out_CHOP).
 
 ## Verification and current limits
+
+`validate_rehearsal_log.py` checks the logger against real frames and a
+Projector Review writer in a disposable copy. On a clean rebuilt TOE, stop
+transport, close physical output windows, enable both blackouts, disable
+audio, and make sure no log, recording or look draft is active. From
+TouchDesigner's Textport, run:
+
+```python
+import runpy
+from pathlib import Path
+runpy.run_path(str(Path(project.folder) / "touchdesigner/scripts/validate_rehearsal_log.py"))["start"]()
+```
+
+The test writes `build/rehearsal-log/native-validation.json` with an
+`ok` result and the separate timeline/encoder counts. It does not save
+the main TOE or a show JSON. The test recording is under
+`build/task-artifacts/`, and can be recycled after independent decoding.
 
 `validate_running_look.py` adds 63 real-frame checks for the running-cue editor:
 projection pixels, non-destructive Update/Cancel, playback/clock continuity,

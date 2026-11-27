@@ -31,6 +31,14 @@ class ShowControlExt:
         self._cue_row_style_cache = {}
         self._notes_go_anchor = None
         self._busy = False
+        self._rehearsal = None
+        for name in ("Rehearsalstatus", "Rehearsalresult"):
+            parameter = ownerComp.par[name]
+            if parameter is not None:
+                parameter.val = parameter.default
+        rehearsal_table = ownerComp.op("rehearsal_report")
+        if rehearsal_table is not None:
+            rehearsal_table.clear()
         self._look_edit = None
         self._look_preview_cue_id = None
         self.StopLiveLook()
@@ -1547,6 +1555,7 @@ class ShowControlExt:
         item.update(deck=old["deck"], deck_id=old["deck"].id, movie=old.get("movie"),
                     side=old["side"], started=elapsed, old=None, finished=False,
                     clock_started=old.get("clock_started", old["started"]),
+                    previous_cue_id=old["cue"]["id"],
                     interpolation=bindings, fading=cue["fade"] > 0)
         self.tracks[cue["track"]] = item
         self.ownerComp.par["Track{}blend".format(cue["track"])] = item["side"]
@@ -1997,6 +2006,17 @@ class ShowControlExt:
         ui.openCOMPEditor(self.ownerComp)
 
     def Tick(self):
+        # Frame End: observe the render that just completed, before advancing
+        # scheduling or replacing its deck. A diagnostics error is not a cue error.
+        capture = getattr(self, "_rehearsal", None)
+        if capture is not None:
+            try:
+                capture.sample()
+            except Exception:
+                try:
+                    capture.failed()
+                except Exception:
+                    self._rehearsal = None
         try:
             selected_before = self.engine.selected
             self._service_preloads()

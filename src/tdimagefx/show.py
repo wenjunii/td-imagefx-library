@@ -581,8 +581,18 @@ class CueEngine:
         self.navigation_index = None
         self._suppress_follows = set()
         self._last = clock()
+        self.rehearsal_observer = None
 
-    def go(self, index=None, *, replay=False, wait_for_resources=False):
+    def _observe_rehearsal(self, event, cue=None, index=None, detail=None):
+        observer = self.rehearsal_observer
+        if observer is not None:
+            try:
+                observer(event, cue, index, detail)
+            except Exception:
+                # Diagnostics must never block GO or change transport state.
+                pass
+
+    def go(self, index=None, *, replay=False, wait_for_resources=False, trigger="go"):
         if self.state == "paused":
             raise ValueError("Resume before GO")
         index = self.selected if index is None else index
@@ -597,6 +607,7 @@ class CueEngine:
         replay = replay or (cue["id"] in self._suppress_follows and cue["id"] in self.active)
         if not replay and (cue["id"] in self.pending or cue["id"] in self.active):
             raise ValueError("Cue is already pending or running")
+        self._observe_rehearsal("request", cue, index, trigger)
         try:
             if replay:
                 self.backend.prepare_replay(cue)
@@ -604,10 +615,14 @@ class CueEngine:
                 self.backend.prepare(cue)
         except CuePreparationBusy:
             if not wait_for_resources:
+                self._observe_rehearsal("error", cue, index, "busy")
                 raise
             # Auto-continue/follow/timestamps are one-shot triggers. Reserve
             # the request as WAIT and retry only this explicit temporary state.
             self._waiting_preparation[cue["id"]] = replay
+        except Exception:
+            self._observe_rehearsal("error", cue, index, "prepare")
+            raise
         else:
             self._waiting_preparation.pop(cue["id"], None)
         if replay:
@@ -643,7 +658,7 @@ class CueEngine:
                 self.stop_cue(pending_index)
         self.follows.clear()
         self._suppress_follows.update(self.active)
-        return self.go(index, replay=True)
+        return self.go(index, replay=True, trigger="go_back")
 
     def pause(self):
         if self.state == "running":
@@ -659,6 +674,7 @@ class CueEngine:
 
     def stop(self):
         self.backend.stop_all()
+        self._observe_rehearsal("stop_all")
         self.elapsed = 0.0
         self.state = "stopped"
         self.triggered.clear()
@@ -679,6 +695,7 @@ class CueEngine:
         # Stop also disarms an as-yet-unfired timestamp/follow for this run.
         self.triggered.add(cue["id"])
         self.backend.stop_cue(cue)
+        self._observe_rehearsal("stopped", cue, index)
         self.pending.pop(cue["id"], None)
         self._waiting_preparation.pop(cue["id"], None)
         self.active.pop(cue["id"], None)
@@ -695,10 +712,10 @@ class CueEngine:
         due_follows = [entry for entry in self.follows if entry[0] <= self.elapsed]
         self.follows = [entry for entry in self.follows if entry[0] > self.elapsed]
         for _when, index, _parent in due_follows:
-            self._auto_go(index)
+            self._auto_go(index, "auto_next")
         for index, cue in enumerate(self.cues):
             if cue["enabled"] and cue["at"] is not None and cue["at"] <= self.elapsed and cue["id"] not in self.triggered:
-                self._auto_go(index)
+                self._auto_go(index, "timestamp")
         for cue_id, (index, due, queued) in list(self.pending.items()):
             if cue_id not in self.pending:
                 continue  # A preceding Stop cue cancelled this pending cue.
@@ -731,11 +748,13 @@ class CueEngine:
                         ):
                             self.stop_cue(other_index)
                 self.backend.start(cue, self.elapsed)
+                self._observe_rehearsal("started", cue, index)
                 self.pending.pop(cue_id)
                 self.active[cue_id] = (index, self.elapsed)
                 if cue["follow"] == "continue" and cue_id not in self._suppress_follows:
                     self.follows.append((self.elapsed + cue["postwait"], index + 1, cue_id))
             except Exception as exc:
+                self._observe_rehearsal("error", cue, index, "start_or_readiness")
                 self.errors[cue_id] = str(exc)
                 self.pending.pop(cue_id, None)
                 self._waiting_preparation.pop(cue_id, None)
@@ -751,19 +770,20 @@ class CueEngine:
                 duration = cue["fade"]
             if (duration > 0 and self.elapsed - started >= duration) or (duration == 0 and one_shot):
                 self.backend.finish(cue)
+                self._observe_rehearsal("completed", cue, index)
                 self.active.pop(cue_id)
                 if cue["kind"] == "blackout":
                     self.completed_blackouts.add(cue_id)
                 if cue["follow"] == "follow" and cue_id not in self._suppress_follows:
                     self.follows.append((self.elapsed + cue["postwait"], index + 1, cue_id))
 
-    def _auto_go(self, index):
+    def _auto_go(self, index, trigger):
         # Disabled rows are skipped in an automatic chain, not a dead end.
         while 0 <= index < len(self.cues) and not self.cues[index]["enabled"]:
             index += 1
         if 0 <= index < len(self.cues) and self.cues[index]["id"] not in self.triggered:
             try:
-                self.go(index, wait_for_resources=True)
+                self.go(index, wait_for_resources=True, trigger=trigger)
             except Exception as exc:
                 cue_id = self.cues[index]["id"]
                 self.triggered.add(cue_id)
