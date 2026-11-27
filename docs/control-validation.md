@@ -1,5 +1,29 @@
 # Control validation
 
+## Rehearsal Log — 2026-11-27
+
+Rebuilt and reopened the main TOE in TouchDesigner 2025.32820. The logger
+starts off; both blackouts are on, audio is disabled, and the saved TOE
+contains only the default cue. The native logger test uses a disposable
+Show Control copy and does not open audience windows.
+
+All **18 focused checks** passed against the saved file, including manual
+GO, automatic Continue, crossfade and blackout, save guards, and the local
+report. The first run exposed that a frame-end callback can see a prior
+frame's cook stamp. The logger now compares against the cue source's last
+cook at activation, so it can observe a new render without counting warm-up
+or forcing output to cook.
+
+The final synthetic run logged **one timeline drop and zero encoder drops**.
+Independent decoding confirmed **30 silent H.264 frames at 1920×1080 and
+30 FPS**, matching the Projector Review writer. That check validates the
+counter separation and saved clip, not sustained show throughput. Local
+evidence is in `build/rehearsal-log-20261127/`.
+
+The standard native suite also passed **30 groups / 6,665 checks**. The
+local repository gate passed all **965 tests**, artifact/source hashes,
+immutable package checks, and credential scanning. Saved shows were unchanged.
+
 ## Complete saved-TOE control recheck — 2026-11-19
 
 Built and reopened the clean TOE in TouchDesigner 2025.32820. All **30

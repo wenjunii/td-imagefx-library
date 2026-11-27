@@ -446,6 +446,7 @@ def _check_native_validation(library_version: str) -> None:
     module_sources += ("touchdesigner/scripts/dance_puppet.py", "touchdesigner/scripts/dance_puppet_runtime.py")
     module_sources += ("touchdesigner/scripts/dance_forces.py", "touchdesigner/scripts/dance_forces_runtime.py", "touchdesigner/scripts/dance_forces_math.py")
     module_sources += ("touchdesigner/scripts/show_readiness.py",)
+    module_sources += ("touchdesigner/scripts/show_rehearsal.py", "src/tdimagefx/rehearsal.py")
     module_sources += ("touchdesigner/scripts/cue_projection.py",)
     if record.get("module_sources") != {path: _sha256(ROOT / path) for path in module_sources}:
         raise VerificationError("Native validation is not bound to current module sources")
